@@ -1,5 +1,5 @@
 import os, time, html, json
-from flask import Flask, request, redirect
+from flask import Flask, request, redirect, jsonify
 import requests
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -46,10 +46,66 @@ h2 { font-size:18px; color:#1a1a2e; margin-bottom:4px; }
 .sub { color:#6b7280; font-size:13px; margin-bottom:14px; }
 a.link { color:#3483FA; text-decoration:none; font-weight:600; }
 a.link:hover { text-decoration:underline; }
+.icon-link { text-decoration:none; font-size:16px; margin-left:6px; }
+.input-inline { width:220px; max-width:60%; padding:6px 10px; border:1px solid #d5dbe5; border-radius:6px; font-size:15px; }
+.btn-pequeno { background:#3483FA; color:#fff; border:0; border-radius:6px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer; margin-left:6px; }
 .badge { background:#FFE600; color:#1a1a2e; border-radius:20px; padding:2px 10px; font-size:12px; font-weight:700; }
 .aviso { background:#fff7e0; border:1px solid #ffe28a; color:#8a6d00; border-radius:10px; padding:12px 16px; font-size:14px; margin-bottom:14px; }
 .muted { color:#6b7280; font-size:12px; margin-top:14px; }
+.btn-danger { display:inline-block; background:#d64545; color:#fff; text-decoration:none; padding:6px 14px; border-radius:8px; font-size:13px; font-weight:600; }
+.btn-danger:hover { background:#b93a3a; }
+.btn-salvar { background:#3483FA; color:#fff; border:0; border-radius:8px; padding:12px 20px; font-size:15px; font-weight:600; cursor:pointer; }
+.input { width:100%; padding:12px; border:1px solid #d5dbe5; border-radius:8px; font-size:15px; margin-bottom:12px; }
 </style>
+"""
+
+SCRIPT = """
+<script>
+function editarNome(id){
+  var span = document.getElementById('nome-' + id);
+  if (!span || span.querySelector('input')) { return; }
+  var atual = span.textContent.trim();
+  var caixa = span.parentNode;
+  var input = document.createElement('input');
+  input.value = atual;
+  input.className = 'input-inline';
+  input.maxLength = 120;
+  var btn = document.createElement('button');
+  btn.textContent = 'Salvar';
+  btn.className = 'btn-pequeno';
+  span.style.display = 'none';
+  caixa.appendChild(input);
+  caixa.appendChild(btn);
+  input.focus();
+  function salvar(){
+    var novo = input.value.trim();
+    if (!novo) { alert('O nome não pode ficar vazio.'); return; }
+    fetch('/renomear/' + id, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'cliente=' + encodeURIComponent(novo)
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d.ok) {
+        span.textContent = novo;
+        span.style.display = '';
+        input.remove();
+        btn.remove();
+      } else {
+        alert('Não foi possível salvar. Tente de novo.');
+      }
+    }).catch(function(){ alert('Erro ao salvar. Tente de novo.'); });
+  }
+  btn.onclick = salvar;
+  input.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { salvar(); }
+    if (e.key === 'Escape') {
+      span.style.display = '';
+      input.remove();
+      btn.remove();
+    }
+  });
+}
+</script>
 """
 
 def pagina(titulo, corpo):
@@ -59,7 +115,7 @@ def pagina(titulo, corpo):
             "<div class='top'><div><h1>Keiper Consultoria</h1>"
             "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
             "<a class='btn' href='/'>+ Conectar loja</a></div>"
-            "<div class='wrap'>" + corpo + "</div></body></html>")
+            "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>")
 
 
 def banco():
@@ -141,9 +197,8 @@ def home():
         <h2>Conectar loja ao Mercado Livre</h2>
         <div class='sub'>Digite o nome do cliente e clique em conectar</div>
         <form action='/conectar' method='get' style='margin-top:16px'>
-            <input name='cliente' required placeholder='Nome do cliente'
-              style='width:100%;padding:12px;border:1px solid #d5dbe5;border-radius:8px;font-size:15px;margin-bottom:12px'>
-            <button style='width:100%;padding:13px;background:#3483FA;color:#fff;border:0;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer'>Conectar</button>
+            <input name='cliente' required placeholder='Nome do cliente' class='input'>
+            <button class='btn-salvar' style='width:100%'>Conectar</button>
         </form>
         <p style='margin-top:16px'><a class='link' href='/painel'>Ver painel de lojas</a></p>
     </div>"""
@@ -199,6 +254,16 @@ def status():
     return pagina("Status", corpo)
 
 
+@app.route("/renomear/<int:cid>", methods=["POST"])
+def renomear(cid):
+    novo = (request.form.get("cliente") or "").strip()
+    if not novo:
+        return jsonify({"ok": False}), 400
+    with banco() as conn:
+        executar(conn, "UPDATE conexoes SET cliente=%s WHERE id=%s", (novo, cid))
+    return jsonify({"ok": True})
+
+
 @app.route("/painel")
 def painel():
     with banco() as conn:
@@ -220,18 +285,49 @@ def painel():
         tag = "tag " + (l["status"] if l["status"] in ("ativa", "pausado", "expirada") else "normal")
         cards += ("<div class='card'>"
                   "<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px'>"
-                  "<h2>" + esc(str(l["cliente"])) + "</h2>"
+                  "<h2><span id='nome-" + str(l["id"]) + "'>" + esc(str(l["cliente"])) + "</span> "
+                  "<a class='icon-link' href='#' onclick='editarNome(" + str(l["id"]) + "); return false;' title='Renomear loja'>✏️</a></h2>"
                   "<span class='" + tag + "'>" + esc(l["status"]) + "</span></div>"
                   "<div class='grid' style='margin-top:14px'>"
                   "<div class='stat'><div class='num'>" + str(l["qtd_anuncios"]) + "</div><div class='lab'>Anúncios</div></div>"
                   "<div class='stat'><div class='num'>" + str(l["qtd_pedidos"]) + "</div><div class='lab'>Pedidos</div></div>"
                   "<div class='stat'><div class='num'>" + str(l["qtd_perguntas_pendentes"]) + "</div><div class='lab'>Perguntas p/ responder</div></div>"
                   "</div>"
-                  "<div style='margin-top:14px'><a class='link' href='/painel/" + str(l["id"]) + "'>Abrir detalhes</a>"
-                  " &nbsp;·&nbsp; <a class='link' href='/atualizar?cid=" + str(l["id"]) + "'>Atualizar dados</a></div>"
-                  "</div>")
+                  "<div style='margin-top:14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap'>"
+                  "<a class='link' href='/painel/" + str(l["id"]) + "'>Abrir detalhes</a>"
+                  " <a class='link' href='/atualizar?cid=" + str(l["id"]) + "'>Atualizar dados</a>"
+                  " <a class='btn-danger' href='/excluir/" + str(l["id"]) + "'>Excluir</a>"
+                  "</div></div>")
     corpo = "<h2 style='margin-bottom:16px'>Lojas conectadas</h2>" + cards
     return pagina("Painel", corpo)
+
+
+@app.route("/excluir/<int:cid>", methods=["GET", "POST"])
+def excluir(cid):
+    with banco() as conn:
+        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+        c = c[0] if c else None
+    if not c:
+        return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>")
+    if request.method == "POST":
+        with banco() as conn:
+            for tabela in ("dados_conta", "anuncios", "pedidos", "metricas", "perguntas", "envios", "promocoes", "erros"):
+                executar(conn, "DELETE FROM " + tabela + " WHERE conexao_id=%s", (cid,))
+            executar(conn, "DELETE FROM conexoes WHERE id=%s", (cid,))
+        corpo = ("<div class='card' style='max-width:520px;margin:40px auto;text-align:center'>"
+                 "<h2>Loja excluída com sucesso!</h2>"
+                 "<div class='sub'>Todos os dados dessa loja foram removidos</div>"
+                 "<p style='margin-top:16px'><a class='link' href='/painel'>Voltar ao painel</a></p></div>")
+        return pagina("Excluída", corpo)
+    corpo = ("<div class='card' style='max-width:520px;margin:40px auto;text-align:center'>"
+             "<h2>Excluir loja de " + esc(str(c["cliente"])) + "?</h2>"
+             "<div class='sub'>Essa ação remove a conexão e todos os dados da loja (anúncios, pedidos, métricas, perguntas, envios e promoções). Essa ação não pode ser desfeita.</div>"
+             "<form method='post' action='/excluir/" + str(cid) + "' style='margin-top:16px'>"
+             "<button class='btn-danger' style='padding:13px 24px;font-size:15px'>Sim, excluir</button>"
+             "</form>"
+             "<p style='margin-top:14px'><a class='link' href='/painel'>← Cancelar</a></p>"
+             "</div>")
+    return pagina("Excluir loja", corpo)
 
 
 @app.route("/painel/<int:cid>")
@@ -256,9 +352,13 @@ def painel_detalhe(cid):
         return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>")
 
     corpo = ("<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:18px'>"
-             "<h2>" + esc(str(c["cliente"])) + "</h2>"
-             "<div><a class='link' href='/painel'>← Voltar</a> &nbsp;·&nbsp; "
-             "<a class='link' href='/atualizar?cid=" + str(cid) + "'>Atualizar agora</a></div></div>")
+             "<h2><span id='nome-" + str(cid) + "'>" + esc(str(c["cliente"])) + "</span> "
+             "<a class='icon-link' href='#' onclick='editarNome(" + str(cid) + "); return false;' title='Renomear loja'>✏️</a></h2>"
+             "<div style='display:flex;gap:14px;align-items:center;flex-wrap:wrap'>"
+             "<a class='link' href='/painel'>← Voltar</a>"
+             "<a class='link' href='/atualizar?cid=" + str(cid) + "'>Atualizar agora</a>"
+             "<a class='btn-danger' href='/excluir/" + str(cid) + "'>Excluir</a>"
+             "</div></div>")
 
     if conta:
         corpo += ("<div class='card'><h2>Conta</h2><div class='sub'>Informações do vendedor</div>"
