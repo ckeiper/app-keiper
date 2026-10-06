@@ -106,10 +106,6 @@ def iniciar_banco():
             total REAL, moeda TEXT, fechado_em TEXT, atualizado_em BIGINT,
             UNIQUE(conexao_id, pedido_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS financeiro (
-            conexao_id INTEGER PRIMARY KEY,
-            saldo REAL, detalhe TEXT, atualizado_em BIGINT
-        )""")
         executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
             visitas INTEGER, conversao REAL, atualizado_em BIGINT,
@@ -124,6 +120,11 @@ def iniciar_banco():
             conexao_id INTEGER, envio_id TEXT, status TEXT, tracking TEXT,
             pedido_id TEXT, data TEXT, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, envio_id)
+        )""")
+        executar(conn, """CREATE TABLE IF NOT EXISTS promocoes (
+            conexao_id INTEGER, promocao_id TEXT, tipo TEXT, nome TEXT,
+            status TEXT, inicio TEXT, fim TEXT, qtd_itens INTEGER, atualizado_em BIGINT,
+            PRIMARY KEY (conexao_id, promocao_id)
         )""")
         executar(conn, """CREATE TABLE IF NOT EXISTS erros (
             conexao_id INTEGER, categoria TEXT, mensagem TEXT, quando BIGINT,
@@ -205,7 +206,7 @@ def painel():
             SELECT c.id, c.cliente, c.user_id, c.status,
               (SELECT COUNT(*) FROM anuncios a WHERE a.conexao_id=c.id) qtd_anuncios,
               (SELECT COUNT(*) FROM pedidos p WHERE p.conexao_id=c.id) qtd_pedidos,
-              (SELECT saldo FROM financeiro f WHERE f.conexao_id=c.id) saldo
+              (SELECT COUNT(*) FROM perguntas q WHERE q.conexao_id=c.id AND q.status != 'ANSWERED') qtd_perguntas_pendentes
             FROM conexoes c ORDER BY c.id
         """)
     if not linhas:
@@ -216,7 +217,6 @@ def painel():
         return pagina("Painel", corpo)
     cards = ""
     for l in linhas:
-        saldo_txt = ("R$ %.2f" % l["saldo"]) if l["saldo"] is not None else "-"
         tag = "tag " + (l["status"] if l["status"] in ("ativa", "pausado", "expirada") else "normal")
         cards += ("<div class='card'>"
                   "<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px'>"
@@ -225,7 +225,7 @@ def painel():
                   "<div class='grid' style='margin-top:14px'>"
                   "<div class='stat'><div class='num'>" + str(l["qtd_anuncios"]) + "</div><div class='lab'>Anúncios</div></div>"
                   "<div class='stat'><div class='num'>" + str(l["qtd_pedidos"]) + "</div><div class='lab'>Pedidos</div></div>"
-                  "<div class='stat'><div class='num'>" + saldo_txt + "</div><div class='lab'>Saldo</div></div>"
+                  "<div class='stat'><div class='num'>" + str(l["qtd_perguntas_pendentes"]) + "</div><div class='lab'>Perguntas p/ responder</div></div>"
                   "</div>"
                   "<div style='margin-top:14px'><a class='link' href='/painel/" + str(l["id"]) + "'>Abrir detalhes</a>"
                   " &nbsp;·&nbsp; <a class='link' href='/atualizar?cid=" + str(l["id"]) + "'>Atualizar dados</a></div>"
@@ -241,8 +241,6 @@ def painel_detalhe(cid):
         c = c[0] if c else None
         conta = consultar(conn, "SELECT * FROM dados_conta WHERE conexao_id=%s", (cid,))
         conta = conta[0] if conta else None
-        fin = consultar(conn, "SELECT * FROM financeiro WHERE conexao_id=%s", (cid,))
-        fin = fin[0] if fin else None
         anuncios = consultar(conn, "SELECT * FROM anuncios WHERE conexao_id=%s ORDER BY vendidos DESC LIMIT 100", (cid,))
         pedidos = consultar(conn, "SELECT * FROM pedidos WHERE conexao_id=%s ORDER BY fechado_em DESC LIMIT 100", (cid,))
         metricas = consultar(conn, """
@@ -252,6 +250,7 @@ def painel_detalhe(cid):
         """, (cid,))
         perguntas = consultar(conn, "SELECT * FROM perguntas WHERE conexao_id=%s ORDER BY data DESC LIMIT 100", (cid,))
         envios = consultar(conn, "SELECT * FROM envios WHERE conexao_id=%s ORDER BY data DESC LIMIT 100", (cid,))
+        promos = consultar(conn, "SELECT * FROM promocoes WHERE conexao_id=%s ORDER BY fim DESC LIMIT 100", (cid,))
         erros = consultar(conn, "SELECT * FROM erros WHERE conexao_id=%s", (cid,))
     if not c:
         return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>")
@@ -269,12 +268,6 @@ def painel_detalhe(cid):
                   "<div class='stat'><div class='num'>" + esc(str(conta["reputacao"])) + "</div><div class='lab'>Reputação</div></div>"
                   "<div class='stat'><div class='num'>" + str(conta["pontos"]) + "</div><div class='lab'>Vendas concluídas</div></div>"
                   "</div></div>")
-
-    if fin:
-        saldo_txt = ("R$ %.2f" % fin["saldo"]) if fin["saldo"] is not None else "-"
-        corpo += ("<div class='card'><h2>Financeiro</h2><div class='sub'>Saldo disponível na conta</div>"
-                  "<div class='grid'><div class='stat'><div class='num'>" + saldo_txt + "</div><div class='lab'>Saldo</div></div></div>"
-                  "</div>")
 
     if anuncios:
         linhas_html = ""
@@ -326,6 +319,26 @@ def painel_detalhe(cid):
                   "<table><thead><tr><th>Envio</th><th>Status</th><th>Rastreio</th><th>Pedido</th><th>Data</th></tr></thead>"
                   "<tbody>" + linhas_html + "</tbody></table></div>")
 
+    if promos:
+        linhas_html = ""
+        for pr in promos:
+            st = str(pr["status"])
+            if st == "active":
+                tag, st_txt = "tag ativa", "ativa"
+            elif st == "candidate":
+                tag, st_txt = "tag pendente", "candidata"
+            elif st == "paused":
+                tag, st_txt = "tag expirada", "pausada"
+            else:
+                tag, st_txt = "tag normal", "finalizada"
+            linhas_html += ("<tr><td>" + esc(str(pr["nome"]) or "-") + "</td><td><span class='" + tag + "'>" + st_txt + "</span></td>"
+                            "<td>" + esc(str(pr["tipo"]) or "-") + "</td><td>" + esc(str(pr["inicio"]) or "-") + "</td>"
+                            "<td>" + esc(str(pr["fim"]) or "-") + "</td><td>" + str(pr["qtd_itens"] or 0) + "</td></tr>")
+        corpo += ("<div class='card'><h2>Promoções <span class='badge'>" + str(len(promos)) + "</span></h2>"
+                  "<div class='sub'>Promoções e ofertas da loja</div>"
+                  "<table><thead><tr><th>Nome</th><th>Status</th><th>Tipo</th><th>Início</th><th>Fim</th><th>Itens</th></tr></thead>"
+                  "<tbody>" + linhas_html + "</tbody></table></div>")
+
     if pedidos:
         linhas_html = ""
         for p in pedidos:
@@ -340,8 +353,11 @@ def painel_detalhe(cid):
     if erros:
         avisos = ""
         for e in erros:
+            if e["categoria"] == "financeiro":
+                continue
             avisos += "<div>" + esc(e["categoria"]) + ": " + esc(e["mensagem"]) + "</div>"
-        corpo += "<div class='aviso'><b>Avisos:</b> " + avisos + "</div>"
+        if avisos:
+            corpo += "<div class='aviso'><b>Avisos:</b> " + avisos + "</div>"
 
     corpo += "<div class='muted'>Os dados são atualizados automaticamente a cada hora.</div>"
     return pagina("Painel de " + str(c["cliente"]), corpo)
@@ -366,10 +382,10 @@ def atualizar():
     if user_id:
         puxar_anuncios(c["id"], token, user_id)
         puxar_pedidos(c["id"], token, user_id)
-        puxar_financeiro(c["id"], token, user_id)
         puxar_metricas(c["id"], token)
         puxar_perguntas(c["id"], token, user_id)
         puxar_envios(c["id"], token, user_id)
+        puxar_promocoes(c["id"], token, user_id)
     if cid:
         return redirect("/painel/" + str(cid))
     return redirect("/painel")
@@ -573,6 +589,45 @@ def puxar_envios(conexao_id, token, user_id):
                       s.get("order_id"), s.get("date_created"), agora))
 
 
+def puxar_promocoes(conexao_id, token, user_id):
+    promos = []
+    viu_erro = None
+    for st in ("active", "candidate", "paused", "finished"):
+        dados, erro = api_get(token, "/sellers/" + str(user_id) + "/promotions",
+                              {"promotion_type": "PRICE_DISCOUNT", "status": st, "limit": 50})
+        if erro:
+            if not viu_erro:
+                viu_erro = erro
+            continue
+        if isinstance(dados, dict):
+            lista = dados.get("results") or []
+        else:
+            lista = dados or []
+        for p in lista:
+            promos.append(p)
+    if viu_erro and not promos:
+        registrar_erro(conexao_id, "promocoes", viu_erro)
+        return
+    if not promos:
+        registrar_erro(conexao_id, "promocoes", "nenhuma promoção retornada")
+        return
+    agora = int(time.time())
+    with banco() as conn:
+        executar(conn, "DELETE FROM promocoes WHERE conexao_id=%s", (conexao_id,))
+        for p in promos:
+            itens = p.get("items")
+            qtd = len(itens) if isinstance(itens, list) else None
+            executar(conn, """INSERT INTO promocoes
+                            (conexao_id, promocao_id, tipo, nome, status, inicio, fim, qtd_itens, atualizado_em)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                            ON CONFLICT (conexao_id, promocao_id) DO UPDATE SET
+                              tipo=EXCLUDED.tipo, nome=EXCLUDED.nome, status=EXCLUDED.status,
+                              inicio=EXCLUDED.inicio, fim=EXCLUDED.fim, qtd_itens=EXCLUDED.qtd_itens,
+                              atualizado_em=EXCLUDED.atualizado_em""",
+                     (conexao_id, str(p.get("id")), p.get("type") or p.get("promotion_type"),
+                      p.get("name"), p.get("status"), p.get("start_date"), p.get("end_date"), qtd, agora))
+
+
 def puxar_pedidos(conexao_id, token, user_id):
     lista = []
     offset = 0
@@ -603,21 +658,6 @@ def puxar_pedidos(conexao_id, token, user_id):
                               fechado_em=EXCLUDED.fechado_em, atualizado_em=EXCLUDED.atualizado_em""", lista)
 
 
-def puxar_financeiro(conexao_id, token, user_id):
-    dados, erro = api_get(token, "/v1/balance", {"user_id": user_id})
-    if erro or not dados:
-        registrar_erro(conexao_id, "financeiro", erro or "sem resposta")
-        return
-    saldo = dados.get("available_balance") or dados.get("balance")
-    detalhe = json.dumps(dados, ensure_ascii=False)[:2000]
-    with banco() as conn:
-        executar(conn, """INSERT INTO financeiro (conexao_id, saldo, detalhe, atualizado_em)
-                        VALUES (%s,%s,%s,%s)
-                        ON CONFLICT (conexao_id) DO UPDATE SET
-                          saldo=EXCLUDED.saldo, detalhe=EXCLUDED.detalhe, atualizado_em=EXCLUDED.atualizado_em""",
-                 (conexao_id, saldo, detalhe, int(time.time())))
-
-
 def job_dados():
     with banco() as conn:
         conexoes = consultar(conn, "SELECT * FROM conexoes WHERE status='ativa'")
@@ -629,10 +669,10 @@ def job_dados():
         if c["user_id"]:
             puxar_anuncios(c["id"], token, c["user_id"])
             puxar_pedidos(c["id"], token, c["user_id"])
-            puxar_financeiro(c["id"], token, c["user_id"])
             puxar_metricas(c["id"], token)
             puxar_perguntas(c["id"], token, c["user_id"])
             puxar_envios(c["id"], token, c["user_id"])
+            puxar_promocoes(c["id"], token, c["user_id"])
 
 
 iniciar_banco()
