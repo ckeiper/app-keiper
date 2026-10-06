@@ -40,12 +40,13 @@ tr:hover td { background:#fafbff; }
 .tag.pausado { background:#fdeaea; color:#d64545; }
 .tag.expirada { background:#fdeaea; color:#d64545; }
 .tag.normal { background:#eef1f5; color:#6b7280; }
+.tag.respondida { background:#e6f7ee; color:#1a9d5c; }
+.tag.pendente { background:#fff7e0; color:#8a6d00; }
 h2 { font-size:18px; color:#1a1a2e; margin-bottom:4px; }
 .sub { color:#6b7280; font-size:13px; margin-bottom:14px; }
 a.link { color:#3483FA; text-decoration:none; font-weight:600; }
 a.link:hover { text-decoration:underline; }
 .badge { background:#FFE600; color:#1a1a2e; border-radius:20px; padding:2px 10px; font-size:12px; font-weight:700; }
-.empty { color:#6b7280; font-size:14px; padding:14px 0; }
 .aviso { background:#fff7e0; border:1px solid #ffe28a; color:#8a6d00; border-radius:10px; padding:12px 16px; font-size:14px; margin-bottom:14px; }
 .muted { color:#6b7280; font-size:12px; margin-top:14px; }
 </style>
@@ -113,6 +114,16 @@ def iniciar_banco():
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
             visitas INTEGER, conversao REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, item_id)
+        )""")
+        executar(conn, """CREATE TABLE IF NOT EXISTS perguntas (
+            conexao_id INTEGER, pergunta_id TEXT, item_id TEXT, texto TEXT,
+            status TEXT, resposta TEXT, data TEXT, atualizado_em BIGINT,
+            PRIMARY KEY (conexao_id, pergunta_id)
+        )""")
+        executar(conn, """CREATE TABLE IF NOT EXISTS envios (
+            conexao_id INTEGER, envio_id TEXT, status TEXT, tracking TEXT,
+            pedido_id TEXT, data TEXT, atualizado_em BIGINT,
+            PRIMARY KEY (conexao_id, envio_id)
         )""")
         executar(conn, """CREATE TABLE IF NOT EXISTS erros (
             conexao_id INTEGER, categoria TEXT, mensagem TEXT, quando BIGINT,
@@ -239,6 +250,8 @@ def painel_detalhe(cid):
             FROM metricas m LEFT JOIN anuncios a ON a.conexao_id=m.conexao_id AND a.item_id=m.item_id
             WHERE m.conexao_id=%s ORDER BY m.vendidos DESC LIMIT 100
         """, (cid,))
+        perguntas = consultar(conn, "SELECT * FROM perguntas WHERE conexao_id=%s ORDER BY data DESC LIMIT 100", (cid,))
+        envios = consultar(conn, "SELECT * FROM envios WHERE conexao_id=%s ORDER BY data DESC LIMIT 100", (cid,))
         erros = consultar(conn, "SELECT * FROM erros WHERE conexao_id=%s", (cid,))
     if not c:
         return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>")
@@ -286,6 +299,33 @@ def painel_detalhe(cid):
                   "<table><thead><tr><th>Anúncio</th><th>Vendidos</th><th>Visitas</th><th>Conversão</th></tr></thead>"
                   "<tbody>" + linhas_html + "</tbody></table></div>")
 
+    if perguntas:
+        linhas_html = ""
+        for q in perguntas:
+            tag = "tag " + ("respondida" if q["status"] == "ANSWERED" else "pendente")
+            resp_txt = esc(str(q["resposta"]) or "-")
+            if len(resp_txt) > 80:
+                resp_txt = resp_txt[:80] + "..."
+            linhas_html += ("<tr><td>" + esc(str(q["texto"])) + "</td><td>" + str(q["item_id"]) +
+                            "</td><td><span class='" + tag + "'>" + ("Respondida" if q["status"] == "ANSWERED" else "Pendente") +
+                            "</span></td><td>" + resp_txt + "</td></tr>")
+        corpo += ("<div class='card'><h2>Perguntas <span class='badge'>" + str(len(perguntas)) + "</span></h2>"
+                  "<div class='sub'>Perguntas dos clientes nos anúncios</div>"
+                  "<table><thead><tr><th>Pergunta</th><th>Anúncio</th><th>Status</th><th>Resposta</th></tr></thead>"
+                  "<tbody>" + linhas_html + "</tbody></table></div>")
+
+    if envios:
+        linhas_html = ""
+        for s in envios:
+            tag = "tag normal"
+            linhas_html += ("<tr><td>" + str(s["envio_id"]) + "</td><td>" + esc(str(s["status"])) +
+                            "</td><td>" + esc(str(s["tracking"]) or "-") + "</td><td>" + str(s["pedido_id"]) +
+                            "</td><td>" + esc(str(s["data"])) + "</td></tr>")
+        corpo += ("<div class='card'><h2>Envios <span class='badge'>" + str(len(envios)) + "</span></h2>"
+                  "<div class='sub'>Status e rastreio dos envios</div>"
+                  "<table><thead><tr><th>Envio</th><th>Status</th><th>Rastreio</th><th>Pedido</th><th>Data</th></tr></thead>"
+                  "<tbody>" + linhas_html + "</tbody></table></div>")
+
     if pedidos:
         linhas_html = ""
         for p in pedidos:
@@ -328,6 +368,8 @@ def atualizar():
         puxar_pedidos(c["id"], token, user_id)
         puxar_financeiro(c["id"], token, user_id)
         puxar_metricas(c["id"], token)
+        puxar_perguntas(c["id"], token, user_id)
+        puxar_envios(c["id"], token, user_id)
     if cid:
         return redirect("/painel/" + str(cid))
     return redirect("/painel")
@@ -487,6 +529,50 @@ def puxar_metricas(conexao_id, token):
         registrar_erro(conexao_id, "metricas", "nenhum dado de visita retornado")
 
 
+def puxar_perguntas(conexao_id, token, user_id):
+    dados, erro = api_get(token, "/questions/search",
+                          {"seller_id": user_id, "api_version": 4, "limit": 50})
+    if erro or not dados:
+        registrar_erro(conexao_id, "perguntas", erro or "sem resposta")
+        return
+    perguntas = dados.get("questions") or []
+    agora = int(time.time())
+    with banco() as conn:
+        executar(conn, "DELETE FROM perguntas WHERE conexao_id=%s", (conexao_id,))
+    for q in perguntas:
+        resp = q.get("answer") or {}
+        with banco() as conn:
+            executar(conn, """INSERT INTO perguntas
+                            (conexao_id, pergunta_id, item_id, texto, status, resposta, data, atualizado_em)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+                            ON CONFLICT (conexao_id, pergunta_id) DO UPDATE SET
+                              item_id=EXCLUDED.item_id, texto=EXCLUDED.texto, status=EXCLUDED.status,
+                              resposta=EXCLUDED.resposta, data=EXCLUDED.data, atualizado_em=EXCLUDED.atualizado_em""",
+                     (conexao_id, str(q.get("id")), q.get("item_id"), q.get("text"),
+                      q.get("status"), resp.get("text"), q.get("date_created"), agora))
+
+
+def puxar_envios(conexao_id, token, user_id):
+    dados, erro = api_get(token, "/shipments/search", {"seller_id": user_id, "limit": 50})
+    if erro or not dados:
+        registrar_erro(conexao_id, "envios", erro or "sem resposta")
+        return
+    resultados = dados.get("results") or []
+    agora = int(time.time())
+    with banco() as conn:
+        executar(conn, "DELETE FROM envios WHERE conexao_id=%s", (conexao_id,))
+    for s in resultados:
+        with banco() as conn:
+            executar(conn, """INSERT INTO envios
+                            (conexao_id, envio_id, status, tracking, pedido_id, data, atualizado_em)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s)
+                            ON CONFLICT (conexao_id, envio_id) DO UPDATE SET
+                              status=EXCLUDED.status, tracking=EXCLUDED.tracking,
+                              pedido_id=EXCLUDED.pedido_id, data=EXCLUDED.data, atualizado_em=EXCLUDED.atualizado_em""",
+                     (conexao_id, str(s.get("id")), s.get("status"), s.get("tracking_number"),
+                      s.get("order_id"), s.get("date_created"), agora))
+
+
 def puxar_pedidos(conexao_id, token, user_id):
     lista = []
     offset = 0
@@ -545,6 +631,8 @@ def job_dados():
             puxar_pedidos(c["id"], token, c["user_id"])
             puxar_financeiro(c["id"], token, c["user_id"])
             puxar_metricas(c["id"], token)
+            puxar_perguntas(c["id"], token, c["user_id"])
+            puxar_envios(c["id"], token, c["user_id"])
 
 
 iniciar_banco()
