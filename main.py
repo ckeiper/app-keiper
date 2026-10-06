@@ -1,11 +1,14 @@
-import os, time, sqlite3, html, json
+import os, time, html, json
 from flask import Flask, request, redirect
 import requests
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from apscheduler.schedulers.background import BackgroundScheduler
 
 CLIENT_ID = os.getenv("ML_CLIENT_ID")
 CLIENT_SECRET = os.getenv("ML_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("ML_REDIRECT_URI")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 API = "https://api.mercadolibre.com"
 AUTH_URL = "https://auth.mercadolivre.com.br/authorization"
@@ -59,50 +62,60 @@ def pagina(titulo, corpo):
 
 
 def banco():
-    conn = sqlite3.connect("app.db")
-    conn.row_factory = sqlite3.Row
-    return conn
+    return psycopg2.connect(DATABASE_URL)
+
+
+def consultar(conn, sql, params=None):
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(sql, params or ())
+    return cur.fetchall()
+
+
+def executar(conn, sql, params=None):
+    cur = conn.cursor()
+    cur.execute(sql, params or ())
+    return cur
 
 
 def iniciar_banco():
     with banco() as conn:
-        conn.execute("""CREATE TABLE IF NOT EXISTS conexoes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        executar(conn, """CREATE TABLE IF NOT EXISTS conexoes (
+            id SERIAL PRIMARY KEY,
             cliente TEXT NOT NULL,
-            user_id INTEGER,
+            user_id BIGINT,
             access_token TEXT,
             refresh_token TEXT,
-            expires_at INTEGER,
+            expires_at BIGINT,
             status TEXT DEFAULT 'ativa'
         )""")
-        conn.execute("""CREATE TABLE IF NOT EXISTS dados_conta (
+        executar(conn, """CREATE TABLE IF NOT EXISTS dados_conta (
             conexao_id INTEGER PRIMARY KEY,
-            user_id INTEGER, nickname TEXT, nome TEXT, sobrenome TEXT,
-            reputacao TEXT, pontos INTEGER, atualizado_em INTEGER
+            user_id BIGINT, nickname TEXT, nome TEXT, sobrenome TEXT,
+            reputacao TEXT, pontos INTEGER, atualizado_em BIGINT
         )""")
-        conn.execute("""CREATE TABLE IF NOT EXISTS anuncios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        executar(conn, """CREATE TABLE IF NOT EXISTS anuncios (
+            id SERIAL PRIMARY KEY,
             conexao_id INTEGER, item_id TEXT, titulo TEXT, preco REAL,
-            quantidade INTEGER, status TEXT, vendidos INTEGER, atualizado_em INTEGER,
+            quantidade INTEGER, status TEXT, vendidos INTEGER, atualizado_em BIGINT,
             UNIQUE(conexao_id, item_id)
         )""")
-        conn.execute("""CREATE TABLE IF NOT EXISTS pedidos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        executar(conn, """CREATE TABLE IF NOT EXISTS pedidos (
+            id SERIAL PRIMARY KEY,
             conexao_id INTEGER, pedido_id TEXT, status TEXT,
-            total REAL, moeda TEXT, fechado_em TEXT, atualizado_em INTEGER,
+            total REAL, moeda TEXT, fechado_em TEXT, atualizado_em BIGINT,
             UNIQUE(conexao_id, pedido_id)
         )""")
-        conn.execute("""CREATE TABLE IF NOT EXISTS financeiro (
+        executar(conn, """CREATE TABLE IF NOT EXISTS financeiro (
             conexao_id INTEGER PRIMARY KEY,
-            saldo REAL, detalhe TEXT, atualizado_em INTEGER
+            saldo REAL, detalhe TEXT, atualizado_em BIGINT
         )""")
-        conn.execute("""CREATE TABLE IF NOT EXISTS metricas (
+        executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
-            visitas INTEGER, conversao REAL, atualizado_em INTEGER,
+            visitas INTEGER, conversao REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, item_id)
         )""")
-        conn.execute("""CREATE TABLE IF NOT EXISTS erros (
-            conexao_id INTEGER, categoria TEXT, mensagem TEXT, quando INTEGER,
+        executar(conn, """CREATE TABLE IF NOT EXISTS erros (
+            conexao_id INTEGER, categoria TEXT, mensagem TEXT, quando BIGINT,
             PRIMARY KEY (conexao_id, categoria)
         )""")
 
@@ -147,10 +160,10 @@ def callback():
     if "access_token" not in dados:
         return pagina("Erro", "<div class='card'><h2>Erro ao conectar</h2><p>" + esc(str(dados)) + "</p></div>")
     with banco() as conn:
-        conn.execute("DELETE FROM conexoes WHERE cliente = ?", (cliente,))
-        conn.execute("INSERT INTO conexoes (cliente, user_id, access_token, refresh_token, expires_at) VALUES (?, ?, ?, ?, ?)",
-                     (cliente, dados.get("user_id"), dados["access_token"], dados["refresh_token"],
-                      int(time.time()) + dados["expires_in"]))
+        executar(conn, "DELETE FROM conexoes WHERE cliente = %s", (cliente,))
+        executar(conn, "INSERT INTO conexoes (cliente, user_id, access_token, refresh_token, expires_at) VALUES (%s, %s, %s, %s, %s)",
+                 (cliente, dados.get("user_id"), dados["access_token"], dados["refresh_token"],
+                  int(time.time()) + dados["expires_in"]))
     corpo = ("<div class='card' style='max-width:520px;margin:40px auto;text-align:center'>"
              "<h2>Loja de " + esc(cliente) + " conectada com sucesso!</h2>"
              "<div class='sub'>Os dados serão carregados automaticamente</div>"
@@ -161,7 +174,7 @@ def callback():
 @app.route("/status")
 def status():
     with banco() as conn:
-        linhas = conn.execute("SELECT cliente, user_id, status, expires_at FROM conexoes").fetchall()
+        linhas = consultar(conn, "SELECT cliente, user_id, status, expires_at FROM conexoes")
     linhas_html = ""
     for l in linhas:
         quando = time.strftime("%d/%m/%Y %H:%M", time.localtime(l["expires_at"])) if l["expires_at"] else "-"
@@ -177,13 +190,13 @@ def status():
 @app.route("/painel")
 def painel():
     with banco() as conn:
-        linhas = conn.execute("""
+        linhas = consultar(conn, """
             SELECT c.id, c.cliente, c.user_id, c.status,
               (SELECT COUNT(*) FROM anuncios a WHERE a.conexao_id=c.id) qtd_anuncios,
               (SELECT COUNT(*) FROM pedidos p WHERE p.conexao_id=c.id) qtd_pedidos,
               (SELECT saldo FROM financeiro f WHERE f.conexao_id=c.id) saldo
             FROM conexoes c ORDER BY c.id
-        """).fetchall()
+        """)
     if not linhas:
         corpo = ("<div class='card' style='text-align:center;padding:50px'>"
                  "<h2>Nenhuma loja conectada ainda</h2>"
@@ -213,17 +226,20 @@ def painel():
 @app.route("/painel/<int:cid>")
 def painel_detalhe(cid):
     with banco() as conn:
-        c = conn.execute("SELECT * FROM conexoes WHERE id=?", (cid,)).fetchone()
-        conta = conn.execute("SELECT * FROM dados_conta WHERE conexao_id=?", (cid,)).fetchone()
-        fin = conn.execute("SELECT * FROM financeiro WHERE conexao_id=?", (cid,)).fetchone()
-        anuncios = conn.execute("SELECT * FROM anuncios WHERE conexao_id=? ORDER BY vendidos DESC LIMIT 100", (cid,)).fetchall()
-        pedidos = conn.execute("SELECT * FROM pedidos WHERE conexao_id=? ORDER BY fechado_em DESC LIMIT 100", (cid,)).fetchall()
-        metricas = conn.execute("""
+        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+        c = c[0] if c else None
+        conta = consultar(conn, "SELECT * FROM dados_conta WHERE conexao_id=%s", (cid,))
+        conta = conta[0] if conta else None
+        fin = consultar(conn, "SELECT * FROM financeiro WHERE conexao_id=%s", (cid,))
+        fin = fin[0] if fin else None
+        anuncios = consultar(conn, "SELECT * FROM anuncios WHERE conexao_id=%s ORDER BY vendidos DESC LIMIT 100", (cid,))
+        pedidos = consultar(conn, "SELECT * FROM pedidos WHERE conexao_id=%s ORDER BY fechado_em DESC LIMIT 100", (cid,))
+        metricas = consultar(conn, """
             SELECT a.titulo, m.vendidos, m.visitas, m.conversao
             FROM metricas m LEFT JOIN anuncios a ON a.conexao_id=m.conexao_id AND a.item_id=m.item_id
-            WHERE m.conexao_id=? ORDER BY m.vendidos DESC LIMIT 100
-        """, (cid,)).fetchall()
-        erros = conn.execute("SELECT * FROM erros WHERE conexao_id=?", (cid,)).fetchall()
+            WHERE m.conexao_id=%s ORDER BY m.vendidos DESC LIMIT 100
+        """, (cid,))
+        erros = consultar(conn, "SELECT * FROM erros WHERE conexao_id=%s", (cid,))
     if not c:
         return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>")
 
@@ -296,9 +312,10 @@ def atualizar():
     cid = request.args.get("cid", type=int)
     with banco() as conn:
         if cid:
-            c = conn.execute("SELECT * FROM conexoes WHERE id=?", (cid,)).fetchone()
+            c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         else:
-            c = conn.execute("SELECT * FROM conexoes WHERE status='ativa' ORDER BY id LIMIT 1").fetchone()
+            c = consultar(conn, "SELECT * FROM conexoes WHERE status='ativa' ORDER BY id LIMIT 1")
+        c = c[0] if c else None
     if not c:
         return pagina("Sem loja", "<div class='card'><h2>Nenhuma loja conectada</h2><p><a class='link' href='/'>Conectar</a></p></div>")
     token = token_atual(c)
@@ -337,23 +354,22 @@ def token_atual(c):
         registrar_erro(c["id"], "token", str(dados)[:200])
         return None
     with banco() as conn:
-        conn.execute("UPDATE conexoes SET access_token=?, refresh_token=?, expires_at=?, status='ativa' WHERE id=?",
-                     (dados["access_token"], dados["refresh_token"], agora + dados["expires_in"], c["id"]))
+        executar(conn, "UPDATE conexoes SET access_token=%s, refresh_token=%s, expires_at=%s, status='ativa' WHERE id=%s",
+                 (dados["access_token"], dados["refresh_token"], agora + dados["expires_in"], c["id"]))
     return dados["access_token"]
 
 
 def job_refresh():
     agora = int(time.time())
     with banco() as conn:
-        conexoes = conn.execute("SELECT * FROM conexoes WHERE status='ativa' AND expires_at < ?",
-                                (agora + 1800,)).fetchall()
+        conexoes = consultar(conn, "SELECT * FROM conexoes WHERE status='ativa' AND expires_at < %s", (agora + 1800,))
         for c in conexoes:
             try:
                 dados = renovar(c["refresh_token"])
-                conn.execute("UPDATE conexoes SET access_token=?, refresh_token=?, expires_at=?, status='ativa' WHERE id=?",
-                             (dados["access_token"], dados["refresh_token"], agora + dados["expires_in"], c["id"]))
+                executar(conn, "UPDATE conexoes SET access_token=%s, refresh_token=%s, expires_at=%s, status='ativa' WHERE id=%s",
+                         (dados["access_token"], dados["refresh_token"], agora + dados["expires_in"], c["id"]))
             except Exception:
-                conn.execute("UPDATE conexoes SET status='expirada' WHERE id=?", (c["id"],))
+                executar(conn, "UPDATE conexoes SET status='expirada' WHERE id=%s", (c["id"],))
 
 
 # ---------- PUXAR DADOS ----------
@@ -371,11 +387,11 @@ def api_get(token, path, params=None):
 
 def registrar_erro(conexao_id, categoria, mensagem):
     with banco() as conn:
-        conn.execute("""INSERT INTO erros (conexao_id, categoria, mensagem, quando)
-                        VALUES (?,?,?,?)
-                        ON CONFLICT(conexao_id, categoria)
-                        DO UPDATE SET mensagem=excluded.mensagem, quando=excluded.quando""",
-                     (conexao_id, categoria, (mensagem or "")[:300], int(time.time())))
+        executar(conn, """INSERT INTO erros (conexao_id, categoria, mensagem, quando)
+                        VALUES (%s,%s,%s,%s)
+                        ON CONFLICT (conexao_id, categoria)
+                        DO UPDATE SET mensagem=EXCLUDED.mensagem, quando=EXCLUDED.quando""",
+                 (conexao_id, categoria, (mensagem or "")[:300], int(time.time())))
 
 
 def puxar_conta(conexao_id, token):
@@ -388,14 +404,14 @@ def puxar_conta(conexao_id, token):
     sales = metricas.get("sales") or {}
     pontos = sales.get("completed") or rep.get("transactions_completed")
     with banco() as conn:
-        conn.execute("""INSERT INTO dados_conta (conexao_id, user_id, nickname, nome, sobrenome, reputacao, pontos, atualizado_em)
-                        VALUES (?,?,?,?,?,?,?,?)
-                        ON CONFLICT(conexao_id) DO UPDATE SET
-                          user_id=excluded.user_id, nickname=excluded.nickname, nome=excluded.nome,
-                          sobrenome=excluded.sobrenome, reputacao=excluded.reputacao,
-                          pontos=excluded.pontos, atualizado_em=excluded.atualizado_em""",
-                     (conexao_id, dados.get("id"), dados.get("nickname"), dados.get("first_name"),
-                      dados.get("last_name"), rep.get("level_id"), pontos, int(time.time())))
+        executar(conn, """INSERT INTO dados_conta (conexao_id, user_id, nickname, nome, sobrenome, reputacao, pontos, atualizado_em)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+                        ON CONFLICT (conexao_id) DO UPDATE SET
+                          user_id=EXCLUDED.user_id, nickname=EXCLUDED.nickname, nome=EXCLUDED.nome,
+                          sobrenome=EXCLUDED.sobrenome, reputacao=EXCLUDED.reputacao,
+                          pontos=EXCLUDED.pontos, atualizado_em=EXCLUDED.atualizado_em""",
+                 (conexao_id, dados.get("id"), dados.get("nickname"), dados.get("first_name"),
+                  dados.get("last_name"), rep.get("level_id"), pontos, int(time.time())))
 
 
 def puxar_anuncios(conexao_id, token, user_id):
@@ -416,25 +432,26 @@ def puxar_anuncios(conexao_id, token, user_id):
             break
     agora = int(time.time())
     with banco() as conn:
-        conn.execute("DELETE FROM anuncios WHERE conexao_id=?", (conexao_id,))
+        executar(conn, "DELETE FROM anuncios WHERE conexao_id=%s", (conexao_id,))
     for item_id in ids:
         det, det_erro = api_get(token, "/items/" + str(item_id),
                                 {"attributes": "id,title,price,available_quantity,status,sold_quantity"})
         if det_erro or not det:
             continue
         with banco() as conn:
-            conn.execute("""INSERT OR REPLACE INTO anuncios
+            executar(conn, """INSERT INTO anuncios
                             (conexao_id, item_id, titulo, preco, quantidade, status, vendidos, atualizado_em)
-                            VALUES (?,?,?,?,?,?,?,?)""",
-                         (conexao_id, det.get("id"), det.get("title"), det.get("price"),
-                          det.get("available_quantity"), det.get("status"), det.get("sold_quantity"), agora))
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+                            ON CONFLICT (conexao_id, item_id) DO UPDATE SET
+                              titulo=EXCLUDED.titulo, preco=EXCLUDED.preco, quantidade=EXCLUDED.quantidade,
+                              status=EXCLUDED.status, vendidos=EXCLUDED.vendidos, atualizado_em=EXCLUDED.atualizado_em""",
+                     (conexao_id, det.get("id"), det.get("title"), det.get("price"),
+                      det.get("available_quantity"), det.get("status"), det.get("sold_quantity"), agora))
 
 
 def puxar_metricas(conexao_id, token):
     with banco() as conn:
-        linhas = conn.execute(
-            "SELECT item_id, vendidos FROM anuncios WHERE conexao_id=?",
-            (conexao_id,)).fetchall()
+        linhas = consultar(conn, "SELECT item_id, vendidos FROM anuncios WHERE conexao_id=%s", (conexao_id,))
     itens = [l["item_id"] for l in linhas]
     if not itens:
         return
@@ -458,10 +475,13 @@ def puxar_metricas(conexao_id, token):
             vendidos = vendidos_por_item.get(item_id) or 0
             conversao = round((vendidos * 100.0 / visitas), 2) if visitas else 0
             with banco() as conn:
-                conn.execute("""INSERT OR REPLACE INTO metricas
+                executar(conn, """INSERT INTO metricas
                                 (conexao_id, item_id, vendidos, visitas, conversao, atualizado_em)
-                                VALUES (?,?,?,?,?,?)""",
-                             (conexao_id, item_id, vendidos, visitas, conversao, agora))
+                                VALUES (%s,%s,%s,%s,%s,%s)
+                                ON CONFLICT (conexao_id, item_id) DO UPDATE SET
+                                  vendidos=EXCLUDED.vendidos, visitas=EXCLUDED.visitas,
+                                  conversao=EXCLUDED.conversao, atualizado_em=EXCLUDED.atualizado_em""",
+                         (conexao_id, item_id, vendidos, visitas, conversao, agora))
             total_puxado += 1
     if total_puxado == 0:
         registrar_erro(conexao_id, "metricas", "nenhum dado de visita retornado")
@@ -487,10 +507,14 @@ def puxar_pedidos(conexao_id, token, user_id):
         if len(resultados) < 50:
             break
     with banco() as conn:
-        conn.execute("DELETE FROM pedidos WHERE conexao_id=?", (conexao_id,))
-        conn.executemany("""INSERT OR REPLACE INTO pedidos
+        executar(conn, "DELETE FROM pedidos WHERE conexao_id=%s", (conexao_id,))
+        cur = conn.cursor()
+        cur.executemany("""INSERT INTO pedidos
                             (conexao_id, pedido_id, status, total, moeda, fechado_em, atualizado_em)
-                            VALUES (?,?,?,?,?,?,?)""", lista)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s)
+                            ON CONFLICT (conexao_id, pedido_id) DO UPDATE SET
+                              status=EXCLUDED.status, total=EXCLUDED.total, moeda=EXCLUDED.moeda,
+                              fechado_em=EXCLUDED.fechado_em, atualizado_em=EXCLUDED.atualizado_em""", lista)
 
 
 def puxar_financeiro(conexao_id, token, user_id):
@@ -501,14 +525,16 @@ def puxar_financeiro(conexao_id, token, user_id):
     saldo = dados.get("available_balance") or dados.get("balance")
     detalhe = json.dumps(dados, ensure_ascii=False)[:2000]
     with banco() as conn:
-        conn.execute("""INSERT OR REPLACE INTO financeiro (conexao_id, saldo, detalhe, atualizado_em)
-                        VALUES (?,?,?,?)""",
-                     (conexao_id, saldo, detalhe, int(time.time())))
+        executar(conn, """INSERT INTO financeiro (conexao_id, saldo, detalhe, atualizado_em)
+                        VALUES (%s,%s,%s,%s)
+                        ON CONFLICT (conexao_id) DO UPDATE SET
+                          saldo=EXCLUDED.saldo, detalhe=EXCLUDED.detalhe, atualizado_em=EXCLUDED.atualizado_em""",
+                 (conexao_id, saldo, detalhe, int(time.time())))
 
 
 def job_dados():
     with banco() as conn:
-        conexoes = conn.execute("SELECT * FROM conexoes WHERE status='ativa'").fetchall()
+        conexoes = consultar(conn, "SELECT * FROM conexoes WHERE status='ativa'")
     for c in conexoes:
         token = token_atual(c)
         if not token:
