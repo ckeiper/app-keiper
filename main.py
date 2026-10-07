@@ -134,6 +134,15 @@ body { background:#f4f6f9; color:#1a1a2e; }
 .top .brand { font-size:14px; opacity:.9; }
 .top a.btn { background:#FFE600; color:#1a1a2e; text-decoration:none; padding:9px 18px; border-radius:8px; font-weight:600; font-size:14px; }
 .wrap { max-width:1300px; margin:28px auto; padding:0 20px; }
+.layout { display:flex; gap:20px; align-items:flex-start; }
+.menu-lateral { width:210px; flex-shrink:0; background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); padding:14px; position:sticky; top:16px; }
+.menu-lateral .voltar { display:block; font-size:13px; color:#6b7280; text-decoration:none; margin-bottom:10px; font-weight:600; }
+.menu-lateral a.item { display:block; padding:9px 12px; border-radius:8px; color:#1a1a2e; text-decoration:none; font-size:14px; font-weight:600; margin-bottom:2px; }
+.menu-lateral a.item:hover { background:#f0f4ff; }
+.menu-lateral a.item.atual { background:#3483FA; color:#fff; }
+.menu-lateral a.item.perigo { color:#d64545; }
+.conteudo { flex:1; min-width:0; }
+@media (max-width:820px) { .layout { flex-direction:column; } .menu-lateral { width:100%; position:static; } }
 .card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); padding:22px; margin-bottom:22px; }
 .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
 .stat { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); padding:18px; border-left:4px solid #3483FA; }
@@ -205,7 +214,7 @@ a.link:hover { text-decoration:underline; }
 .promo-item .titulo { font-size:15px; font-weight:700; margin-bottom:6px; }
 .promo-item .meta { font-size:12.5px; color:#6b7280; margin-bottom:8px; }
 .promo-item table { margin-top:6px; }
-@media print { .top, .no-print, .btn-acoes { display:none !important; } body { background:#fff; } }
+@media print { .top, .menu-lateral, .btn-acoes { display:none !important; } .layout { display:block; } body { background:#fff; } }
 </style>
 """
 
@@ -303,20 +312,30 @@ def pagina(titulo, corpo):
             "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>")
 
 
-def barra_topo(cid, cliente, titulo, extra=""):
-    return ("<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:18px'>"
-            "<h2>" + titulo + " de <span id='nome-" + str(cid) + "'>" + esc(str(cliente)) + "</span> "
-            "<a class='icon-link' href='#' onclick='editarNome(" + str(cid) + "); return false;' title='Renomear loja'>✏️</a></h2>"
-            "<div style='display:flex;gap:10px;align-items:center;flex-wrap:wrap'>"
-            "<a class='link' href='/painel/" + str(cid) + "'>← Detalhes</a>"
-            "<a class='btn-acoes' href='/anuncios/" + str(cid) + "'>Anúncios</a>"
-            "<a class='btn-acoes verde' href='/desempenho/" + str(cid) + "'>Desempenho</a>"
-            "<a class='btn-acoes laranja' href='/demandas/" + str(cid) + "'>Demandas</a>"
-            "<a class='btn-acoes rosa' href='/promocoes/" + str(cid) + "'>Promoções</a>"
-            "<a class='btn-acoes roxo' href='/custos/" + str(cid) + "'>Custos</a>"
-            "<a class='btn-acoes' href='/vendas/" + str(cid) + "'>Vendas</a>"
-            "<a class='btn-acoes' href='/atualizar?cid=" + str(cid) + "'>Atualizar dados</a>"
-            + extra + "</div></div>")
+def pagina_loja(titulo, cid, cliente, secao, corpo):
+    itens = [
+        ("resumo", "📊 Resumo", "/painel/" + str(cid)),
+        ("anuncios", "📦 Anúncios", "/anuncios/" + str(cid)),
+        ("desempenho", "📈 Desempenho", "/desempenho/" + str(cid)),
+        ("demandas", "🟡 Demandas", "/demandas/" + str(cid)),
+        ("promocoes", "🏷️ Promoções", "/promocoes/" + str(cid)),
+        ("custos", "💰 Custos", "/custos/" + str(cid)),
+        ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
+    ]
+    menu = "<div class='menu-lateral'><a class='voltar' href='/painel'>← Todas as lojas</a>"
+    for chave, rotulo, href in itens:
+        classe = "item" + (" atual" if secao == chave else "")
+        menu += "<a class='" + classe + "' href='" + href + "'>" + rotulo + "</a>"
+    menu += ("<a class='item' href='/atualizar?cid=" + str(cid) + "'>🔄 Atualizar dados</a>"
+             "<a class='item perigo' href='/excluir/" + str(cid) + "'>🗑️ Excluir loja</a></div>")
+    return ("<!doctype html><html><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
+            "<div class='top'><div><h1>Keiper Consultoria</h1>"
+            "<div class='brand'>" + esc(str(cliente)) + "</div></div>"
+            "<a class='btn' href='/painel'>Todas as lojas</a></div>"
+            "<div class='wrap'><div class='layout'>" + menu +
+            "<div class='conteudo'>" + corpo + "</div></div></div>" + SCRIPT + "</body></html>")
 
 
 def banco():
@@ -431,6 +450,11 @@ def iniciar_banco():
             conexao_id INTEGER, ad_id TEXT, campanha_id TEXT, item_id TEXT,
             impressoes INTEGER, cliques INTEGER, ctr REAL, gasto REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, ad_id)
+        )""")
+        executar(conn, """CREATE TABLE IF NOT EXISTS ads_dia (
+            conexao_id INTEGER, data TEXT,
+            gasto REAL, faturamento REAL, impressoes INTEGER, cliques INTEGER, atualizado_em BIGINT,
+            PRIMARY KEY (conexao_id, data)
         )""")
         executar(conn, """CREATE TABLE IF NOT EXISTS erros (
             conexao_id INTEGER, categoria TEXT, mensagem TEXT, quando BIGINT,
@@ -639,7 +663,7 @@ def custos(cid):
     aliquota = c["aliquota_imposto"] if c["aliquota_imposto"] is not None else 0
     comissao = c["comissao_pct"] if c["comissao_pct"] is not None else 12
 
-    corpo = barra_topo(cid, c["cliente"], "Custos")
+    corpo = "<h2 style='margin-bottom:14px'>Custos</h2>"
 
     if erro == "sem_arquivo":
         corpo += "<div class='aviso'>Nenhum arquivo selecionado. Escolha a planilha e clique em Importar.</div>"
@@ -684,8 +708,8 @@ def custos(cid):
     if not anuncios:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhum anúncio carregado ainda</h2>"
-                  "<div class='sub'>Clique em 'Atualizar dados' para buscar os anúncios da loja</div></div>")
-        return pagina("Custos", corpo)
+                  "<div class='sub'>Use 'Atualizar dados' no menu lateral para buscar os anúncios da loja</div></div>")
+        return pagina_loja("Custos", cid, c["cliente"], "custos", corpo)
 
     linhas_html = ""
     for a in anuncios:
@@ -706,7 +730,7 @@ def custos(cid):
               "<tbody>" + linhas_html + "</tbody></table></div>"
               "<div class='muted'>O custo é usado no cálculo da Margem de Contribuição (tela de Vendas) e na análise de promoções.</div></div>")
 
-    return pagina("Custos de " + str(c["cliente"]), corpo)
+    return pagina_loja("Custos", cid, c["cliente"], "custos", corpo)
 
 
 def calcular_vendas(cid):
@@ -788,14 +812,16 @@ def vendas(cid):
     aliquota_pct = c["aliquota_imposto"] if c["aliquota_imposto"] is not None else 0
     comissao_pct = c["comissao_pct"] if c["comissao_pct"] is not None else 12
 
-    corpo = barra_topo(cid, c["cliente"], "Vendas",
-                       "<a class='btn-acoes cinza' href='/exportar_vendas/" + str(cid) + "'>⬇ Exportar CSV</a>")
+    corpo = ("<h2 style='margin-bottom:10px'>Vendas e Margem de Contribuição</h2>"
+             "<div style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px'>"
+             "<a class='btn-acoes cinza' href='/exportar_vendas/" + str(cid) + "'>⬇ Exportar CSV</a>"
+             "</div>")
 
     if not vendas:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhuma venda carregada ainda</h2>"
-                  "<div class='sub'>Clique em 'Atualizar dados' para buscar os pedidos da loja. As vendas analisadas são os pedidos fechados.</div></div>")
-        return pagina("Vendas", corpo)
+                  "<div class='sub'>Use 'Atualizar dados' no menu lateral para buscar os pedidos da loja. As vendas analisadas são os pedidos fechados.</div></div>")
+        return pagina_loja("Vendas", cid, c["cliente"], "vendas", corpo)
 
     analisadas = sum(1 for v in vendas if not v["sem_itens"] and not v["sem_custo"])
     pendentes = len(vendas) - analisadas
@@ -839,7 +865,7 @@ def vendas(cid):
                         "<td>" + mc_html + "</td>"
                         "</tr>")
 
-    corpo += ("<div class='card'><h2>Vendas e Margem de Contribuição <span class='badge'>" + str(len(vendas)) + "</span></h2>"
+    corpo += ("<div class='card'><h2>Vendas <span class='badge'>" + str(len(vendas)) + "</span></h2>"
               "<div class='sub'>MG = Receita − Custo dos produtos − Imposto (" + str(aliquota_pct) + "%) − Comissão ML (" + str(comissao_pct) + "%) − Frete. Entre parênteses, o lucro em R$ de cada venda.</div>"
               "<div style='overflow-x:auto'><table>"
               "<thead><tr><th>Pedido</th><th>Status</th><th>Receita</th><th>Custo produtos</th><th>Imposto</th><th>Comissão</th><th>Frete</th><th>MG (Lucro R$)</th></tr></thead>"
@@ -847,7 +873,7 @@ def vendas(cid):
               "<div class='muted'>Frete: usa o <b>valor real</b> do envio quando o Mercado Livre informa (" + str(com_frete_real) + " vendas com frete real); senão, estimativa pela tabela oficial do ML (marcado como 'est.'). "
               "Imposto e comissão são configurados na <a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a>.</div></div>")
 
-    return pagina("Vendas de " + str(c["cliente"]), corpo)
+    return pagina_loja("Vendas", cid, c["cliente"], "vendas", corpo)
 
 
 @app.route("/exportar_vendas/<int:cid>")
@@ -904,7 +930,7 @@ def painel():
                   "<div class='stat'><div class='num'>" + str(l["qtd_perguntas_pendentes"]) + "</div><div class='lab'>Perguntas p/ responder</div></div>"
                   "</div>"
                   "<div style='margin-top:14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap'>"
-                  "<a class='link' href='/painel/" + str(l["id"]) + "'>Abrir detalhes</a>"
+                  "<a class='btn-acoes' href='/painel/" + str(l["id"]) + "'>Abrir Resumo</a>"
                   " <a class='link' href='/anuncios/" + str(l["id"]) + "'>Anúncios</a>"
                   " <a class='link' href='/desempenho/" + str(l["id"]) + "'>Desempenho</a>"
                   " <a class='link' href='/demandas/" + str(l["id"]) + "'>Demandas</a>"
@@ -927,7 +953,7 @@ def excluir(cid):
         return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>")
     if request.method == "POST":
         with banco() as conn:
-            for tabela in ("dados_conta", "anuncios", "pedidos", "pedidos_itens", "metricas", "desempenho_historico", "perguntas", "envios", "promocoes", "promocoes_itens", "ads_campanhas", "ads_metricas", "erros"):
+            for tabela in ("dados_conta", "anuncios", "pedidos", "pedidos_itens", "metricas", "desempenho_historico", "perguntas", "envios", "promocoes", "promocoes_itens", "ads_campanhas", "ads_metricas", "ads_dia", "erros"):
                 executar(conn, "DELETE FROM " + tabela + " WHERE conexao_id=%s", (cid,))
             executar(conn, "DELETE FROM conexoes WHERE id=%s", (cid,))
         corpo = ("<div class='card' style='max-width:520px;margin:40px auto;text-align:center'>"
@@ -968,13 +994,13 @@ def promocoes(cid):
     for it in itens_promo:
         itens_por_promo.setdefault(it["promocao_id"], []).append(it)
 
-    corpo = barra_topo(cid, c["cliente"], "Promoções")
+    corpo = "<h2 style='margin-bottom:14px'>Promoções</h2>"
 
     if not promos:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhuma promoção carregada ainda</h2>"
-                  "<div class='sub'>Clique em 'Atualizar dados' para buscar as promoções da loja</div></div>")
-        return pagina("Promoções", corpo)
+                  "<div class='sub'>Use 'Atualizar dados' no menu lateral para buscar as promoções da loja</div></div>")
+        return pagina_loja("Promoções", cid, c["cliente"], "promocoes", corpo)
 
     ativas = sum(1 for p in promos if str(p["status"]) in ("active", "ACTIVE"))
     candidatas = sum(1 for p in promos if str(p["status"]) in ("candidate", "CANDIDATE"))
@@ -1059,7 +1085,7 @@ def promocoes(cid):
 
     corpo += ("<div class='muted'>Para o comparativo de margem, cadastre o <b>custo</b> dos anúncios na <a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a> (individual ou por planilha). "
               "O painel calcula o desconto aplicado e se a promoção ainda deixa margem para o vendedor.</div>")
-    return pagina("Promoções de " + str(c["cliente"]), corpo)
+    return pagina_loja("Promoções", cid, c["cliente"], "promocoes", corpo)
 
 
 @app.route("/exportar_demandas/<int:cid>")
@@ -1144,9 +1170,11 @@ def demandas(cid):
 
     itens_demandas.sort(key=lambda x: (-x["urgentes"], -x["total"]))
 
-    corpo = barra_topo(cid, c["cliente"], "Central de Demandas",
-                       "<a class='btn-acoes cinza' href='/exportar_demandas/" + str(cid) + "'>⬇ Exportar CSV</a>"
-                       "<a class='btn-acoes cinza' href='#' onclick='window.print(); return false;'>🖨 Imprimir/PDF</a>")
+    corpo = ("<h2 style='margin-bottom:10px'>Central de Demandas</h2>"
+             "<div style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px'>"
+             "<a class='btn-acoes cinza' href='/exportar_demandas/" + str(cid) + "'>⬇ Exportar CSV</a>"
+             "<a class='btn-acoes cinza' href='#' onclick='window.print(); return false;'>🖨 Imprimir/PDF</a>"
+             "</div>")
 
     total_anuncios = len(anuncios)
     com_demanda = len(itens_demandas)
@@ -1157,7 +1185,7 @@ def demandas(cid):
               "<div class='stat'><div class='num'>" + str(urgentes_total) + "</div><div class='lab'>Demandas urgentes</div></div>"
               "</div>")
 
-    corpo += ("<div class='card no-print'><h2>Central de Demandas</h2>"
+    corpo += ("<div class='card no-print'><h2>Filtros</h2>"
               "<div class='sub'>Principais pontos de alerta por anúncio, ordenados por prioridade</div>"
               "<form method='get' action='/demandas/" + str(cid) + "' style='display:flex;flex-wrap:wrap;align-items:center;gap:8px'>"
               "<label style='font-size:13px;color:#6b7280'>Mostrar:</label>"
@@ -1177,8 +1205,8 @@ def demandas(cid):
     if not itens_demandas:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhuma demanda encontrada</h2>"
-                  "<div class='sub'>Todos os anúncios carregados estão em dia. Clique em 'Atualizar dados' para buscar os dados mais recentes.</div></div>")
-        return pagina("Demandas", corpo)
+                  "<div class='sub'>Todos os anúncios carregados estão em dia. Use 'Atualizar dados' no menu lateral para buscar os dados mais recentes.</div></div>")
+        return pagina_loja("Demandas", cid, c["cliente"], "demandas", corpo)
 
     if filtro:
         filtrados = []
@@ -1196,7 +1224,7 @@ def demandas(cid):
         itens_demandas = filtrados
         if not itens_demandas:
             corpo += ("<div class='card' style='text-align:center;padding:30px'><h2>Nenhum anúncio com esse tipo de demanda</h2></div>")
-            return pagina("Demandas", corpo)
+            return pagina_loja("Demandas", cid, c["cliente"], "demandas", corpo)
 
     itens_demandas = itens_demandas[:limite]
 
@@ -1211,7 +1239,7 @@ def demandas(cid):
         corpo += "</div>"
     corpo += "</div>"
 
-    return pagina("Demandas de " + str(c["cliente"]), corpo)
+    return pagina_loja("Demandas", cid, c["cliente"], "demandas", corpo)
 
 
 @app.route("/anuncios/<int:cid>")
@@ -1229,13 +1257,13 @@ def anuncios(cid):
 
     itens_promocao = {r["item_id"] for r in promos_ativas}
 
-    corpo = barra_topo(cid, c["cliente"], "Anúncios")
+    corpo = "<h2 style='margin-bottom:14px'>Anúncios</h2>"
 
     if not anuncios:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhum anúncio carregado ainda</h2>"
-                  "<div class='sub'>Clique em 'Atualizar dados' para buscar os anúncios da loja</div></div>")
-        return pagina("Anúncios", corpo)
+                  "<div class='sub'>Use 'Atualizar dados' no menu lateral para buscar os anúncios da loja</div></div>")
+        return pagina_loja("Anúncios", cid, c["cliente"], "anuncios", corpo)
 
     total = len(anuncios)
     com_estoque_zero = sum(1 for a in anuncios if (a["quantidade"] or 0) <= 0)
@@ -1333,7 +1361,7 @@ def anuncios(cid):
         if avisos:
             corpo += "<div class='aviso'><b>Avisos:</b> " + avisos + "</div>"
 
-    return pagina("Anúncios de " + str(c["cliente"]), corpo)
+    return pagina_loja("Anúncios", cid, c["cliente"], "anuncios", corpo)
 
 
 @app.route("/desempenho/<int:cid>")
@@ -1404,7 +1432,7 @@ def desempenho(cid):
         fat_serie.append(round(fat_por_dia.get(iso, 0), 2))
         d += datetime.timedelta(days=1)
 
-    corpo = barra_topo(cid, c["cliente"], "Desempenho")
+    corpo = "<h2 style='margin-bottom:14px'>Desempenho</h2>"
 
     corpo += ("<div class='card'><h2>Período de análise</h2><div class='sub'>Escolha o período para comparar visitas, vendas e faturamento</div>"
               "<form method='get' action='/desempenho/" + str(cid) + "' style='display:flex;flex-wrap:wrap;align-items:center;gap:8px'>"
@@ -1422,8 +1450,8 @@ def desempenho(cid):
     if not linhas:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Sem dados de desempenho ainda</h2>"
-                  "<div class='sub'>O histórico é gravado automaticamente a cada atualização. Clique em 'Atualizar dados' para começar a acumular.</div></div>")
-        return pagina("Desempenho", corpo)
+                  "<div class='sub'>O histórico é gravado automaticamente a cada atualização. Use 'Atualizar dados' no menu lateral para começar a acumular.</div></div>")
+        return pagina_loja("Desempenho", cid, c["cliente"], "desempenho", corpo)
 
     tot_visitas = sum(r["visitas"] or 0 for r in linhas)
     tot_vendas = sum(r["vendidos"] or 0 for r in linhas)
@@ -1511,190 +1539,92 @@ def desempenho(cid):
               "<tbody>" + linhas_html + "</tbody></table></div>"
               "<div class='muted'>▲/▼ compara com o período anterior de mesma duração. O histórico acumula automaticamente a cada atualização.</div></div>")
 
-    return pagina("Desempenho de " + str(c["cliente"]), corpo)
+    return pagina_loja("Desempenho", cid, c["cliente"], "desempenho", corpo)
 
 
 @app.route("/painel/<int:cid>")
 def painel_detalhe(cid):
-    with banco() as conn:
-        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        c = c[0] if c else None
-        conta = consultar(conn, "SELECT * FROM dados_conta WHERE conexao_id=%s", (cid,))
-        conta = conta[0] if conta else None
-        anuncios = consultar(conn, "SELECT * FROM anuncios WHERE conexao_id=%s ORDER BY vendidos DESC LIMIT 100", (cid,))
-        pedidos = consultar(conn, "SELECT * FROM pedidos WHERE conexao_id=%s ORDER BY fechado_em DESC LIMIT 100", (cid,))
-        metricas = consultar(conn, """
-            SELECT a.titulo, m.vendidos, m.visitas, m.conversao
-            FROM metricas m LEFT JOIN anuncios a ON a.conexao_id=m.conexao_id AND a.item_id=m.item_id
-            WHERE m.conexao_id=%s ORDER BY m.vendidos DESC LIMIT 100
-        """, (cid,))
-        perguntas = consultar(conn, "SELECT * FROM perguntas WHERE conexao_id=%s ORDER BY data DESC LIMIT 100", (cid,))
-        envios = consultar(conn, "SELECT * FROM envios WHERE conexao_id=%s ORDER BY data DESC LIMIT 100", (cid,))
-        promos = consultar(conn, "SELECT * FROM promocoes WHERE conexao_id=%s ORDER BY fim DESC LIMIT 100", (cid,))
-        ads_camp = consultar(conn, "SELECT * FROM ads_campanhas WHERE conexao_id=%s ORDER BY data_inicio DESC LIMIT 100", (cid,))
-        ads_met = consultar(conn, "SELECT * FROM ads_metricas WHERE conexao_id=%s ORDER BY gasto DESC LIMIT 100", (cid,))
-        erros = consultar(conn, "SELECT * FROM erros WHERE conexao_id=%s", (cid,))
+    hoje_iso = datetime.date.today().isoformat()
+    c, vendas = calcular_vendas(cid)
     if not c:
         return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>")
+    with banco() as conn:
+        conta = consultar(conn, "SELECT * FROM dados_conta WHERE conexao_id=%s", (cid,))
+        conta = conta[0] if conta else None
+        ads_dias = consultar(conn, "SELECT * FROM ads_dia WHERE conexao_id=%s AND data >= %s ORDER BY data",
+                             (cid, (datetime.date.today() - datetime.timedelta(days=6)).isoformat()))
 
-    corpo = ("<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:18px'>"
-             "<h2><span id='nome-" + str(cid) + "'>" + esc(str(c["cliente"])) + "</span> "
-             "<a class='icon-link' href='#' onclick='editarNome(" + str(cid) + "); return false;' title='Renomear loja'>✏️</a></h2>"
-             "<div style='display:flex;gap:10px;align-items:center;flex-wrap:wrap'>"
-             "<a class='link' href='/painel'>← Voltar</a>"
-             "<a class='btn-acoes' href='/anuncios/" + str(cid) + "'>Anúncios</a>"
-             "<a class='btn-acoes verde' href='/desempenho/" + str(cid) + "'>Desempenho</a>"
-             "<a class='btn-acoes laranja' href='/demandas/" + str(cid) + "'>Demandas</a>"
-             "<a class='btn-acoes rosa' href='/promocoes/" + str(cid) + "'>Promoções</a>"
-             "<a class='btn-acoes roxo' href='/custos/" + str(cid) + "'>Custos</a>"
-             "<a class='btn-acoes' href='/vendas/" + str(cid) + "'>Vendas</a>"
-             "<a class='btn-acoes' href='/atualizar?cid=" + str(cid) + "'>Atualizar agora</a>"
-             "<a class='btn-danger' href='/excluir/" + str(cid) + "'>Excluir</a>"
-             "</div></div>")
+    vendas_hoje = [v for v in vendas if v["data"].startswith(hoje_iso)]
+    fat_dia = sum(v["receita"] for v in vendas_hoje)
+    qtd_dia = len(vendas_hoje)
+    lucro_dia = sum(v["mc"] for v in vendas_hoje if not v["sem_itens"] and not v["sem_custo"])
+    tem_pendente_hoje = any(v["sem_itens"] or v["sem_custo"] for v in vendas_hoje)
+    ad_hoje = None
+    for r in ads_dias:
+        if r["data"] == hoje_iso:
+            ad_hoje = r
+    gasto_ads = ad_hoje["gasto"] if ad_hoje and ad_hoje["gasto"] is not None else None
+    fat_ads = ad_hoje["faturamento"] if ad_hoje and ad_hoje["faturamento"] is not None else None
+
+    corpo = "<h2 style='margin-bottom:14px'>Resumo do dia</h2>"
+    lucro_html = ("<span class='alerta urgente'>R$ %.2f</span>" % lucro_dia) if lucro_dia <= 0 else ("R$ %.2f" % lucro_dia)
+    corpo += ("<div class='grid' style='margin-bottom:18px'>"
+              "<div class='stat'><div class='num'>R$ %.2f" % fat_dia + "</div><div class='lab'>Faturamento do dia</div></div>"
+              "<div class='stat'><div class='num'>" + str(qtd_dia) + "</div><div class='lab'>Vendas do dia</div></div>"
+              "<div class='stat'><div class='num'>" + lucro_html + "</div><div class='lab'>Lucro do dia (MC)</div></div>"
+              "<div class='stat'><div class='num'>" + (("R$ %.2f" % gasto_ads) if gasto_ads is not None else "<span class='tag sem'>—</span>") + "</div><div class='lab'>Gasto Ads do dia</div></div>"
+              "<div class='stat'><div class='num'>" + (("R$ %.2f" % fat_ads) if fat_ads is not None else "<span class='tag sem'>—</span>") + "</div><div class='lab'>Faturamento Ads do dia</div></div>"
+              "</div>")
+
+    if tem_pendente_hoje:
+        corpo += ("<div class='aviso'>Há vendas de hoje sem custo cadastrado — o lucro do dia pode estar incompleto. "
+                  "<a class='link' href='/custos/" + str(cid) + "'>Cadastrar custos</a>.</div>")
+    if gasto_ads is None and fat_ads is None:
+        corpo += ("<div class='aviso'>Os números de Ads do dia aparecem após a próxima atualização de dados "
+                  "(ou clique em 'Atualizar dados' no menu lateral).</div>")
+
+    por_dia = {}
+    for v in vendas:
+        dia = v["data"][:10]
+        d = por_dia.setdefault(dia, {"fat": 0.0, "qtd": 0, "lucro": 0.0, "pendente": False})
+        d["fat"] += v["receita"]
+        d["qtd"] += 1
+        if v["sem_itens"] or v["sem_custo"]:
+            d["pendente"] = True
+        else:
+            d["lucro"] += v["mc"]
+    ads_map = {r["data"]: r for r in ads_dias}
+    linhas_html = ""
+    d = datetime.date.today() - datetime.timedelta(days=6)
+    while d <= datetime.date.today():
+        iso = d.isoformat()
+        info = por_dia.get(iso, {"fat": 0.0, "qtd": 0, "lucro": 0.0, "pendente": False})
+        ad = ads_map.get(iso)
+        gasto_txt = ("R$ %.2f" % ad["gasto"]) if ad and ad["gasto"] is not None else "<span class='tag sem'>—</span>"
+        fatads_txt = ("R$ %.2f" % ad["faturamento"]) if ad and ad["faturamento"] is not None else "<span class='tag sem'>—</span>"
+        lucro_txt = ("R$ %.2f" % info["lucro"]) if not info["pendente"] else "<span class='tag sem'>custo pendente</span>"
+        badge = " <span class='badge'>hoje</span>" if iso == hoje_iso else ""
+        linhas_html += ("<tr><td><b>" + d.strftime("%d/%m") + "</b>" + badge + "</td>"
+                        "<td>R$ %.2f" % info["fat"] + "</td><td>" + str(info["qtd"]) + "</td><td>" + lucro_txt + "</td>"
+                        "<td>" + gasto_txt + "</td><td>" + fatads_txt + "</td></tr>")
+        d += datetime.timedelta(days=1)
+    corpo += ("<div class='card'><h2>Últimos 7 dias</h2>"
+              "<div class='sub'>Faturamento, vendas, lucro (MC) e Ads por dia</div>"
+              "<div style='overflow-x:auto'><table>"
+              "<thead><tr><th>Dia</th><th>Faturamento</th><th>Vendas</th><th>Lucro (MC)</th><th>Gasto Ads</th><th>Faturamento Ads</th></tr></thead>"
+              "<tbody>" + linhas_html + "</tbody></table></div>"
+              "<div class='muted'>Lucro (MC) = Receita − Custo − Imposto − Comissão − Frete, calculado por venda. "
+              "Vendas sem custo cadastrado aparecem como 'custo pendente'.</div></div>")
 
     if conta:
         corpo += ("<div class='card'><h2>Conta</h2><div class='sub'>Informações do vendedor</div>"
                   "<div class='grid'>"
                   "<div class='stat'><div class='num'>" + esc(str(conta["nickname"])) + "</div><div class='lab'>Nickname</div></div>"
-                  "<div class='stat'><div class='num'>" + esc(str(conta["nome"])) + " " + esc(str(conta["sobrenome"])) + "</div><div class='lab'>Nome</div></div>"
                   "<div class='stat'><div class='num'>" + esc(str(conta["reputacao"])) + "</div><div class='lab'>Reputação</div></div>"
                   "<div class='stat'><div class='num'>" + str(conta["pontos"]) + "</div><div class='lab'>Vendas concluídas</div></div>"
                   "</div></div>")
 
-    if anuncios:
-        linhas_html = ""
-        for a in anuncios:
-            tag = "tag " + (a["status"] if a["status"] in ("ativa", "pausado", "expirada") else "normal")
-            peso_kg = a["peso"]
-            f = frete_esperado(a["preco"], peso_kg)
-            if f is not None:
-                frete_html = "<span class='tag ativa'>R$ %.2f</span>" % f
-                peso_txt = ("%.2f kg" % peso_kg) if peso_kg else "-"
-            else:
-                frete_html = "<span class='tag normal'>sem peso</span>"
-                peso_txt = "-"
-            linhas_html += ("<tr><td>" + esc(str(a["titulo"])) + "</td><td>R$ %.2f" % (a["preco"] or 0) +
-                            "</td><td>" + str(a["quantidade"]) + "</td><td><span class='" + tag + "'>" + esc(str(a["status"])) +
-                            "</span></td><td>" + str(a["vendidos"]) + "</td><td>" + peso_txt + "</td><td>" + frete_html + "</td></tr>")
-        corpo += ("<div class='card'><h2>Anúncios <span class='badge'>" + str(len(anuncios)) + "</span></h2>"
-                  "<div class='sub'>Produtos da loja — <a class='link' href='/anuncios/" + str(cid) + "'>ver análises completas</a> · <a class='link' href='/desempenho/" + str(cid) + "'>ver desempenho</a> · <a class='link' href='/demandas/" + str(cid) + "'>ver demandas</a> · <a class='link' href='/promocoes/" + str(cid) + "'>ver promoções</a> · <a class='link' href='/custos/" + str(cid) + "'>ver custos</a> · <a class='link' href='/vendas/" + str(cid) + "'>ver vendas</a></div>"
-                  "<table><thead><tr><th>Título</th><th>Preço</th><th>Estoque</th><th>Status</th><th>Vendidos</th><th>Peso</th><th>Frete esperado</th></tr></thead>"
-                  "<tbody>" + linhas_html + "</tbody></table></div>")
-
-    if metricas:
-        linhas_html = ""
-        for m in metricas:
-            conv_txt = ("%.2f%%" % m["conversao"]) if m["conversao"] is not None else "-"
-            linhas_html += ("<tr><td>" + esc(str(m["titulo"]) or "-") + "</td><td>" + str(m["vendidos"]) +
-                            "</td><td>" + str(m["visitas"]) + "</td><td>" + conv_txt + "</td></tr>")
-        corpo += ("<div class='card'><h2>Métricas <span class='badge'>" + str(len(metricas)) + "</span></h2>"
-                  "<div class='sub'>Visitas, vendidos e conversão por anúncio</div>"
-                  "<table><thead><tr><th>Anúncio</th><th>Vendidos</th><th>Visitas</th><th>Conversão</th></tr></thead>"
-                  "<tbody>" + linhas_html + "</tbody></table></div>")
-
-    if perguntas:
-        linhas_html = ""
-        for q in perguntas:
-            tag = "tag " + ("respondida" if q["status"] == "ANSWERED" else "pendente")
-            resp_txt = esc(str(q["resposta"]) or "-")
-            if len(resp_txt) > 80:
-                resp_txt = resp_txt[:80] + "..."
-            linhas_html += ("<tr><td>" + esc(str(q["texto"])) + "</td><td>" + str(q["item_id"]) +
-                            "</td><td><span class='" + tag + "'>" + ("Respondida" if q["status"] == "ANSWERED" else "Pendente") +
-                            "</span></td><td>" + resp_txt + "</td></tr>")
-        corpo += ("<div class='card'><h2>Perguntas <span class='badge'>" + str(len(perguntas)) + "</span></h2>"
-                  "<div class='sub'>Perguntas dos clientes nos anúncios</div>"
-                  "<table><thead><tr><th>Pergunta</th><th>Anúncio</th><th>Status</th><th>Resposta</th></tr></thead>"
-                  "<tbody>" + linhas_html + "</tbody></table></div>")
-
-    if envios:
-        linhas_html = ""
-        for s in envios:
-            cf = ("R$ %.2f" % s["custo_frete"]) if s["custo_frete"] is not None else "-"
-            linhas_html += ("<tr><td>" + str(s["envio_id"]) + "</td><td>" + esc(str(s["status"])) +
-                            "</td><td>" + esc(str(s["tracking"]) or "-") + "</td><td>" + str(s["pedido_id"]) +
-                            "</td><td>" + cf + "</td><td>" + esc(str(s["data"])) + "</td></tr>")
-        corpo += ("<div class='card'><h2>Envios <span class='badge'>" + str(len(envios)) + "</span></h2>"
-                  "<div class='sub'>Status, rastreio e custo real do frete</div>"
-                  "<table><thead><tr><th>Envio</th><th>Status</th><th>Rastreio</th><th>Pedido</th><th>Frete real</th><th>Data</th></tr></thead>"
-                  "<tbody>" + linhas_html + "</tbody></table></div>")
-
-    if promos:
-        linhas_html = ""
-        for pr in promos:
-            st = str(pr["status"])
-            if st == "active":
-                tag, st_txt = "tag ativa", "ativa"
-            elif st == "candidate":
-                tag, st_txt = "tag pendente", "candidata"
-            elif st == "paused":
-                tag, st_txt = "tag expirada", "pausada"
-            else:
-                tag, st_txt = "tag normal", "finalizada"
-            linhas_html += ("<tr><td>" + esc(str(pr["nome"]) or "-") + "</td><td><span class='" + tag + "'>" + st_txt + "</span></td>"
-                            "<td>" + esc(str(pr["tipo"]) or "-") + "</td><td>" + esc(str(pr["inicio"]) or "-") + "</td>"
-                            "<td>" + esc(str(pr["fim"]) or "-") + "</td><td>" + str(pr["qtd_itens"] or 0) + "</td></tr>")
-        corpo += ("<div class='card'><h2>Promoções <span class='badge'>" + str(len(promos)) + "</span></h2>"
-                  "<div class='sub'>Promoções e ofertas da loja — <a class='link' href='/promocoes/" + str(cid) + "'>ver análise completa</a></div>"
-                  "<table><thead><tr><th>Nome</th><th>Status</th><th>Tipo</th><th>Início</th><th>Fim</th><th>Itens</th></tr></thead>"
-                  "<tbody>" + linhas_html + "</tbody></table></div>")
-
-    if ads_camp:
-        linhas_html = ""
-        for ac in ads_camp:
-            st = str(ac["status"])
-            if st in ("active", "ACTIVE", "running"):
-                tag, st_txt = "tag ativa", "ativa"
-            elif st in ("paused", "PAUSED"):
-                tag, st_txt = "tag expirada", "pausada"
-            elif st in ("finished", "FINISHED", "ended"):
-                tag, st_txt = "tag normal", "finalizada"
-            else:
-                tag, st_txt = "tag normal", st
-            orc_txt = ("R$ %.2f" % ac["orcamento"]) if ac["orcamento"] is not None else "-"
-            linhas_html += ("<tr><td>" + esc(str(ac["nome"]) or "-") + "</td><td><span class='" + tag + "'>" + st_txt + "</span></td>"
-                            "<td>" + esc(str(ac["tipo"]) or "-") + "</td><td>" + esc(str(ac["data_inicio"]) or "-") + "</td>"
-                            "<td>" + esc(str(ac["data_fim"]) or "-") + "</td><td>" + orc_txt + "</td></tr>")
-        corpo += ("<div class='card'><h2>Mercado Ads — Campanhas <span class='badge'>" + str(len(ads_camp)) + "</span></h2>"
-                  "<div class='sub'>Campanhas de publicidade da loja</div>"
-                  "<table><thead><tr><th>Campanha</th><th>Status</th><th>Tipo</th><th>Início</th><th>Fim</th><th>Orçamento</th></tr></thead>"
-                  "<tbody>" + linhas_html + "</tbody></table></div>")
-
-    if ads_met:
-        linhas_html = ""
-        for am in ads_met:
-            ctr_txt = ("%.2f%%" % am["ctr"]) if am["ctr"] is not None else "-"
-            gasto_txt = ("R$ %.2f" % am["gasto"]) if am["gasto"] is not None else "-"
-            linhas_html += ("<tr><td>" + str(am["ad_id"]) + "</td><td>" + str(am["campanha_id"]) +
-                            "</td><td>" + str(am["item_id"]) + "</td><td>" + str(am["impressoes"] or 0) +
-                            "</td><td>" + str(am["cliques"] or 0) + "</td><td>" + ctr_txt + "</td><td>" + gasto_txt + "</td></tr>")
-        corpo += ("<div class='card'><h2>Mercado Ads — Métricas <span class='badge'>" + str(len(ads_met)) + "</span></h2>"
-                  "<div class='sub'>Impressões, cliques, CTR e gasto por anúncio patrocinado</div>"
-                  "<table><thead><tr><th>Anúncio</th><th>Campanha</th><th>Item</th><th>Impressões</th><th>Cliques</th><th>CTR</th><th>Gasto</th></tr></thead>"
-                  "<tbody>" + linhas_html + "</tbody></table></div>")
-
-    if pedidos:
-        linhas_html = ""
-        for p in pedidos:
-            total_txt = ("R$ %.2f" % p["total"]) if p["total"] is not None else "-"
-            linhas_html += ("<tr><td>" + str(p["pedido_id"]) + "</td><td>" + esc(str(p["status"])) +
-                            "</td><td>" + total_txt + "</td><td>" + esc(str(p["fechado_em"])) + "</td></tr>")
-        corpo += ("<div class='card'><h2>Pedidos <span class='badge'>" + str(len(pedidos)) + "</span></h2>"
-                  "<div class='sub'>Últimas vendas — <a class='link' href='/vendas/" + str(cid) + "'>ver margem de contribuição</a></div>"
-                  "<table><thead><tr><th>Pedido</th><th>Status</th><th>Total</th><th>Data</th></tr></thead>"
-                  "<tbody>" + linhas_html + "</tbody></table></div>")
-
-    if erros:
-        avisos = ""
-        for e in erros:
-            if e["categoria"] == "financeiro":
-                continue
-            avisos += "<div>" + esc(e["categoria"]) + ": " + esc(e["mensagem"]) + "</div>"
-        if avisos:
-            corpo += "<div class='aviso'><b>Avisos:</b> " + avisos + "</div>"
-
-    corpo += "<div class='muted'>Os dados são atualizados automaticamente a cada hora.</div>"
-    return pagina("Painel de " + str(c["cliente"]), corpo)
+    return pagina_loja("Resumo", cid, c["cliente"], "resumo", corpo)
 
 
 @app.route("/atualizar")
@@ -1721,6 +1651,7 @@ def atualizar():
         puxar_envios(c["id"], token, user_id)
         puxar_promocoes(c["id"], token, user_id)
         puxar_ads(c["id"], token, user_id)
+        puxar_ads_dia(c["id"], token, user_id)
     gravar_historico(c["id"])
     if cid:
         return redirect("/painel/" + str(cid))
@@ -2095,6 +2026,52 @@ def puxar_ads(conexao_id, token, user_id):
                       met.get("ctr"), met.get("total_spend"), agora))
 
 
+def puxar_ads_dia(conexao_id, token, user_id):
+    hoje = datetime.date.today().isoformat()
+    cab = {"Authorization": "Bearer " + (token or ""), "Api-Version": "2"}
+    url = API + "/advertising/advertisers/" + str(user_id) + "/product_ads/metrics"
+    try:
+        r = requests.get(url, headers=cab, params={"date_from": hoje, "date_to": hoje}, timeout=25)
+        if r.status_code != 200:
+            registrar_erro(conexao_id, "ads_dia", "HTTP " + str(r.status_code) + ": " + r.text[:180])
+            return
+        dados = r.json()
+    except Exception as e:
+        registrar_erro(conexao_id, "ads_dia", str(e))
+        return
+    if isinstance(dados, dict) and isinstance(dados.get("results"), list) and dados["results"]:
+        dados = dados["results"][0]
+    if not isinstance(dados, dict):
+        registrar_erro(conexao_id, "ads_dia", "resposta inesperada da API de Ads")
+        return
+    gasto = None
+    for k in ("total_spend", "cost", "spend", "total_cost"):
+        if dados.get(k) is not None:
+            try:
+                gasto = float(dados[k])
+                break
+            except Exception:
+                pass
+    fat = None
+    for k in ("total_revenue", "revenue", "sales", "total_sales", "net_revenue"):
+        if dados.get(k) is not None:
+            try:
+                fat = float(dados[k])
+                break
+            except Exception:
+                pass
+    imp = dados.get("impressions")
+    cli = dados.get("clicks")
+    with banco() as conn:
+        executar(conn, """INSERT INTO ads_dia (conexao_id, data, gasto, faturamento, impressoes, cliques, atualizado_em)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s)
+                        ON CONFLICT (conexao_id, data) DO UPDATE SET
+                          gasto=EXCLUDED.gasto, faturamento=EXCLUDED.faturamento,
+                          impressoes=EXCLUDED.impressoes, cliques=EXCLUDED.cliques,
+                          atualizado_em=EXCLUDED.atualizado_em""",
+                 (conexao_id, hoje, gasto, fat, imp, cli, int(time.time())))
+
+
 def puxar_pedidos(conexao_id, token, user_id):
     lista = []
     ids_fechados = []
@@ -2167,6 +2144,7 @@ def job_dados():
             puxar_envios(c["id"], token, c["user_id"])
             puxar_promocoes(c["id"], token, c["user_id"])
             puxar_ads(c["id"], token, c["user_id"])
+            puxar_ads_dia(c["id"], token, c["user_id"])
         gravar_historico(c["id"])
 
 
