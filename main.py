@@ -293,12 +293,13 @@ function editarCusto(cid, itemId){
 """
 
 def pagina(titulo, corpo):
+    topo = "<div class='top'><div><h1>Keiper Consultoria</h1>"
+    marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
+    botao = "<a class='btn' href='/'>+ Conectar loja</a></div>"
     return ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>"
             "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
-            "<div class='top'><div><h1>Keiper Consultoria</h1>"
-            "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
-            "<a class='btn' href='/'>+ Conectar loja</a></div>"
+            + topo + marca + botao +
             "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>")
 
 
@@ -400,9 +401,13 @@ def iniciar_banco():
         )""")
         executar(conn, """CREATE TABLE IF NOT EXISTS envios (
             conexao_id INTEGER, envio_id TEXT, status TEXT, tracking TEXT,
-            pedido_id TEXT, data TEXT, atualizado_em BIGINT,
+            pedido_id TEXT, data TEXT, custo_frete REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, envio_id)
         )""")
+        try:
+            executar(conn, "ALTER TABLE envios ADD COLUMN IF NOT EXISTS custo_frete REAL")
+        except Exception:
+            pass
         executar(conn, """CREATE TABLE IF NOT EXISTS promocoes (
             conexao_id INTEGER, promocao_id TEXT, tipo TEXT, nome TEXT,
             status TEXT, inicio TEXT, fim TEXT, qtd_itens INTEGER, atualizado_em BIGINT,
@@ -570,7 +575,7 @@ def upload_custos(cid):
         mapa[str(a["item_id"]).strip().upper()] = a["item_id"]
     atualizados = 0
     nao_achados = []
-    for row in ws.iter_rows(min_row=1, max_col=2, values_only=True):
+    for row in ws.iter_rows(min_row=2, max_col=2, values_only=True):
         sku = row[0] if len(row) > 0 else None
         custo = row[1] if len(row) > 1 else None
         if sku is None or custo is None:
@@ -591,6 +596,31 @@ def upload_custos(cid):
     except Exception:
         pass
     return redirect("/custos/" + str(cid) + "?ok=" + str(atualizados) + "&faltam=" + str(len(nao_achados)))
+
+
+@app.route("/modelo_custos/<int:cid>")
+def modelo_custos(cid):
+    if openpyxl is None:
+        return pagina("Erro", "<div class='card'><h2>Biblioteca de Excel não instalada</h2>"
+                     "<div class='sub'>Adicione 'openpyxl' no requirements.txt e faça o deploy de novo.</div></div>")
+    with banco() as conn:
+        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+        c = c[0] if c else None
+        if not c:
+            return "Loja não encontrada", 404
+        anuncios = consultar(conn, "SELECT item_id, sku, titulo FROM anuncios WHERE conexao_id=%s ORDER BY titulo", (cid,))
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Custos"
+    ws.append(["SKU", "Custo"])
+    for a in anuncios:
+        ws.append([a["sku"] or a["item_id"], None])
+    buf = io.BytesIO()
+    wb.save(buf)
+    nome = "modelo_custos_" + str(c["cliente"]).replace(" ", "_") + ".xlsx"
+    return Response(buf.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=" + nome})
 
 
 @app.route("/custos/<int:cid>")
@@ -643,11 +673,13 @@ def custos(cid):
     corpo += ("<div class='card'><h2>Importar custos em massa (Excel)</h2>"
               "<div class='sub'>Planilha com a <b>1ª coluna = SKU</b> e a <b>2ª coluna = custo (R$)</b>. "
               "Pode usar o SKU cadastrado no anúncio (campo personalizado do ML) ou o código MLB do item. "
-              "A primeira linha pode ser cabeçalho — é ignorada automaticamente.</div>"
+              "A primeira linha é o cabeçalho e é ignorada.</div>"
               "<form method='post' action='/upload_custos/" + str(cid) + "' enctype='multipart/form-data' style='display:flex;flex-wrap:wrap;gap:10px;align-items:center'>"
               "<input type='file' name='arquivo' accept='.xlsx' required class='filtro' style='padding:6px'>"
               "<button class='filtro-btn'>Importar</button>"
-              "</form></div>")
+              "</form>"
+              "<div style='margin-top:10px'><a class='link' href='/modelo_custos/" + str(cid) + "'>⬇ Baixar modelo (Excel) já com os SKUs da loja — preencha a coluna Custo e suba de volta</a></div>"
+              "</div>")
 
     if not anuncios:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
@@ -677,43 +709,33 @@ def custos(cid):
     return pagina("Custos de " + str(c["cliente"]), corpo)
 
 
-@app.route("/vendas/<int:cid>")
-def vendas(cid):
+def calcular_vendas(cid):
+    """Calcula a Margem de Contribuição de cada venda. Retorna (loja, lista de vendas)."""
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
-        if c:
-            pedidos = consultar(conn, "SELECT * FROM pedidos WHERE conexao_id=%s AND fechado_em IS NOT NULL ORDER BY fechado_em DESC LIMIT 100", (cid,))
-            itens = consultar(conn, """SELECT pi.pedido_id, pi.item_id, pi.quantidade, pi.preco_unitario,
-                                              a.custo, a.peso, a.titulo
-                                       FROM pedidos_itens pi
-                                       LEFT JOIN anuncios a ON a.conexao_id=pi.conexao_id AND a.item_id=pi.item_id
-                                       WHERE pi.conexao_id=%s""", (cid,))
-    if not c:
-        return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>")
-
+        if not c:
+            return None, []
+        pedidos = consultar(conn, "SELECT * FROM pedidos WHERE conexao_id=%s AND fechado_em IS NOT NULL ORDER BY fechado_em DESC LIMIT 100", (cid,))
+        itens = consultar(conn, """SELECT pi.pedido_id, pi.quantidade, pi.preco_unitario,
+                                          a.custo, a.peso
+                                   FROM pedidos_itens pi
+                                   LEFT JOIN anuncios a ON a.conexao_id=pi.conexao_id AND a.item_id=pi.item_id
+                                   WHERE pi.conexao_id=%s""", (cid,))
+        envios = consultar(conn, "SELECT pedido_id, custo_frete FROM envios WHERE conexao_id=%s AND custo_frete IS NOT NULL", (cid,))
     aliquota_pct = c["aliquota_imposto"] if c["aliquota_imposto"] is not None else 0
     comissao_pct = c["comissao_pct"] if c["comissao_pct"] is not None else 12
     aliquota = aliquota_pct / 100.0
     comissao = comissao_pct / 100.0
-
     itens_por_pedido = {}
     for it in itens:
         itens_por_pedido.setdefault(it["pedido_id"], []).append(it)
-
-    corpo = barra_topo(cid, c["cliente"], "Vendas")
-
-    if not pedidos:
-        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
-                  "<h2>Nenhuma venda carregada ainda</h2>"
-                  "<div class='sub'>Clique em 'Atualizar dados' para buscar os pedidos da loja. As vendas analisadas são os pedidos fechados.</div></div>")
-        return pagina("Vendas", corpo)
-
-    linhas_html = ""
-    tot_receita = 0.0
-    tot_mc = 0.0
-    analisadas = 0
-    pendentes = 0
+    frete_por_pedido = {}
+    for e in envios:
+        pid = e["pedido_id"]
+        if pid and pid not in frete_por_pedido:
+            frete_por_pedido[pid] = e["custo_frete"] or 0
+    vendas = []
     for p in pedidos:
         receita = p["total"] or 0
         itens_p = itens_por_pedido.get(p["pedido_id"], [])
@@ -731,38 +753,57 @@ def vendas(cid):
             f = frete_esperado(pu, it["peso"])
             if f is not None:
                 frete += f * qtd
+        frete_fonte = "estimado"
+        frete_real = frete_por_pedido.get(p["pedido_id"])
+        if frete_real is not None:
+            frete = frete_real
+            frete_fonte = "real"
         imposto = receita * aliquota
         comissao_v = receita * comissao
         mc = receita - custo_prod - imposto - comissao_v - frete
         mc_pct = (mc * 100.0 / receita) if receita else 0
-        tot_receita += receita
-        if sem_itens or sem_custo:
-            pendentes += 1
-        else:
-            analisadas += 1
-            tot_mc += mc
-        if sem_itens:
-            mc_html = "<span class='tag sem'>itens não registrados</span>"
-        elif sem_custo:
-            mc_html = "<a class='link' href='/custos/" + str(cid) + "'>cadastre o custo</a>"
-        elif mc_pct <= 0:
-            mc_html = "<span class='alerta urgente'>" + ("%.1f%% (R$ %.2f)" % (mc_pct, mc)) + "</span>"
-        elif mc_pct < 20:
-            mc_html = "<span class='alerta atencao'>" + ("%.1f%% (R$ %.2f)" % (mc_pct, mc)) + "</span>"
-        else:
-            mc_html = "<span class='alerta ok'>" + ("%.1f%% (R$ %.2f)" % (mc_pct, mc)) + "</span>"
-        linhas_html += ("<tr>"
-                        "<td><b>" + str(p["pedido_id"]) + "</b><br><small class='muted'>" + esc(str(p["fechado_em"])[:16].replace("T", " ")) + "</small></td>"
-                        "<td>" + esc(str(p["status"])) + "</td>"
-                        "<td>R$ %.2f" % receita + "</td>"
-                        "<td>" + (("<span class='tag sem'>—</span>") if sem_itens else ("R$ %.2f" % custo_prod)) + "</td>"
-                        "<td>R$ %.2f" % imposto + "</td>"
-                        "<td>R$ %.2f" % comissao_v + "</td>"
-                        "<td>" + (("<span class='tag sem'>—</span>") if not frete else ("R$ %.2f" % frete)) + "</td>"
-                        "<td>" + mc_html + "</td>"
-                        "</tr>")
+        vendas.append({
+            "pedido_id": p["pedido_id"],
+            "data": str(p["fechado_em"])[:16].replace("T", " "),
+            "status": str(p["status"]),
+            "receita": receita,
+            "custo_prod": custo_prod,
+            "imposto": imposto,
+            "comissao": comissao_v,
+            "frete": frete,
+            "frete_fonte": frete_fonte,
+            "mc": mc,
+            "mc_pct": mc_pct,
+            "sem_itens": sem_itens,
+            "sem_custo": sem_custo,
+        })
+    return c, vendas
 
+
+@app.route("/vendas/<int:cid>")
+def vendas(cid):
+    c, vendas = calcular_vendas(cid)
+    if not c:
+        return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>")
+    aliquota_pct = c["aliquota_imposto"] if c["aliquota_imposto"] is not None else 0
+    comissao_pct = c["comissao_pct"] if c["comissao_pct"] is not None else 12
+
+    corpo = barra_topo(cid, c["cliente"], "Vendas",
+                       "<a class='btn-acoes cinza' href='/exportar_vendas/" + str(cid) + "'>⬇ Exportar CSV</a>")
+
+    if not vendas:
+        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
+                  "<h2>Nenhuma venda carregada ainda</h2>"
+                  "<div class='sub'>Clique em 'Atualizar dados' para buscar os pedidos da loja. As vendas analisadas são os pedidos fechados.</div></div>")
+        return pagina("Vendas", corpo)
+
+    analisadas = sum(1 for v in vendas if not v["sem_itens"] and not v["sem_custo"])
+    pendentes = len(vendas) - analisadas
+    tot_receita = sum(v["receita"] for v in vendas if not v["sem_itens"] and not v["sem_custo"])
+    tot_mc = sum(v["mc"] for v in vendas if not v["sem_itens"] and not v["sem_custo"])
     mc_medio = (tot_mc * 100.0 / tot_receita) if tot_receita else 0
+    com_frete_real = sum(1 for v in vendas if v["frete_fonte"] == "real")
+
     corpo += ("<div class='grid' style='margin-bottom:18px'>"
               "<div class='stat'><div class='num'>R$ %.2f" % tot_receita + "</div><div class='lab'>Receita das vendas analisadas</div></div>"
               "<div class='stat'><div class='num'>R$ %.2f" % tot_mc + "</div><div class='lab'>Margem de Contribuição total</div></div>"
@@ -770,16 +811,67 @@ def vendas(cid):
               "<div class='stat'><div class='num'>" + str(pendentes) + "</div><div class='lab'>Vendas sem custo cadastrado</div></div>"
               "</div>")
 
-    corpo += ("<div class='card'><h2>Vendas e Margem de Contribuição <span class='badge'>" + str(len(pedidos)) + "</span></h2>"
+    linhas_html = ""
+    for v in vendas:
+        if v["sem_itens"]:
+            mc_html = "<span class='tag sem'>itens não registrados</span>"
+        elif v["sem_custo"]:
+            mc_html = "<a class='link' href='/custos/" + str(cid) + "'>cadastre o custo</a>"
+        elif v["mc_pct"] <= 0:
+            mc_html = "<span class='alerta urgente'>" + ("%.1f%% (R$ %.2f)" % (v["mc_pct"], v["mc"])) + "</span>"
+        elif v["mc_pct"] < 20:
+            mc_html = "<span class='alerta atencao'>" + ("%.1f%% (R$ %.2f)" % (v["mc_pct"], v["mc"])) + "</span>"
+        else:
+            mc_html = "<span class='alerta ok'>" + ("%.1f%% (R$ %.2f)" % (v["mc_pct"], v["mc"])) + "</span>"
+        fonte = "<small class='muted'>real</small>" if v["frete_fonte"] == "real" else "<small class='muted'>est.</small>"
+        if v["frete"]:
+            frete_html = ("R$ %.2f " % v["frete"]) + fonte
+        else:
+            frete_html = "<span class='tag sem'>—</span>"
+        linhas_html += ("<tr>"
+                        "<td><b>" + str(v["pedido_id"]) + "</b><br><small class='muted'>" + esc(v["data"]) + "</small></td>"
+                        "<td>" + esc(v["status"]) + "</td>"
+                        "<td>R$ %.2f" % v["receita"] + "</td>"
+                        "<td>" + (("<span class='tag sem'>—</span>") if v["sem_itens"] else ("R$ %.2f" % v["custo_prod"])) + "</td>"
+                        "<td>R$ %.2f" % v["imposto"] + "</td>"
+                        "<td>R$ %.2f" % v["comissao"] + "</td>"
+                        "<td>" + frete_html + "</td>"
+                        "<td>" + mc_html + "</td>"
+                        "</tr>")
+
+    corpo += ("<div class='card'><h2>Vendas e Margem de Contribuição <span class='badge'>" + str(len(vendas)) + "</span></h2>"
               "<div class='sub'>MG = Receita − Custo dos produtos − Imposto (" + str(aliquota_pct) + "%) − Comissão ML (" + str(comissao_pct) + "%) − Frete. Entre parênteses, o lucro em R$ de cada venda.</div>"
               "<div style='overflow-x:auto'><table>"
               "<thead><tr><th>Pedido</th><th>Status</th><th>Receita</th><th>Custo produtos</th><th>Imposto</th><th>Comissão</th><th>Frete</th><th>MG (Lucro R$)</th></tr></thead>"
               "<tbody>" + linhas_html + "</tbody></table></div>"
-              "<div class='muted'>Imposto e comissão são configurados na tela de <a class='link' href='/custos/" + str(cid) + "'>Custos</a>. "
-              "Frete estimado pela tabela oficial do ML (peso × faixa de preço); anúncios sem peso não têm frete somado. "
-              "Vendas com 'cadastre o custo' precisam do custo do produto na tela de Custos.</div></div>")
+              "<div class='muted'>Frete: usa o <b>valor real</b> do envio quando o Mercado Livre informa (" + str(com_frete_real) + " vendas com frete real); senão, estimativa pela tabela oficial do ML (marcado como 'est.'). "
+              "Imposto e comissão são configurados na <a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a>.</div></div>")
 
     return pagina("Vendas de " + str(c["cliente"]), corpo)
+
+
+@app.route("/exportar_vendas/<int:cid>")
+def exportar_vendas(cid):
+    c, vendas = calcular_vendas(cid)
+    if not c:
+        return "Loja não encontrada", 404
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Pedido", "Data", "Status", "Receita", "Custo produtos", "Imposto",
+                     "Comissao", "Frete", "Fonte frete", "MC %", "Lucro R$"])
+    for v in vendas:
+        writer.writerow([v["pedido_id"], v["data"], v["status"],
+                         ("%.2f" % v["receita"]).replace(".", ","),
+                         ("%.2f" % v["custo_prod"]).replace(".", ","),
+                         ("%.2f" % v["imposto"]).replace(".", ","),
+                         ("%.2f" % v["comissao"]).replace(".", ","),
+                         ("%.2f" % v["frete"]).replace(".", ","),
+                         v["frete_fonte"],
+                         ("%.1f" % v["mc_pct"]).replace(".", ","),
+                         ("%.2f" % v["mc"]).replace(".", ",")])
+    nome_arq = "vendas_" + str(c["cliente"]).replace(" ", "_") + ".csv"
+    return Response(buf.getvalue(), mimetype="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": "attachment; filename=" + nome_arq})
 
 
 @app.route("/painel")
@@ -1518,12 +1610,13 @@ def painel_detalhe(cid):
     if envios:
         linhas_html = ""
         for s in envios:
+            cf = ("R$ %.2f" % s["custo_frete"]) if s["custo_frete"] is not None else "-"
             linhas_html += ("<tr><td>" + str(s["envio_id"]) + "</td><td>" + esc(str(s["status"])) +
                             "</td><td>" + esc(str(s["tracking"]) or "-") + "</td><td>" + str(s["pedido_id"]) +
-                            "</td><td>" + esc(str(s["data"])) + "</td></tr>")
+                            "</td><td>" + cf + "</td><td>" + esc(str(s["data"])) + "</td></tr>")
         corpo += ("<div class='card'><h2>Envios <span class='badge'>" + str(len(envios)) + "</span></h2>"
-                  "<div class='sub'>Status e rastreio dos envios</div>"
-                  "<table><thead><tr><th>Envio</th><th>Status</th><th>Rastreio</th><th>Pedido</th><th>Data</th></tr></thead>"
+                  "<div class='sub'>Status, rastreio e custo real do frete</div>"
+                  "<table><thead><tr><th>Envio</th><th>Status</th><th>Rastreio</th><th>Pedido</th><th>Frete real</th><th>Data</th></tr></thead>"
                   "<tbody>" + linhas_html + "</tbody></table></div>")
 
     if promos:
@@ -1863,15 +1956,21 @@ def puxar_envios(conexao_id, token, user_id):
     with banco() as conn:
         executar(conn, "DELETE FROM envios WHERE conexao_id=%s", (conexao_id,))
     for s in resultados:
+        sid = str(s.get("id"))
+        custo_frete = None
+        det, det_erro = api_get(token, "/shipments/" + sid)
+        if not det_erro and det:
+            custo_frete = det.get("cost_to_seller")
         with banco() as conn:
             executar(conn, """INSERT INTO envios
-                            (conexao_id, envio_id, status, tracking, pedido_id, data, atualizado_em)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s)
+                            (conexao_id, envio_id, status, tracking, pedido_id, data, custo_frete, atualizado_em)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, envio_id) DO UPDATE SET
                               status=EXCLUDED.status, tracking=EXCLUDED.tracking,
-                              pedido_id=EXCLUDED.pedido_id, data=EXCLUDED.data, atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, str(s.get("id")), s.get("status"), s.get("tracking_number"),
-                      s.get("order_id"), s.get("date_created"), agora))
+                              pedido_id=EXCLUDED.pedido_id, data=EXCLUDED.data,
+                              custo_frete=EXCLUDED.custo_frete, atualizado_em=EXCLUDED.atualizado_em""",
+                     (conexao_id, sid, s.get("status"), s.get("tracking_number"),
+                      s.get("order_id"), s.get("date_created"), custo_frete, agora))
 
 
 def puxar_promocoes(conexao_id, token, user_id):
