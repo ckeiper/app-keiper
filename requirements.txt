@@ -3,3 +3,4 @@ requests
 apscheduler
 gunicorn
 psycopg2-binary
+openpyxl
