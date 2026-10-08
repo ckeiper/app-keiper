@@ -1288,88 +1288,174 @@ def exportar_vendas(cid):
 @app.route("/painel")
 @login_required
 def painel():
+    hoje_iso = datetime.date.today().isoformat()
+    ontem_iso = (datetime.date.today()
+                 - datetime.timedelta(days=1)).isoformat()
+    ini7 = (datetime.date.today()
+            - datetime.timedelta(days=6)).isoformat()
     with banco() as conn:
         if session.get("tipo") == "admin":
-            linhas = consultar(conn, """
-                SELECT c.id, c.cliente, c.user_id, c.status,
-                  (SELECT COUNT(*) FROM anuncios a
-                   WHERE a.conexao_id=c.id) qtd_anuncios,
-                  (SELECT COUNT(*) FROM pedidos p
-                   WHERE p.conexao_id=c.id) qtd_pedidos,
-                  (SELECT COUNT(*) FROM perguntas q
-                   WHERE q.conexao_id=c.id
-                     AND q.status != 'ANSWERED') qtd_perg
-                FROM conexoes c ORDER BY c.id
-            """)
+            lojas = consultar(conn, "SELECT id, cliente, status "
+                                    "FROM conexoes ORDER BY cliente")
         else:
-            linhas = consultar(conn, """
-                SELECT c.id, c.cliente, c.user_id, c.status,
-                  (SELECT COUNT(*) FROM anuncios a
-                   WHERE a.conexao_id=c.id) qtd_anuncios,
-                  (SELECT COUNT(*) FROM pedidos p
-                   WHERE p.conexao_id=c.id) qtd_pedidos,
-                  (SELECT COUNT(*) FROM perguntas q
-                   WHERE q.conexao_id=c.id
-                     AND q.status != 'ANSWERED') qtd_perg
-                FROM conexoes c WHERE c.id=%s ORDER BY c.id
-            """, (session.get("conexao_id"),))
-    if not linhas:
+            lojas = consultar(conn, "SELECT id, cliente, status "
+                                    "FROM conexoes WHERE id=%s "
+                                    "ORDER BY cliente",
+                              (session.get("conexao_id"),))
+        ids = [l["id"] for l in lojas]
+        fat_hoje = fat_ontem = 0.0
+        vendas_hoje = vendas_ontem = 0
+        visitas_total = 0
+        gasto_hoje = None
+        gasto_total = 0.0
+        fat_geral = 0.0
+        g_fat = []
+        g_vis = []
+        if ids:
+            ph = ",".join(["%s"] * len(ids))
+            r = consultar(conn, "SELECT COALESCE(SUM(total),0) AS t, "
+                                "COUNT(*) AS n FROM pedidos "
+                                "WHERE conexao_id IN (" + ph + ") "
+                                "AND fechado_em IS NOT NULL "
+                                "AND SUBSTRING(fechado_em,1,10)=%s",
+                          (*ids, hoje_iso))
+            fat_hoje = r[0]["t"] or 0
+            vendas_hoje = r[0]["n"] or 0
+            r = consultar(conn, "SELECT COALESCE(SUM(total),0) AS t, "
+                                "COUNT(*) AS n FROM pedidos "
+                                "WHERE conexao_id IN (" + ph + ") "
+                                "AND fechado_em IS NOT NULL "
+                                "AND SUBSTRING(fechado_em,1,10)=%s",
+                          (*ids, ontem_iso))
+            fat_ontem = r[0]["t"] or 0
+            vendas_ontem = r[0]["n"] or 0
+            r = consultar(conn, "SELECT COALESCE(SUM(visitas),0) AS v "
+                                "FROM metricas "
+                                "WHERE conexao_id IN (" + ph + ")", ids)
+            visitas_total = r[0]["v"] or 0
+            r = consultar(conn, "SELECT COALESCE(SUM(gasto),0) AS g "
+                                "FROM ads_dia "
+                                "WHERE conexao_id IN (" + ph + ") "
+                                "AND data=%s", (*ids, hoje_iso))
+            gasto_hoje = r[0]["g"]
+            r = consultar(conn, "SELECT COALESCE(SUM(gasto),0) AS g "
+                                "FROM ads_dia "
+                                "WHERE conexao_id IN (" + ph + ")", ids)
+            gasto_total = r[0]["g"] or 0
+            r = consultar(conn, "SELECT COALESCE(SUM(total),0) AS t "
+                                "FROM pedidos "
+                                "WHERE conexao_id IN (" + ph + ") "
+                                "AND fechado_em IS NOT NULL", ids)
+            fat_geral = r[0]["t"] or 0
+            g_fat = consultar(conn, "SELECT SUBSTRING(fechado_em,1,10) AS dia, "
+                                    "COALESCE(SUM(total),0) AS t "
+                                    "FROM pedidos "
+                                    "WHERE conexao_id IN (" + ph + ") "
+                                    "AND fechado_em IS NOT NULL "
+                                    "AND SUBSTRING(fechado_em,1,10) >= %s "
+                                    "GROUP BY SUBSTRING(fechado_em,1,10)",
+                              (*ids, ini7))
+            g_vis = consultar(conn, "SELECT data, "
+                                    "COALESCE(SUM(visitas),0) AS v "
+                                    "FROM desempenho_historico "
+                                    "WHERE conexao_id IN (" + ph + ") "
+                                    "AND data >= %s GROUP BY data",
+                              (*ids, ini7))
+    if not lojas:
         corpo = ("<div class='card' style='text-align:center;padding:50px'>"
                  "<h2>Nenhuma loja conectada ainda</h2>"
                  "<div class='sub'>Comece conectando a primeira loja</div>"
                  "<p><a class='link' href='/'>Conectar loja</a></p></div>")
         return pagina("Painel", corpo)
-    cards = ""
-    for l in linhas:
-        st = l["status"]
-        if st in ("ativa", "pausado", "expirada"):
-            tag = "tag " + st
+    fat_map = {r["dia"]: r["t"] for r in g_fat}
+    vis_map = {r["data"]: r["v"] for r in g_vis}
+    rotulos, serie_fat, serie_vis = [], [], []
+    d = datetime.date.today() - datetime.timedelta(days=6)
+    while d <= datetime.date.today():
+        iso = d.isoformat()
+        rotulos.append(d.strftime("%d/%m"))
+        serie_fat.append(round(fat_map.get(iso, 0), 2))
+        serie_vis.append(vis_map.get(iso, 0))
+        d += datetime.timedelta(days=1)
+    tacos = None
+    if fat_geral and fat_geral > 0:
+        tacos = round(gasto_total * 100.0 / fat_geral, 1)
+    lista = "<div class='menu-lateral' style='width:250px'>"
+    lista += "<div class='voltar'>Contas conectadas</div>"
+    for l in lojas:
+        if str(l["status"]) == "ativa":
+            cor = "#1a9d5c"
         else:
-            tag = "tag normal"
-        cards += ("<div class='card'>"
-                  "<div style='display:flex;justify-content:space-between;"
-                  "align-items:center;flex-wrap:wrap;gap:8px'>"
-                  "<h2><span id='nome-" + str(l["id"]) + "'>"
-                  + esc(str(l["cliente"])) + "</span> "
+            cor = "#d64545"
+        lista += ("<div style='display:flex;align-items:center'>"
+                  "<a class='item' style='flex:1' href='/painel/"
+                  + str(l["id"]) + "'>"
+                  "<span style='display:inline-block;width:8px;height:8px;"
+                  "border-radius:50%;background:" + cor
+                  + ";margin-right:8px'></span>"
+                  + esc(str(l["cliente"])) + "</a>"
                   "<a class='icon-link' href='#' onclick='editarNome("
-                  + str(l["id"]) + "); return false;'>✏️</a></h2>"
-                  "<span class='" + tag + "'>" + esc(st) + "</span></div>"
-                  "<div class='grid' style='margin-top:14px'>"
-                  "<div class='stat'><div class='num'>"
-                  + str(l["qtd_anuncios"]) + "</div>"
-                  "<div class='lab'>Anúncios</div></div>"
-                  "<div class='stat'><div class='num'>"
-                  + str(l["qtd_pedidos"]) + "</div>"
-                  "<div class='lab'>Pedidos</div></div>"
-                  "<div class='stat'><div class='num'>"
-                  + str(l["qtd_perg"]) + "</div>"
-                  "<div class='lab'>Perguntas p/ responder</div></div>"
-                  "</div>"
-                  "<div style='margin-top:14px;display:flex;gap:14px;"
-                  "align-items:center;flex-wrap:wrap'>"
-                  "<a class='btn-acoes' href='/painel/"
-                  + str(l["id"]) + "'>Abrir Resumo</a>"
-                  " <a class='link' href='/anuncios/"
-                  + str(l["id"]) + "'>Anúncios</a>"
-                  " <a class='link' href='/desempenho/"
-                  + str(l["id"]) + "'>Desempenho</a>"
-                  " <a class='link' href='/demandas/"
-                  + str(l["id"]) + "'>Demandas</a>"
-                  " <a class='link' href='/promocoes/"
-                  + str(l["id"]) + "'>Promoções</a>"
-                  " <a class='link' href='/campanhas/"
-                  + str(l["id"]) + "'>Campanhas</a>"
-                  " <a class='link' href='/custos/"
-                  + str(l["id"]) + "'>Custos</a>"
-                  " <a class='link' href='/vendas/"
-                  + str(l["id"]) + "'>Vendas</a>"
-                  " <a class='link' href='/atualizar?cid="
-                  + str(l["id"]) + "'>Atualizar dados</a>"
-                  " <a class='btn-danger' href='/excluir/"
-                  + str(l["id"]) + "'>Excluir</a>"
-                  "</div></div>")
-    corpo = "<h2 style='margin-bottom:16px'>Lojas conectadas</h2>" + cards
-    return pagina("Painel", corpo)
+                  + str(l["id"]) + "); return false;'>✏️</a></div>")
+    lista += "</div>"
+    corpo = "<h2 style='margin-bottom:14px'>Visão geral</h2>"
+    corpo += "<div class='grid' style='margin-bottom:18px'>"
+    corpo += ("<div class='stat'><div class='num'>R$ %.2f" % fat_hoje
+              + "</div><div class='lab'>Faturamento hoje (todas as contas)</div>"
+              + var_html(fat_hoje, fat_ontem) + "</div>")
+    corpo += ("<div class='stat'><div class='num'>" + str(vendas_hoje)
+              + "</div><div class='lab'>Vendas hoje</div>"
+              + "<div class='var estavel'>ontem: "
+              + str(vendas_ontem) + "</div></div>")
+    corpo += ("<div class='stat'><div class='num'>" + str(visitas_total)
+              + "</div><div class='lab'>Visitas totais (todas as contas)"
+              + "</div></div>")
+    if gasto_hoje is not None:
+        gasto_txt = "R$ %.2f" % gasto_hoje
+    else:
+        gasto_txt = "<span class='tag sem'>—</span>"
+    corpo += ("<div class='stat'><div class='num'>" + gasto_txt
+              + "</div><div class='lab'>Gasto Ads hoje</div></div>")
+    corpo += ("<div class='stat'><div class='num'>R$ %.2f" % gasto_total
+              + "</div><div class='lab'>Investimento total em Ads</div></div>")
+    if tacos is not None:
+        tacos_txt = "%.1f%%" % tacos
+    else:
+        tacos_txt = "<span class='tag sem'>—</span>"
+    corpo += ("<div class='stat'><div class='num'>" + tacos_txt
+              + "</div><div class='lab'>TACOS geral (Ads ÷ faturamento)"
+              + "</div></div>")
+    corpo += "</div>"
+    corpo += ("<div class='card'><h2>Evolução dos últimos 7 dias</h2>"
+              "<div class='sub'>Faturamento e visitas somando todas as contas"
+              "</div><div class='grafico-box'>"
+              "<canvas id='graficoGeral'></canvas></div></div>")
+    corpo += ("<script src='https://cdn.jsdelivr.net/npm/"
+              "chart.js@4.4.1/dist/chart.umd.min.js'></script>")
+    corpo += ("<script>var rot = " + json.dumps(rotulos) + ";"
+              "var sf = " + json.dumps(serie_fat) + ";"
+              "var sv = " + json.dumps(serie_vis) + ";"
+              "new Chart(document.getElementById('graficoGeral'), {"
+              "type:'line',"
+              "data:{labels:rot,datasets:["
+              "{label:'Faturamento (R$)',data:sf,borderColor:'#3483FA',"
+              "backgroundColor:'rgba(52,131,250,0.12)',yAxisID:'y',"
+              "tension:0.3,fill:true},"
+              "{label:'Visitas',data:sv,borderColor:'#f59e0b',"
+              "backgroundColor:'rgba(245,158,11,0.12)',yAxisID:'y1',"
+              "tension:0.3,fill:true}]},"
+              "options:{responsive:true,maintainAspectRatio:false,"
+              "plugins:{legend:{position:'top'}},"
+              "scales:{y:{type:'linear',position:'left',"
+              "title:{display:true,text:'R$'},beginAtZero:true},"
+              "y1:{type:'linear',position:'right',"
+              "title:{display:true,text:'Visitas'},"
+              "beginAtZero:true,grid:{drawOnChartArea:false}}}}});</script>")
+    corpo += ("<div class='muted'>TACOS = investimento em Ads dividido pelo "
+              "faturamento total. Clique em uma conta na lista à esquerda "
+              "para abrir o Resumo dela.</div>")
+    corpo_final = ("<div class='layout'>" + lista
+                   + "<div class='conteudo'>" + corpo + "</div></div>")
+    return pagina("Painel", corpo_final)
 
 
 @app.route("/usuarios")
