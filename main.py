@@ -1290,6 +1290,17 @@ def exportar_vendas(cid):
     nome_arq = "vendas_" + str(c["cliente"]).replace(" ", "_") + ".csv"
     return Response(buf.getvalue(), mimetype="text/csv; charset=utf-8",
                     headers={"Content-Disposition": "attachment; filename=" + nome_arq})
+def executar_atualizacao_bg(cid):
+    try:
+        executar_atualizacao(cid)
+    except Exception as e:
+        try:
+            registrar_erro(cid, "atualizacao", str(e)[:200])
+        except Exception:
+            pass
+    finally:
+        with LOCK_ATUALIZACAO:
+            ATUALIZANDO.discard(cid)    
 @app.route("/painel")
 @login_required
 def painel():
@@ -1307,18 +1318,13 @@ def painel():
                                     "FROM conexoes WHERE id=%s "
                                     "ORDER BY cliente",
                               (session.get("conexao_id"),))
-    disparou = False
+        disparou = False
     agora = int(time.time())
     for l in lojas:
         ult = ultima_atualizacao(l["id"])
         if ult is None or (agora - ult) > GATILHO_AUTO_SEG:
-            disparou = True
-            with LOCK_ATUALIZACAO:
-                if l["id"] not in ATUALIZANDO:
-                    ATUALIZANDO.add(l["id"])
-                    threading.Thread(target=executar_atualizacao_bg,
-                                     args=(l["id"],),
-                                     daemon=True).start()
+            if enfileirar_atualizacao(l["id"]):
+                disparou = True
     if not lojas:
         corpo = ("<div class='card' style='text-align:center;padding:50px'>"
                  "<h2>Nenhuma loja conectada ainda</h2>"
@@ -1476,17 +1482,16 @@ def painel():
         tenta_r = int(request.args.get("r", 0))
     except Exception:
         tenta_r = 0
-    if disparou:
-        if tenta_r < 3:
-            corpo += ("<div class='aviso'>Atualizando todas as contas em "
-                      "segundo plano — a página vai recarregar sozinha para "
-                      "mostrar os números atualizados.</div>")
+        if disparou:
+        if tenta_r < 10:
+            corpo += ("<div class='aviso'>Atualizando contas em segundo plano "
+                      "(restam " + str(len(FILA_ATUALIZACAO))
+                      + " na fila) — a página recarrega sozinha.</div>")
             corpo += ("<script>setTimeout(function(){ location.href = "
-                      "'/painel?r=" + str(tenta_r + 1) + "'; }, 90000);</script>")
+                      "'/painel?r=" + str(tenta_r + 1) + "'; }, 60000);</script>")
         else:
             corpo += ("<div class='aviso'>A atualização ainda está rodando em "
-                      "segundo plano. Recarregue a página em instantes para ver "
-                      "os números completos.</div>")
+                      "segundo plano. Recarregue a página em instantes.</div>")
     corpo += ("<div class='muted'>TACOS = investimento em Ads dividido pelo "
               "faturamento total. Clique em uma conta na lista à esquerda "
               "para abrir o Resumo dela.</div>")
@@ -3061,36 +3066,49 @@ def puxar_anuncios(conexao_id, token, user_id):
             if v not in atuais:
                 executar(conn, "DELETE FROM anuncios WHERE conexao_id=%s "
                                "AND item_id=%s", (conexao_id, v))
-    for item_id in ids:
-        det, det_erro = api_get(token, "/items/" + str(item_id),
-                                {"attributes": "id,title,price,"
-                                 "available_quantity,status,sold_quantity,"
-                                 "pictures,video_id,tags,shipping,"
-                                 "seller_custom_field"})
-        if det_erro or not det:
+    linhas = []
+    for i in range(0, len(ids), 20):
+        lote = ids[i:i + 20]
+        dados, erro = api_get(token, "/items",
+                              {"ids": ",".join(lote)})
+        if erro or not isinstance(dados, list):
+            registrar_erro(conexao_id, "anuncios",
+                           erro or "lote sem resposta")
             continue
-        fotos = 0
-        pics = det.get("pictures")
-        if isinstance(pics, list):
-            fotos = len(pics)
-        clips = det.get("video_id")
-        if clips is None:
-            clips = None
-        elif clips:
-            clips = 1
-        else:
-            clips = 0
-        tags = det.get("tags") or []
-        peso = None
-        shipping = det.get("shipping") or {}
-        dims = shipping.get("dimensions") or ""
-        if isinstance(dims, str) and "," in dims:
-            try:
-                peso = float(dims.split(",")[-1].strip()) / 1000.0
-            except Exception:
-                peso = None
-        sku = det.get("seller_custom_field")
-        with banco() as conn:
+        for r in dados:
+            if not isinstance(r, dict):
+                continue
+            det = r.get("body")
+            if not isinstance(det, dict) or not det.get("id"):
+                continue
+            fotos = 0
+            pics = det.get("pictures")
+            if isinstance(pics, list):
+                fotos = len(pics)
+            vid = det.get("video_id")
+            if vid is None:
+                clips = None
+            elif vid:
+                clips = 1
+            else:
+                clips = 0
+            tags = det.get("tags") or []
+            peso = None
+            shipping = det.get("shipping") or {}
+            dims = shipping.get("dimensions") or ""
+            if isinstance(dims, str) and "," in dims:
+                try:
+                    peso = float(dims.split(",")[-1].strip()) / 1000.0
+                except Exception:
+                    peso = None
+            linhas.append((conexao_id, det.get("id"), det.get("title"),
+                           det.get("price"), det.get("available_quantity"),
+                           det.get("status"), det.get("sold_quantity"),
+                           agora, fotos, clips,
+                           json.dumps(tags, ensure_ascii=False),
+                           peso, det.get("seller_custom_field")))
+    with banco() as conn:
+        for t in linhas:
             executar(conn, """INSERT INTO anuncios
                             (conexao_id, item_id, titulo, preco, quantidade,
                              status, vendidos, atualizado_em, fotos, clips,
@@ -3104,12 +3122,7 @@ def puxar_anuncios(conexao_id, token, user_id):
                               atualizado_em=EXCLUDED.atualizado_em,
                               fotos=EXCLUDED.fotos, clips=EXCLUDED.clips,
                               tags=EXCLUDED.tags, peso=EXCLUDED.peso,
-                              sku=EXCLUDED.sku""",
-                     (conexao_id, det.get("id"), det.get("title"),
-                      det.get("price"), det.get("available_quantity"),
-                      det.get("status"), det.get("sold_quantity"), agora,
-                      fotos, clips, json.dumps(tags, ensure_ascii=False),
-                      peso, sku))
+                              sku=EXCLUDED.sku""", t)
 
 
 def puxar_metricas(conexao_id, token):
@@ -3201,7 +3214,7 @@ def puxar_envios(conexao_id, token, user_id):
     with banco() as conn:
         executar(conn, "DELETE FROM envios WHERE conexao_id=%s",
                  (conexao_id,))
-    for s in resultados:
+    for s in resultados[:20]:
         sid = str(s.get("id"))
         custo_frete = None
         det, det_erro = api_get(token, "/shipments/" + sid)
@@ -3582,8 +3595,11 @@ def executar_atualizacao(cid):
 def executar_atualizacao_bg(cid):
     try:
         executar_atualizacao(cid)
-    except Exception:
-        pass
+    except Exception as e:
+        try:
+            registrar_erro(cid, "atualizacao", str(e)[:200])
+        except Exception:
+            pass
     finally:
         with LOCK_ATUALIZACAO:
             ATUALIZANDO.discard(cid)
