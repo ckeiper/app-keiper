@@ -383,12 +383,6 @@ def pagina(titulo, corpo):
     topo = "<h1>" + img_logo(34) + "Keiper Consultoria</h1>"
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
 
-
-"
-
-
-
-"
     links = ""
     if session.get("tipo") == "admin":
         links += "<a class='btn' href='/usuarios' style='background:#fff;color:#3483FA;margin-right:8px'>👥 Usuários</a>"
