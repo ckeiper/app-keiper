@@ -413,6 +413,7 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
         menu += rotulo + "</a>"
     menu += "<a class='item' href='/atualizar?cid=" + str(cid) + "'>"
     menu += "🔄 Atualizar dados</a>"
+    menu += "<a class='item' href='/diagnostico'>🔍 Diagnóstico</a>"
     menu += "<a class='item perigo' href='/excluir/" + str(cid) + "'>"
     menu += "🗑️ Excluir loja</a></div>"
     links = ""
@@ -1301,6 +1302,55 @@ def executar_atualizacao_bg(cid):
     finally:
         with LOCK_ATUALIZACAO:
             ATUALIZANDO.discard(cid)    
+@app.route("/diagnostico")
+@login_required
+def diagnostico():
+    with banco() as conn:
+        if session.get("tipo") == "admin":
+            lojas = consultar(conn, "SELECT id, cliente, status "
+                                    "FROM conexoes ORDER BY cliente")
+            erros = consultar(conn, "SELECT * FROM erros "
+                                    "ORDER BY quando DESC")
+        else:
+            lojas = consultar(conn, "SELECT id, cliente, status "
+                                    "FROM conexoes WHERE id=%s",
+                              (session.get("conexao_id"),))
+            erros = consultar(conn, "SELECT * FROM erros "
+                                    "WHERE conexao_id=%s ORDER BY quando DESC",
+                              (session.get("conexao_id"),))
+    corpo = ("<p style='margin-bottom:10px'><a class='link' href='/painel'>"
+             "← Voltar ao painel</a></p>"
+             "<h2 style='margin-bottom:14px'>Diagnóstico</h2>")
+    if FILA_ATUALIZACAO:
+        fila_txt = str(len(FILA_ATUALIZACAO)) + " na fila"
+    else:
+        fila_txt = "vazia"
+    corpo += ("<div class='grid' style='margin-bottom:18px'>"
+              "<div class='stat'><div class='num'>" + fila_txt
+              + "</div><div class='lab'>Fila de atualização</div></div>"
+              "</div>")
+    linhas = ""
+    for l in lojas:
+        linhas += ("<tr><td><b>" + esc(str(l["cliente"])) + "</b></td>"
+                   "<td>" + esc(str(l["status"])) + "</td><td>"
+                   + hora_br(ultima_atualizacao(l["id"])) + "</td></tr>")
+    corpo += ("<div class='card'><h2>Última atualização por conta</h2>"
+              "<table><thead><tr><th>Conta</th><th>Status</th>"
+              "<th>Última atualização</th></tr></thead><tbody>"
+              + linhas + "</tbody></table></div>")
+    linhas_e = ""
+    for e in erros:
+        linhas_e += ("<tr><td>" + esc(str(e["categoria"])) + "</td>"
+                     "<td>" + esc(str(e["mensagem"])) + "</td><td>"
+                     + hora_br(e["quando"]) + "</td></tr>")
+    if not linhas_e:
+        linhas_e = ("<tr><td colspan='3'><span class='alerta ok'>"
+                    "Nenhum erro registrado</span></td></tr>")
+    corpo += ("<div class='card'><h2>Erros de atualização</h2>"
+              "<table><thead><tr><th>Categoria</th><th>Mensagem</th>"
+              "<th>Quando</th></tr></thead><tbody>"
+              + linhas_e + "</tbody></table></div>")
+    return pagina("Diagnóstico", corpo)
 @app.route("/painel")
 @login_required
 def painel():
@@ -1424,6 +1474,7 @@ def painel():
         lista += ("<div style='border-top:1px solid #eef1f5;"
                   "margin-top:10px;padding-top:8px'></div>")
         lista += "<a class='item' href='/usuarios'>👥 Usuários</a>"
+        lista += "<a class='item' href='/diagnostico'>🔍 Diagnóstico</a>"
     lista += "</div>"
     corpo = "<h2 style='margin-bottom:14px'>Visão geral</h2>"
     corpo += "<div class='grid' style='margin-bottom:18px'>"
@@ -1482,8 +1533,8 @@ def painel():
         tenta_r = int(request.args.get("r", 0))
     except Exception:
         tenta_r = 0
-        if disparou:
-        if tenta_r < 10:
+    if disparou:
+         if tenta_r < 10:
             corpo += ("<div class='aviso'>Atualizando contas em segundo plano "
                       "(restam " + str(len(FILA_ATUALIZACAO))
                       + " na fila) — a página recarrega sozinha.</div>")
