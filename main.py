@@ -381,8 +381,7 @@ function gerarSenha(){
 
 def pagina(titulo, corpo):
     topo = "<h1>" + img_logo(34) + "Keiper Consultoria</h1>"
-    marca = "Painel de lojas Mercado Livre
-
+    marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
 
 
 "
