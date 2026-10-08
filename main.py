@@ -1540,7 +1540,7 @@ def painel():
                       + " na fila) — a página recarrega sozinha.</div>")
             corpo += ("<script>setTimeout(function(){ location.href = "
                       "'/painel?r=" + str(tenta_r + 1) + "'; }, 60000);</script>")
-        else:
+         else:
             corpo += ("<div class='aviso'>A atualização ainda está rodando em "
                       "segundo plano. Recarregue a página em instantes.</div>")
     corpo += ("<div class='muted'>TACOS = investimento em Ads dividido pelo "
