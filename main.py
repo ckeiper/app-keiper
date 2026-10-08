@@ -380,23 +380,17 @@ function gerarSenha(){
 """
 
 def pagina(titulo, corpo):
-    topo = "<h1>" + img_logo(34) + "Keiper Consultoria</h1>"
+    topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
-
     links = ""
     if session.get("tipo") == "admin":
         links += "<a class='btn' href='/usuarios' style='background:#fff;color:#3483FA;margin-right:8px'>👥 Usuários</a>"
-    links += "<a class='btn' href='/'>+ Conectar loja</a>
-
-"
-    return ("<!doctype html><html><head><meta charset='utf-8'>"
-            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-            "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
-            + topo + marca + links +
-            "" + corpo + "
-
-" + SCRIPT + "</body></html>")
-
+    links += "<a class='btn' href='/'>+ Conectar loja</a></div>"
+    cabecalho = "<!doctype html><html><head><meta charset='utf-8'>"
+    cabecalho += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    cabecalho += "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
+    rodape = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
+    return cabecalho + topo + marca + links + rodape
 
 def pagina_loja(titulo, cid, cliente, secao, corpo):
     itens = [
