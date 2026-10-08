@@ -384,10 +384,6 @@ def pagina(titulo, corpo):
     topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
     links = ""
-    if session.get("tipo") == "admin":
-        links += "<a class='btn' href='/usuarios' "
-        links += "style='background:#fff;color:#3483FA;margin-right:8px'>"
-        links += "👥 Usuários</a>"
     links += "<a class='btn' href='/'>+ Conectar loja</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -417,13 +413,11 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
         menu += rotulo + "</a>"
     menu += "<a class='item' href='/atualizar?cid=" + str(cid) + "'>"
     menu += "🔄 Atualizar dados</a>"
+    if session.get("tipo") == "admin":
+        menu += "<a class='item' href='/usuarios'>👥 Usuários</a>"
     menu += "<a class='item perigo' href='/excluir/" + str(cid) + "'>"
     menu += "🗑️ Excluir loja</a></div>"
     links = ""
-    if session.get("tipo") == "admin":
-        links += "<a class='btn' href='/usuarios' "
-        links += "style='background:#fff;color:#3483FA;margin-right:8px'>"
-        links += "👥 Usuários</a>"
     links += "<a class='btn sair' href='/logout'>Sair</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -1302,17 +1296,36 @@ def painel():
                                     "FROM conexoes WHERE id=%s "
                                     "ORDER BY cliente",
                               (session.get("conexao_id"),))
-        ids = [l["id"] for l in lojas]
-        fat_hoje = fat_ontem = 0.0
-        vendas_hoje = vendas_ontem = 0
-        visitas_total = 0
-        gasto_hoje = None
-        gasto_total = 0.0
-        fat_geral = 0.0
-        g_fat = []
-        g_vis = []
-        if ids:
-            ph = ",".join(["%s"] * len(ids))
+    disparou = False
+    agora = int(time.time())
+    for l in lojas:
+        ult = ultima_atualizacao(l["id"])
+        if ult is None or (agora - ult) > GATILHO_AUTO_SEG:
+            disparou = True
+            with LOCK_ATUALIZACAO:
+                if l["id"] not in ATUALIZANDO:
+                    ATUALIZANDO.add(l["id"])
+                    threading.Thread(target=executar_atualizacao_bg,
+                                     args=(l["id"],),
+                                     daemon=True).start()
+    if not lojas:
+        corpo = ("<div class='card' style='text-align:center;padding:50px'>"
+                 "<h2>Nenhuma loja conectada ainda</h2>"
+                 "<div class='sub'>Comece conectando a primeira loja</div>"
+                 "<p><a class='link' href='/'>Conectar loja</a></p></div>")
+        return pagina("Painel", corpo)
+    ids = [l["id"] for l in lojas]
+    fat_hoje = fat_ontem = 0.0
+    vendas_hoje = vendas_ontem = 0
+    visitas_total = 0
+    gasto_hoje = None
+    gasto_total = 0.0
+    fat_geral = 0.0
+    g_fat = []
+    g_vis = []
+    if ids:
+        ph = ",".join(["%s"] * len(ids))
+        with banco() as conn:
             r = consultar(conn, "SELECT COALESCE(SUM(total),0) AS t, "
                                 "COUNT(*) AS n FROM pedidos "
                                 "WHERE conexao_id IN (" + ph + ") "
@@ -1361,12 +1374,6 @@ def painel():
                                     "WHERE conexao_id IN (" + ph + ") "
                                     "AND data >= %s GROUP BY data",
                               (*ids, ini7))
-    if not lojas:
-        corpo = ("<div class='card' style='text-align:center;padding:50px'>"
-                 "<h2>Nenhuma loja conectada ainda</h2>"
-                 "<div class='sub'>Comece conectando a primeira loja</div>"
-                 "<p><a class='link' href='/'>Conectar loja</a></p></div>")
-        return pagina("Painel", corpo)
     fat_map = {r["dia"]: r["t"] for r in g_fat}
     vis_map = {r["data"]: r["v"] for r in g_vis}
     rotulos, serie_fat, serie_vis = [], [], []
@@ -1396,29 +1403,33 @@ def painel():
                   + esc(str(l["cliente"])) + "</a>"
                   "<a class='icon-link' href='#' onclick='editarNome("
                   + str(l["id"]) + "); return false;'>✏️</a></div>")
+    if session.get("tipo") == "admin":
+        lista += ("<div style='border-top:1px solid #eef1f5;"
+                  "margin-top:10px;padding-top:8px'></div>")
+        lista += "<a class='item' href='/usuarios'>👥 Usuários</a>"
     lista += "</div>"
     corpo = "<h2 style='margin-bottom:14px'>Visão geral</h2>"
     corpo += "<div class='grid' style='margin-bottom:18px'>"
-    corpo += ("<div class='stat'><div class='num'>R$ %.2f" % fat_hoje
+    corpo += ("<div class='stat'><div class='num'>R$ " + br(fat_hoje)
               + "</div><div class='lab'>Faturamento hoje (todas as contas)</div>"
               + var_html(fat_hoje, fat_ontem) + "</div>")
-    corpo += ("<div class='stat'><div class='num'>" + str(vendas_hoje)
+    corpo += ("<div class='stat'><div class='num'>" + br(vendas_hoje, 0)
               + "</div><div class='lab'>Vendas hoje</div>"
               + "<div class='var estavel'>ontem: "
-              + str(vendas_ontem) + "</div></div>")
-    corpo += ("<div class='stat'><div class='num'>" + str(visitas_total)
+              + br(vendas_ontem, 0) + "</div></div>")
+    corpo += ("<div class='stat'><div class='num'>" + br(visitas_total, 0)
               + "</div><div class='lab'>Visitas totais (todas as contas)"
               + "</div></div>")
     if gasto_hoje is not None:
-        gasto_txt = "R$ %.2f" % gasto_hoje
+        gasto_txt = "R$ " + br(gasto_hoje)
     else:
         gasto_txt = "<span class='tag sem'>—</span>"
     corpo += ("<div class='stat'><div class='num'>" + gasto_txt
               + "</div><div class='lab'>Gasto Ads hoje</div></div>")
-    corpo += ("<div class='stat'><div class='num'>R$ %.2f" % gasto_total
+    corpo += ("<div class='stat'><div class='num'>R$ " + br(gasto_total)
               + "</div><div class='lab'>Investimento total em Ads</div></div>")
     if tacos is not None:
-        tacos_txt = "%.1f%%" % tacos
+        tacos_txt = br(tacos, 1) + "%"
     else:
         tacos_txt = "<span class='tag sem'>—</span>"
     corpo += ("<div class='stat'><div class='num'>" + tacos_txt
@@ -1450,6 +1461,21 @@ def painel():
               "y1:{type:'linear',position:'right',"
               "title:{display:true,text:'Visitas'},"
               "beginAtZero:true,grid:{drawOnChartArea:false}}}}});</script>")
+    try:
+        tenta_r = int(request.args.get("r", 0))
+    except Exception:
+        tenta_r = 0
+    if disparou:
+        if tenta_r < 3:
+            corpo += ("<div class='aviso'>Atualizando todas as contas em "
+                      "segundo plano — a página vai recarregar sozinha para "
+                      "mostrar os números atualizados.</div>")
+            corpo += ("<script>setTimeout(function(){ location.href = "
+                      "'/painel?r=" + str(tenta_r + 1) + "'; }, 90000);</script>")
+        else:
+            corpo += ("<div class='aviso'>A atualização ainda está rodando em "
+                      "segundo plano. Recarregue a página em instantes para ver "
+                      "os números completos.</div>")
     corpo += ("<div class='muted'>TACOS = investimento em Ads dividido pelo "
               "faturamento total. Clique em uma conta na lista à esquerda "
               "para abrir o Resumo dela.</div>")
@@ -2557,17 +2583,32 @@ def desempenho(cid):
     return pagina_loja("Desempenho", cid, c["cliente"], "desempenho", corpo)
 
 
-def var_html(hoje, ontem):
+def br(v, decimais=2):
+    if v is None:
+        return None
+    s = format(float(v), ",." + str(decimais) + "f")
+    s = s.replace(",", "X").replace(".", ",").replace("X", ".")
+    return s
+
+
+def var_html(hoje, ontem, fmt="R$"):
     if ontem is None or ontem == 0:
         return "<div class='var estavel'>— sem base anterior</div>"
     delta = hoje - ontem
     pct = (delta * 100.0 / ontem) if ontem else 0
+    if fmt == "n":
+        un = ""
+        dec = 0
+    else:
+        un = "R$ "
+        dec = 2
     if delta > 0:
-        return "<div class='var subiu'>▲ +R$ %.2f (+%.1f%%)</div>" % (delta, pct)
+        return ("<div class='var subiu'>▲ +" + un + br(delta, dec)
+                + " (+" + br(pct, 1) + "%)</div>")
     elif delta < 0:
-        return "<div class='var caiu'>▼ R$ %.2f (%.1f%%)</div>" % (delta, pct)
+        return ("<div class='var caiu'>▼ " + un + br(abs(delta), dec)
+                + " (" + br(pct, 1) + "%)</div>")
     return "<div class='var estavel'>— 0%</div>"
-
 
 @app.route("/painel/<int:cid>")
 @login_required
@@ -2673,7 +2714,7 @@ def painel_detalhe(cid):
               + var_html(fat_dia, ontem_info["fat"]) + "</div>"
               "<div class='stat'><div class='num'>" + str(qtd_dia)
               + "</div><div class='lab'>Vendas do dia</div>"
-              + var_html(qtd_dia, ontem_info["qtd"]) + "</div>"
+              + var_html(qtd_dia, ontem_info["qtd"], "n") + "</div>"
               "<div class='stat'><div class='num'>" + lucro_html
               + "</div><div class='lab'>Lucro do dia (MC)</div>"
               + var_html(lucro_dia, ontem_info["lucro"]) + "</div>"
