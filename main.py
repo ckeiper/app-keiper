@@ -386,6 +386,10 @@ def pagina(titulo, corpo):
 
 
 "
+
+
+
+"
     links = ""
     if session.get("tipo") == "admin":
         links += "<a class='btn' href='/usuarios' style='background:#fff;color:#3483FA;margin-right:8px'>👥 Usuários</a>"
