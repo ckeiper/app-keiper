@@ -20,7 +20,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "troque-esta-chave")
 
 API = "https://api.mercadolibre.com"
 AUTH_URL = "https://auth.mercadolivre.com.br/authorization"
-TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
+TOKEN_URL = "https://api.mercadolivre.com/oauth/token"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH = os.path.join(BASE_DIR, "logo_Keiper_Consultoria.png")
@@ -31,7 +31,7 @@ esc = html.escape
 
 ATUALIZANDO = set()
 LOCK_ATUALIZACAO = threading.Lock()
-GATILHO_AUTO_SEG = 1800  # 30 minutos
+GATILHO_AUTO_SEG = 1800
 
 FRETE_PRECO_BANDAS = [
     (0, 18.99), (19, 48.99), (49, 78.99), (79, 99.99),
@@ -139,8 +139,9 @@ def montar_demandas_anuncio(a, em_promocao, conversao):
 
 def img_logo(altura=34):
     if os.path.exists(LOGO_PATH):
-        return ("<img src='/logo.png' alt='Keiper Consultoria' style='height:" + str(altura) +
-                "px;vertical-align:middle;margin-right:10px;border-radius:8px'>")
+        return ("<img src='/logo.png' alt='Keiper Consultoria' style='height:"
+                + str(altura) + "px;vertical-align:middle;"
+                "margin-right:10px;border-radius:8px'>")
     return ""
 
 
@@ -384,13 +385,16 @@ def pagina(titulo, corpo):
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
     links = ""
     if session.get("tipo") == "admin":
-        links += "<a class='btn' href='/usuarios' style='background:#fff;color:#3483FA;margin-right:8px'>👥 Usuários</a>"
+        links += "<a class='btn' href='/usuarios' "
+        links += "style='background:#fff;color:#3483FA;margin-right:8px'>"
+        links += "👥 Usuários</a>"
     links += "<a class='btn' href='/'>+ Conectar loja</a></div>"
-    cabecalho = "<!doctype html><html><head><meta charset='utf-8'>"
-    cabecalho += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    cabecalho += "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
-    rodape = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
-    return cabecalho + topo + marca + links + rodape
+    cab = "<!doctype html><html><head><meta charset='utf-8'>"
+    cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    cab += "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
+    fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
+    return cab + topo + marca + links + fim
+
 
 def pagina_loja(titulo, cid, cliente, secao, corpo):
     itens = [
@@ -433,14 +437,16 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
     cab += "</div></div></div>" + SCRIPT + "</body></html>"
     return cab
 
+
 def barra_atualizar(cid, ultima, tipo="resumo"):
     ult_txt = time.strftime("%d/%m/%Y %H:%M", time.localtime(ultima)) if ultima else "nunca"
-    return (""
-            "<a class='btn-acoes' href='/atualizar/" + tipo + "/" + str(cid) + "'>🔄 Atualizar agora</a>"
-            "Última atualização: " + ult_txt + ""
-            "
-
-")
+    return ("<div style='display:flex;gap:12px;align-items:center;"
+            "flex-wrap:wrap;margin-bottom:14px'>"
+            "<a class='btn-acoes' href='/atualizar/" + tipo + "/" + str(cid) + "'>"
+            "🔄 Atualizar agora</a>"
+            "<span style='color:#6b7280;font-size:13px'>"
+            "Última atualização: " + ult_txt + "</span>"
+            "</div>")
 
 
 def ultima_atualizacao(cid):
@@ -602,9 +608,7 @@ def iniciar_banco():
             conexao_id INTEGER, categoria TEXT, mensagem TEXT, quando BIGINT,
             PRIMARY KEY (conexao_id, categoria)
         )""")
-
-
-# ---------- AUTENTICAÇÃO ----------
+        # ---------- AUTENTICAÇÃO ----------
 
 def login_required(f):
     @wraps(f)
@@ -621,11 +625,7 @@ def admin_required(f):
         if "usuario_id" not in session:
             return redirect("/login")
         if session.get("tipo") != "admin":
-            return pagina("Acesso negado", "<h2>Acesso restrito</h2>Você não tem permissão para acessar esta área.
-
-
-
-")
+            return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
         return f(*args, **kwargs)
     return wrapper
 
@@ -693,32 +693,24 @@ def login():
             if u["tipo"] == "cliente" and u["conexao_id"]:
                 return redirect("/painel/" + str(u["conexao_id"]))
             return redirect("/painel")
-        corpo = (""
-                 + img_logo(64) + "<h2>Login</h2>Usuário ou senha incorretos.
-
-"
-                 + form_login() + "
-
-")
+        corpo = ("<div class='card' style='max-width:420px;margin:60px auto;text-align:center'>"
+                 + img_logo(64) + "<h2>Login</h2>"
+                 + "<div class='aviso'>Usuário ou senha incorretos.</div>"
+                 + form_login() + "</div>")
         return pagina("Login", corpo)
-    corpo = (""
-             + img_logo(64) + "<h2>Login</h2>Acesse o painel Keiper Consultoria
-
-"
-             + form_login() + "
-
-")
+    corpo = ("<div class='card' style='max-width:420px;margin:60px auto;text-align:center'>"
+             + img_logo(64) + "<h2>Login</h2>"
+             + "<div class='sub'>Acesse o painel Keiper Consultoria</div>"
+             + form_login() + "</div>")
     return pagina("Login", corpo)
 
 
 def form_login():
     return ("<form method='post' action='/login' style='margin-top:12px'>"
-            "<input name='username' required placeholder='Usuário' class='input' autocomplete='username'>"
-            "<input type='password' name='senha' required placeholder='Senha' class='input' autocomplete='current-password'>"
+            "<input name='username' required placeholder='Usuário' class='input'>"
+            "<input type='password' name='senha' required placeholder='Senha' class='input'>"
             "<button class='btn-salvar' style='width:100%'>Entrar</button></form>"
-            "<a class='link' href='/recuperar'>Esqueci minha senha</a>
-
-")
+            "<p style='margin-top:12px'><a class='link' href='/recuperar'>Esqueci minha senha</a></p>")
 
 
 @app.route("/recuperar", methods=["GET", "POST"])
@@ -726,54 +718,41 @@ def recuperar():
     if request.method == "POST":
         ident = (request.form.get("ident") or "").strip()
         if not smtp_configurado():
-            corpo = (""
+            corpo = ("<div class='card' style='max-width:460px;margin:60px auto;text-align:center'>"
                      "<h2>Recuperar senha</h2>"
-                     "A recuperação por e-mail **não está configurada** no servidor. "
-                     "Peça ao administrador para redefinir sua senha na tela de Usuários.
-
-"
-                     "<a class='link' href='/login'>← Voltar ao login</a>
-
-
-
-")
+                     "<div class='aviso'>A recuperação por e-mail <b>não está configurada</b> "
+                     "no servidor. Peça ao administrador para redefinir sua senha "
+                     "na tela de Usuários.</div>"
+                     "<p><a class='link' href='/login'>← Voltar ao login</a></p></div>")
             return pagina("Recuperar senha", corpo)
         with banco() as conn:
-            u = consultar(conn, "SELECT * FROM usuarios WHERE email=%s OR username=%s", (ident, ident))
+            u = consultar(conn, "SELECT * FROM usuarios WHERE email=%s OR username=%s",
+                          (ident, ident))
         u = u[0] if u else None
         if u and u["email"]:
             token = criar_token_reset(u["id"])
             link = request.url_root.rstrip("/") + "/redefinir/" + token
             texto = ("Olá " + (u["nome"] or u["username"]) + ",\n\n"
-                     "Recebemos um pedido de redefinição de senha do painel Keiper Consultoria.\n"
-                     "Use o link abaixo para criar uma nova senha (válido por 30 minutos):\n\n"
+                     "Recebemos um pedido de redefinição de senha do painel "
+                     "Keiper Consultoria.\n"
+                     "Use o link abaixo para criar uma nova senha "
+                     "(válido por 30 minutos):\n\n"
                      + link + "\n\nSe não foi você quem pediu, ignore este e-mail.")
             enviar_email(u["email"], "Redefinição de senha — Keiper Consultoria", texto)
-        corpo = (""
+        corpo = ("<div class='card' style='max-width:460px;margin:60px auto;text-align:center'>"
                  "<h2>Recuperar senha</h2>"
-                 "Se este e-mail estiver cadastrado, você receberá o link de redefinição em instantes. "
-                 "Verifique também a caixa de spam.
-
-"
-                 "<a class='link' href='/login'>← Voltar ao login</a>
-
-
-
-")
+                 "<div class='sucesso'>Se este e-mail estiver cadastrado, você receberá "
+                 "o link de redefinição em instantes. Verifique também a caixa de spam.</div>"
+                 "<p><a class='link' href='/login'>← Voltar ao login</a></p></div>")
         return pagina("Recuperar senha", corpo)
-    corpo = (""
+    corpo = ("<div class='card' style='max-width:460px;margin:60px auto;text-align:center'>"
              "<h2>Recuperar senha</h2>"
-             "Digite seu usuário ou e-mail cadastrado. Enviaremos um link para criar uma nova senha.
-
-"
+             "<div class='sub'>Digite seu usuário ou e-mail cadastrado. "
+             "Enviaremos um link para criar uma nova senha.</div>"
              "<form method='post' action='/recuperar'>"
              "<input name='ident' required placeholder='Usuário ou e-mail' class='input'>"
              "<button class='btn-salvar' style='width:100%'>Enviar link</button></form>"
-             "<a class='link' href='/login'>← Voltar ao login</a>
-
-
-
-")
+             "<p style='margin-top:12px'><a class='link' href='/login'>← Voltar ao login</a></p></div>")
     return pagina("Recuperar senha", corpo)
 
 
@@ -784,16 +763,11 @@ def redefinir(token):
         r = consultar(conn, "SELECT * FROM reset_tokens WHERE token_hash=%s", (th,))
     r = r[0] if r else None
     if not r or r["expira_em"] < int(time.time()):
-        corpo = (""
+        corpo = ("<div class='card' style='max-width:460px;margin:60px auto;text-align:center'>"
                  "<h2>Link inválido</h2>"
-                 "Este link de redefinição é inválido ou expirou. Solicite um novo.
-
-"
-                 "<a class='link' href='/recuperar'>Solicitar novo link</a>
-
-
-
-")
+                 "<div class='aviso'>Este link de redefinição é inválido ou expirou. "
+                 "Solicite um novo.</div>"
+                 "<p><a class='link' href='/recuperar'>Solicitar novo link</a></p></div>")
         return pagina("Redefinir senha", corpo)
     erro = ""
     if request.method == "POST":
@@ -805,27 +779,18 @@ def redefinir(token):
                 executar(conn, "UPDATE usuarios SET senha_hash=%s WHERE id=%s",
                          (generate_password_hash(senha), r["usuario_id"]))
                 executar(conn, "DELETE FROM reset_tokens WHERE token_hash=%s", (th,))
-            corpo = (""
+            corpo = ("<div class='card' style='max-width:460px;margin:60px auto;text-align:center'>"
                      "<h2>Senha alterada com sucesso!</h2>"
-                     "Agora você pode entrar com a nova senha.
-
-"
-                     "<a class='link' href='/login'>Ir para o login</a>
-
-
-
-")
+                     "<div class='sucesso'>Agora você pode entrar com a nova senha.</div>"
+                     "<p><a class='link' href='/login'>Ir para o login</a></p></div>")
             return pagina("Senha alterada", corpo)
-    corpo = (""
+    corpo = ("<div class='card' style='max-width:460px;margin:60px auto;text-align:center'>"
              "<h2>Criar nova senha</h2>"
-             + ("" + esc(erro) + "
-
-" if erro else "")
+             + ("<div class='aviso'>" + esc(erro) + "</div>" if erro else "")
              + "<form method='post' action='/redefinir/" + esc(token) + "'>"
-             "<input type='password' name='senha' required placeholder='Nova senha (mín. 6 caracteres)' class='input'>"
-             "<button class='btn-salvar' style='width:100%'>Salvar senha</button></form>
-
-")
+             "<input type='password' name='senha' required "
+             "placeholder='Nova senha (mín. 6 caracteres)' class='input'>"
+             "<button class='btn-salvar' style='width:100%'>Salvar senha</button></form></div>")
     return pagina("Redefinir senha", corpo)
 
 
@@ -849,20 +814,23 @@ def status():
         if session.get("tipo") == "admin":
             linhas = consultar(conn, "SELECT cliente, user_id, status, expires_at FROM conexoes")
         else:
-            linhas = consultar(conn, "SELECT cliente, user_id, status, expires_at FROM conexoes WHERE id=%s", (session.get("conexao_id"),))
+            linhas = consultar(conn, "SELECT cliente, user_id, status, expires_at "
+                                     "FROM conexoes WHERE id=%s",
+                               (session.get("conexao_id"),))
     linhas_html = ""
     for l in linhas:
-        quando = time.strftime("%d/%m/%Y %H:%M", time.localtime(l["expires_at"])) if l["expires_at"] else "-"
+        quando = "-"
+        if l["expires_at"]:
+            quando = time.strftime("%d/%m/%Y %H:%M", time.localtime(l["expires_at"]))
         tag = "tag " + (l["status"] if l["status"] in ("ativa", "pausado", "expirada") else "normal")
-        linhas_html += ("<tr><td>" + esc(str(l["cliente"])) + "</td><td>" + str(l["user_id"]) +
-                        "</td><td>" + esc(l["status"]) + "</td><td>" + quando + "</td></tr>")
-    corpo = ("<h2>Conexões</h2>Status de cada loja conectada
-
-"
-             "| Cliente | Loja | Status | Expira em |
-| --- | --- | --- | --- |
-
-")
+        linhas_html += ("<tr><td>" + esc(str(l["cliente"])) + "</td><td>"
+                        + str(l["user_id"]) + "</td><td><span class='" + tag + "'>"
+                        + esc(l["status"]) + "</span></td><td>" + quando + "</td></tr>")
+    corpo = ("<div class='card'><h2>Conexões</h2>"
+             "<div class='sub'>Status de cada loja conectada</div>"
+             "<table><thead><tr><th>Cliente</th><th>Loja</th><th>Status</th>"
+             "<th>Expira em</th></tr></thead>"
+             "<tbody>" + linhas_html + "</tbody></table></div>")
     return pagina("Status", corpo)
 
 
@@ -891,7 +859,8 @@ def salvar_custo(cid, item_id):
     if custo < 0:
         return jsonify({"ok": False}), 400
     with banco() as conn:
-        executar(conn, "UPDATE anuncios SET custo=%s WHERE conexao_id=%s AND item_id=%s", (custo, cid, item_id))
+        executar(conn, "UPDATE anuncios SET custo=%s WHERE conexao_id=%s AND item_id=%s",
+                 (custo, cid, item_id))
     return jsonify({"ok": True})
 
 
@@ -907,7 +876,9 @@ def salvar_roas(cid, campanha_id):
     if roas < 0:
         return jsonify({"ok": False}), 400
     with banco() as conn:
-        executar(conn, "UPDATE ads_campanhas SET roas_objetivo=%s WHERE conexao_id=%s AND campanha_id=%s", (roas, cid, campanha_id))
+        executar(conn, "UPDATE ads_campanhas SET roas_objetivo=%s "
+                       "WHERE conexao_id=%s AND campanha_id=%s",
+                 (roas, cid, campanha_id))
     return jsonify({"ok": True})
 
 
@@ -915,9 +886,7 @@ def salvar_roas(cid, campanha_id):
 @login_required
 def salvar_config(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
     try:
         aliquota = float((request.form.get("aliquota") or "0").replace(",", "."))
     except Exception:
@@ -927,7 +896,8 @@ def salvar_config(cid):
     except Exception:
         comissao = 12
     with banco() as conn:
-        executar(conn, "UPDATE conexoes SET aliquota_imposto=%s, comissao_pct=%s WHERE id=%s", (aliquota, comissao, cid))
+        executar(conn, "UPDATE conexoes SET aliquota_imposto=%s, comissao_pct=%s WHERE id=%s",
+                 (aliquota, comissao, cid))
     return redirect("/custos/" + str(cid))
 
 
@@ -935,9 +905,7 @@ def salvar_config(cid):
 @login_required
 def upload_custos(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
     if openpyxl is None:
         return redirect("/custos/" + str(cid) + "?erro=biblioteca")
     arquivo = request.files.get("arquivo")
@@ -969,7 +937,9 @@ def upload_custos(cid):
         item_id = mapa.get(str(sku).strip().upper())
         if item_id:
             with banco() as conn:
-                executar(conn, "UPDATE anuncios SET custo=%s WHERE conexao_id=%s AND item_id=%s", (custo_v, cid, item_id))
+                executar(conn, "UPDATE anuncios SET custo=%s "
+                               "WHERE conexao_id=%s AND item_id=%s",
+                         (custo_v, cid, item_id))
             atualizados += 1
         else:
             nao_achados.append(str(sku))
@@ -977,29 +947,26 @@ def upload_custos(cid):
         wb.close()
     except Exception:
         pass
-    return redirect("/custos/" + str(cid) + "?ok=" + str(atualizados) + "&faltam=" + str(len(nao_achados)))
+    return redirect("/custos/" + str(cid) + "?ok=" + str(atualizados)
+                    + "&faltam=" + str(len(nao_achados)))
 
 
 @app.route("/modelo_custos/<int:cid>")
 @login_required
 def modelo_custos(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
     if openpyxl is None:
-        return pagina("Erro", "<h2>Biblioteca de Excel não instalada</h2>"
-                     "Adicione 'openpyxl' no requirements.txt e faça o deploy de novo.
-
-
-
-")
+        return pagina("Erro", "<div class='card'><h2>Biblioteca de Excel não instalada</h2>"
+                      "<div class='sub'>Adicione 'openpyxl' no requirements.txt "
+                      "e faça o deploy de novo.</div></div>")
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
         if not c:
             return "Loja não encontrada", 404
-        anuncios = consultar(conn, "SELECT item_id, sku, titulo FROM anuncios WHERE conexao_id=%s ORDER BY titulo", (cid,))
+        anuncios = consultar(conn, "SELECT item_id, sku, titulo FROM anuncios "
+                                   "WHERE conexao_id=%s ORDER BY titulo", (cid,))
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Custos"
@@ -1018,143 +985,109 @@ def modelo_custos(cid):
 @login_required
 def custos(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
         if c:
-            anuncios = consultar(conn, "SELECT * FROM anuncios WHERE conexao_id=%s ORDER BY titulo", (cid,))
+            anuncios = consultar(conn, "SELECT * FROM anuncios WHERE conexao_id=%s "
+                                       "ORDER BY titulo", (cid,))
     if not c:
-        return pagina("Não encontrada", "<h2>Loja não encontrada</h2>
-
-")
-
+        return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>")
     ok = request.args.get("ok")
     faltam = request.args.get("faltam")
     erro = request.args.get("erro")
     aliquota = c["aliquota_imposto"] if c["aliquota_imposto"] is not None else 0
     comissao = c["comissao_pct"] if c["comissao_pct"] is not None else 12
     ultima = ultima_atualizacao(cid)
-
     corpo = "<h2 style='margin-bottom:10px'>Custos</h2>" + barra_atualizar(cid, ultima, "custos")
-
     if erro == "sem_arquivo":
-        corpo += "Nenhum arquivo selecionado. Escolha a planilha e clique em Importar.
-
-"
+        corpo += "<div class='aviso'>Nenhum arquivo selecionado. " \
+                 "Escolha a planilha e clique em Importar.</div>"
     elif erro == "arquivo_invalido":
-        corpo += "Não consegui ler o arquivo. Use um Excel no formato .xlsx.
-
-"
+        corpo += "<div class='aviso'>Não consegui ler o arquivo. " \
+                 "Use um Excel no formato .xlsx.</div>"
     elif erro == "biblioteca":
-        corpo += "A biblioteca de Excel não está instalada no servidor. Adicione 'openpyxl' no requirements.txt e faça o deploy de novo.
-
-"
+        corpo += "<div class='aviso'>A biblioteca de Excel não está instalada. " \
+                 "Adicione 'openpyxl' no requirements.txt e faça o deploy de novo.</div>"
     if ok is not None:
-        msg = "**Importação concluída:** " + ok + " custo(s) atualizado(s)."
+        msg = "<b>Importação concluída:</b> " + ok + " custo(s) atualizado(s)."
         if faltam and faltam != "0":
-            msg += " " + faltam + " SKU(s) não encontrados nos anúncios desta loja (confira a grafia ou use o código MLB)."
-        corpo += "" + msg + "
-
-"
-
+            msg += (" " + faltam + " SKU(s) não encontrados nos anúncios desta loja "
+                    "(confira a grafia ou use o código MLB).")
+        corpo += "<div class='sucesso'>" + msg + "</div>"
     com_custo = sum(1 for a in anuncios if a["custo"] is not None)
-    corpo += (""
-              "" + str(len(anuncios)) + "
-
-Anúncios na loja
-
-
-
-"
-              "" + str(com_custo) + "
-
-Com custo cadastrado
-
-
-
-"
-              "" + str(len(anuncios) - com_custo) + "
-
-Falta cadastrar custo
-
-
-
-"
-              "
-
-")
-
-    corpo += ("<h2>Configuração da loja</h2>"
-              "Usadas no cálculo da Margem de Contribuição na tela de Vendas
-
-"
-              "<form method='post' action='/salvar_config/" + str(cid) + "' style='display:flex;flex-wrap:wrap;gap:10px;align-items:center'>"
+    corpo += ("<div class='grid' style='margin-bottom:18px'>"
+              "<div class='stat'><div class='num'>" + str(len(anuncios))
+              + "</div><div class='lab'>Anúncios na loja</div></div>"
+              "<div class='stat'><div class='num'>" + str(com_custo)
+              + "</div><div class='lab'>Com custo cadastrado</div></div>"
+              "<div class='stat'><div class='num'>" + str(len(anuncios) - com_custo)
+              + "</div><div class='lab'>Falta cadastrar custo</div></div>"
+              "</div>")
+    corpo += ("<div class='card'><h2>Configuração da loja</h2>"
+              "<div class='sub'>Usadas no cálculo da Margem de Contribuição "
+              "na tela de Vendas</div>"
+              "<form method='post' action='/salvar_config/" + str(cid)
+              + "' style='display:flex;flex-wrap:wrap;gap:10px;align-items:center'>"
               "<label style='font-size:13px'>Alíquota de imposto (%):</label>"
-              "<input type='number' step='0.01' min='0' name='aliquota' value='" + str(aliquota) + "' class='filtro' style='width:100px'>"
+              "<input type='number' step='0.01' min='0' name='aliquota' value='"
+              + str(aliquota) + "' class='filtro' style='width:100px'>"
               "<label style='font-size:13px'>Comissão ML (%):</label>"
-              "<input type='number' step='0.01' min='0' name='comissao' value='" + str(comissao) + "' class='filtro' style='width:100px'>"
+              "<input type='number' step='0.01' min='0' name='comissao' value='"
+              + str(comissao) + "' class='filtro' style='width:100px'>"
               "<button class='filtro-btn'>Salvar</button>"
-              "</form>
-
-")
-
-    corpo += ("<h2>Importar custos em massa (Excel)</h2>"
-              "Planilha com a **1ª coluna = SKU** e a **2ª coluna = custo (R$)**. "
-              "Pode usar o SKU cadastrado no anúncio (campo personalizado do ML) ou o código MLB do item. "
-              "A primeira linha é o cabeçalho e é ignorada.
-
-"
-              "<form method='post' action='/upload_custos/" + str(cid) + "' enctype='multipart/form-data' style='display:flex;flex-wrap:wrap;gap:10px;align-items:center'>"
-              "<input type='file' name='arquivo' accept='.xlsx' required class='filtro' style='padding:6px'>"
+              "</form></div>")
+    corpo += ("<div class='card'><h2>Importar custos em massa (Excel)</h2>"
+              "<div class='sub'>Planilha com a <b>1ª coluna = SKU</b> e a "
+              "<b>2ª coluna = custo (R$)</b>. Pode usar o SKU cadastrado no anúncio "
+              "ou o código MLB do item. A primeira linha é o cabeçalho e é ignorada.</div>"
+              "<form method='post' action='/upload_custos/" + str(cid)
+              + "' enctype='multipart/form-data' "
+              "style='display:flex;flex-wrap:wrap;gap:10px;align-items:center'>"
+              "<input type='file' name='arquivo' accept='.xlsx' required "
+              "class='filtro' style='padding:6px'>"
               "<button class='filtro-btn'>Importar</button>"
               "</form>"
-              "<a class='link' href='/modelo_custos/" + str(cid) + "'>⬇ Baixar modelo (Excel) já com os SKUs da loja — preencha a coluna Custo e suba de volta</a>
-
-"
-              "
-
-")
-
+              "<div style='margin-top:10px'><a class='link' href='/modelo_custos/"
+              + str(cid) + "'>⬇ Baixar modelo (Excel) já com os SKUs da loja "
+              "— preencha a coluna Custo e suba de volta</a></div>"
+              "</div>")
     if not anuncios:
-        corpo += (""
+        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhum anúncio carregado ainda</h2>"
-                  "Use 'Atualizar dados' no menu lateral para buscar os anúncios da loja
-
-
-
-")
+                  "<div class='sub'>Use 'Atualizar dados' no menu lateral "
+                  "para buscar os anúncios da loja</div></div>")
         return pagina_loja("Custos", cid, c["cliente"], "custos", corpo)
-
     linhas_html = ""
     for a in anuncios:
-        sku_txt = esc(str(a["sku"])) if a["sku"] else "—"
-        if a["custo"] is not None:
-            custo_html = "R$ %.2f" % a["custo"]
+        if a["sku"]:
+            sku_txt = esc(str(a["sku"]))
         else:
-            custo_html = "<a class='link' href='#' onclick='editarCusto(" + str(cid) + ", \"" + str(a["item_id"]) + "\"); return false;'>+ definir</a>"
+            sku_txt = "<span class='tag sem'>—</span>"
+        if a["custo"] is not None:
+            custo_html = ("<span id='custo-" + str(cid) + "-" + str(a["item_id"])
+                          + "'>R$ %.2f</span>" % a["custo"])
+        else:
+            custo_html = ("<span id='custo-" + str(cid) + "-" + str(a["item_id"])
+                          + "'><a class='link' href='#' onclick='editarCusto("
+                          + str(cid) + ", \"" + str(a["item_id"])
+                          + "\"); return false;'>+ definir</a></span>")
         linhas_html += ("<tr><td>" + sku_txt + "</td>"
-                        "<td>**" + esc(str(a["titulo"])) + "**
-<small class='muted'>" + str(a["item_id"]) + "</small></td>"
+                        "<td><b>" + esc(str(a["titulo"]))
+                        + "</b><br><small class='muted'>" + str(a["item_id"]) + "</small></td>"
                         "<td>R$ %.2f" % (a["preco"] or 0) + "</td>"
                         "<td>" + custo_html + "</td></tr>")
-
-    corpo += ("<h2>Custos por anúncio " + str(len(anuncios)) + "</h2>"
-              "Clique em '+ definir' ou no valor para editar o custo de cada anúncio
-
-"
-              "| SKU | Anúncio | Preço | Custo |
-| --- | --- | --- | --- |
-
-"
-              "O custo é usado no cálculo da Margem de Contribuição (tela de Vendas) e na análise de promoções.
-
-
-
-")
-
+    corpo += ("<div class='card'><h2>Custos por anúncio <span class='badge'>"
+              + str(len(anuncios)) + "</span></h2>"
+              "<div class='sub'>Clique em '+ definir' ou no valor para editar "
+              "o custo de cada anúncio</div>"
+              "<div style='overflow-x:auto'><table>"
+              "<thead><tr><th>SKU</th><th>Anúncio</th><th>Preço</th>"
+              "<th>Custo</th></tr></thead>"
+              "<tbody>" + linhas_html + "</tbody></table></div>"
+              "<div class='muted'>O custo é usado no cálculo da Margem de Contribuição "
+              "(tela de Vendas) e na análise de promoções.</div></div>")
     return pagina_loja("Custos", cid, c["cliente"], "custos", corpo)
 
 
@@ -1164,13 +1097,17 @@ def calcular_vendas(cid):
         c = c[0] if c else None
         if not c:
             return None, []
-        pedidos = consultar(conn, "SELECT * FROM pedidos WHERE conexao_id=%s AND fechado_em IS NOT NULL ORDER BY fechado_em DESC LIMIT 100", (cid,))
+        pedidos = consultar(conn, "SELECT * FROM pedidos WHERE conexao_id=%s "
+                                  "AND fechado_em IS NOT NULL "
+                                  "ORDER BY fechado_em DESC LIMIT 100", (cid,))
         itens = consultar(conn, """SELECT pi.pedido_id, pi.quantidade, pi.preco_unitario,
                                           a.custo, a.peso
                                    FROM pedidos_itens pi
-                                   LEFT JOIN anuncios a ON a.conexao_id=pi.conexao_id AND a.item_id=pi.item_id
+                                   LEFT JOIN anuncios a
+                                     ON a.conexao_id=pi.conexao_id AND a.item_id=pi.item_id
                                    WHERE pi.conexao_id=%s""", (cid,))
-        envios = consultar(conn, "SELECT pedido_id, custo_frete FROM envios WHERE conexao_id=%s AND custo_frete IS NOT NULL", (cid,))
+        envios = consultar(conn, "SELECT pedido_id, custo_frete FROM envios "
+                                 "WHERE conexao_id=%s AND custo_frete IS NOT NULL", (cid,))
     aliquota_pct = c["aliquota_imposto"] if c["aliquota_imposto"] is not None else 0
     comissao_pct = c["comissao_pct"] if c["comissao_pct"] is not None else 12
     aliquota = aliquota_pct / 100.0
@@ -1232,122 +1169,94 @@ def calcular_vendas(cid):
 @login_required
 def vendas(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
     c, vendas = calcular_vendas(cid)
     if not c:
-        return pagina("Não encontrada", "<h2>Loja não encontrada</h2>
-
-")
+        return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>")
     aliquota_pct = c["aliquota_imposto"] if c["aliquota_imposto"] is not None else 0
     comissao_pct = c["comissao_pct"] if c["comissao_pct"] is not None else 12
     ultima = ultima_atualizacao(cid)
-
-    corpo = ("<h2>Vendas e Margem de Contribuição</h2>"
-             ""
-             "<a class='btn-acoes cinza' href='/exportar_vendas/" + str(cid) + "'>⬇ Exportar CSV</a>"
-             "
-
-
-
-"
+    corpo = ("<div class='barra-topo'><h2>Vendas e Margem de Contribuição</h2>"
+             "<div style='display:flex;gap:10px;flex-wrap:wrap;align-items:center'>"
+             "<a class='btn-acoes cinza' href='/exportar_vendas/"
+             + str(cid) + "'>⬇ Exportar CSV</a>"
+             "</div></div>"
              + barra_atualizar(cid, ultima, "vendas"))
-
     if not vendas:
-        corpo += (""
+        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhuma venda carregada ainda</h2>"
-                  "Use 'Atualizar agora' acima para buscar os pedidos da loja. As vendas analisadas são os pedidos fechados.
-
-
-
-")
+                  "<div class='sub'>Use 'Atualizar agora' acima para buscar os pedidos "
+                  "da loja. As vendas analisadas são os pedidos fechados.</div></div>")
         return pagina_loja("Vendas", cid, c["cliente"], "vendas", corpo)
-
     analisadas = sum(1 for v in vendas if not v["sem_itens"] and not v["sem_custo"])
     pendentes = len(vendas) - analisadas
-    tot_receita = sum(v["receita"] for v in vendas if not v["sem_itens"] and not v["sem_custo"])
-    tot_mc = sum(v["mc"] for v in vendas if not v["sem_itens"] and not v["sem_custo"])
+    tot_receita = sum(v["receita"] for v in vendas
+                      if not v["sem_itens"] and not v["sem_custo"])
+    tot_mc = sum(v["mc"] for v in vendas
+                 if not v["sem_itens"] and not v["sem_custo"])
     mc_medio = (tot_mc * 100.0 / tot_receita) if tot_receita else 0
     com_frete_real = sum(1 for v in vendas if v["frete_fonte"] == "real")
-
-    corpo += (""
-              "R$ %.2f" % tot_receita + "
-
-Receita das vendas analisadas
-
-
-
-"
-              "R$ %.2f" % tot_mc + "
-
-Margem de Contribuição total
-
-
-
-"
-              "" + ("%.1f%%" % mc_medio) + "
-
-MG média (MC ÷ Receita)
-
-
-
-"
-              "" + str(pendentes) + "
-
-Vendas sem custo cadastrado
-
-
-
-"
-              "
-
-")
-
+    corpo += ("<div class='grid' style='margin-bottom:18px'>"
+              "<div class='stat'><div class='num'>R$ %.2f" % tot_receita
+              + "</div><div class='lab'>Receita das vendas analisadas</div></div>"
+              "<div class='stat'><div class='num'>R$ %.2f" % tot_mc
+              + "</div><div class='lab'>Margem de Contribuição total</div></div>"
+              "<div class='stat'><div class='num'>" + ("%.1f%%" % mc_medio)
+              + "</div><div class='lab'>MG média (MC ÷ Receita)</div></div>"
+              "<div class='stat'><div class='num'>" + str(pendentes)
+              + "</div><div class='lab'>Vendas sem custo cadastrado</div></div>"
+              "</div>")
     linhas_html = ""
     for v in vendas:
         if v["sem_itens"]:
-            mc_html = "itens não registrados"
+            mc_html = "<span class='tag sem'>itens não registrados</span>"
         elif v["sem_custo"]:
             mc_html = "<a class='link' href='/custos/" + str(cid) + "'>cadastre o custo</a>"
         elif v["mc_pct"] <= 0:
-            mc_html = "" + ("%.1f%% (R$ %.2f)" % (v["mc_pct"], v["mc"])) + ""
+            mc_html = "<span class='alerta urgente'>" + ("%.1f%% (R$ %.2f)"
+                      % (v["mc_pct"], v["mc"])) + "</span>"
         elif v["mc_pct"] < 20:
-            mc_html = "" + ("%.1f%% (R$ %.2f)" % (v["mc_pct"], v["mc"])) + ""
+            mc_html = "<span class='alerta atencao'>" + ("%.1f%% (R$ %.2f)"
+                      % (v["mc_pct"], v["mc"])) + "</span>"
         else:
-            mc_html = "" + ("%.1f%% (R$ %.2f)" % (v["mc_pct"], v["mc"])) + ""
-        fonte = "<small class='muted'>real</small>" if v["frete_fonte"] == "real" else "<small class='muted'>est.</small>"
+            mc_html = "<span class='alerta ok'>" + ("%.1f%% (R$ %.2f)"
+                      % (v["mc_pct"], v["mc"])) + "</span>"
+        fonte = "<small class='muted'>real</small>" if v["frete_fonte"] == "real" \
+            else "<small class='muted'>est.</small>"
         if v["frete"]:
             frete_html = ("R$ %.2f " % v["frete"]) + fonte
         else:
-            frete_html = "—"
+            frete_html = "<span class='tag sem'>—</span>"
+        if v["sem_itens"]:
+            custo_html = "<span class='tag sem'>—</span>"
+        else:
+            custo_html = "R$ %.2f" % v["custo_prod"]
         linhas_html += ("<tr>"
-                        "<td>**" + str(v["pedido_id"]) + "**
-<small class='muted'>" + esc(v["data"]) + "</small></td>"
+                        "<td><b>" + str(v["pedido_id"]) + "</b><br>"
+                        "<small class='muted'>" + esc(v["data"]) + "</small></td>"
                         "<td>" + esc(v["status"]) + "</td>"
                         "<td>R$ %.2f" % v["receita"] + "</td>"
-                        "<td>" + (("—") if v["sem_itens"] else ("R$ %.2f" % v["custo_prod"])) + "</td>"
+                        "<td>" + custo_html + "</td>"
                         "<td>R$ %.2f" % v["imposto"] + "</td>"
                         "<td>R$ %.2f" % v["comissao"] + "</td>"
                         "<td>" + frete_html + "</td>"
                         "<td>" + mc_html + "</td>"
                         "</tr>")
-
-    corpo += ("<h2>Vendas " + str(len(vendas)) + "</h2>"
-              "MG = Receita − Custo dos produtos − Imposto (" + str(aliquota_pct) + "%) − Comissão ML (" + str(comissao_pct) + "%) − Frete. Entre parênteses, o lucro em R$ de cada venda.
-
-"
-              "| Pedido | Status | Receita | Custo produtos | Imposto | Comissão | Frete | MG (Lucro R$) |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-
-"
-              "Frete: usa o **valor real** do envio quando o Mercado Livre informa (" + str(com_frete_real) + " vendas com frete real); senão, estimativa pela tabela oficial do ML (marcado como 'est.'). "
-              "Imposto e comissão são configurados na <a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a>.
-
-
-
-")
-
+    corpo += ("<div class='card'><h2>Vendas <span class='badge'>"
+              + str(len(vendas)) + "</span></h2>"
+              "<div class='sub'>MG = Receita − Custo dos produtos − Imposto ("
+              + str(aliquota_pct) + "%) − Comissão ML (" + str(comissao_pct)
+              + "%) − Frete. Entre parênteses, o lucro em R$ de cada venda.</div>"
+              "<div style='overflow-x:auto'><table>"
+              "<thead><tr><th>Pedido</th><th>Status</th><th>Receita</th>"
+              "<th>Custo produtos</th><th>Imposto</th><th>Comissão</th>"
+              "<th>Frete</th><th>MG (Lucro R$)</th></tr></thead>"
+              "<tbody>" + linhas_html + "</tbody></table></div>"
+              "<div class='muted'>Frete: usa o <b>valor real</b> do envio quando o "
+              "Mercado Livre informa (" + str(com_frete_real)
+              + " vendas com frete real); senão, estimativa pela tabela oficial do ML "
+              "(marcado como 'est.'). Imposto e comissão são configurados na "
+              "<a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a>.</div></div>")
     return pagina_loja("Vendas", cid, c["cliente"], "vendas", corpo)
 
 
@@ -1361,8 +1270,8 @@ def exportar_vendas(cid):
         return "Loja não encontrada", 404
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["Pedido", "Data", "Status", "Receita", "Custo produtos", "Imposto",
-                     "Comissao", "Frete", "Fonte frete", "MC %", "Lucro R$"])
+    writer.writerow(["Pedido", "Data", "Status", "Receita", "Custo produtos",
+                     "Imposto", "Comissao", "Frete", "Fonte frete", "MC %", "Lucro R$"])
     for v in vendas:
         writer.writerow([v["pedido_id"], v["data"], v["status"],
                          ("%.2f" % v["receita"]).replace(".", ","),
@@ -1376,91 +1285,89 @@ def exportar_vendas(cid):
     nome_arq = "vendas_" + str(c["cliente"]).replace(" ", "_") + ".csv"
     return Response(buf.getvalue(), mimetype="text/csv; charset=utf-8",
                     headers={"Content-Disposition": "attachment; filename=" + nome_arq})
-
-
-@app.route("/painel")
+    @app.route("/painel")
 @login_required
 def painel():
     with banco() as conn:
         if session.get("tipo") == "admin":
             linhas = consultar(conn, """
                 SELECT c.id, c.cliente, c.user_id, c.status,
-                  (SELECT COUNT(*) FROM anuncios a WHERE a.conexao_id=c.id) qtd_anuncios,
-                  (SELECT COUNT(*) FROM pedidos p WHERE p.conexao_id=c.id) qtd_pedidos,
-                  (SELECT COUNT(*) FROM perguntas q WHERE q.conexao_id=c.id AND q.status != 'ANSWERED') qtd_perguntas_pendentes
+                  (SELECT COUNT(*) FROM anuncios a
+                   WHERE a.conexao_id=c.id) qtd_anuncios,
+                  (SELECT COUNT(*) FROM pedidos p
+                   WHERE p.conexao_id=c.id) qtd_pedidos,
+                  (SELECT COUNT(*) FROM perguntas q
+                   WHERE q.conexao_id=c.id
+                     AND q.status != 'ANSWERED') qtd_perg
                 FROM conexoes c ORDER BY c.id
             """)
         else:
             linhas = consultar(conn, """
                 SELECT c.id, c.cliente, c.user_id, c.status,
-                  (SELECT COUNT(*) FROM anuncios a WHERE a.conexao_id=c.id) qtd_anuncios,
-                  (SELECT COUNT(*) FROM pedidos p WHERE p.conexao_id=c.id) qtd_pedidos,
-                  (SELECT COUNT(*) FROM perguntas q WHERE q.conexao_id=c.id AND q.status != 'ANSWERED') qtd_perguntas_pendentes
+                  (SELECT COUNT(*) FROM anuncios a
+                   WHERE a.conexao_id=c.id) qtd_anuncios,
+                  (SELECT COUNT(*) FROM pedidos p
+                   WHERE p.conexao_id=c.id) qtd_pedidos,
+                  (SELECT COUNT(*) FROM perguntas q
+                   WHERE q.conexao_id=c.id
+                     AND q.status != 'ANSWERED') qtd_perg
                 FROM conexoes c WHERE c.id=%s ORDER BY c.id
             """, (session.get("conexao_id"),))
     if not linhas:
-        corpo = (""
+        corpo = ("<div class='card' style='text-align:center;padding:50px'>"
                  "<h2>Nenhuma loja conectada ainda</h2>"
-                 "Comece conectando a primeira loja
-
-"
-                 "<a class='link' href='/'>Conectar loja</a>
-
-
-
-")
+                 "<div class='sub'>Comece conectando a primeira loja</div>"
+                 "<p><a class='link' href='/'>Conectar loja</a></p></div>")
         return pagina("Painel", corpo)
     cards = ""
     for l in linhas:
-        tag = "tag " + (l["status"] if l["status"] in ("ativa", "pausado", "expirada") else "normal")
-        cards += (""
-                  ""
-                  "<h2>" + esc(str(l["cliente"])) + " "
-                  "<a class='icon-link' href='#' onclick='editarNome(" + str(l["id"]) + "); return false;' title='Renomear loja'>✏️</a></h2>"
-                  "" + esc(l["status"]) + "
-
-"
-                  ""
-                  "" + str(l["qtd_anuncios"]) + "
-
-Anúncios
-
-
-
-"
-                  "" + str(l["qtd_pedidos"]) + "
-
-Pedidos
-
-
-
-"
-                  "" + str(l["qtd_perguntas_pendentes"]) + "
-
-Perguntas p/ responder
-
-
-
-"
-                  "
-
-"
-                  ""
-                  "<a class='btn-acoes' href='/painel/" + str(l["id"]) + "'>Abrir Resumo</a>"
-                  " <a class='link' href='/anuncios/" + str(l["id"]) + "'>Anúncios</a>"
-                  " <a class='link' href='/desempenho/" + str(l["id"]) + "'>Desempenho</a>"
-                  " <a class='link' href='/demandas/" + str(l["id"]) + "'>Demandas</a>"
-                  " <a class='link' href='/promocoes/" + str(l["id"]) + "'>Promoções</a>"
-                  " <a class='link' href='/campanhas/" + str(l["id"]) + "'>Campanhas</a>"
-                  " <a class='link' href='/custos/" + str(l["id"]) + "'>Custos</a>"
-                  " <a class='link' href='/vendas/" + str(l["id"]) + "'>Vendas</a>"
-                  " <a class='link' href='/atualizar?cid=" + str(l["id"]) + "'>Atualizar dados</a>"
-                  " <a class='btn-danger' href='/excluir/" + str(l["id"]) + "'>Excluir</a>"
-                  "
-
-
-
-")
+        st = l["status"]
+        if st in ("ativa", "pausado", "expirada"):
+            tag = "tag " + st
+        else:
+            tag = "tag normal"
+        cards += ("<div class='card'>"
+                  "<div style='display:flex;justify-content:space-between;"
+                  "align-items:center;flex-wrap:wrap;gap:8px'>"
+                  "<h2><span id='nome-" + str(l["id"]) + "'>"
+                  + esc(str(l["cliente"])) + "</span> "
+                  "<a class='icon-link' href='#' onclick='editarNome("
+                  + str(l["id"]) + "); return false;'>✏️</a></h2>"
+                  "<span class='" + tag + "'>" + esc(st) + "</span></div>"
+                  "<div class='grid' style='margin-top:14px'>"
+                  "<div class='stat'><div class='num'>"
+                  + str(l["qtd_anuncios"]) + "</div>"
+                  "<div class='lab'>Anúncios</div></div>"
+                  "<div class='stat'><div class='num'>"
+                  + str(l["qtd_pedidos"]) + "</div>"
+                  "<div class='lab'>Pedidos</div></div>"
+                  "<div class='stat'><div class='num'>"
+                  + str(l["qtd_perg"]) + "</div>"
+                  "<div class='lab'>Perguntas p/ responder</div></div>"
+                  "</div>"
+                  "<div style='margin-top:14px;display:flex;gap:14px;"
+                  "align-items:center;flex-wrap:wrap'>"
+                  "<a class='btn-acoes' href='/painel/"
+                  + str(l["id"]) + "'>Abrir Resumo</a>"
+                  " <a class='link' href='/anuncios/"
+                  + str(l["id"]) + "'>Anúncios</a>"
+                  " <a class='link' href='/desempenho/"
+                  + str(l["id"]) + "'>Desempenho</a>"
+                  " <a class='link' href='/demandas/"
+                  + str(l["id"]) + "'>Demandas</a>"
+                  " <a class='link' href='/promocoes/"
+                  + str(l["id"]) + "'>Promoções</a>"
+                  " <a class='link' href='/campanhas/"
+                  + str(l["id"]) + "'>Campanhas</a>"
+                  " <a class='link' href='/custos/"
+                  + str(l["id"]) + "'>Custos</a>"
+                  " <a class='link' href='/vendas/"
+                  + str(l["id"]) + "'>Vendas</a>"
+                  " <a class='link' href='/atualizar?cid="
+                  + str(l["id"]) + "'>Atualizar dados</a>"
+                  " <a class='btn-danger' href='/excluir/"
+                  + str(l["id"]) + "'>Excluir</a>"
+                  "</div></div>")
     corpo = "<h2 style='margin-bottom:16px'>Lojas conectadas</h2>" + cards
     return pagina("Painel", corpo)
 
@@ -1469,55 +1376,70 @@ Perguntas p/ responder
 @admin_required
 def usuarios():
     with banco() as conn:
-        us = consultar(conn, """SELECT u.id, u.username, u.nome, u.email, u.tipo, u.conexao_id, c.cliente
-                                FROM usuarios u LEFT JOIN conexoes c ON c.id=u.conexao_id
+        us = consultar(conn, """SELECT u.id, u.username, u.nome, u.email,
+                                u.tipo, u.conexao_id, c.cliente
+                                FROM usuarios u
+                                LEFT JOIN conexoes c ON c.id=u.conexao_id
                                 ORDER BY u.id""")
         lojas = consultar(conn, "SELECT id, cliente FROM conexoes ORDER BY id")
     msg = request.args.get("msg", "")
     corpo = "<h2 style='margin-bottom:14px'>Gerenciar usuários</h2>"
     if msg:
-        corpo += "" + esc(msg) + "
-
-"
-
-    corpo += ("<h2>Novo usuário</h2>"
-              "Crie um acesso. Cliente vê apenas a loja vinculada; admin vê tudo. "
-              "Se preencher o e-mail, o usuário poderá recuperar a senha sozinho.
-
-"
-              "<form method='post' action='/usuarios/criar' style='display:flex;flex-wrap:wrap;gap:10px;align-items:center'>"
+        corpo += "<div class='sucesso'>" + esc(msg) + "</div>"
+    corpo += ("<div class='card'><h2>Novo usuário</h2>"
+              "<div class='sub'>Crie um acesso. Cliente vê apenas a loja "
+              "vinculada; admin vê tudo. Se preencher o e-mail, o usuário "
+              "poderá recuperar a senha sozinho.</div>"
+              "<form method='post' action='/usuarios/criar' "
+              "style='display:flex;flex-wrap:wrap;gap:10px;align-items:center'>"
               "<input name='username' required placeholder='Usuário' class='filtro'>"
-              "<input type='password' name='senha' id='campo-senha' required placeholder='Senha' class='filtro'>"
-              "<button type='button' class='filtro-btn' onclick='gerarSenha()' style='background:#6b7280'>🎲 Gerar senha</button>"
+              "<input type='password' name='senha' id='campo-senha' "
+              "required placeholder='Senha' class='filtro'>"
+              "<button type='button' class='filtro-btn' onclick='gerarSenha()' "
+              "style='background:#6b7280'>🎲 Gerar senha</button>"
               "<input name='nome' placeholder='Nome (opcional)' class='filtro'>"
-              "<input name='email' type='email' placeholder='E-mail (p/ recuperação)' class='filtro'>"
-              "<select name='tipo' class='filtro'><option value='cliente'>Cliente</option><option value='admin'>Admin</option></select>"
-              "<select name='conexao_id' class='filtro'><option value=''>— sem loja —</option>"
-              + "".join("<option value='" + str(l["id"]) + "'>" + esc(str(l["cliente"])) + "</option>" for l in lojas)
+              "<input name='email' type='email' "
+              "placeholder='E-mail (p/ recuperação)' class='filtro'>"
+              "<select name='tipo' class='filtro'>"
+              "<option value='cliente'>Cliente</option>"
+              "<option value='admin'>Admin</option></select>"
+              "<select name='conexao_id' class='filtro'>"
+              "<option value=''>— sem loja —</option>"
+              + "".join("<option value='" + str(l["id"]) + "'>"
+                        + esc(str(l["cliente"])) + "</option>" for l in lojas)
               + "</select>"
               "<button class='filtro-btn'>Criar</button>"
-              "</form>
-
-")
-
+              "</form></div>")
     linhas_html = ""
     for u in us:
-        tipo_txt = "Admin" if u["tipo"] == "admin" else "Cliente"
-        tag = "tag ativa" if u["tipo"] == "admin" else "tag pendente"
-        loja_txt = esc(str(u["cliente"])) if u["cliente"] else "—"
-        email_txt = esc(str(u["email"])) if u["email"] else "—"
-        linhas_html += ("<tr><td>**" + esc(str(u["username"])) + "**</td>"
+        if u["tipo"] == "admin":
+            tipo_txt = "Admin"
+            tag = "tag ativa"
+        else:
+            tipo_txt = "Cliente"
+            tag = "tag pendente"
+        if u["cliente"]:
+            loja_txt = esc(str(u["cliente"]))
+        else:
+            loja_txt = "<span class='tag sem'>—</span>"
+        if u["email"]:
+            email_txt = esc(str(u["email"]))
+        else:
+            email_txt = "<span class='tag sem'>—</span>"
+        linhas_html += ("<tr><td><b>" + esc(str(u["username"])) + "</b></td>"
                         "<td>" + esc(str(u["nome"] or "-")) + "</td>"
                         "<td>" + email_txt + "</td>"
-                        "<td>" + tipo_txt + "</td>"
+                        "<td><span class='" + tag + "'>" + tipo_txt + "</span></td>"
                         "<td>" + loja_txt + "</td>"
-                        "<td><a class='btn-acoes cinza' href='/usuarios/editar/" + str(u["id"]) + "'>Editar</a>"
-                        " <a class='btn-danger' href='/usuarios/excluir/" + str(u["id"]) + "'>Excluir</a></td></tr>")
-    corpo += ("<h2>Usuários " + str(len(us)) + "</h2>"
-              "| Usuário | Nome | E-mail | Tipo | Loja | Ações |
-| --- | --- | --- | --- | --- | --- |
-
-")
+                        "<td><a class='btn-acoes cinza' href='/usuarios/editar/"
+                        + str(u["id"]) + "'>Editar</a>"
+                        " <a class='btn-danger' href='/usuarios/excluir/"
+                        + str(u["id"]) + "'>Excluir</a></td></tr>")
+    corpo += ("<div class='card'><h2>Usuários <span class='badge'>"
+              + str(len(us)) + "</span></h2>"
+              "<table><thead><tr><th>Usuário</th><th>Nome</th><th>E-mail</th>"
+              "<th>Tipo</th><th>Loja</th><th>Ações</th></tr></thead>"
+              "<tbody>" + linhas_html + "</tbody></table></div>")
     return pagina("Usuários", corpo)
 
 
@@ -1537,8 +1459,11 @@ def usuarios_criar():
     except Exception:
         conexao_id = None
     with banco() as conn:
-        executar(conn, "INSERT INTO usuarios (username, senha_hash, nome, email, tipo, conexao_id, criado_em) VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                 (username, generate_password_hash(senha), nome, email, tipo, conexao_id, int(time.time())))
+        executar(conn, "INSERT INTO usuarios "
+                       "(username, senha_hash, nome, email, tipo, conexao_id, criado_em) "
+                       "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                 (username, generate_password_hash(senha), nome, email,
+                  tipo, conexao_id, int(time.time())))
     return redirect("/usuarios?msg=Usuário criado com sucesso")
 
 
@@ -1550,9 +1475,8 @@ def usuarios_editar(uid):
         u = u[0] if u else None
         lojas = consultar(conn, "SELECT id, cliente FROM conexoes ORDER BY id")
     if not u:
-        return pagina("Não encontrado", "<h2>Usuário não encontrado</h2>
-
-")
+        return pagina("Não encontrado",
+                      "<div class='card'><h2>Usuário não encontrado</h2></div>")
     if request.method == "POST":
         nome = (request.form.get("nome") or "").strip()
         email = (request.form.get("email") or "").strip()
@@ -1565,29 +1489,45 @@ def usuarios_editar(uid):
             conexao_id = None
         with banco() as conn:
             if nova_senha:
-                executar(conn, "UPDATE usuarios SET nome=%s, email=%s, tipo=%s, conexao_id=%s, senha_hash=%s WHERE id=%s",
-                         (nome, email, tipo, conexao_id, generate_password_hash(nova_senha), uid))
+                executar(conn, "UPDATE usuarios SET nome=%s, email=%s, tipo=%s, "
+                               "conexao_id=%s, senha_hash=%s WHERE id=%s",
+                         (nome, email, tipo, conexao_id,
+                          generate_password_hash(nova_senha), uid))
             else:
-                executar(conn, "UPDATE usuarios SET nome=%s, email=%s, tipo=%s, conexao_id=%s WHERE id=%s",
+                executar(conn, "UPDATE usuarios SET nome=%s, email=%s, tipo=%s, "
+                               "conexao_id=%s WHERE id=%s",
                          (nome, email, tipo, conexao_id, uid))
         return redirect("/usuarios?msg=Usuário atualizado")
-    corpo = ("<h2 style='margin-bottom:14px'>Editar usuário: " + esc(str(u["username"])) + "</h2>"
-             "<form method='post' action='/usuarios/editar/" + str(uid) + "' style='display:flex;flex-wrap:wrap;gap:10px;align-items:center'>"
-             "<input name='nome' placeholder='Nome' value='" + esc(str(u["nome"] or "")) + "' class='filtro'>"
-             "<input name='email' type='email' placeholder='E-mail (p/ recuperação)' value='" + esc(str(u["email"] or "")) + "' class='filtro'>"
-             "<input type='password' name='senha' id='campo-senha' placeholder='Nova senha (vazio p/ manter)' class='filtro'>"
-             "<button type='button' class='filtro-btn' onclick='gerarSenha()' style='background:#6b7280'>🎲 Gerar senha</button>"
-             "<select name='tipo' class='filtro'><option value='cliente'" + (" selected" if u["tipo"] != "admin" else "") + ">Cliente</option><option value='admin'" + (" selected" if u["tipo"] == "admin" else "") + ">Admin</option></select>"
-             "<select name='conexao_id' class='filtro'><option value=''>— sem loja —</option>"
-             + "".join("<option value='" + str(l["id"]) + "'" + (" selected" if u["conexao_id"] == l["id"] else "") + ">" + esc(str(l["cliente"])) + "</option>" for l in lojas)
+    corpo = ("<h2 style='margin-bottom:14px'>Editar usuário: "
+             + esc(str(u["username"])) + "</h2>"
+             "<div class='card'><form method='post' action='/usuarios/editar/"
+             + str(uid) + "' style='display:flex;flex-wrap:wrap;gap:10px;"
+             "align-items:center'>"
+             "<input name='nome' placeholder='Nome' value='"
+             + esc(str(u["nome"] or "")) + "' class='filtro'>"
+             "<input name='email' type='email' "
+             "placeholder='E-mail (p/ recuperação)' value='"
+             + esc(str(u["email"] or "")) + "' class='filtro'>"
+             "<input type='password' name='senha' id='campo-senha' "
+             "placeholder='Nova senha (vazio p/ manter)' class='filtro'>"
+             "<button type='button' class='filtro-btn' onclick='gerarSenha()' "
+             "style='background:#6b7280'>🎲 Gerar senha</button>"
+             "<select name='tipo' class='filtro'>"
+             "<option value='cliente'"
+             + (" selected" if u["tipo"] != "admin" else "")
+             + ">Cliente</option>"
+             "<option value='admin'"
+             + (" selected" if u["tipo"] == "admin" else "")
+             + ">Admin</option></select>"
+             "<select name='conexao_id' class='filtro'>"
+             "<option value=''>— sem loja —</option>"
+             + "".join("<option value='" + str(l["id"]) + "'"
+                       + (" selected" if u["conexao_id"] == l["id"] else "")
+                       + ">" + esc(str(l["cliente"])) + "</option>" for l in lojas)
              + "</select>"
              "<button class='filtro-btn'>Salvar</button>"
-             "</form>
-
-"
-             "<a class='link' href='/usuarios'>← Voltar</a>
-
-")
+             "</form></div>"
+             "<p><a class='link' href='/usuarios'>← Voltar</a></p>")
     return pagina("Editar usuário", corpo)
 
 
@@ -1612,39 +1552,37 @@ def excluir(cid):
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
     if not c:
-        return pagina("Não encontrada", "<h2>Loja não encontrada</h2>
-
-")
+        return pagina("Não encontrada",
+                      "<div class='card'><h2>Loja não encontrada</h2></div>")
     if request.method == "POST":
         with banco() as conn:
-            for tabela in ("dados_conta", "anuncios", "pedidos", "pedidos_itens", "metricas", "desempenho_historico", "perguntas", "envios", "promocoes", "promocoes_itens", "ads_campanhas", "ads_metricas", "ads_dia", "ads_campanha_dia", "erros"):
+            for tabela in ("dados_conta", "anuncios", "pedidos", "pedidos_itens",
+                           "metricas", "desempenho_historico", "perguntas",
+                           "envios", "promocoes", "promocoes_itens",
+                           "ads_campanhas", "ads_metricas", "ads_dia",
+                           "ads_campanha_dia", "erros"):
                 executar(conn, "DELETE FROM " + tabela + " WHERE conexao_id=%s", (cid,))
             executar(conn, "DELETE FROM conexoes WHERE id=%s", (cid,))
-        corpo = (""
+        corpo = ("<div class='card' style='max-width:520px;margin:40px auto;"
+                 "text-align:center'>"
                  "<h2>Loja excluída com sucesso!</h2>"
-                 "Todos os dados dessa loja foram removidos
-
-"
-                 "<a class='link' href='/painel'>Voltar ao painel</a>
-
-
-
-")
+                 "<div class='sub'>Todos os dados dessa loja foram removidos</div>"
+                 "<p style='margin-top:16px'><a class='link' href='/painel'>"
+                 "Voltar ao painel</a></p></div>")
         return pagina("Excluída", corpo)
-    corpo = (""
+    corpo = ("<div class='card' style='max-width:520px;margin:40px auto;"
+             "text-align:center'>"
              "<h2>Excluir loja de " + esc(str(c["cliente"])) + "?</h2>"
-             "Essa ação remove a conexão e todos os dados da loja. Essa ação não pode ser desfeita.
-
-"
-             "<form method='post' action='/excluir/" + str(cid) + "' style='margin-top:16px'>"
-             "<button class='btn-danger' style='padding:13px 24px;font-size:15px'>Sim, excluir</button>"
+             "<div class='sub'>Essa ação remove a conexão e todos os dados "
+             "da loja. Não pode ser desfeita.</div>"
+             "<form method='post' action='/excluir/" + str(cid)
+             + "' style='margin-top:16px'>"
+             "<button class='btn-danger' style='padding:13px 24px;font-size:15px'>"
+             "Sim, excluir</button>"
              "</form>"
-             "<a class='link' href='/painel'>← Cancelar</a>
-
-"
-             "
-
-")
+             "<p style='margin-top:14px'><a class='link' href='/painel'>"
+             "← Cancelar</a></p>"
+             "</div>")
     return pagina("Excluir loja", corpo)
 
 
@@ -1652,39 +1590,42 @@ def excluir(cid):
 @login_required
 def campanhas(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado",
+                      "<div class='card'><h2>Acesso restrito</h2></div>")
     hoje = datetime.date.today().isoformat()
     sem_vendas = request.args.get("sem_vendas", type=int, default=0)
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
         if c:
-            campanhas = consultar(conn, "SELECT * FROM ads_campanhas WHERE conexao_id=%s ORDER BY data_inicio DESC", (cid,))
+            campanhas = consultar(conn, "SELECT * FROM ads_campanhas "
+                                        "WHERE conexao_id=%s ORDER BY data_inicio DESC", (cid,))
             gastos = consultar(conn, """SELECT campanha_id, COALESCE(SUM(gasto),0) AS gasto
-                                        FROM ads_metricas WHERE conexao_id=%s GROUP BY campanha_id""", (cid,))
+                                        FROM ads_metricas WHERE conexao_id=%s
+                                        GROUP BY campanha_id""", (cid,))
             camp_dia = consultar(conn, "SELECT * FROM ads_campanha_dia WHERE conexao_id=%s", (cid,))
-            ads_dia = consultar(conn, "SELECT * FROM ads_dia WHERE conexao_id=%s AND data >= %s ORDER BY data",
-                                (cid, (datetime.date.today() - datetime.timedelta(days=6)).isoformat()))
+            ads_dia = consultar(conn, "SELECT * FROM ads_dia WHERE conexao_id=%s "
+                                      "AND data >= %s ORDER BY data",
+                                (cid, (datetime.date.today()
+                                       - datetime.timedelta(days=6)).isoformat()))
+            filtro_ativo = sem_vendas > 0
+            if filtro_ativo:
+                data_limite = (datetime.date.today()
+                               - datetime.timedelta(days=sem_vendas)).isoformat()
+                fat_janela = consultar(conn, """SELECT campanha_id,
+                    COALESCE(SUM(faturamento),0) AS fat
+                    FROM ads_campanha_dia
+                    WHERE conexao_id=%s AND data >= %s
+                    GROUP BY campanha_id""", (cid, data_limite))
     if not c:
-        return pagina("Não encontrada", "<h2>Loja não encontrada</h2>
-
-")
+        return pagina("Não encontrada",
+                      "<div class='card'><h2>Loja não encontrada</h2></div>")
     ultima = ultima_atualizacao(cid)
-
-    filtro_ativo = sem_vendas > 0
     if filtro_ativo:
-        data_limite = (datetime.date.today() - datetime.timedelta(days=sem_vendas)).isoformat()
-        fat_janela = consultar(conn, """SELECT campanha_id, COALESCE(SUM(faturamento),0) AS fat
-                                        FROM ads_campanha_dia
-                                        WHERE conexao_id=%s AND data >= %s
-                                        GROUP BY campanha_id""", (cid, data_limite))
         fat_por_camp = {r["campanha_id"]: (r["fat"] or 0) for r in fat_janela}
         campanhas = [c2 for c2 in campanhas
                      if str(c2["status"]) in ("active", "ACTIVE", "running")
                      and fat_por_camp.get(c2["campanha_id"], 0) <= 0]
-
     gasto_por_camp = {g["campanha_id"]: g["gasto"] for g in gastos}
     camp_dia_map = {}
     for r in camp_dia:
@@ -1693,69 +1634,59 @@ def campanhas(cid):
     ad_hoje = ads_map.get(hoje)
     gasto_total = ad_hoje["gasto"] if ad_hoje and ad_hoje["gasto"] is not None else None
     fat_total = ad_hoje["faturamento"] if ad_hoje and ad_hoje["faturamento"] is not None else None
-    roas_total = (fat_total / gasto_total) if (gasto_total and fat_total is not None and gasto_total > 0) else None
-
-    corpo = "<h2 style='margin-bottom:10px'>Campanhas Ads</h2>" + barra_atualizar(cid, ultima, "campanhas")
-
-    filtros = [("", "Todas"), (3, "3 dias sem vender"), (7, "7 dias sem vender"), (15, "15 dias sem vender"), (30, "30 dias sem vender")]
-    corpo += ("<h2>Filtro: X dias sem vendas</h2>"
-              "Mostra apenas campanhas **ativas** sem faturamento de Ads nos últimos X dias
-
-"
-              "")
+    roas_total = (fat_total / gasto_total) if (gasto_total and fat_total
+                                               is not None and gasto_total > 0) else None
+    corpo = "<h2 style='margin-bottom:10px'>Campanhas Ads</h2>" \
+        + barra_atualizar(cid, ultima, "campanhas")
+    filtros = [("", "Todas"), (3, "3 dias sem vender"), (7, "7 dias sem vender"),
+               (15, "15 dias sem vender"), (30, "30 dias sem vender")]
+    corpo += ("<div class='card no-print'><h2>Filtro: X dias sem vendas</h2>"
+              "<div class='sub'>Mostra apenas campanhas <b>ativas</b> sem "
+              "faturamento de Ads nos últimos X dias</div>"
+              "<div style='display:flex;flex-wrap:wrap;gap:8px'>")
     for val, rotulo in filtros:
         classe = "filtro"
         if (val == 0 and not filtro_ativo) or (val != 0 and sem_vendas == val):
             classe += " filtro-btn"
-        href = "/campanhas/" + str(cid) if val == 0 else "/campanhas/" + str(cid) + "?sem_vendas=" + str(val)
-        corpo += "<a class='" + classe + "' href='" + href + "' style='text-decoration:none'>" + rotulo + "</a>"
-    corpo += "
-
-
-
-"
-
+        if val == 0:
+            href = "/campanhas/" + str(cid)
+        else:
+            href = "/campanhas/" + str(cid) + "?sem_vendas=" + str(val)
+        corpo += "<a class='" + classe + "' href='" + href \
+            + "' style='text-decoration:none'>" + rotulo + "</a>"
+    corpo += "</div></div>"
     if not campanhas:
-        corpo += (""
-                  "<h2>Nenhuma campanha" + (" ativa sem vendas nos últimos " + str(sem_vendas) + " dias" if filtro_ativo else " carregada ainda") + "</h2>"
-                  "" + ("Nenhuma campanha ativa ficou sem faturamento de Ads nesse período." if filtro_ativo else "Use 'Atualizar agora' acima para buscar as campanhas de Mercado Ads da loja.") + "
-
-
-
-")
+        if filtro_ativo:
+            titulo_v = ("Nenhuma campanha ativa sem vendas nos últimos "
+                        + str(sem_vendas) + " dias")
+            sub_v = "Nenhuma campanha ativa ficou sem faturamento de Ads nesse período."
+        else:
+            titulo_v = "Nenhuma campanha carregada ainda"
+            sub_v = "Use 'Atualizar agora' acima para buscar as campanhas de Mercado Ads."
+        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
+                  "<h2>" + titulo_v + "</h2><div class='sub'>" + sub_v + "</div></div>")
         return pagina_loja("Campanhas", cid, c["cliente"], "campanhas", corpo)
-
-    roas_html = ("%.1f" % roas_total) if roas_total is not None else "—"
-    corpo += (""
-              "" + (("R$ %.2f" % gasto_total) if gasto_total is not None else "—") + "
-
-Gasto Ads hoje
-
-
-
-"
-              "" + (("R$ %.2f" % fat_total) if fat_total is not None else "—") + "
-
-Faturamento Ads hoje
-
-
-
-"
-              "" + roas_html + "
-
-ROAS real (faturamento ÷ gasto)
-
-
-
-"
-              "
-
-")
-
-    corpo += "<h2>Campanhas " + str(len(campanhas)) + "</h2>"
-    corpo += "Defina o **ROAS objetivo** de cada campanha (clique no valor). O painel alerta quando o orçamento foi totalmente consumido e compara o ROAS real com o objetivo.
-
-"
+    if roas_total is not None:
+        roas_html = "<span class='alerta ok'>%.1f</span>" % roas_total
+    else:
+        roas_html = "<span class='tag sem'>—</span>"
+    corpo += ("<div class='grid' style='margin-bottom:18px'>"
+              "<div class='stat'><div class='num'>"
+              + (("R$ %.2f" % gasto_total) if gasto_total is not None
+                 else "<span class='tag sem'>—</span>")
+              + "</div><div class='lab'>Gasto Ads hoje</div></div>"
+              "<div class='stat'><div class='num'>"
+              + (("R$ %.2f" % fat_total) if fat_total is not None
+                 else "<span class='tag sem'>—</span>")
+              + "</div><div class='lab'>Faturamento Ads hoje</div></div>"
+              "<div class='stat'><div class='num'>" + roas_html
+              + "</div><div class='lab'>ROAS real (faturamento ÷ gasto)</div></div>"
+              "</div>")
+    corpo += ("<div class='card'><h2>Campanhas <span class='badge'>"
+              + str(len(campanhas)) + "</span></h2>"
+              "<div class='sub'>Defina o <b>ROAS objetivo</b> de cada campanha "
+              "(clique no valor). O painel alerta quando o orçamento acabou "
+              "e compara o ROAS real com o objetivo.</div>")
     for camp in campanhas:
         cid_camp = camp["campanha_id"]
         st = str(camp["status"])
@@ -1774,70 +1705,84 @@ ROAS real (faturamento ÷ gasto)
         camp_hoje = camp_dia_map.get((cid_camp, hoje))
         camp_gasto = camp_hoje["gasto"] if camp_hoje else None
         camp_fat = camp_hoje["faturamento"] if camp_hoje else None
-        roas_real = (camp_fat / camp_gasto) if (camp_gasto and camp_fat is not None and camp_gasto > 0) else None
-
-        orc_txt = ("R$ %.2f" % orcamento) if orcamento is not None else "—"
+        roas_real = (camp_fat / camp_gasto) if (camp_gasto and camp_fat
+                                                is not None and camp_gasto > 0) else None
+        if orcamento is not None:
+            orc_txt = "R$ %.2f" % orcamento
+        else:
+            orc_txt = "<span class='tag sem'>—</span>"
         gasto_txt = "R$ %.2f" % gasto
         pct_html = ""
         if orcamento:
             if pct >= 100:
-                pct_html = "%.0f%% consumido" % pct
+                pct_html = "<span class='alerta urgente'>%.0f%% consumido</span>" % pct
             elif pct >= 80:
-                pct_html = "%.0f%% consumido" % pct
+                pct_html = "<span class='alerta atencao'>%.0f%% consumido</span>" % pct
             else:
-                pct_html = "%.0f%% consumido" % pct
-
-        roas_obj_html = ("%.1f" % roas_obj) if roas_obj is not None else "<a class='link' href='#' onclick='editarRoas(" + str(cid) + ", \"" + str(cid_camp) + "\"); return false;'>+ definir</a>"
+                pct_html = "<span class='alerta ok'>%.0f%% consumido</span>" % pct
+        if roas_obj is not None:
+            roas_obj_html = ("<span id='roas-" + str(cid) + "-" + str(cid_camp)
+                             + "'>%.1f</span>" % roas_obj)
+        else:
+            roas_obj_html = ("<a class='link' href='#' onclick='editarRoas("
+                             + str(cid) + ", \"" + str(cid_camp)
+                             + "\"); return false;'>+ definir</a>")
         if roas_real is not None:
             if roas_obj is not None:
                 if roas_real < roas_obj:
-                    roas_real_html = "%.1f (abaixo do objetivo)" % roas_real
-                elif roas_real >= roas_obj:
-                    roas_real_html = "%.1f (acima do objetivo)" % roas_real
+                    roas_real_html = ("<span class='alerta urgente'>%.1f "
+                                      "(abaixo do objetivo)</span>" % roas_real)
+                else:
+                    roas_real_html = ("<span class='alerta ok'>%.1f "
+                                      "(acima do objetivo)</span>" % roas_real)
             else:
-                roas_real_html = "%.1f" % roas_real
+                roas_real_html = ("<span class='alerta atencao'>%.1f</span>" % roas_real)
         else:
-            roas_real_html = "sem dados"
-
-        corpo += (""
-                  "" + esc(camp["nome"] or ("Campanha " + str(cid_camp))) +
-                  " " + st_txt + "
-
-"
-                  "Tipo: " + esc(str(camp["tipo"] or "-")) + " · Início: " + esc(str(camp["data_inicio"] or "-")[:10]) +
-                  " · Fim: " + esc(str(camp["data_fim"] or "-")[:10]) + "
-
-"
-                  "| Orçamento | Gasto | Consumo | ROAS objetivo | ROAS real |
-| --- | --- | --- | --- | --- |
-| " + orc_txt + " | " + gasto_txt + " | " + pct_html + " | " + roas_obj_html + " | " + roas_real_html + " |")
-
+            roas_real_html = "<span class='tag sem'>sem dados</span>"
+        corpo += ("<div class='campanha-item'>"
+                  "<div class='titulo'>"
+                  + esc(camp["nome"] or ("Campanha " + str(cid_camp)))
+                  + " <span class='" + tag + "'>" + st_txt + "</span></div>"
+                  "<div class='meta'>Tipo: " + esc(str(camp["tipo"] or "-"))
+                  + " · Início: " + esc(str(camp["data_inicio"] or "-")[:10])
+                  + " · Fim: " + esc(str(camp["data_fim"] or "-")[:10]) + "</div>"
+                  "<table><thead><tr><th>Orçamento</th><th>Gasto</th>"
+                  "<th>Consumo</th><th>ROAS objetivo</th><th>ROAS real</th>"
+                  "</tr></thead><tbody>"
+                  "<tr><td>" + orc_txt + "</td><td>" + gasto_txt + "</td>"
+                  "<td>" + pct_html + "</td>"
+                  "<td>" + roas_obj_html + "</td><td>" + roas_real_html + "</td>"
+                  "</tr></tbody></table>")
         alertas = []
         if orcamento and gasto >= orcamento:
-            alertas.append(("urgente", "Orçamento totalmente consumido (gasto R$ %.2f ≥ orçamento R$ %.2f). Considere liberar mais verba para não perder vendas." % (gasto, orcamento)))
+            alertas.append(("urgente",
+                            "Orçamento totalmente consumido (gasto R$ %.2f ≥ "
+                            "orçamento R$ %.2f). Considere liberar mais verba."
+                            % (gasto, orcamento)))
         elif orcamento and pct >= 80:
-            alertas.append(("atencao", "Orçamento quase no limite (%.0f%% consumido). Avalie se vale liberar mais verba." % pct))
+            alertas.append(("atencao",
+                            "Orçamento quase no limite (%.0f%% consumido). "
+                            "Avalie se vale liberar mais verba." % pct))
         if roas_real is not None and roas_obj is not None:
             if roas_real < roas_obj:
-                alertas.append(("urgente", "ROAS real (%.1f) está ABAIXO do objetivo (%.1f). Revise a campanha: anúncios, lance ou segmentação." % (roas_real, roas_obj)))
+                alertas.append(("urgente",
+                                "ROAS real (%.1f) está ABAIXO do objetivo (%.1f). "
+                                "Revise anúncios, lance ou segmentação."
+                                % (roas_real, roas_obj)))
             else:
-                alertas.append(("ok", "ROAS real (%.1f) está ACIMA do objetivo (%.1f). Campanha saudável — pode valer aumentar o orçamento." % (roas_real, roas_obj)))
+                alertas.append(("ok",
+                                "ROAS real (%.1f) está ACIMA do objetivo (%.1f). "
+                                "Campanha saudável — pode valer aumentar verba."
+                                % (roas_real, roas_obj)))
         for grav, msg in alertas:
-            corpo += "" + msg + "
-
-"
-        corpo += "
-
-"
-
-    corpo += ("ROAS = retorno sobre o investimento em anúncios (faturamento gerado ÷ gasto). "
-              "O ROAS objetivo é uma meta de acompanhamento definida aqui no painel — não altera a campanha no Mercado Livre. "
-              "Ajustes reais (orçamento, lance) são feitos na Central de Vendedores do ML.
-
-")
-    corpo += "
-
-"
+            corpo += ("<div class='alerta " + grav
+                      + "' style='margin-top:8px;display:block'>" + msg + "</div>")
+        corpo += "</div>"
+    corpo += ("<div class='muted'>ROAS = retorno sobre o investimento em anúncios "
+              "(faturamento gerado ÷ gasto). O ROAS objetivo é uma meta definida "
+              "aqui no painel — não altera a campanha no Mercado Livre. Ajustes "
+              "reais (orçamento, lance) são feitos na Central de Vendedores.</div>")
+    corpo += "</div>"
     return pagina_loja("Campanhas", cid, c["cliente"], "campanhas", corpo)
 
 
@@ -1845,73 +1790,49 @@ ROAS real (faturamento ÷ gasto)
 @login_required
 def promocoes(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado",
+                      "<div class='card'><h2>Acesso restrito</h2></div>")
     hoje = datetime.date.today()
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
         if c:
-            promos = consultar(conn, "SELECT * FROM promocoes WHERE conexao_id=%s ORDER BY fim DESC", (cid,))
+            promos = consultar(conn, "SELECT * FROM promocoes "
+                                     "WHERE conexao_id=%s ORDER BY fim DESC", (cid,))
             itens_promo = consultar(conn, """
                 SELECT pi.promocao_id, pi.item_id, pi.preco_promocional,
                        a.titulo, a.preco, a.custo, a.quantidade, a.status
                 FROM promocoes_itens pi
-                LEFT JOIN anuncios a ON a.conexao_id=pi.conexao_id AND a.item_id=pi.item_id
+                LEFT JOIN anuncios a
+                  ON a.conexao_id=pi.conexao_id AND a.item_id=pi.item_id
                 WHERE pi.conexao_id=%s
             """, (cid,))
     if not c:
-        return pagina("Não encontrada", "<h2>Loja não encontrada</h2>
-
-")
+        return pagina("Não encontrada",
+                      "<div class='card'><h2>Loja não encontrada</h2></div>")
     ultima = ultima_atualizacao(cid)
-
     itens_por_promo = {}
     for it in itens_promo:
         itens_por_promo.setdefault(it["promocao_id"], []).append(it)
-
-    corpo = "<h2 style='margin-bottom:10px'>Promoções</h2>" + barra_atualizar(cid, ultima, "promocoes")
-
+    corpo = "<h2 style='margin-bottom:10px'>Promoções</h2>" \
+        + barra_atualizar(cid, ultima, "promocoes")
     if not promos:
-        corpo += (""
+        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhuma promoção carregada ainda</h2>"
-                  "Use 'Atualizar agora' acima para buscar as promoções da loja
-
-
-
-")
+                  "<div class='sub'>Use 'Atualizar agora' acima para buscar "
+                  "as promoções da loja</div></div>")
         return pagina_loja("Promoções", cid, c["cliente"], "promocoes", corpo)
-
     ativas = sum(1 for p in promos if str(p["status"]) in ("active", "ACTIVE"))
     candidatas = sum(1 for p in promos if str(p["status"]) in ("candidate", "CANDIDATE"))
-    finalizadas = sum(1 for p in promos if str(p["status"]) not in ("active", "ACTIVE", "candidate", "CANDIDATE"))
-    corpo += (""
-              "" + str(ativas) + "
-
-Promoções ativas
-
-
-
-"
-              "" + str(candidatas) + "
-
-Candidatas
-
-
-
-"
-              "" + str(finalizadas) + "
-
-Finalizadas
-
-
-
-"
-              "
-
-")
-
+    finalizadas = len(promos) - ativas - candidatas
+    corpo += ("<div class='grid' style='margin-bottom:18px'>"
+              "<div class='stat'><div class='num'>" + str(ativas)
+              + "</div><div class='lab'>Promoções ativas</div></div>"
+              "<div class='stat'><div class='num'>" + str(candidatas)
+              + "</div><div class='lab'>Candidatas</div></div>"
+              "<div class='stat'><div class='num'>" + str(finalizadas)
+              + "</div><div class='lab'>Finalizadas</div></div>"
+              "</div>")
     alertas = []
     for p in promos:
         if str(p["status"]) not in ("active", "ACTIVE"):
@@ -1929,24 +1850,20 @@ Finalizadas
         elif dias <= 7:
             alertas.append((p["nome"] or p["promocao_id"], dias, "atencao"))
     if alertas:
-        corpo += "<h2>⏰ Alertas de expiração</h2>Promoções ativas que estão terminando
-
-"
+        corpo += ("<div class='card'><h2>⏰ Alertas de expiração</h2>"
+                  "<div class='sub'>Promoções ativas que estão terminando</div>")
         for nome, dias, grav in alertas:
-            txt = "expira hoje" if dias <= 0 else "expira em " + str(dias) + " dia(s)"
-            corpo += "" + esc(nome) + " — " + txt + "
-
-"
-        corpo += "
-
-"
+            if dias <= 0:
+                txt = "expira hoje"
+            else:
+                txt = "expira em " + str(dias) + " dia(s)"
+            corpo += ("<div class='alerta " + grav
+                      + "' style='margin-bottom:6px'>" + esc(nome) + " — " + txt + "</div>")
+        corpo += "</div>"
     else:
-        corpo += "<h2>⏰ Alertas de expiração</h2>Nenhuma promoção ativa perto de expirar
-
-OK
-
-"
-
+        corpo += ("<div class='card'><h2>⏰ Alertas de expiração</h2>"
+                  "<div class='sub'>Nenhuma promoção ativa perto de expirar</div>"
+                  "<span class='alerta ok'>OK</span></div>")
     for p in promos:
         st = str(p["status"])
         if st in ("active", "ACTIVE"):
@@ -1956,31 +1873,71 @@ OK
         else:
             classe, st_txt = "finalizada", "FINALIZADA"
         itens = itens_por_promo.get(p["promocao_id"], [])
-        corpo += (""
-                  "" + esc(p["nome"] or ("Promoção " + str(p["promocao_id"]))) +
-                  " " + st_txt + "
-
-"
-                  "Tipo: " + esc(str(p["tipo"] or "-")) + " · Início: " + esc(str(p["inicio"] or "-")[:10]) +
-                  " · Fim: " + esc(str(p["fim"] or "-")[:10]) + " · Itens: " + str(len(itens)) + "
-
-")
+        corpo += ("<div class='promo-item " + classe + "'>"
+                  "<div class='titulo'>"
+                  + esc(p["nome"] or ("Promoção " + str(p["promocao_id"])))
+                  + " <span class='badge'>" + st_txt + "</span></div>"
+                  "<div class='meta'>Tipo: " + esc(str(p["tipo"] or "-"))
+                  + " · Início: " + esc(str(p["inicio"] or "-")[:10])
+                  + " · Fim: " + esc(str(p["fim"] or "-")[:10])
+                  + " · Itens: " + str(len(itens)) + "</div>")
         if itens:
-            corpo += ("| Anúncio | Preço normal | Preço promo | Desconto | Custo | Margem na promo |
-| --- | --- | --- | --- | --- | --- |
-| " + esc(str(it["titulo"] or it["item_id"])) + "" + str(it["item_id"]) + " | R$ %.2f" % preco + " | " + preco_promo_html + " | " + desc_html + " | " + custo_html + " | " + margem_html + " |"
+            corpo += ("<table><thead><tr><th>Anúncio</th><th>Preço normal</th>"
+                      "<th>Preço promo</th><th>Desconto</th><th>Custo</th>"
+                      "<th>Margem na promo</th></tr></thead><tbody>")
+            for it in itens:
+                preco = it["preco"] or 0
+                preco_promo = it["preco_promocional"]
+                custo = it["custo"]
+                if preco and preco_promo is not None:
+                    desc = round((preco - preco_promo) * 100.0 / preco, 1)
+                    desc_html = "<span class='alerta atencao'>-" + str(desc) + "%</span>"
+                else:
+                    desc_html = "<span class='tag sem'>—</span>"
+                if custo is not None and preco_promo is not None:
+                    if preco_promo:
+                        margem = round((preco_promo - custo) * 100.0 / preco_promo, 1)
+                    else:
+                        margem = 0
+                    if margem <= 0:
+                        margem_html = ("<span class='alerta urgente'>%.1f%% "
+                                       "(come a margem)</span>" % margem)
+                    elif margem < 20:
+                        margem_html = ("<span class='alerta atencao'>%.1f%%"
+                                       "</span>" % margem)
+                    else:
+                        margem_html = ("<span class='alerta ok'>%.1f%%</span>" % margem)
+                elif custo is None:
+                    margem_html = ("<a class='link' href='/custos/"
+                                   + str(cid) + "'>+ custo</a>")
+                else:
+                    margem_html = "<span class='tag sem'>sem preço promo</span>"
+                if custo is not None:
+                    custo_html = "R$ %.2f" % custo
+                else:
+                    custo_html = ("<a class='link' href='/custos/"
+                                  + str(cid) + "'>+ definir</a>")
+                if preco_promo is not None:
+                    preco_promo_html = "R$ %.2f" % preco_promo
+                else:
+                    preco_promo_html = "<span class='tag sem'>—</span>"
+                corpo += ("<tr><td>"
+                          + esc(str(it["titulo"] or it["item_id"]))
+                          + "<br><small class='muted'>" + str(it["item_id"])
+                          + "</small></td>"
+                          "<td>R$ %.2f" % preco + "</td><td>"
+                          + preco_promo_html + "</td><td>" + desc_html
+                          + "</td><td>" + custo_html + "</td><td>"
+                          + margem_html + "</td></tr>")
+            corpo += "</tbody></table>"
         else:
-            corpo += "Sem itens associados a esta promoção.
-
-"
-        corpo += "
-
-"
-
-    corpo += ("Para o comparativo de margem, cadastre o **custo** dos anúncios na <a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a> (individual ou por planilha). "
-              "O painel calcula o desconto aplicado e se a promoção ainda deixa margem para o vendedor.
-
-")
+            corpo += "<div class='muted'>Sem itens associados a esta promoção.</div>"
+        corpo += "</div>"
+    corpo += ("<div class='muted'>Para o comparativo de margem, cadastre o "
+              "<b>custo</b> dos anúncios na <a class='link' href='/custos/"
+              + str(cid) + "'>tela de Custos</a> (individual ou por planilha). "
+              "O painel calcula o desconto aplicado e se a promoção ainda "
+              "deixa margem.</div>")
     return pagina_loja("Promoções", cid, c["cliente"], "promocoes", corpo)
 
 
@@ -1994,76 +1951,71 @@ def exportar_demandas(cid):
         c = c[0] if c else None
         if c:
             anuncios = consultar(conn, "SELECT * FROM anuncios WHERE conexao_id=%s", (cid,))
-            metricas = consultar(conn, "SELECT item_id, visitas, conversao FROM metricas WHERE conexao_id=%s", (cid,))
+            metricas = consultar(conn, "SELECT item_id, visitas, conversao "
+                                       "FROM metricas WHERE conexao_id=%s", (cid,))
             promos_ativas = consultar(conn, """SELECT DISTINCT pi.item_id
-                FROM promocoes_itens pi JOIN promocoes p ON p.conexao_id=pi.conexao_id AND p.promocao_id=pi.promocao_id
+                FROM promocoes_itens pi
+                JOIN promocoes p ON p.conexao_id=pi.conexao_id
+                  AND p.promocao_id=pi.promocao_id
                 WHERE pi.conexao_id=%s AND p.status IN ('active','ACTIVE')""", (cid,))
     if not c:
         return "Loja não encontrada", 404
-
     itens_promocao = {r["item_id"] for r in promos_ativas}
     visitas_por_item = {m["item_id"]: (m["visitas"] or 0) for m in metricas}
     conv_por_item = {m["item_id"]: (m["conversao"] or 0) for m in metricas}
-
     linhas = []
     for a in anuncios:
         a["visitas"] = visitas_por_item.get(a["item_id"], 0)
-        demandas_lista = montar_demandas_anuncio(a, a["item_id"] in itens_promocao, conv_por_item.get(a["item_id"]))
-        if not demandas_lista:
-            continue
+        demandas_lista = montar_demandas_anuncio(
+            a, a["item_id"] in itens_promocao, conv_por_item.get(a["item_id"]))
         for acao, grav in demandas_lista:
             linhas.append([c["cliente"], a["item_id"], a["titulo"], grav, acao])
-
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(["Cliente", "Item", "Anúncio", "Gravidade", "Demanda"])
     for l in linhas:
         writer.writerow(l)
-    nome_arq = ("demandas_" + str(c["cliente"]).replace(" ", "_") + ".csv")
-    return Response(
-        buf.getvalue(),
-        mimetype="text/csv; charset=utf-8",
-        headers={"Content-Disposition": "attachment; filename=" + nome_arq}
-    )
+    nome_arq = "demandas_" + str(c["cliente"]).replace(" ", "_") + ".csv"
+    return Response(buf.getvalue(), mimetype="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": "attachment; filename=" + nome_arq})
 
 
 @app.route("/demandas/<int:cid>")
 @login_required
 def demandas(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado",
+                      "<div class='card'><h2>Acesso restrito</h2></div>")
     limite = request.args.get("limite", type=int, default=20)
     if limite < 1:
         limite = 20
     if limite > 200:
         limite = 200
     filtro = request.args.get("filtro", "").strip()
-
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
         if c:
             anuncios = consultar(conn, "SELECT * FROM anuncios WHERE conexao_id=%s", (cid,))
-            metricas = consultar(conn, "SELECT item_id, visitas, conversao FROM metricas WHERE conexao_id=%s", (cid,))
+            metricas = consultar(conn, "SELECT item_id, visitas, conversao "
+                                       "FROM metricas WHERE conexao_id=%s", (cid,))
             promos_ativas = consultar(conn, """SELECT DISTINCT pi.item_id
-                FROM promocoes_itens pi JOIN promocoes p ON p.conexao_id=pi.conexao_id AND p.promocao_id=pi.promocao_id
+                FROM promocoes_itens pi
+                JOIN promocoes p ON p.conexao_id=pi.conexao_id
+                  AND p.promocao_id=pi.promocao_id
                 WHERE pi.conexao_id=%s AND p.status IN ('active','ACTIVE')""", (cid,))
     if not c:
-        return pagina("Não encontrada", "<h2>Loja não encontrada</h2>
-
-")
+        return pagina("Não encontrada",
+                      "<div class='card'><h2>Loja não encontrada</h2></div>")
     ultima = ultima_atualizacao(cid)
-
     itens_promocao = {r["item_id"] for r in promos_ativas}
     visitas_por_item = {m["item_id"]: (m["visitas"] or 0) for m in metricas}
     conv_por_item = {m["item_id"]: (m["conversao"] or 0) for m in metricas}
-
     itens_demandas = []
     for a in anuncios:
         a["visitas"] = visitas_por_item.get(a["item_id"], 0)
-        demandas_lista = montar_demandas_anuncio(a, a["item_id"] in itens_promocao, conv_por_item.get(a["item_id"]))
+        demandas_lista = montar_demandas_anuncio(
+            a, a["item_id"] in itens_promocao, conv_por_item.get(a["item_id"]))
         if not demandas_lista:
             continue
         urgentes = sum(1 for _, g in demandas_lista if g == "urgente")
@@ -2074,198 +2026,144 @@ def demandas(cid):
             "urgentes": urgentes,
             "total": len(demandas_lista)
         })
-
     itens_demandas.sort(key=lambda x: (-x["urgentes"], -x["total"]))
-
-    corpo = ("<h2>Central de Demandas</h2>"
-             ""
-             "<a class='btn-acoes cinza' href='/exportar_demandas/" + str(cid) + "'>⬇ Exportar CSV</a>"
-             "<a class='btn-acoes cinza' href='#' onclick='window.print(); return false;'>🖨 Imprimir/PDF</a>"
-             "
-
-
-
-"
+    corpo = ("<div class='barra-topo'><h2>Central de Demandas</h2>"
+             "<div style='display:flex;gap:10px;flex-wrap:wrap;align-items:center'>"
+             "<a class='btn-acoes cinza' href='/exportar_demandas/"
+             + str(cid) + "'>⬇ Exportar CSV</a>"
+             "<a class='btn-acoes cinza' href='#' onclick='window.print(); "
+             "return false;'>🖨 Imprimir/PDF</a>"
+             "</div></div>"
              + barra_atualizar(cid, ultima, "demandas"))
-
     total_anuncios = len(anuncios)
     com_demanda = len(itens_demandas)
     urgentes_total = sum(i["urgentes"] for i in itens_demandas)
-    corpo += (""
-              "" + str(total_anuncios) + "
-
-Total de anúncios
-
-
-
-"
-              "" + str(com_demanda) + "
-
-Precisam de ação
-
-
-
-"
-              "" + str(urgentes_total) + "
-
-Demandas urgentes
-
-
-
-"
-              "
-
-")
-
-    corpo += ("<h2>Filtros</h2>"
-              "Principais pontos de alerta por anúncio, ordenados por prioridade
-
-"
-              "<form method='get' action='/demandas/" + str(cid) + "' style='display:flex;flex-wrap:wrap;align-items:center;gap:8px'>"
+    corpo += ("<div class='grid' style='margin-bottom:18px'>"
+              "<div class='stat'><div class='num'>" + str(total_anuncios)
+              + "</div><div class='lab'>Total de anúncios</div></div>"
+              "<div class='stat'><div class='num'>" + str(com_demanda)
+              + "</div><div class='lab'>Precisam de ação</div></div>"
+              "<div class='stat'><div class='num'>" + str(urgentes_total)
+              + "</div><div class='lab'>Demandas urgentes</div></div>"
+              "</div>")
+    corpo += ("<div class='card no-print'><h2>Filtros</h2>"
+              "<div class='sub'>Principais pontos de alerta por anúncio, "
+              "ordenados por prioridade</div>"
+              "<form method='get' action='/demandas/" + str(cid)
+              + "' style='display:flex;flex-wrap:wrap;align-items:center;gap:8px'>"
               "<label style='font-size:13px;color:#6b7280'>Mostrar:</label>"
-              "<input type='number' name='limite' value='" + str(limite) + "' min='1' max='200' class='filtro' style='width:90px'>"
-              "anúncios"
+              "<input type='number' name='limite' value='" + str(limite)
+              + "' min='1' max='200' class='filtro' style='width:90px'>"
+              "<span style='color:#6b7280;font-size:13px'>anúncios</span>"
               "<button class='filtro-btn'>Aplicar</button>"
               "</form>"
-              "**Filtrar por tipo:** "
-              "<a class='filtro' href='/demandas/" + str(cid) + "?limite=" + str(limite) + "' style='text-decoration:none'>Todos</a>"
-              "<a class='filtro' href='/demandas/" + str(cid) + "?limite=" + str(limite) + "&filtro=estoque' style='text-decoration:none'>Estoque</a>"
-              "<a class='filtro' href='/demandas/" + str(cid) + "?limite=" + str(limite) + "&filtro=fotos' style='text-decoration:none'>Fotos</a>"
-              "<a class='filtro' href='/demandas/" + str(cid) + "?limite=" + str(limite) + "&filtro=clips' style='text-decoration:none'>Clips</a>"
-              "<a class='filtro' href='/demandas/" + str(cid) + "?limite=" + str(limite) + "&filtro=tag' style='text-decoration:none'>Tags</a>"
-              "<a class='filtro' href='/demandas/" + str(cid) + "?limite=" + str(limite) + "&filtro=conversao' style='text-decoration:none'>Conversão</a>"
-              "
-
-
-
-")
-
+              "<div style='margin-top:10px'><b style='font-size:13px;"
+              "color:#6b7280'>Filtrar por tipo:</b> "
+              "<a class='filtro' href='/demandas/" + str(cid) + "?limite="
+              + str(limite) + "' style='text-decoration:none'>Todos</a>"
+              "<a class='filtro' href='/demandas/" + str(cid) + "?limite="
+              + str(limite) + "&filtro=estoque' style='text-decoration:none'>Estoque</a>"
+              "<a class='filtro' href='/demandas/" + str(cid) + "?limite="
+              + str(limite) + "&filtro=fotos' style='text-decoration:none'>Fotos</a>"
+              "<a class='filtro' href='/demandas/" + str(cid) + "?limite="
+              + str(limite) + "&filtro=clips' style='text-decoration:none'>Clips</a>"
+              "<a class='filtro' href='/demandas/" + str(cid) + "?limite="
+              + str(limite) + "&filtro=tag' style='text-decoration:none'>Tags</a>"
+              "<a class='filtro' href='/demandas/" + str(cid) + "?limite="
+              + str(limite) + "&filtro=conversao' style='text-decoration:none'>Conversão</a>"
+              "</div></div>")
     if not itens_demandas:
-        corpo += (""
+        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhuma demanda encontrada</h2>"
-                  "Todos os anúncios carregados estão em dia. Use 'Atualizar agora' acima para buscar os dados mais recentes.
-
-
-
-")
+                  "<div class='sub'>Todos os anúncios carregados estão em dia. "
+                  "Use 'Atualizar agora' acima para buscar os dados mais recentes."
+                  "</div></div>")
         return pagina_loja("Demandas", cid, c["cliente"], "demandas", corpo)
-
     if filtro:
         filtrados = []
         for i in itens_demandas:
-            if filtro == "estoque" and any("epor estoque" in d or "Estoque" in d for d, _ in i["demandas"]):
+            textos = [d.lower() for d, _ in i["demandas"]]
+            if filtro == "estoque" and any("estoque" in t for t in textos):
                 filtrados.append(i)
-            elif filtro == "fotos" and any("foto" in d.lower() for d, _ in i["demandas"]):
+            elif filtro == "fotos" and any("foto" in t for t in textos):
                 filtrados.append(i)
-            elif filtro == "clips" and any("clip" in d.lower() or "vídeo" in d.lower() or "video" in d.lower() for d, _ in i["demandas"]):
+            elif filtro == "clips" and any("clip" in t or "vídeo" in t
+                                           or "video" in t for t in textos):
                 filtrados.append(i)
-            elif filtro == "tag" and any("tag" in d.lower() for d, _ in i["demandas"]):
+            elif filtro == "tag" and any("tag" in t for t in textos):
                 filtrados.append(i)
-            elif filtro == "conversao" and any("onversão" in d for d, _ in i["demandas"]):
+            elif filtro == "conversao" and any("conversão" in t for t in textos):
                 filtrados.append(i)
         itens_demandas = filtrados
         if not itens_demandas:
-            corpo += ("<h2>Nenhum anúncio com esse tipo de demanda</h2>
-
-")
+            corpo += ("<div class='card' style='text-align:center;padding:30px'>"
+                      "<h2>Nenhum anúncio com esse tipo de demanda</h2></div>")
             return pagina_loja("Demandas", cid, c["cliente"], "demandas", corpo)
-
     itens_demandas = itens_demandas[:limite]
-
-    corpo += "<h2>Anúncios que precisam de ação " + str(len(itens_demandas)) + "</h2>"
+    corpo += ("<div class='card'><h2>Anúncios que precisam de ação "
+              "<span class='badge'>" + str(len(itens_demandas)) + "</span></h2>")
     for i in itens_demandas:
-        classe = "urgente" if i["urgentes"] > 0 else "atencao"
-        corpo += (""
-                  "" + esc(i["titulo"]) + " <small class='muted'>(" + str(i["item_id"]) + ")</small>"
-                  " " + str(i["total"]) + " demandas
-
-")
+        if i["urgentes"] > 0:
+            classe = "urgente"
+        else:
+            classe = "atencao"
+        corpo += ("<div class='demanda-item " + classe + "'>"
+                  "<div class='titulo'>" + esc(i["titulo"])
+                  + " <small class='muted'>(" + str(i["item_id"]) + ")</small>"
+                  " <span class='badge'>" + str(i["total"]) + " demandas</span></div>")
         for acao, grav in i["demandas"]:
-            corpo += "" + ("🔴 " if grav == "urgente" else "🟡 ") + esc(acao) + "
-
-"
-        corpo += "
-
-"
-    corpo += "
-
-"
-
+            if grav == "urgente":
+                icone = "🔴 "
+            else:
+                icone = "🟡 "
+            corpo += ("<div class='acao " + grav + "'>" + icone + esc(acao) + "</div>")
+        corpo += "</div>"
+    corpo += "</div>"
     return pagina_loja("Demandas", cid, c["cliente"], "demandas", corpo)
-
-
-@app.route("/anuncios/<int:cid>")
+    @app.route("/anuncios/<int:cid>")
 @login_required
 def anuncios(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado",
+                      "<div class='card'><h2>Acesso restrito</h2></div>")
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
-        anuncios = consultar(conn, "SELECT * FROM anuncios WHERE conexao_id=%s ORDER BY vendidos DESC", (cid,))
+        anuncios = consultar(conn, "SELECT * FROM anuncios "
+                                   "WHERE conexao_id=%s ORDER BY vendidos DESC", (cid,))
         promos_ativas = consultar(conn, """SELECT DISTINCT pi.item_id
-            FROM promocoes_itens pi JOIN promocoes p ON p.conexao_id=pi.conexao_id AND p.promocao_id=pi.promocao_id
+            FROM promocoes_itens pi
+            JOIN promocoes p ON p.conexao_id=pi.conexao_id
+              AND p.promocao_id=pi.promocao_id
             WHERE pi.conexao_id=%s AND p.status IN ('active','ACTIVE')""", (cid,))
         erros = consultar(conn, "SELECT * FROM erros WHERE conexao_id=%s", (cid,))
     if not c:
-        return pagina("Não encontrada", "<h2>Loja não encontrada</h2>
-
-")
+        return pagina("Não encontrada",
+                      "<div class='card'><h2>Loja não encontrada</h2></div>")
     ultima = ultima_atualizacao(cid)
-
     itens_promocao = {r["item_id"] for r in promos_ativas}
-
-    corpo = "<h2 style='margin-bottom:10px'>Anúncios</h2>" + barra_atualizar(cid, ultima, "anuncios")
-
+    corpo = "<h2 style='margin-bottom:10px'>Anúncios</h2>" \
+        + barra_atualizar(cid, ultima, "anuncios")
     if not anuncios:
-        corpo += (""
+        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhum anúncio carregado ainda</h2>"
-                  "Use 'Atualizar agora' acima para buscar os anúncios da loja
-
-
-
-")
+                  "<div class='sub'>Use 'Atualizar agora' acima para buscar "
+                  "os anúncios da loja</div></div>")
         return pagina_loja("Anúncios", cid, c["cliente"], "anuncios", corpo)
-
     total = len(anuncios)
     com_estoque_zero = sum(1 for a in anuncios if (a["quantidade"] or 0) <= 0)
     com_fotos_baixas = sum(1 for a in anuncios if (a["fotos"] or 0) < 10)
     em_promocao = sum(1 for a in anuncios if a["item_id"] in itens_promocao)
-    corpo += (""
-              "" + str(total) + "
-
-Total de anúncios
-
-
-
-"
-              "" + str(com_estoque_zero) + "
-
-Estoque zerado
-
-
-
-"
-              "" + str(com_fotos_baixas) + "
-
-Fotos abaixo de 10
-
-
-
-"
-              "" + str(em_promocao) + "
-
-Em promoção
-
-
-
-"
-              "
-
-")
-
+    corpo += ("<div class='grid' style='margin-bottom:18px'>"
+              "<div class='stat'><div class='num'>" + str(total)
+              + "</div><div class='lab'>Total de anúncios</div></div>"
+              "<div class='stat'><div class='num'>" + str(com_estoque_zero)
+              + "</div><div class='lab'>Estoque zerado</div></div>"
+              "<div class='stat'><div class='num'>" + str(com_fotos_baixas)
+              + "</div><div class='lab'>Fotos abaixo de 10</div></div>"
+              "<div class='stat'><div class='num'>" + str(em_promocao)
+              + "</div><div class='lab'>Em promoção</div></div>"
+              "</div>")
     linhas_html = ""
     for a in anuncios:
         em_promo = a["item_id"] in itens_promocao
@@ -2278,22 +2176,24 @@ Em promoção
             st_tag, st_txt = "tag normal", st
         fotos = a["fotos"] or 0
         if fotos >= 10:
-            fotos_html = "" + str(fotos) + "/10"
+            fotos_html = "<span class='alerta ok'>" + str(fotos) + "/10</span>"
         elif fotos > 0:
-            fotos_html = "" + str(fotos) + "/10"
+            fotos_html = "<span class='alerta atencao'>" + str(fotos) + "/10</span>"
         else:
-            fotos_html = "0/10"
-        clips = a["clips"] if a["clips"] is not None else None
+            fotos_html = "<span class='alerta urgente'>0/10</span>"
+        clips = a["clips"]
         if clips is None:
-            clips_html = "não verificado"
+            clips_html = "<span class='tag sem'>não verificado</span>"
         elif clips >= 2:
-            clips_html = "" + str(clips) + ""
+            clips_html = "<span class='alerta ok'>" + str(clips) + "</span>"
         elif clips > 0:
-            clips_html = "" + str(clips) + ""
+            clips_html = "<span class='alerta atencao'>" + str(clips) + "</span>"
         else:
-            clips_html = "0"
-        promo_html = ("Em promoção" if em_promo
-                      else "—")
+            clips_html = "<span class='alerta atencao'>0</span>"
+        if em_promo:
+            promo_html = "<span class='tag promocao'>Em promoção</span>"
+        else:
+            promo_html = "<span class='tag sem'>—</span>"
         tags = []
         try:
             tags = json.loads(a["tags"]) if a["tags"] else []
@@ -2302,66 +2202,62 @@ Em promoção
         tags_html = ""
         for t in tags[:6]:
             if t in TAGS_RUINS:
-                tags_html += "" + esc(t) + " "
+                tags_html += "<span class='tag ruim'>" + esc(t) + "</span> "
             elif t in TAGS_BOAS:
-                tags_html += "" + esc(t) + " "
+                tags_html += "<span class='tag boa'>" + esc(t) + "</span> "
             else:
-                tags_html += "" + esc(t) + " "
+                tags_html += "<span class='tag normal'>" + esc(t) + "</span> "
         if not tags_html:
-            tags_html = "sem tags"
-
+            tags_html = "<span class='tag sem'>sem tags</span>"
         peso_kg = a["peso"]
         f = frete_esperado(a["preco"], peso_kg)
         if f is not None:
-            frete_html = "R$ %.2f" % f
-            peso_txt = ("%.2f kg" % peso_kg) if peso_kg else "-"
+            frete_html = "<span class='alerta ok'>R$ %.2f</span>" % f
+            if peso_kg:
+                peso_txt = "%.2f kg" % peso_kg
+            else:
+                peso_txt = "-"
         else:
-            frete_html = "sem peso"
+            frete_html = "<span class='tag sem'>sem peso</span>"
             peso_txt = "-"
-
         linhas_html += ("<tr>"
-                        "<td>**" + esc(str(a["titulo"])) + "**
-<small class='muted'>" + str(a["item_id"]) + "</small></td>"
+                        "<td><b>" + esc(str(a["titulo"])) + "</b><br>"
+                        "<small class='muted'>" + str(a["item_id"]) + "</small></td>"
                         "<td>R$ %.2f" % (a["preco"] or 0) + "</td>"
                         "<td>" + str(a["quantidade"] or 0) + "</td>"
                         "<td>" + fotos_html + "</td>"
                         "<td>" + clips_html + "</td>"
-                        "<td>" + st_txt + "</td>"
+                        "<td><span class='" + st_tag + "'>" + st_txt + "</span></td>"
                         "<td>" + promo_html + "</td>"
                         "<td>" + tags_html + "</td>"
                         "<td>" + str(a["vendidos"] or 0) + "</td>"
                         "<td>" + peso_txt + "</td>"
                         "<td>" + frete_html + "</td>"
                         "</tr>")
-
-    corpo += ("<h2>Lista de anúncios " + str(total) + "</h2>"
-              "Análises por produto — fotos, clips, promoção, tags e frete esperado
-
-"
-              "| Anúncio | Preço | Estoque | Fotos | Clips | Status | Promoção | Tags | Vendidos | Peso | Frete esperado |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-
-"
-              "Frete esperado = custo do Mercado Livre pela tabela oficial (peso × faixa de preço). "
-              "Cadastre os custos na <a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a> e veja a rentabilidade na <a class='link' href='/vendas/" + str(cid) + "'>tela de Vendas</a>.
-
-
-
-")
-
+    corpo += ("<div class='card'><h2>Lista de anúncios <span class='badge'>"
+              + str(total) + "</span></h2>"
+              "<div class='sub'>Análises por produto — fotos, clips, promoção, "
+              "tags e frete esperado</div>"
+              "<div style='overflow-x:auto'><table>"
+              "<thead><tr><th>Anúncio</th><th>Preço</th><th>Estoque</th>"
+              "<th>Fotos</th><th>Clips</th><th>Status</th><th>Promoção</th>"
+              "<th>Tags</th><th>Vendidos</th><th>Peso</th>"
+              "<th>Frete esperado</th></tr></thead>"
+              "<tbody>" + linhas_html + "</tbody></table></div>"
+              "<div class='muted'>Frete esperado = custo do Mercado Livre pela "
+              "tabela oficial (peso × faixa de preço). Cadastre os custos na "
+              "<a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a> "
+              "e veja a rentabilidade na <a class='link' href='/vendas/"
+              + str(cid) + "'>tela de Vendas</a>.</div></div>")
     if erros:
         avisos = ""
         for e in erros:
             if e["categoria"] in ("financeiro",):
                 continue
-            avisos += "" + esc(e["categoria"]) + ": " + esc(e["mensagem"]) + "
-
-"
+            avisos += ("<div>" + esc(e["categoria"]) + ": "
+                       + esc(e["mensagem"]) + "</div>")
         if avisos:
-            corpo += "**Avisos:** " + avisos + "
-
-"
-
+            corpo += ("<div class='aviso'><b>Avisos:</b> " + avisos + "</div>")
     return pagina_loja("Anúncios", cid, c["cliente"], "anuncios", corpo)
 
 
@@ -2369,9 +2265,8 @@ Em promoção
 @login_required
 def desempenho(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado",
+                      "<div class='card'><h2>Acesso restrito</h2></div>")
     dias = request.args.get("dias", type=int, default=30)
     de = request.args.get("de", "").strip()
     ate = request.args.get("ate", "").strip()
@@ -2391,19 +2286,23 @@ def desempenho(cid):
     dur = (d_fim - d_inicio).days + 1
     p_inicio = d_inicio - datetime.timedelta(days=dur)
     p_fim = d_inicio - datetime.timedelta(days=1)
-
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
         if c:
             linhas = consultar(conn, """
                 SELECT a.item_id, a.titulo, a.status, a.preco,
-                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s THEN h.visitas ELSE 0 END),0) AS visitas,
-                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s THEN h.vendidos ELSE 0 END),0) AS vendidos,
-                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s THEN h.visitas ELSE 0 END),0) AS visitas_ant,
-                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s THEN h.vendidos ELSE 0 END),0) AS vendidos_ant
+                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s
+                    THEN h.visitas ELSE 0 END),0) AS visitas,
+                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s
+                    THEN h.vendidos ELSE 0 END),0) AS vendidos,
+                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s
+                    THEN h.visitas ELSE 0 END),0) AS visitas_ant,
+                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s
+                    THEN h.vendidos ELSE 0 END),0) AS vendidos_ant
                 FROM anuncios a
-                LEFT JOIN desempenho_historico h ON h.conexao_id=a.conexao_id AND h.item_id=a.item_id
+                LEFT JOIN desempenho_historico h
+                  ON h.conexao_id=a.conexao_id AND h.item_id=a.item_id
                 WHERE a.conexao_id=%s
                 GROUP BY a.item_id, a.titulo, a.status, a.preco
                 ORDER BY vendidos DESC
@@ -2418,18 +2317,17 @@ def desempenho(cid):
                 GROUP BY h.data ORDER BY h.data
             """, (cid, d_inicio.isoformat(), d_fim.isoformat()))
             grafico_f = consultar(conn, """
-                SELECT SUBSTRING(fechado_em,1,10) AS dia, COALESCE(SUM(total),0) AS total
+                SELECT SUBSTRING(fechado_em,1,10) AS dia,
+                       COALESCE(SUM(total),0) AS total
                 FROM pedidos
                 WHERE conexao_id=%s AND fechado_em IS NOT NULL
                   AND SUBSTRING(fechado_em,1,10) BETWEEN %s AND %s
                 GROUP BY SUBSTRING(fechado_em,1,10)
             """, (cid, d_inicio.isoformat(), d_fim.isoformat()))
     if not c:
-        return pagina("Não encontrada", "<h2>Loja não encontrada</h2>
-
-")
+        return pagina("Não encontrada",
+                      "<div class='card'><h2>Loja não encontrada</h2></div>")
     ultima = ultima_atualizacao(cid)
-
     visitas_por_dia = {r["data"]: r["visitas"] for r in grafico_v}
     fat_por_dia = {r["dia"]: r["total"] for r in grafico_f}
     rotulos, visitas_serie, fat_serie = [], [], []
@@ -2440,105 +2338,79 @@ def desempenho(cid):
         visitas_serie.append(visitas_por_dia.get(iso, 0))
         fat_serie.append(round(fat_por_dia.get(iso, 0), 2))
         d += datetime.timedelta(days=1)
-
-    corpo = "<h2 style='margin-bottom:10px'>Desempenho</h2>" + barra_atualizar(cid, ultima, "desempenho")
-
-    corpo += ("<h2>Período de análise</h2>Escolha o período para comparar visitas, vendas e faturamento
-
-"
-              "<form method='get' action='/desempenho/" + str(cid) + "' style='display:flex;flex-wrap:wrap;align-items:center;gap:8px'>"
-              "<a class='filtro' href='/desempenho/" + str(cid) + "?dias=7' style='text-decoration:none'>7 dias</a>"
-              "<a class='filtro' href='/desempenho/" + str(cid) + "?dias=30' style='text-decoration:none'>30 dias</a>"
-              "<a class='filtro' href='/desempenho/" + str(cid) + "?dias=90' style='text-decoration:none'>90 dias</a>"
-              "<input type='date' name='de' value='" + de + "' class='filtro' style='margin-left:10px'>"
-              "até"
+    corpo = "<h2 style='margin-bottom:10px'>Desempenho</h2>" \
+        + barra_atualizar(cid, ultima, "desempenho")
+    corpo += ("<div class='card'><h2>Período de análise</h2>"
+              "<div class='sub'>Escolha o período para comparar visitas, "
+              "vendas e faturamento</div>"
+              "<form method='get' action='/desempenho/" + str(cid)
+              + "' style='display:flex;flex-wrap:wrap;align-items:center;gap:8px'>"
+              "<a class='filtro' href='/desempenho/" + str(cid)
+              + "?dias=7' style='text-decoration:none'>7 dias</a>"
+              "<a class='filtro' href='/desempenho/" + str(cid)
+              + "?dias=30' style='text-decoration:none'>30 dias</a>"
+              "<a class='filtro' href='/desempenho/" + str(cid)
+              + "?dias=90' style='text-decoration:none'>90 dias</a>"
+              "<input type='date' name='de' value='" + de
+              + "' class='filtro' style='margin-left:10px'>"
+              "<span style='color:#6b7280;font-size:13px'>até</span>"
               "<input type='date' name='ate' value='" + ate + "' class='filtro'>"
               "<button class='filtro-btn'>Aplicar</button>"
               "</form>"
-              "Período selecionado: " + d_inicio.strftime("%d/%m/%Y") + " a " + d_fim.strftime("%d/%m/%Y") +
-              " (comparado com " + p_inicio.strftime("%d/%m/%Y") + " a " + p_fim.strftime("%d/%m/%Y") + ")
-
-
-
-")
-
+              "<div class='muted'>Período selecionado: "
+              + d_inicio.strftime("%d/%m/%Y") + " a "
+              + d_fim.strftime("%d/%m/%Y") + " (comparado com "
+              + p_inicio.strftime("%d/%m/%Y") + " a "
+              + p_fim.strftime("%d/%m/%Y") + ")</div></div>")
     if not linhas:
-        corpo += (""
+        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Sem dados de desempenho ainda</h2>"
-                  "O histórico é gravado automaticamente a cada atualização. Use 'Atualizar agora' acima para começar a acumular.
-
-
-
-")
+                  "<div class='sub'>O histórico é gravado a cada atualização. "
+                  "Use 'Atualizar agora' acima para começar a acumular.</div></div>")
         return pagina_loja("Desempenho", cid, c["cliente"], "desempenho", corpo)
-
     tot_visitas = sum(r["visitas"] or 0 for r in linhas)
     tot_vendas = sum(r["vendidos"] or 0 for r in linhas)
-    tot_conv = round((tot_vendas * 100.0 / tot_visitas), 2) if tot_visitas else 0
+    if tot_visitas:
+        tot_conv = round((tot_vendas * 100.0 / tot_visitas), 2)
+    else:
+        tot_conv = 0
     tot_fat = round(sum(fat_serie), 2)
-    corpo += (""
-              "" + str(tot_visitas) + "
-
-Visitas no período
-
-
-
-"
-              "" + str(tot_vendas) + "
-
-Vendas no período
-
-
-
-"
-              "R$ %.2f" % tot_fat + "
-
-Faturamento no período
-
-
-
-"
-              "" + ("%.2f%%" % tot_conv) + "
-
-Conversão
-
-
-
-"
-              "
-
-")
-
-    corpo += ("<h2>Evolução diária</h2>"
-              "Faturamento diário (R$) e visitas no período
-
-"
-              "<canvas id='graficoDesempenho'></canvas>
-
-"
-              "
-
-")
-
-    corpo += ("<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
-              "<script>"
-              "var rotulos = " + json.dumps(rotulos) + ";"
+    corpo += ("<div class='grid' style='margin-bottom:18px'>"
+              "<div class='stat'><div class='num'>" + str(tot_visitas)
+              + "</div><div class='lab'>Visitas no período</div></div>"
+              "<div class='stat'><div class='num'>" + str(tot_vendas)
+              + "</div><div class='lab'>Vendas no período</div></div>"
+              "<div class='stat'><div class='num'>R$ %.2f" % tot_fat
+              + "</div><div class='lab'>Faturamento no período</div></div>"
+              "<div class='stat'><div class='num'>" + ("%.2f%%" % tot_conv)
+              + "</div><div class='lab'>Conversão</div></div>"
+              "</div>")
+    corpo += ("<div class='card'><h2>Evolução diária</h2>"
+              "<div class='sub'>Faturamento diário (R$) e visitas no período</div>"
+              "<div class='grafico-box'>"
+              "<canvas id='graficoDesempenho'></canvas></div></div>")
+    corpo += ("<script src='https://cdn.jsdelivr.net/npm/"
+              "chart.js@4.4.1/dist/chart.umd.min.js'></script>")
+    corpo += ("<script>var rotulos = " + json.dumps(rotulos) + ";"
               "var visitas = " + json.dumps(visitas_serie) + ";"
               "var faturamento = " + json.dumps(fat_serie) + ";"
               "new Chart(document.getElementById('graficoDesempenho'), {"
               "type:'line',"
               "data:{labels:rotulos,datasets:["
-              "{label:'Visitas',data:visitas,borderColor:'#3483FA',backgroundColor:'rgba(52,131,250,0.12)',yAxisID:'y',tension:0.3,fill:true},"
-              "{label:'Faturamento (R$)',data:faturamento,borderColor:'#FFE600',backgroundColor:'rgba(255,230,0,0.25)',yAxisID:'y1',tension:0.3,fill:true}"
-              "]},"
+              "{label:'Visitas',data:visitas,borderColor:'#3483FA',"
+              "backgroundColor:'rgba(52,131,250,0.12)',yAxisID:'y',"
+              "tension:0.3,fill:true},"
+              "{label:'Faturamento (R$)',data:faturamento,"
+              "borderColor:'#FFE600',"
+              "backgroundColor:'rgba(255,230,0,0.25)',yAxisID:'y1',"
+              "tension:0.3,fill:true}]},"
               "options:{responsive:true,maintainAspectRatio:false,"
               "plugins:{legend:{position:'top'}},"
-              "scales:{"
-              "y:{type:'linear',position:'left',title:{display:true,text:'Visitas'},beginAtZero:true},"
-              "y1:{type:'linear',position:'right',title:{display:true,text:'Faturamento (R$)'},beginAtZero:true,grid:{drawOnChartArea:false}}"
-              "}}});"
-              "</script>")
-
+              "scales:{y:{type:'linear',position:'left',"
+              "title:{display:true,text:'Visitas'},beginAtZero:true},"
+              "y1:{type:'linear',position:'right',"
+              "title:{display:true,text:'Faturamento (R$)'},"
+              "beginAtZero:true,grid:{drawOnChartArea:false}}}}});</script>")
     linhas_html = ""
     for r in linhas:
         st = str(r["status"])
@@ -2550,129 +2422,125 @@ Conversão
             st_tag, st_txt = "tag normal", st
         visitas = r["visitas"] or 0
         vendidos = r["vendidos"] or 0
-        conv = round((vendidos * 100.0 / visitas), 2) if visitas else 0
+        if visitas:
+            conv = round((vendidos * 100.0 / visitas), 2)
+            conv_txt = "%.2f%%" % conv
+        else:
+            conv_txt = "-"
         v_ant = r["visitas_ant"] or 0
         if v_ant > 0:
             delta_v = round(((visitas - v_ant) * 100.0 / v_ant), 1)
             if delta_v > 0:
-                tend_v = "▲ +" + str(delta_v) + "%"
+                tend_v = "<span class='alerta subiu'>▲ +" + str(delta_v) + "%</span>"
             elif delta_v < 0:
-                tend_v = "▼ " + str(delta_v) + "%"
+                tend_v = "<span class='alerta caiu'>▼ " + str(delta_v) + "%</span>"
             else:
-                tend_v = "— 0%"
+                tend_v = "<span class='alerta estavel'>— 0%</span>"
         else:
-            tend_v = "sem base"
+            tend_v = "<span class='tag sem'>sem base</span>"
         s_ant = r["vendidos_ant"] or 0
         if s_ant > 0:
             delta_s = round(((vendidos - s_ant) * 100.0 / s_ant), 1)
             if delta_s > 0:
-                tend_s = "▲ +" + str(delta_s) + "%"
+                tend_s = "<span class='alerta subiu'>▲ +" + str(delta_s) + "%</span>"
             elif delta_s < 0:
-                tend_s = "▼ " + str(delta_s) + "%"
+                tend_s = "<span class='alerta caiu'>▼ " + str(delta_s) + "%</span>"
             else:
-                tend_s = "— 0%"
+                tend_s = "<span class='alerta estavel'>— 0%</span>"
         else:
-            tend_s = "sem base"
-        conv_txt = ("%.2f%%" % conv) if visitas else "-"
+            tend_s = "<span class='tag sem'>sem base</span>"
         linhas_html += ("<tr>"
-                        "<td>**" + esc(str(r["titulo"])) + "**
-<small class='muted'>" + str(r["item_id"]) + "</small></td>"
-                        "<td>" + st_txt + "</td>"
+                        "<td><b>" + esc(str(r["titulo"])) + "</b><br>"
+                        "<small class='muted'>" + str(r["item_id"]) + "</small></td>"
+                        "<td><span class='" + st_tag + "'>" + st_txt + "</span></td>"
                         "<td>R$ %.2f" % (r["preco"] or 0) + "</td>"
                         "<td>" + str(visitas) + " " + tend_v + "</td>"
                         "<td>" + str(vendidos) + " " + tend_s + "</td>"
                         "<td>" + conv_txt + "</td>"
                         "</tr>")
-
-    corpo += ("<h2>Desempenho por anúncio " + str(len(linhas)) + "</h2>"
-              "Visitas, vendas e conversão no período, com tendência vs período anterior
-
-"
-              "| Anúncio | Status | Preço | Visitas | Vendas | Conversão |
-| --- | --- | --- | --- | --- | --- |
-
-"
-              "▲/▼ compara com o período anterior de mesma duração. O histórico acumula automaticamente a cada atualização.
-
-
-
-")
-
+    corpo += ("<div class='card'><h2>Desempenho por anúncio "
+              "<span class='badge'>" + str(len(linhas)) + "</span></h2>"
+              "<div class='sub'>Visitas, vendas e conversão no período, "
+              "com tendência vs período anterior</div>"
+              "<div style='overflow-x:auto'><table>"
+              "<thead><tr><th>Anúncio</th><th>Status</th><th>Preço</th>"
+              "<th>Visitas</th><th>Vendas</th><th>Conversão</th></tr></thead>"
+              "<tbody>" + linhas_html + "</tbody></table></div>"
+              "<div class='muted'>▲/▼ compara com o período anterior de "
+              "mesma duração. O histórico acumula a cada atualização.</div></div>")
     return pagina_loja("Desempenho", cid, c["cliente"], "desempenho", corpo)
 
 
-def var_html(hoje, ontem, fmt="R$"):
+def var_html(hoje, ontem):
     if ontem is None or ontem == 0:
-        return "— sem base anterior
-
-"
+        return "<div class='var estavel'>— sem base anterior</div>"
     delta = hoje - ontem
     pct = (delta * 100.0 / ontem) if ontem else 0
     if delta > 0:
-        return "▲ +R$ %.2f (+%.1f%%)
-
-" % (delta, pct)
+        return "<div class='var subiu'>▲ +R$ %.2f (+%.1f%%)</div>" % (delta, pct)
     elif delta < 0:
-        return "▼ R$ %.2f (%.1f%%)
-
-" % (delta, pct)
-    return "— 0%
-
-"
+        return "<div class='var caiu'>▼ R$ %.2f (%.1f%%)</div>" % (delta, pct)
+    return "<div class='var estavel'>— 0%</div>"
 
 
 @app.route("/painel/<int:cid>")
 @login_required
 def painel_detalhe(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado",
+                      "<div class='card'><h2>Acesso restrito</h2></div>")
     hoje_iso = datetime.date.today().isoformat()
-    ontem_iso = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    ontem_iso = (datetime.date.today()
+                 - datetime.timedelta(days=1)).isoformat()
     c, vendas = calcular_vendas(cid)
     if not c:
-        return pagina("Não encontrada", "<h2>Loja não encontrada</h2>
-
-")
+        return pagina("Não encontrada",
+                      "<div class='card'><h2>Loja não encontrada</h2></div>")
     with banco() as conn:
         conta = consultar(conn, "SELECT * FROM dados_conta WHERE conexao_id=%s", (cid,))
         conta = conta[0] if conta else None
-        ads_dias = consultar(conn, "SELECT * FROM ads_dia WHERE conexao_id=%s AND data >= %s ORDER BY data",
-                             (cid, (datetime.date.today() - datetime.timedelta(days=6)).isoformat()))
-        perg_pend = consultar(conn, "SELECT COUNT(*) AS n FROM perguntas WHERE conexao_id=%s AND status != 'ANSWERED'", (cid,))
-        envios_hoje = consultar(conn, "SELECT COUNT(*) AS n FROM envios WHERE conexao_id=%s AND SUBSTRING(data,1,10)=%s", (cid, hoje_iso))
-        ult = consultar(conn, "SELECT MAX(atualizado_em) AS ult FROM anuncios WHERE conexao_id=%s", (cid,))
+        ads_dias = consultar(conn, "SELECT * FROM ads_dia WHERE conexao_id=%s "
+                                   "AND data >= %s ORDER BY data",
+                             (cid, (datetime.date.today()
+                                    - datetime.timedelta(days=6)).isoformat()))
+        perg_pend = consultar(conn, "SELECT COUNT(*) AS n FROM perguntas "
+                                    "WHERE conexao_id=%s AND status != 'ANSWERED'", (cid,))
+        envios_hoje = consultar(conn, "SELECT COUNT(*) AS n FROM envios "
+                                      "WHERE conexao_id=%s AND SUBSTRING(data,1,10)=%s",
+                                (cid, hoje_iso))
+        ult = consultar(conn, "SELECT MAX(atualizado_em) AS ult FROM anuncios "
+                              "WHERE conexao_id=%s", (cid,))
     ultima = ult[0]["ult"] if ult and ult[0]["ult"] else None
     perguntas_pendentes = perg_pend[0]["n"] if perg_pend else 0
     envios_dia = envios_hoje[0]["n"] if envios_hoje else 0
-
     atualizando = False
-    if (ultima is None or (int(time.time()) - ultima) > GATILHO_AUTO_SEG) and c["user_id"]:
+    if (ultima is None or (int(time.time()) - ultima) > GATILHO_AUTO_SEG) \
+            and c["user_id"]:
         with LOCK_ATUALIZACAO:
             if cid not in ATUALIZANDO:
                 ATUALIZANDO.add(cid)
-                threading.Thread(target=executar_atualizacao_bg, args=(cid,), daemon=True).start()
+                threading.Thread(target=executar_atualizacao_bg,
+                                 args=(cid,), daemon=True).start()
             atualizando = True
-
     por_dia = {}
     for v in vendas:
         dia = v["data"][:10]
-        d = por_dia.setdefault(dia, {"fat": 0.0, "qtd": 0, "lucro": 0.0, "pendente": False})
+        d = por_dia.setdefault(dia, {"fat": 0.0, "qtd": 0,
+                                     "lucro": 0.0, "pendente": False})
         d["fat"] += v["receita"]
         d["qtd"] += 1
         if v["sem_itens"] or v["sem_custo"]:
             d["pendente"] = True
         else:
             d["lucro"] += v["mc"]
-
-    hoje_info = por_dia.get(hoje_iso, {"fat": 0.0, "qtd": 0, "lucro": 0.0, "pendente": False})
-    ontem_info = por_dia.get(ontem_iso, {"fat": 0.0, "qtd": 0, "lucro": 0.0, "pendente": False})
+    hoje_info = por_dia.get(hoje_iso, {"fat": 0.0, "qtd": 0,
+                                       "lucro": 0.0, "pendente": False})
+    ontem_info = por_dia.get(ontem_iso, {"fat": 0.0, "qtd": 0,
+                                         "lucro": 0.0, "pendente": False})
     fat_dia = hoje_info["fat"]
     qtd_dia = hoje_info["qtd"]
     lucro_dia = hoje_info["lucro"]
     tem_pendente_hoje = hoje_info["pendente"]
-
     ad_hoje = None
     ad_ontem = None
     for r in ads_dias:
@@ -2684,216 +2552,174 @@ def painel_detalhe(cid):
     fat_ads = ad_hoje["faturamento"] if ad_hoje and ad_hoje["faturamento"] is not None else None
     gasto_ads_ontem = ad_ontem["gasto"] if ad_ontem and ad_ontem["gasto"] is not None else None
     fat_ads_ontem = ad_ontem["faturamento"] if ad_ontem and ad_ontem["faturamento"] is not None else None
-
-    ult_txt = time.strftime("%d/%m/%Y %H:%M", time.localtime(ultima)) if ultima else "nunca"
+    ult_txt = "nunca"
+    if ultima:
+        ult_txt = time.strftime("%d/%m/%Y %H:%M", time.localtime(ultima))
     corpo = "<h2 style='margin-bottom:14px'>Resumo do dia</h2>"
-    corpo += (""
-              "<a class='btn-acoes' href='/atualizar/resumo/" + str(cid) + "'>🔄 Atualizar agora</a>"
-              "Última atualização: " + ult_txt + ""
-              "
-
-")
+    corpo += ("<div style='display:flex;gap:12px;align-items:center;"
+              "flex-wrap:wrap;margin-bottom:14px'>"
+              "<a class='btn-acoes' href='/atualizar/resumo/"
+              + str(cid) + "'>🔄 Atualizar agora</a>"
+              "<span style='color:#6b7280;font-size:13px'>"
+              "Última atualização: " + ult_txt + "</span></div>")
     if atualizando:
-        corpo += ("Atualização automática em andamento — os dados de hoje e de Ads aparecem em instantes. "
-                  "A página vai recarregar sozinha quando terminar.
-
-")
-
+        corpo += ("<div class='aviso'>Atualização automática em andamento — "
+                  "os dados de hoje e de Ads aparecem em instantes. "
+                  "A página vai recarregar sozinha.</div>")
     if perguntas_pendentes > 0:
-        corpo += ("💬 Você tem **" + str(perguntas_pendentes) + " pergunta(s) pendente(s)** para responder nos anúncios. "
-                  "Responder rápido aumenta a chance de fechar a venda.
-
-")
-
-    lucro_html = ("R$ %.2f" % lucro_dia) if lucro_dia <= 0 else ("R$ %.2f" % lucro_dia)
-    gasto_ads_var = var_html(gasto_ads, gasto_ads_ontem) if gasto_ads is not None else ""
-    fat_ads_var = var_html(fat_ads, fat_ads_ontem) if fat_ads is not None else ""
-    corpo += (""
-              "R$ %.2f" % fat_dia + "
-
-Faturamento do dia
-
-"
-              + var_html(fat_dia, ontem_info["fat"]) + "
-
-"
-              "" + str(qtd_dia) + "
-
-Vendas do dia
-
-"
-              + var_html(qtd_dia, ontem_info["qtd"], fmt="n") + "
-
-"
-              "" + lucro_html + "
-
-Lucro do dia (MC)
-
-"
-              + var_html(lucro_dia, ontem_info["lucro"]) + "
-
-"
-              "" + str(envios_dia) + "
-
-Envios do dia
-
-
-
-"
-              "" + (("R$ %.2f" % gasto_ads) if gasto_ads is not None else "—") + "
-
-Gasto Ads do dia
-
-"
-              + gasto_ads_var + "
-
-"
-              "" + (("R$ %.2f" % fat_ads) if fat_ads is not None else "—") + "
-
-Faturamento Ads do dia
-
-"
-              + fat_ads_var + "
-
-"
-              "
-
-")
-
+        corpo += ("<div class='aviso'>💬 Você tem <b>"
+                  + str(perguntas_pendentes)
+                  + " pergunta(s) pendente(s)</b> para responder nos anúncios. "
+                  "Responder rápido aumenta a chance de fechar a venda.</div>")
+    if lucro_dia <= 0:
+        lucro_html = "<span class='alerta urgente'>R$ %.2f</span>" % lucro_dia
+    else:
+        lucro_html = "R$ %.2f" % lucro_dia
+    gasto_ads_var = ""
+    if gasto_ads is not None:
+        gasto_ads_var = var_html(gasto_ads, gasto_ads_ontem)
+    fat_ads_var = ""
+    if fat_ads is not None:
+        fat_ads_var = var_html(fat_ads, fat_ads_ontem)
+    corpo += ("<div class='grid' style='margin-bottom:18px'>"
+              "<div class='stat'><div class='num'>R$ %.2f" % fat_dia
+              + "</div><div class='lab'>Faturamento do dia</div>"
+              + var_html(fat_dia, ontem_info["fat"]) + "</div>"
+              "<div class='stat'><div class='num'>" + str(qtd_dia)
+              + "</div><div class='lab'>Vendas do dia</div>"
+              + var_html(qtd_dia, ontem_info["qtd"]) + "</div>"
+              "<div class='stat'><div class='num'>" + lucro_html
+              + "</div><div class='lab'>Lucro do dia (MC)</div>"
+              + var_html(lucro_dia, ontem_info["lucro"]) + "</div>"
+              "<div class='stat'><div class='num'>" + str(envios_dia)
+              + "</div><div class='lab'>Envios do dia</div></div>"
+              "<div class='stat'><div class='num'>"
+              + (("R$ %.2f" % gasto_ads) if gasto_ads is not None
+                 else "<span class='tag sem'>—</span>")
+              + "</div><div class='lab'>Gasto Ads do dia</div>"
+              + gasto_ads_var + "</div>"
+              "<div class='stat'><div class='num'>"
+              + (("R$ %.2f" % fat_ads) if fat_ads is not None
+                 else "<span class='tag sem'>—</span>")
+              + "</div><div class='lab'>Faturamento Ads do dia</div>"
+              + fat_ads_var + "</div>"
+              "</div>")
     if tem_pendente_hoje:
-        corpo += ("Há vendas de hoje sem custo cadastrado — o lucro do dia pode estar incompleto. "
-                  "<a class='link' href='/custos/" + str(cid) + "'>Cadastrar custos</a>.
-
-")
-
+        corpo += ("<div class='aviso'>Há vendas de hoje sem custo cadastrado — "
+                  "o lucro do dia pode estar incompleto. "
+                  "<a class='link' href='/custos/" + str(cid)
+                  + "'>Cadastrar custos</a>.</div>")
     rotulos7, fat7, lucro7 = [], [], []
     d = datetime.date.today() - datetime.timedelta(days=6)
     while d <= datetime.date.today():
         iso = d.isoformat()
-        info = por_dia.get(iso, {"fat": 0.0, "qtd": 0, "lucro": 0.0, "pendente": False})
+        info = por_dia.get(iso, {"fat": 0.0, "qtd": 0,
+                                 "lucro": 0.0, "pendente": False})
         rotulos7.append(d.strftime("%d/%m"))
         fat7.append(round(info["fat"], 2))
         lucro7.append(round(info["lucro"], 2))
         d += datetime.timedelta(days=1)
-    corpo += ("<h2>Evolução dos últimos 7 dias</h2>"
-              "Faturamento e lucro (MC) por dia
-
-"
-              "<canvas id='graficoResumo'></canvas>
-
-
-
-")
-    corpo += ("<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
-              "<script>"
-              "var r7 = " + json.dumps(rotulos7) + ";"
+    corpo += ("<div class='card'><h2>Evolução dos últimos 7 dias</h2>"
+              "<div class='sub'>Faturamento e lucro (MC) por dia</div>"
+              "<div class='grafico-box'>"
+              "<canvas id='graficoResumo'></canvas></div></div>")
+    corpo += ("<script src='https://cdn.jsdelivr.net/npm/"
+              "chart.js@4.4.1/dist/chart.umd.min.js'></script>")
+    corpo += ("<script>var r7 = " + json.dumps(rotulos7) + ";"
               "var f7 = " + json.dumps(fat7) + ";"
               "var l7 = " + json.dumps(lucro7) + ";"
               "new Chart(document.getElementById('graficoResumo'), {"
               "type:'line',"
               "data:{labels:r7,datasets:["
-              "{label:'Faturamento (R$)',data:f7,borderColor:'#3483FA',backgroundColor:'rgba(52,131,250,0.12)',tension:0.3,fill:true},"
-              "{label:'Lucro (MC R$)',data:l7,borderColor:'#1a9d5c',backgroundColor:'rgba(26,157,92,0.12)',tension:0.3,fill:true}"
-              "]},"
+              "{label:'Faturamento (R$)',data:f7,borderColor:'#3483FA',"
+              "backgroundColor:'rgba(52,131,250,0.12)',tension:0.3,fill:true},"
+              "{label:'Lucro (MC R$)',data:l7,borderColor:'#1a9d5c',"
+              "backgroundColor:'rgba(26,157,92,0.12)',tension:0.3,fill:true}]},"
               "options:{responsive:true,maintainAspectRatio:false,"
               "plugins:{legend:{position:'top'}},"
-              "scales:{y:{type:'linear',beginAtZero:true,title:{display:true,text:'R$'}}}}"
-              "});"
-              "</script>")
-
+              "scales:{y:{type:'linear',beginAtZero:true,"
+              "title:{display:true,text:'R$'}}}}});</script>")
     ads_map = {r["data"]: r for r in ads_dias}
     linhas_html = ""
     d = datetime.date.today() - datetime.timedelta(days=6)
     while d <= datetime.date.today():
         iso = d.isoformat()
-        info = por_dia.get(iso, {"fat": 0.0, "qtd": 0, "lucro": 0.0, "pendente": False})
+        info = por_dia.get(iso, {"fat": 0.0, "qtd": 0,
+                                 "lucro": 0.0, "pendente": False})
         ad = ads_map.get(iso)
-        gasto_txt = ("R$ %.2f" % ad["gasto"]) if ad and ad["gasto"] is not None else "—"
-        fatads_txt = ("R$ %.2f" % ad["faturamento"]) if ad and ad["faturamento"] is not None else "—"
-        lucro_txt = ("R$ %.2f" % info["lucro"]) if not info["pendente"] else "custo pendente"
-        badge = " hoje" if iso == hoje_iso else ""
-        linhas_html += ("<tr><td>**" + d.strftime("%d/%m") + "**" + badge + "</td>"
-                        "<td>R$ %.2f" % info["fat"] + "</td><td>" + str(info["qtd"]) + "</td><td>" + lucro_txt + "</td>"
-                        "<td>" + gasto_txt + "</td><td>" + fatads_txt + "</td></tr>")
+        if ad and ad["gasto"] is not None:
+            gasto_txt = "R$ %.2f" % ad["gasto"]
+        else:
+            gasto_txt = "<span class='tag sem'>—</span>"
+        if ad and ad["faturamento"] is not None:
+            fatads_txt = "R$ %.2f" % ad["faturamento"]
+        else:
+            fatads_txt = "<span class='tag sem'>—</span>"
+        if info["pendente"]:
+            lucro_txt = "<span class='tag sem'>custo pendente</span>"
+        else:
+            lucro_txt = "R$ %.2f" % info["lucro"]
+        badge = ""
+        if iso == hoje_iso:
+            badge = " <span class='badge'>hoje</span>"
+        linhas_html += ("<tr><td><b>" + d.strftime("%d/%m") + "</b>"
+                        + badge + "</td>"
+                        "<td>R$ %.2f" % info["fat"] + "</td><td>"
+                        + str(info["qtd"]) + "</td><td>" + lucro_txt
+                        + "</td><td>" + gasto_txt + "</td><td>"
+                        + fatads_txt + "</td></tr>")
         d += datetime.timedelta(days=1)
-    corpo += ("<h2>Últimos 7 dias</h2>"
-              "Faturamento, vendas, lucro (MC) e Ads por dia
-
-"
-              "| Dia | Faturamento | Vendas | Lucro (MC) | Gasto Ads | Faturamento Ads |
-| --- | --- | --- | --- | --- | --- |
-
-"
-              "Lucro (MC) = Receita − Custo − Imposto − Comissão − Frete, calculado por venda. "
-              "Vendas sem custo cadastrado aparecem como 'custo pendente'.
-
-
-
-")
-
+    corpo += ("<div class='card'><h2>Últimos 7 dias</h2>"
+              "<div class='sub'>Faturamento, vendas, lucro (MC) e Ads por dia</div>"
+              "<div style='overflow-x:auto'><table>"
+              "<thead><tr><th>Dia</th><th>Faturamento</th><th>Vendas</th>"
+              "<th>Lucro (MC)</th><th>Gasto Ads</th>"
+              "<th>Faturamento Ads</th></tr></thead>"
+              "<tbody>" + linhas_html + "</tbody></table></div>"
+              "<div class='muted'>Lucro (MC) = Receita − Custo − Imposto − "
+              "Comissão − Frete, calculado por venda. Vendas sem custo "
+              "cadastrado aparecem como 'custo pendente'.</div></div>")
     if conta:
-        corpo += ("<h2>Conta</h2>Informações do vendedor
-
-"
-                  ""
-                  "" + esc(str(conta["nickname"])) + "
-
-Nickname
-
-
-
-"
-                  "" + esc(str(conta["reputacao"])) + "
-
-Reputação
-
-
-
-"
-                  "" + str(conta["pontos"]) + "
-
-Vendas concluídas
-
-
-
-"
-                  "
-
-
-
-")
-
+        corpo += ("<div class='card'><h2>Conta</h2>"
+                  "<div class='sub'>Informações do vendedor</div>"
+                  "<div class='grid'>"
+                  "<div class='stat'><div class='num'>"
+                  + esc(str(conta["nickname"]))
+                  + "</div><div class='lab'>Nickname</div></div>"
+                  "<div class='stat'><div class='num'>"
+                  + esc(str(conta["reputacao"]))
+                  + "</div><div class='lab'>Reputação</div></div>"
+                  "<div class='stat'><div class='num'>"
+                  + str(conta["pontos"])
+                  + "</div><div class='lab'>Vendas concluídas</div></div>"
+                  "</div></div>")
     if atualizando:
-        corpo += ("<script>setTimeout(function(){ location.reload(); }, 90000);</script>")
-
+        corpo += ("<script>setTimeout(function(){ location.reload(); }, "
+                  "90000);</script>")
     return pagina_loja("Resumo", cid, c["cliente"], "resumo", corpo)
-
-
-@app.route("/atualizar/<tipo>/<int:cid>")
+    @app.route("/atualizar/<tipo>/<int:cid>")
 @login_required
 def atualizar_tipo(tipo, cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado",
+                      "<div class='card'><h2>Acesso restrito</h2></div>")
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
     if not c:
-        return pagina("Sem loja", "<h2>Nenhuma loja conectada</h2>
-
-")
+        return pagina("Sem loja",
+                      "<div class='card'><h2>Nenhuma loja conectada</h2></div>")
     token = token_atual(c)
     if not token:
-        return pagina("Erro", "<h2>Falha ao renovar o token</h2>
-
-")
+        return pagina("Erro",
+                      "<div class='card'><h2>Falha ao renovar o token</h2></div>")
     user_id = c["user_id"]
     if user_id:
         if tipo in ("resumo", "vendas"):
             puxar_pedidos(c["id"], token, user_id)
             puxar_envios(c["id"], token, user_id)
-        if tipo in ("resumo", "anuncios", "desempenho", "demandas", "custos"):
+        if tipo in ("resumo", "anuncios", "desempenho",
+                    "demandas", "custos"):
             puxar_anuncios(c["id"], token, user_id)
             puxar_metricas(c["id"], token)
         if tipo == "resumo":
@@ -2912,7 +2738,10 @@ def atualizar_tipo(tipo, cid):
                 pass
     if tipo in ("resumo", "desempenho"):
         gravar_historico(c["id"])
-    destino = "/painel/" + str(cid) if tipo == "resumo" else "/" + tipo + "/" + str(cid)
+    if tipo == "resumo":
+        destino = "/painel/" + str(cid)
+    else:
+        destino = "/" + tipo + "/" + str(cid)
     return redirect(destino)
 
 
@@ -2924,25 +2753,21 @@ def atualizar():
         if cid:
             c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         else:
-            c = consultar(conn, "SELECT * FROM conexoes WHERE status='ativa' ORDER BY id LIMIT 1")
+            c = consultar(conn, "SELECT * FROM conexoes "
+                                "WHERE status='ativa' ORDER BY id LIMIT 1")
         c = c[0] if c else None
     if not c:
-        return pagina("Sem loja", "<h2>Nenhuma loja conectada</h2><a class='link' href='/'>Conectar</a>
-
-
-
-")
+        return pagina("Sem loja",
+                      "<div class='card'><h2>Nenhuma loja conectada</h2>"
+                      "<p><a class='link' href='/'>Conectar</a></p></div>")
     if not pode_ver_loja(c["id"]):
-        return pagina("Acesso negado", "<h2>Acesso restrito</h2>
-
-")
+        return pagina("Acesso negado",
+                      "<div class='card'><h2>Acesso restrito</h2></div>")
     ok = executar_atualizacao(c["id"])
     if not ok:
-        return pagina("Erro", "<h2>Falha ao renovar o token</h2>Tente conectar a loja novamente.
-
-
-
-")
+        return pagina("Erro",
+                      "<div class='card'><h2>Falha ao renovar o token</h2>"
+                      "<p>Tente conectar a loja novamente.</p></div>")
     if cid:
         return redirect("/painel/" + str(cid))
     return redirect("/painel")
@@ -2969,29 +2794,39 @@ def token_atual(c):
         registrar_erro(c["id"], "token", str(dados)[:200])
         return None
     with banco() as conn:
-        executar(conn, "UPDATE conexoes SET access_token=%s, refresh_token=%s, expires_at=%s, status='ativa' WHERE id=%s",
-                 (dados["access_token"], dados["refresh_token"], agora + dados["expires_in"], c["id"]))
+        executar(conn, "UPDATE conexoes SET access_token=%s, "
+                       "refresh_token=%s, expires_at=%s, status='ativa' "
+                       "WHERE id=%s",
+                 (dados["access_token"], dados["refresh_token"],
+                  agora + dados["expires_in"], c["id"]))
     return dados["access_token"]
 
 
 def job_refresh():
     agora = int(time.time())
     with banco() as conn:
-        conexoes = consultar(conn, "SELECT * FROM conexoes WHERE status='ativa' AND expires_at < %s", (agora + 1800,))
+        conexoes = consultar(conn, "SELECT * FROM conexoes "
+                                   "WHERE status='ativa' AND expires_at < %s",
+                             (agora + 1800,))
         for c in conexoes:
             try:
                 dados = renovar(c["refresh_token"])
-                executar(conn, "UPDATE conexoes SET access_token=%s, refresh_token=%s, expires_at=%s, status='ativa' WHERE id=%s",
-                         (dados["access_token"], dados["refresh_token"], agora + dados["expires_in"], c["id"]))
+                executar(conn, "UPDATE conexoes SET access_token=%s, "
+                               "refresh_token=%s, expires_at=%s, "
+                               "status='ativa' WHERE id=%s",
+                         (dados["access_token"], dados["refresh_token"],
+                          agora + dados["expires_in"], c["id"]))
             except Exception:
-                executar(conn, "UPDATE conexoes SET status='expirada' WHERE id=%s", (c["id"],))
+                executar(conn, "UPDATE conexoes SET status='expirada' "
+                               "WHERE id=%s", (c["id"],))
 
 
 # ---------- PUXAR DADOS ----------
 
 def api_get(token, path, params=None):
     try:
-        r = requests.get(API + path, headers={"Authorization": "Bearer " + (token or "")},
+        r = requests.get(API + path,
+                         headers={"Authorization": "Bearer " + (token or "")},
                          params=params, timeout=25)
         if r.status_code == 200:
             return r.json(), None
@@ -3005,26 +2840,33 @@ def registrar_erro(conexao_id, categoria, mensagem):
         executar(conn, """INSERT INTO erros (conexao_id, categoria, mensagem, quando)
                         VALUES (%s,%s,%s,%s)
                         ON CONFLICT (conexao_id, categoria)
-                        DO UPDATE SET mensagem=EXCLUDED.mensagem, quando=EXCLUDED.quando""",
-                 (conexao_id, categoria, (mensagem or "")[:300], int(time.time())))
+                        DO UPDATE SET mensagem=EXCLUDED.mensagem,
+                          quando=EXCLUDED.quando""",
+                 (conexao_id, categoria, (mensagem or "")[:300],
+                  int(time.time())))
 
 
 def gravar_historico(conexao_id):
     hoje = datetime.date.today().isoformat()
     agora = int(time.time())
     with banco() as conn:
-        linhas = consultar(conn, "SELECT item_id, vendidos FROM anuncios WHERE conexao_id=%s", (conexao_id,))
-        metricas = consultar(conn, "SELECT item_id, visitas FROM metricas WHERE conexao_id=%s", (conexao_id,))
+        linhas = consultar(conn, "SELECT item_id, vendidos FROM anuncios "
+                                 "WHERE conexao_id=%s", (conexao_id,))
+        metricas = consultar(conn, "SELECT item_id, visitas FROM metricas "
+                                   "WHERE conexao_id=%s", (conexao_id,))
     visitas_por_item = {m["item_id"]: (m["visitas"] or 0) for m in metricas}
     for l in linhas:
         item_id = l["item_id"]
         visitas = visitas_por_item.get(item_id, 0)
         vendidos = l["vendidos"] or 0
         with banco() as conn:
-            executar(conn, """INSERT INTO desempenho_historico (conexao_id, item_id, data, visitas, vendidos, atualizado_em)
+            executar(conn, """INSERT INTO desempenho_historico
+                            (conexao_id, item_id, data, visitas, vendidos, atualizado_em)
                             VALUES (%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, item_id, data) DO UPDATE SET
-                              visitas=EXCLUDED.visitas, vendidos=EXCLUDED.vendidos, atualizado_em=EXCLUDED.atualizado_em""",
+                              visitas=EXCLUDED.visitas,
+                              vendidos=EXCLUDED.vendidos,
+                              atualizado_em=EXCLUDED.atualizado_em""",
                      (conexao_id, item_id, hoje, visitas, vendidos, agora))
 
 
@@ -3038,14 +2880,20 @@ def puxar_conta(conexao_id, token):
     sales = metricas.get("sales") or {}
     pontos = sales.get("completed") or rep.get("transactions_completed")
     with banco() as conn:
-        executar(conn, """INSERT INTO dados_conta (conexao_id, user_id, nickname, nome, sobrenome, reputacao, pontos, atualizado_em)
+        executar(conn, """INSERT INTO dados_conta
+                        (conexao_id, user_id, nickname, nome, sobrenome,
+                         reputacao, pontos, atualizado_em)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
                         ON CONFLICT (conexao_id) DO UPDATE SET
-                          user_id=EXCLUDED.user_id, nickname=EXCLUDED.nickname, nome=EXCLUDED.nome,
-                          sobrenome=EXCLUDED.sobrenome, reputacao=EXCLUDED.reputacao,
-                          pontos=EXCLUDED.pontos, atualizado_em=EXCLUDED.atualizado_em""",
-                 (conexao_id, dados.get("id"), dados.get("nickname"), dados.get("first_name"),
-                  dados.get("last_name"), rep.get("level_id"), pontos, int(time.time())))
+                          user_id=EXCLUDED.user_id,
+                          nickname=EXCLUDED.nickname, nome=EXCLUDED.nome,
+                          sobrenome=EXCLUDED.sobrenome,
+                          reputacao=EXCLUDED.reputacao,
+                          pontos=EXCLUDED.pontos,
+                          atualizado_em=EXCLUDED.atualizado_em""",
+                 (conexao_id, dados.get("id"), dados.get("nickname"),
+                  dados.get("first_name"), dados.get("last_name"),
+                  rep.get("level_id"), pontos, int(time.time())))
 
 
 def puxar_anuncios(conexao_id, token, user_id):
@@ -3053,7 +2901,8 @@ def puxar_anuncios(conexao_id, token, user_id):
     offset = 0
     total = 50
     while offset < 200 and offset <= total:
-        dados, erro = api_get(token, "/users/" + str(user_id) + "/items/search",
+        dados, erro = api_get(token,
+                              "/users/" + str(user_id) + "/items/search",
                               {"limit": 50, "offset": offset})
         if erro or not dados:
             registrar_erro(conexao_id, "anuncios", erro or "sem resposta")
@@ -3067,13 +2916,19 @@ def puxar_anuncios(conexao_id, token, user_id):
     agora = int(time.time())
     with banco() as conn:
         atuais = set(ids)
-        velhos = [r["item_id"] for r in consultar(conn, "SELECT item_id FROM anuncios WHERE conexao_id=%s", (conexao_id,))]
+        velhos = [r["item_id"] for r in
+                  consultar(conn, "SELECT item_id FROM anuncios "
+                                  "WHERE conexao_id=%s", (conexao_id,))]
         for v in velhos:
             if v not in atuais:
-                executar(conn, "DELETE FROM anuncios WHERE conexao_id=%s AND item_id=%s", (conexao_id, v))
+                executar(conn, "DELETE FROM anuncios WHERE conexao_id=%s "
+                               "AND item_id=%s", (conexao_id, v))
     for item_id in ids:
         det, det_erro = api_get(token, "/items/" + str(item_id),
-                                {"attributes": "id,title,price,available_quantity,status,sold_quantity,pictures,video_id,tags,shipping,seller_custom_field"})
+                                {"attributes": "id,title,price,"
+                                 "available_quantity,status,sold_quantity,"
+                                 "pictures,video_id,tags,shipping,"
+                                 "seller_custom_field"})
         if det_erro or not det:
             continue
         fotos = 0
@@ -3081,7 +2936,12 @@ def puxar_anuncios(conexao_id, token, user_id):
         if isinstance(pics, list):
             fotos = len(pics)
         clips = det.get("video_id")
-        clips = None if clips is None else (1 if clips else 0)
+        if clips is None:
+            clips = None
+        elif clips:
+            clips = 1
+        else:
+            clips = 0
         tags = det.get("tags") or []
         peso = None
         shipping = det.get("shipping") or {}
@@ -3094,21 +2954,30 @@ def puxar_anuncios(conexao_id, token, user_id):
         sku = det.get("seller_custom_field")
         with banco() as conn:
             executar(conn, """INSERT INTO anuncios
-                            (conexao_id, item_id, titulo, preco, quantidade, status, vendidos, atualizado_em, fotos, clips, tags, peso, sku)
+                            (conexao_id, item_id, titulo, preco, quantidade,
+                             status, vendidos, atualizado_em, fotos, clips,
+                             tags, peso, sku)
                             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, item_id) DO UPDATE SET
-                              titulo=EXCLUDED.titulo, preco=EXCLUDED.preco, quantidade=EXCLUDED.quantidade,
-                              status=EXCLUDED.status, vendidos=EXCLUDED.vendidos, atualizado_em=EXCLUDED.atualizado_em,
-                              fotos=EXCLUDED.fotos, clips=EXCLUDED.clips, tags=EXCLUDED.tags, peso=EXCLUDED.peso,
+                              titulo=EXCLUDED.titulo, preco=EXCLUDED.preco,
+                              quantidade=EXCLUDED.quantidade,
+                              status=EXCLUDED.status,
+                              vendidos=EXCLUDED.vendidos,
+                              atualizado_em=EXCLUDED.atualizado_em,
+                              fotos=EXCLUDED.fotos, clips=EXCLUDED.clips,
+                              tags=EXCLUDED.tags, peso=EXCLUDED.peso,
                               sku=EXCLUDED.sku""",
-                     (conexao_id, det.get("id"), det.get("title"), det.get("price"),
-                      det.get("available_quantity"), det.get("status"), det.get("sold_quantity"), agora,
-                      fotos, clips, json.dumps(tags, ensure_ascii=False), peso, sku))
+                     (conexao_id, det.get("id"), det.get("title"),
+                      det.get("price"), det.get("available_quantity"),
+                      det.get("status"), det.get("sold_quantity"), agora,
+                      fotos, clips, json.dumps(tags, ensure_ascii=False),
+                      peso, sku))
 
 
 def puxar_metricas(conexao_id, token):
     with banco() as conn:
-        linhas = consultar(conn, "SELECT item_id, vendidos FROM anuncios WHERE conexao_id=%s", (conexao_id,))
+        linhas = consultar(conn, "SELECT item_id, vendidos FROM anuncios "
+                                 "WHERE conexao_id=%s", (conexao_id,))
     itens = [l["item_id"] for l in linhas]
     if not itens:
         return
@@ -3117,7 +2986,8 @@ def puxar_metricas(conexao_id, token):
     total_puxado = 0
     for i in range(0, len(itens), 100):
         lote = itens[i:i + 100]
-        dados, erro = api_get(token, "/visits/items", {"ids": ",".join(lote)})
+        dados, erro = api_get(token, "/visits/items",
+                              {"ids": ",".join(lote)})
         if erro or not isinstance(dados, dict):
             registrar_erro(conexao_id, "metricas", erro or "sem resposta")
             continue
@@ -3130,52 +3000,69 @@ def puxar_metricas(conexao_id, token):
             else:
                 continue
             vendidos = vendidos_por_item.get(item_id) or 0
-            conversao = round((vendidos * 100.0 / visitas), 2) if visitas else 0
+            if visitas:
+                conversao = round((vendidos * 100.0 / visitas), 2)
+            else:
+                conversao = 0
             with banco() as conn:
                 executar(conn, """INSERT INTO metricas
-                                (conexao_id, item_id, vendidos, visitas, conversao, atualizado_em)
+                                (conexao_id, item_id, vendidos, visitas,
+                                 conversao, atualizado_em)
                                 VALUES (%s,%s,%s,%s,%s,%s)
                                 ON CONFLICT (conexao_id, item_id) DO UPDATE SET
-                                  vendidos=EXCLUDED.vendidos, visitas=EXCLUDED.visitas,
-                                  conversao=EXCLUDED.conversao, atualizado_em=EXCLUDED.atualizado_em""",
-                         (conexao_id, item_id, vendidos, visitas, conversao, agora))
+                                  vendidos=EXCLUDED.vendidos,
+                                  visitas=EXCLUDED.visitas,
+                                  conversao=EXCLUDED.conversao,
+                                  atualizado_em=EXCLUDED.atualizado_em""",
+                         (conexao_id, item_id, vendidos, visitas,
+                          conversao, agora))
             total_puxado += 1
     if total_puxado == 0:
-        registrar_erro(conexao_id, "metricas", "nenhum dado de visita retornado")
+        registrar_erro(conexao_id, "metricas",
+                       "nenhum dado de visita retornado")
 
 
 def puxar_perguntas(conexao_id, token, user_id):
     dados, erro = api_get(token, "/questions/search",
-                          {"seller_id": user_id, "api_version": 4, "limit": 50})
+                          {"seller_id": user_id, "api_version": 4,
+                           "limit": 50})
     if erro or not dados:
         registrar_erro(conexao_id, "perguntas", erro or "sem resposta")
         return
     perguntas = dados.get("questions") or []
     agora = int(time.time())
     with banco() as conn:
-        executar(conn, "DELETE FROM perguntas WHERE conexao_id=%s", (conexao_id,))
+        executar(conn, "DELETE FROM perguntas WHERE conexao_id=%s",
+                 (conexao_id,))
     for q in perguntas:
         resp = q.get("answer") or {}
         with banco() as conn:
             executar(conn, """INSERT INTO perguntas
-                            (conexao_id, pergunta_id, item_id, texto, status, resposta, data, atualizado_em)
+                            (conexao_id, pergunta_id, item_id, texto,
+                             status, resposta, data, atualizado_em)
                             VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, pergunta_id) DO UPDATE SET
-                              item_id=EXCLUDED.item_id, texto=EXCLUDED.texto, status=EXCLUDED.status,
-                              resposta=EXCLUDED.resposta, data=EXCLUDED.data, atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, str(q.get("id")), q.get("item_id"), q.get("text"),
-                      q.get("status"), resp.get("text"), q.get("date_created"), agora))
+                              item_id=EXCLUDED.item_id,
+                              texto=EXCLUDED.texto, status=EXCLUDED.status,
+                              resposta=EXCLUDED.resposta,
+                              data=EXCLUDED.data,
+                              atualizado_em=EXCLUDED.atualizado_em""",
+                     (conexao_id, str(q.get("id")), q.get("item_id"),
+                      q.get("text"), q.get("status"), resp.get("text"),
+                      q.get("date_created"), agora))
 
 
 def puxar_envios(conexao_id, token, user_id):
-    dados, erro = api_get(token, "/shipments/search", {"seller_id": user_id, "limit": 50})
+    dados, erro = api_get(token, "/shipments/search",
+                          {"seller_id": user_id, "limit": 50})
     if erro or not dados:
         registrar_erro(conexao_id, "envios", erro or "sem resposta")
         return
     resultados = dados.get("results") or []
     agora = int(time.time())
     with banco() as conn:
-        executar(conn, "DELETE FROM envios WHERE conexao_id=%s", (conexao_id,))
+        executar(conn, "DELETE FROM envios WHERE conexao_id=%s",
+                 (conexao_id,))
     for s in resultados:
         sid = str(s.get("id"))
         custo_frete = None
@@ -3184,22 +3071,29 @@ def puxar_envios(conexao_id, token, user_id):
             custo_frete = det.get("cost_to_seller")
         with banco() as conn:
             executar(conn, """INSERT INTO envios
-                            (conexao_id, envio_id, status, tracking, pedido_id, data, custo_frete, atualizado_em)
+                            (conexao_id, envio_id, status, tracking,
+                             pedido_id, data, custo_frete, atualizado_em)
                             VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, envio_id) DO UPDATE SET
-                              status=EXCLUDED.status, tracking=EXCLUDED.tracking,
-                              pedido_id=EXCLUDED.pedido_id, data=EXCLUDED.data,
-                              custo_frete=EXCLUDED.custo_frete, atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, sid, s.get("status"), s.get("tracking_number"),
-                      s.get("order_id"), s.get("date_created"), custo_frete, agora))
+                              status=EXCLUDED.status,
+                              tracking=EXCLUDED.tracking,
+                              pedido_id=EXCLUDED.pedido_id,
+                              data=EXCLUDED.data,
+                              custo_frete=EXCLUDED.custo_frete,
+                              atualizado_em=EXCLUDED.atualizado_em""",
+                     (conexao_id, sid, s.get("status"),
+                      s.get("tracking_number"), s.get("order_id"),
+                      s.get("date_created"), custo_frete, agora))
 
 
 def puxar_promocoes(conexao_id, token, user_id):
     promos = []
     viu_erro = None
     for st in ("active", "candidate", "paused", "finished"):
-        dados, erro = api_get(token, "/sellers/" + str(user_id) + "/promotions",
-                              {"promotion_type": "PRICE_DISCOUNT", "status": st, "limit": 50})
+        dados, erro = api_get(token,
+                              "/sellers/" + str(user_id) + "/promotions",
+                              {"promotion_type": "PRICE_DISCOUNT",
+                               "status": st, "limit": 50})
         if erro:
             if not viu_erro:
                 viu_erro = erro
@@ -3215,20 +3109,30 @@ def puxar_promocoes(conexao_id, token, user_id):
         return
     agora = int(time.time())
     with banco() as conn:
-        executar(conn, "DELETE FROM promocoes WHERE conexao_id=%s", (conexao_id,))
-        executar(conn, "DELETE FROM promocoes_itens WHERE conexao_id=%s", (conexao_id,))
+        executar(conn, "DELETE FROM promocoes WHERE conexao_id=%s",
+                 (conexao_id,))
+        executar(conn, "DELETE FROM promocoes_itens WHERE conexao_id=%s",
+                 (conexao_id,))
         for p in promos:
             itens = p.get("items")
-            qtd = len(itens) if isinstance(itens, list) else None
+            if isinstance(itens, list):
+                qtd = len(itens)
+            else:
+                qtd = None
             executar(conn, """INSERT INTO promocoes
-                            (conexao_id, promocao_id, tipo, nome, status, inicio, fim, qtd_itens, atualizado_em)
+                            (conexao_id, promocao_id, tipo, nome, status,
+                             inicio, fim, qtd_itens, atualizado_em)
                             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, promocao_id) DO UPDATE SET
-                              tipo=EXCLUDED.tipo, nome=EXCLUDED.nome, status=EXCLUDED.status,
-                              inicio=EXCLUDED.inicio, fim=EXCLUDED.fim, qtd_itens=EXCLUDED.qtd_itens,
+                              tipo=EXCLUDED.tipo, nome=EXCLUDED.nome,
+                              status=EXCLUDED.status,
+                              inicio=EXCLUDED.inicio, fim=EXCLUDED.fim,
+                              qtd_itens=EXCLUDED.qtd_itens,
                               atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, str(p.get("id")), p.get("type") or p.get("promotion_type"),
-                      p.get("name"), p.get("status"), p.get("start_date"), p.get("end_date"), qtd, agora))
+                     (conexao_id, str(p.get("id")),
+                      p.get("type") or p.get("promotion_type"),
+                      p.get("name"), p.get("status"),
+                      p.get("start_date"), p.get("end_date"), qtd, agora))
             if isinstance(itens, list):
                 for it in itens:
                     if isinstance(it, dict):
@@ -3238,26 +3142,34 @@ def puxar_promocoes(conexao_id, token, user_id):
                         item_id = it
                         preco_promo = None
                     if item_id:
-                        executar(conn, """INSERT INTO promocoes_itens (conexao_id, item_id, promocao_id, preco_promocional, atualizado_em)
-                                        VALUES (%s,%s,%s,%s,%s)
-                                        ON CONFLICT (conexao_id, item_id, promocao_id) DO UPDATE SET
-                                          preco_promocional=EXCLUDED.preco_promocional, atualizado_em=EXCLUDED.atualizado_em""",
-                                 (conexao_id, str(item_id), str(p.get("id")), preco_promo, agora))
+                        executar(conn, """INSERT INTO promocoes_itens
+                            (conexao_id, item_id, promocao_id,
+                             preco_promocional, atualizado_em)
+                            VALUES (%s,%s,%s,%s,%s)
+                            ON CONFLICT (conexao_id, item_id, promocao_id)
+                            DO UPDATE SET
+                              preco_promocional=EXCLUDED.preco_promocional,
+                              atualizado_em=EXCLUDED.atualizado_em""",
+                                 (conexao_id, str(item_id),
+                                  str(p.get("id")), preco_promo, agora))
 
 
 def puxar_ads(conexao_id, token, user_id):
     cab = {"Authorization": "Bearer " + (token or ""), "Api-Version": "2"}
     base = "/advertising/advertisers/" + str(user_id) + "/product_ads"
     agora = int(time.time())
-
     campanhas = []
     offset = 0
     while offset < 200:
         try:
-            r = requests.get(API + base + "/campaigns/search", headers=cab,
-                             params={"limit": 50, "offset": offset}, timeout=25)
+            r = requests.get(API + base + "/campaigns/search",
+                             headers=cab,
+                             params={"limit": 50, "offset": offset},
+                             timeout=25)
             if r.status_code != 200:
-                registrar_erro(conexao_id, "ads", "campanhas HTTP " + str(r.status_code) + ": " + r.text[:180])
+                registrar_erro(conexao_id, "ads",
+                               "campanhas HTTP " + str(r.status_code)
+                               + ": " + r.text[:180])
                 break
             dados = r.json()
             resultados = dados.get("results") or []
@@ -3269,27 +3181,35 @@ def puxar_ads(conexao_id, token, user_id):
             registrar_erro(conexao_id, "ads", "campanhas: " + str(e))
             break
     with banco() as conn:
-        executar(conn, "DELETE FROM ads_campanhas WHERE conexao_id=%s", (conexao_id,))
+        executar(conn, "DELETE FROM ads_campanhas WHERE conexao_id=%s",
+                 (conexao_id,))
         for c in campanhas:
             executar(conn, """INSERT INTO ads_campanhas
-                            (conexao_id, campanha_id, nome, status, tipo, data_inicio, data_fim, orcamento, atualizado_em)
+                            (conexao_id, campanha_id, nome, status, tipo,
+                             data_inicio, data_fim, orcamento, atualizado_em)
                             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, campanha_id) DO UPDATE SET
-                              nome=EXCLUDED.nome, status=EXCLUDED.status, tipo=EXCLUDED.tipo,
-                              data_inicio=EXCLUDED.data_inicio, data_fim=EXCLUDED.data_fim,
-                              orcamento=EXCLUDED.orcamento, atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, str(c.get("id")), c.get("name"), c.get("status"),
-                      c.get("type") or c.get("campaign_type"), c.get("start_date"), c.get("end_date"),
+                              nome=EXCLUDED.nome, status=EXCLUDED.status,
+                              tipo=EXCLUDED.tipo,
+                              data_inicio=EXCLUDED.data_inicio,
+                              data_fim=EXCLUDED.data_fim,
+                              orcamento=EXCLUDED.orcamento,
+                              atualizado_em=EXCLUDED.atualizado_em""",
+                     (conexao_id, str(c.get("id")), c.get("name"),
+                      c.get("status"), c.get("type") or c.get("campaign_type"),
+                      c.get("start_date"), c.get("end_date"),
                       c.get("budget") or c.get("daily_budget"), agora))
-
     ads = []
     offset = 0
     while offset < 200:
         try:
             r = requests.get(API + base + "/ads/search", headers=cab,
-                             params={"limit": 50, "offset": offset}, timeout=25)
+                             params={"limit": 50, "offset": offset},
+                             timeout=25)
             if r.status_code != 200:
-                registrar_erro(conexao_id, "ads", "anuncios HTTP " + str(r.status_code) + ": " + r.text[:180])
+                registrar_erro(conexao_id, "ads",
+                               "anuncios HTTP " + str(r.status_code)
+                               + ": " + r.text[:180])
                 break
             dados = r.json()
             resultados = dados.get("results") or []
@@ -3301,38 +3221,51 @@ def puxar_ads(conexao_id, token, user_id):
             registrar_erro(conexao_id, "ads", "anuncios: " + str(e))
             break
     with banco() as conn:
-        executar(conn, "DELETE FROM ads_metricas WHERE conexao_id=%s", (conexao_id,))
+        executar(conn, "DELETE FROM ads_metricas WHERE conexao_id=%s",
+                 (conexao_id,))
         for ad in ads:
             met = ad.get("metrics") or {}
             executar(conn, """INSERT INTO ads_metricas
-                            (conexao_id, ad_id, campanha_id, item_id, impressoes, cliques, ctr, gasto, atualizado_em)
+                            (conexao_id, ad_id, campanha_id, item_id,
+                             impressoes, cliques, ctr, gasto, atualizado_em)
                             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, ad_id) DO UPDATE SET
-                              campanha_id=EXCLUDED.campanha_id, item_id=EXCLUDED.item_id,
-                              impressoes=EXCLUDED.impressoes, cliques=EXCLUDED.cliques,
-                              ctr=EXCLUDED.ctr, gasto=EXCLUDED.gasto, atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, str(ad.get("id")), ad.get("campaign_id") or ad.get("ad_group_id"),
-                      ad.get("item_id"), met.get("impressions"), met.get("clicks"),
-                      met.get("ctr"), met.get("total_spend"), agora))
+                              campanha_id=EXCLUDED.campanha_id,
+                              item_id=EXCLUDED.item_id,
+                              impressoes=EXCLUDED.impressoes,
+                              cliques=EXCLUDED.cliques, ctr=EXCLUDED.ctr,
+                              gasto=EXCLUDED.gasto,
+                              atualizado_em=EXCLUDED.atualizado_em""",
+                     (conexao_id, str(ad.get("id")),
+                      ad.get("campaign_id") or ad.get("ad_group_id"),
+                      ad.get("item_id"), met.get("impressions"),
+                      met.get("clicks"), met.get("ctr"),
+                      met.get("total_spend"), agora))
 
 
 def puxar_ads_dia(conexao_id, token, user_id):
     hoje = datetime.date.today().isoformat()
     cab = {"Authorization": "Bearer " + (token or ""), "Api-Version": "2"}
-    url = API + "/advertising/advertisers/" + str(user_id) + "/product_ads/metrics"
+    url = (API + "/advertising/advertisers/" + str(user_id)
+           + "/product_ads/metrics")
     try:
-        r = requests.get(url, headers=cab, params={"date_from": hoje, "date_to": hoje}, timeout=25)
+        r = requests.get(url, headers=cab,
+                         params={"date_from": hoje, "date_to": hoje},
+                         timeout=25)
         if r.status_code != 200:
-            registrar_erro(conexao_id, "ads_dia", "HTTP " + str(r.status_code) + ": " + r.text[:180])
+            registrar_erro(conexao_id, "ads_dia",
+                           "HTTP " + str(r.status_code) + ": " + r.text[:180])
             return
         dados = r.json()
     except Exception as e:
         registrar_erro(conexao_id, "ads_dia", str(e))
         return
-    if isinstance(dados, dict) and isinstance(dados.get("results"), list) and dados["results"]:
+    if isinstance(dados, dict) and isinstance(dados.get("results"), list) \
+            and dados["results"]:
         dados = dados["results"][0]
     if not isinstance(dados, dict):
-        registrar_erro(conexao_id, "ads_dia", "resposta inesperada da API de Ads")
+        registrar_erro(conexao_id, "ads_dia",
+                       "resposta inesperada da API de Ads")
         return
     gasto = None
     for k in ("total_spend", "cost", "spend", "total_cost"):
@@ -3343,7 +3276,8 @@ def puxar_ads_dia(conexao_id, token, user_id):
             except Exception:
                 pass
     fat = None
-    for k in ("total_revenue", "revenue", "sales", "total_sales", "net_revenue"):
+    for k in ("total_revenue", "revenue", "sales", "total_sales",
+              "net_revenue"):
         if dados.get(k) is not None:
             try:
                 fat = float(dados[k])
@@ -3353,41 +3287,59 @@ def puxar_ads_dia(conexao_id, token, user_id):
     imp = dados.get("impressions")
     cli = dados.get("clicks")
     with banco() as conn:
-        executar(conn, """INSERT INTO ads_dia (conexao_id, data, gasto, faturamento, impressoes, cliques, atualizado_em)
+        executar(conn, """INSERT INTO ads_dia
+                        (conexao_id, data, gasto, faturamento, impressoes,
+                         cliques, atualizado_em)
                         VALUES (%s,%s,%s,%s,%s,%s,%s)
                         ON CONFLICT (conexao_id, data) DO UPDATE SET
-                          gasto=EXCLUDED.gasto, faturamento=EXCLUDED.faturamento,
-                          impressoes=EXCLUDED.impressoes, cliques=EXCLUDED.cliques,
+                          gasto=EXCLUDED.gasto,
+                          faturamento=EXCLUDED.faturamento,
+                          impressoes=EXCLUDED.impressoes,
+                          cliques=EXCLUDED.cliques,
                           atualizado_em=EXCLUDED.atualizado_em""",
                  (conexao_id, hoje, gasto, fat, imp, cli, int(time.time())))
     try:
-        r = requests.get(API + "/advertising/advertisers/" + str(user_id) + "/product_ads/campaigns/metrics",
-                         headers=cab, params={"date_from": hoje, "date_to": hoje}, timeout=25)
+        r = requests.get(API + "/advertising/advertisers/" + str(user_id)
+                         + "/product_ads/campaigns/metrics",
+                         headers=cab,
+                         params={"date_from": hoje, "date_to": hoje},
+                         timeout=25)
         if r.status_code == 200:
             cj = r.json()
-            resultados = cj.get("results") if isinstance(cj, dict) else None
+            if isinstance(cj, dict):
+                resultados = cj.get("results")
+            else:
+                resultados = None
             if isinstance(resultados, list):
                 with banco() as conn:
                     for item in resultados:
                         cid_camp = item.get("campaign_id") or item.get("id")
                         if not cid_camp:
                             continue
-                        cg = item.get("total_spend") or item.get("cost") or item.get("spend")
-                        cf = item.get("total_revenue") or item.get("revenue") or item.get("sales")
+                        cg = (item.get("total_spend")
+                              or item.get("cost") or item.get("spend"))
+                        cf = (item.get("total_revenue")
+                              or item.get("revenue") or item.get("sales"))
                         try:
-                            cg = float(cg) if cg is not None else None
+                            if cg is not None:
+                                cg = float(cg)
                         except Exception:
                             cg = None
                         try:
-                            cf = float(cf) if cf is not None else None
+                            if cf is not None:
+                                cf = float(cf)
                         except Exception:
                             cf = None
-                        executar(conn, """INSERT INTO ads_campanha_dia (conexao_id, campanha_id, data, gasto, faturamento, atualizado_em)
-                                        VALUES (%s,%s,%s,%s,%s,%s)
-                                        ON CONFLICT (conexao_id, campanha_id, data) DO UPDATE SET
-                                          gasto=EXCLUDED.gasto, faturamento=EXCLUDED.faturamento,
-                                          atualizado_em=EXCLUDED.atualizado_em""",
-                                 (conexao_id, str(cid_camp), hoje, cg, cf, int(time.time())))
+                        executar(conn, """INSERT INTO ads_campanha_dia
+                            (conexao_id, campanha_id, data, gasto,
+                             faturamento, atualizado_em)
+                            VALUES (%s,%s,%s,%s,%s,%s)
+                            ON CONFLICT (conexao_id, campanha_id, data)
+                            DO UPDATE SET gasto=EXCLUDED.gasto,
+                              faturamento=EXCLUDED.faturamento,
+                              atualizado_em=EXCLUDED.atualizado_em""",
+                                 (conexao_id, str(cid_camp), hoje, cg, cf,
+                                  int(time.time())))
     except Exception:
         pass
 
@@ -3400,15 +3352,18 @@ def puxar_pedidos(conexao_id, token, user_id):
     agora = int(time.time())
     while offset < 300 and offset <= total:
         dados, erro = api_get(token, "/orders/search",
-                              {"seller": user_id, "sort": "date_desc", "limit": 50, "offset": offset})
+                              {"seller": user_id, "sort": "date_desc",
+                               "limit": 50, "offset": offset})
         if erro or not dados:
             registrar_erro(conexao_id, "pedidos", erro or "sem resposta")
             break
         resultados = dados.get("results") or []
         for o in resultados:
             oid = str(o.get("id"))
-            lista.append((conexao_id, oid, o.get("status"), o.get("total_amount"),
-                          o.get("currency_id"), o.get("date_closed") or o.get("date_created"), agora))
+            lista.append((conexao_id, oid, o.get("status"),
+                          o.get("total_amount"), o.get("currency_id"),
+                          o.get("date_closed") or o.get("date_created"),
+                          agora))
             if o.get("date_closed"):
                 ids_fechados.append(oid)
         total = (dados.get("paging") or {}).get("total") or len(resultados)
@@ -3416,15 +3371,22 @@ def puxar_pedidos(conexao_id, token, user_id):
         if len(resultados) < 50:
             break
     with banco() as conn:
-        executar(conn, "DELETE FROM pedidos WHERE conexao_id=%s", (conexao_id,))
+        executar(conn, "DELETE FROM pedidos WHERE conexao_id=%s",
+                 (conexao_id,))
         cur = conn.cursor()
         cur.executemany("""INSERT INTO pedidos
-                            (conexao_id, pedido_id, status, total, moeda, fechado_em, atualizado_em)
+                            (conexao_id, pedido_id, status, total, moeda,
+                             fechado_em, atualizado_em)
                             VALUES (%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, pedido_id) DO UPDATE SET
-                              status=EXCLUDED.status, total=EXCLUDED.total, moeda=EXCLUDED.moeda,
-                              fechado_em=EXCLUDED.fechado_em, atualizado_em=EXCLUDED.atualizado_em""", lista)
-        ja_tem = {r["pedido_id"] for r in consultar(conn, "SELECT DISTINCT pedido_id FROM pedidos_itens WHERE conexao_id=%s", (conexao_id,))}
+                              status=EXCLUDED.status, total=EXCLUDED.total,
+                              moeda=EXCLUDED.moeda,
+                              fechado_em=EXCLUDED.fechado_em,
+                              atualizado_em=EXCLUDED.atualizado_em""", lista)
+        ja_tem = {r["pedido_id"] for r in
+                  consultar(conn, "SELECT DISTINCT pedido_id "
+                                  "FROM pedidos_itens WHERE conexao_id=%s",
+                            (conexao_id,))}
     faltantes = [i for i in ids_fechados[:50] if i not in ja_tem]
     for oid in faltantes:
         det, det_erro = api_get(token, "/orders/" + oid)
@@ -3440,12 +3402,16 @@ def puxar_pedidos(conexao_id, token, user_id):
                 if not iid:
                     continue
                 executar(conn, """INSERT INTO pedidos_itens
-                                (conexao_id, pedido_id, item_id, quantidade, preco_unitario, atualizado_em)
+                                (conexao_id, pedido_id, item_id,
+                                 quantidade, preco_unitario, atualizado_em)
                                 VALUES (%s,%s,%s,%s,%s,%s)
-                                ON CONFLICT (conexao_id, pedido_id, item_id) DO UPDATE SET
-                                  quantidade=EXCLUDED.quantidade, preco_unitario=EXCLUDED.preco_unitario,
+                                ON CONFLICT (conexao_id, pedido_id, item_id)
+                                DO UPDATE SET
+                                  quantidade=EXCLUDED.quantidade,
+                                  preco_unitario=EXCLUDED.preco_unitario,
                                   atualizado_em=EXCLUDED.atualizado_em""",
-                         (conexao_id, oid, str(iid), it.get("quantity"), it.get("unit_price"), agora))
+                         (conexao_id, oid, str(iid), it.get("quantity"),
+                          it.get("unit_price"), agora))
 
 
 def executar_atualizacao(cid):
@@ -3487,7 +3453,8 @@ def executar_atualizacao_bg(cid):
 
 def job_dados():
     with banco() as conn:
-        conexoes = consultar(conn, "SELECT * FROM conexoes WHERE status='ativa'")
+        conexoes = consultar(conn, "SELECT * FROM conexoes "
+                                   "WHERE status='ativa'")
     for c in conexoes:
         token = token_atual(c)
         if not token:
