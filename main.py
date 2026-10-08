@@ -2120,7 +2120,7 @@ def demandas(cid):
         corpo += "</div>"
     corpo += "</div>"
     return pagina_loja("Demandas", cid, c["cliente"], "demandas", corpo)
-    @app.route("/anuncios/<int:cid>")
+@app.route("/anuncios/<int:cid>")
 @login_required
 def anuncios(cid):
     if not pode_ver_loja(cid):
@@ -2697,7 +2697,7 @@ def painel_detalhe(cid):
         corpo += ("<script>setTimeout(function(){ location.reload(); }, "
                   "90000);</script>")
     return pagina_loja("Resumo", cid, c["cliente"], "resumo", corpo)
-    @app.route("/atualizar/<tipo>/<int:cid>")
+@app.route("/atualizar/<tipo>/<int:cid>")
 @login_required
 def atualizar_tipo(tipo, cid):
     if not pode_ver_loja(cid):
