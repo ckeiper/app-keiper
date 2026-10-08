@@ -413,8 +413,6 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
         menu += rotulo + "</a>"
     menu += "<a class='item' href='/atualizar?cid=" + str(cid) + "'>"
     menu += "🔄 Atualizar dados</a>"
-    if session.get("tipo") == "admin":
-        menu += "<a class='item' href='/usuarios'>👥 Usuários</a>"
     menu += "<a class='item perigo' href='/excluir/" + str(cid) + "'>"
     menu += "🗑️ Excluir loja</a></div>"
     links = ""
@@ -422,9 +420,12 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
     cab += "<title>" + esc(titulo) + "</title>" + CSS
-    cab += "</head><body><div class='top'><div><h1>"
-    cab += img_logo(34) + "Keiper Consultoria</h1>"
-    cab += "<div class='brand'>" + esc(str(cliente)) + "</div></div>"
+    cab += "</head><body><div class='top' style='position:relative'>"
+    cab += "<div><h1>" + img_logo(34) + "Keiper Consultoria</h1></div>"
+    cab += ("<div class='brand' style='position:absolute;left:50%;"
+            "top:50%;transform:translate(-50%,-50%);font-size:16px;"
+            "font-weight:600'>")
+    cab += esc(str(cliente)) + "</div>"
     cab += links
     cab += "<div class='wrap'><div class='layout'>" + menu
     cab += "<div class='conteudo'>" + corpo
@@ -432,8 +433,18 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
     return cab
 
 
+FUSO_BR = datetime.timezone(datetime.timedelta(hours=-3))
+
+
+def hora_br(ts):
+    if not ts:
+        return "nunca"
+    return datetime.datetime.fromtimestamp(ts, FUSO_BR).strftime(
+        "%d/%m/%Y %H:%M")
+
+
 def barra_atualizar(cid, ultima, tipo="resumo"):
-    ult_txt = time.strftime("%d/%m/%Y %H:%M", time.localtime(ultima)) if ultima else "nunca"
+    ult_txt = hora_br(ultima)
     return ("<div style='display:flex;gap:12px;align-items:center;"
             "flex-wrap:wrap;margin-bottom:14px'>"
             "<a class='btn-acoes' href='/atualizar/" + tipo + "/" + str(cid) + "'>"
@@ -815,7 +826,7 @@ def status():
     for l in linhas:
         quando = "-"
         if l["expires_at"]:
-            quando = time.strftime("%d/%m/%Y %H:%M", time.localtime(l["expires_at"]))
+            quando = hora_br(l["expires_at"])
         tag = "tag " + (l["status"] if l["status"] in ("ativa", "pausado", "expirada") else "normal")
         linhas_html += ("<tr><td>" + esc(str(l["cliente"])) + "</td><td>"
                         + str(l["user_id"]) + "</td><td><span class='" + tag + "'>"
@@ -1495,7 +1506,9 @@ def usuarios():
                                 ORDER BY u.id""")
         lojas = consultar(conn, "SELECT id, cliente FROM conexoes ORDER BY id")
     msg = request.args.get("msg", "")
-    corpo = "<h2 style='margin-bottom:14px'>Gerenciar usuários</h2>"
+    corpo = ("<p style='margin-bottom:10px'><a class='link' href='/painel'>"
+             "← Voltar ao painel</a></p>"
+             "<h2 style='margin-bottom:14px'>Gerenciar usuários</h2>")
     if msg:
         corpo += "<div class='sucesso'>" + esc(msg) + "</div>"
     corpo += ("<div class='card'><h2>Novo usuário</h2>"
@@ -2679,9 +2692,7 @@ def painel_detalhe(cid):
     fat_ads = ad_hoje["faturamento"] if ad_hoje and ad_hoje["faturamento"] is not None else None
     gasto_ads_ontem = ad_ontem["gasto"] if ad_ontem and ad_ontem["gasto"] is not None else None
     fat_ads_ontem = ad_ontem["faturamento"] if ad_ontem and ad_ontem["faturamento"] is not None else None
-    ult_txt = "nunca"
-    if ultima:
-        ult_txt = time.strftime("%d/%m/%Y %H:%M", time.localtime(ultima))
+    ult_txt = hora_br(ultima)
     corpo = "<h2 style='margin-bottom:14px'>Resumo do dia</h2>"
     corpo += ("<div style='display:flex;gap:12px;align-items:center;"
               "flex-wrap:wrap;margin-bottom:14px'>"
