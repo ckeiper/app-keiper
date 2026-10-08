@@ -1285,7 +1285,7 @@ def exportar_vendas(cid):
     nome_arq = "vendas_" + str(c["cliente"]).replace(" ", "_") + ".csv"
     return Response(buf.getvalue(), mimetype="text/csv; charset=utf-8",
                     headers={"Content-Disposition": "attachment; filename=" + nome_arq})
-    @app.route("/painel")
+@app.route("/painel")
 @login_required
 def painel():
     with banco() as conn:
