@@ -403,39 +403,35 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
         ("custos", "💰 Custos", "/custos/" + str(cid)),
         ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
     ]
-    menu = "<a class='voltar' href='/painel'>← Todas as lojas</a>"
+    menu = "<div class='menu-lateral'>"
+    menu += "<a class='voltar' href='/painel'>← Todas as lojas</a>"
     for chave, rotulo, href in itens:
-        classe = "item" + (" atual" if secao == chave else "")
-        menu += "<a class='" + classe + "' href='" + href + "'>" + rotulo + "</a>"
-    menu += ("<a class='item' href='/atualizar?cid=" + str(cid) + "'>🔄 Atualizar dados</a>"
-             "<a class='item perigo' href='/excluir/" + str(cid) + "'>🗑️ Excluir loja</a>
-
-")
+        classe = "item"
+        if secao == chave:
+            classe += " atual"
+        menu += "<a class='" + classe + "' href='" + href + "'>"
+        menu += rotulo + "</a>"
+    menu += "<a class='item' href='/atualizar?cid=" + str(cid) + "'>"
+    menu += "🔄 Atualizar dados</a>"
+    menu += "<a class='item perigo' href='/excluir/" + str(cid) + "'>"
+    menu += "🗑️ Excluir loja</a></div>"
     links = ""
     if session.get("tipo") == "admin":
-        links += "<a class='btn' href='/usuarios' style='background:#fff;color:#3483FA;margin-right:8px'>👥 Usuários</a>"
-    links += "<a class='btn sair' href='/logout'>Sair</a>
-
-"
-    return ("<!doctype html><html><head><meta charset='utf-8'>"
-            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-            "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
-            "<h1>" + img_logo(34) + "Keiper Consultoria</h1>"
-            "" + esc(str(cliente)) + "
-
-
-
-"
-            + links +
-            "" + menu +
-            "" + corpo + "
-
-
-
-
-
-" + SCRIPT + "</body></html>")
-
+        links += "<a class='btn' href='/usuarios' "
+        links += "style='background:#fff;color:#3483FA;margin-right:8px'>"
+        links += "👥 Usuários</a>"
+    links += "<a class='btn sair' href='/logout'>Sair</a></div>"
+    cab = "<!doctype html><html><head><meta charset='utf-8'>"
+    cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    cab += "<title>" + esc(titulo) + "</title>" + CSS
+    cab += "</head><body><div class='top'><div><h1>"
+    cab += img_logo(34) + "Keiper Consultoria</h1>"
+    cab += "<div class='brand'>" + esc(str(cliente)) + "</div></div>"
+    cab += links
+    cab += "<div class='wrap'><div class='layout'>" + menu
+    cab += "<div class='conteudo'>" + corpo
+    cab += "</div></div></div>" + SCRIPT + "</body></html>"
+    return cab
 
 def barra_atualizar(cid, ultima, tipo="resumo"):
     ult_txt = time.strftime("%d/%m/%Y %H:%M", time.localtime(ultima)) if ultima else "nunca"
