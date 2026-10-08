@@ -1351,6 +1351,41 @@ def diagnostico():
               "<th>Quando</th></tr></thead><tbody>"
               + linhas_e + "</tbody></table></div>")
     return pagina("Diagnóstico", corpo)
+FILA_ATUALIZACAO = []
+LOCK_FILA = threading.Lock()
+WORKER_VIVO = False
+
+
+def enfileirar_atualizacao(cid):
+    global WORKER_VIVO
+    with LOCK_FILA:
+        if cid in FILA_ATUALIZACAO:
+            return False
+        FILA_ATUALIZACAO.append(cid)
+        if WORKER_VIVO:
+            return True
+        WORKER_VIVO = True
+    threading.Thread(target=processar_fila, daemon=True).start()
+    return True
+
+
+def processar_fila():
+    global WORKER_VIVO
+    while True:
+        with LOCK_FILA:
+            if not FILA_ATUALIZACAO:
+                WORKER_VIVO = False
+                return
+            cid = FILA_ATUALIZACAO[0]
+        try:
+            executar_atualizacao(cid)
+        except Exception:
+            pass
+        with LOCK_FILA:
+            try:
+                FILA_ATUALIZACAO.remove(cid)
+            except Exception:
+                pass    
 @app.route("/painel")
 @login_required
 def painel():
