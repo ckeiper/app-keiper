@@ -378,18 +378,8 @@ function gerarSenha(){
   campo.value = s;
 }
 </script>
-"""
-
-def pagina(titulo, corpo):
-    topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
-    marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
-    links = ""
-    links += "<a class='btn' href='/'>+ Conectar loja</a></div>"
-    cab = "<!doctype html><html><head><meta charset='utf-8'>"
-    cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    cab += "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
-    fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
-    <script>
+</script>
+<script>
 document.addEventListener("DOMContentLoaded", function () {
   var cel = document.querySelectorAll("td, .num");
   for (var i = 0; i < cel.length; i++) {
@@ -408,6 +398,18 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 </script>
+"""
+"""
+
+def pagina(titulo, corpo):
+    topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
+    marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
+    links = ""
+    links += "<a class='btn' href='/'>+ Conectar loja</a></div>"
+    cab = "<!doctype html><html><head><meta charset='utf-8'>"
+    cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    cab += "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
+    fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
     return cab + topo + marca + links + fim
 
 
