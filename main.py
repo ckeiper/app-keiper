@@ -1377,8 +1377,20 @@ def processar_fila():
                 WORKER_VIVO = False
                 return
             cid = FILA_ATUALIZACAO[0]
+        print("FILA: atualizando conta " + str(cid), flush=True)
+        ok = False
         try:
-            executar_atualizacao(cid)
+            ok = executar_atualizacao(cid)
+        except Exception:
+            pass
+        print("FILA: conta " + str(cid) + " terminou, ok=" + str(ok),
+              flush=True)
+        if not ok:
+            try:
+                registrar_erro(cid, "atualizacao",
+                               "falhou (token expirado ou erro interno)")
+            except Exception:
+                pass
         except Exception:
             pass
         with LOCK_FILA:
@@ -2942,7 +2954,7 @@ def renovar(refresh_token):
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
         "refresh_token": refresh_token,
-    })
+    }, timeout=30)
     return resp.json()
 
 
