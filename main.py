@@ -1381,8 +1381,9 @@ def processar_fila():
         ok = False
         try:
             ok = executar_atualizacao(cid)
-        except Exception:
-            pass
+        except Exception as e:
+            print("FILA: ERRO na conta " + str(cid) + ": " + repr(e)[:300],
+                  flush=True)
         print("FILA: conta " + str(cid) + " terminou, ok=" + str(ok),
               flush=True)
         if not ok:
