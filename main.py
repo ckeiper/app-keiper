@@ -1391,13 +1391,11 @@ def processar_fila():
                                "falhou (token expirado ou erro interno)")
             except Exception:
                 pass
-        except Exception:
-            pass
         with LOCK_FILA:
             try:
                 FILA_ATUALIZACAO.remove(cid)
             except Exception:
-                pass    
+                pass
 @app.route("/painel")
 @login_required
 def painel():
