@@ -2926,80 +2926,12 @@ def painel_detalhe(cid):
         corpo += ("<script>setTimeout(function(){ location.reload(); }, "
                   "90000);</script>")
     return pagina_loja("Resumo", cid, c["cliente"], "resumo", corpo)
+
 @app.route("/atualizar/<tipo>/<int:cid>")
 @login_required
-def atualizar_tipo(tipo, cid):
-    if not pode_ver_loja(cid):
-        return pagina("Acesso negado",
-                      "<div class='card'><h2>Acesso restrito</h2></div>")
-    with banco() as conn:
-        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        c = c[0] if c else None
-    if not c:
-        return pagina("Sem loja",
-                      "<div class='card'><h2>Nenhuma loja conectada</h2></div>")
-    token = token_atual(c)
-    if not token:
-        return pagina("Erro",
-                      "<div class='card'><h2>Falha ao renovar o token</h2></div>")
-    user_id = c["user_id"]
-    if user_id:
-        if tipo in ("resumo", "vendas"):
-            puxar_pedidos(c["id"], token, user_id)
-            puxar_envios(c["id"], token, user_id)
-        if tipo in ("resumo", "anuncios", "desempenho",
-                    "demandas", "custos"):
-            puxar_anuncios(c["id"], token, user_id)
-            puxar_metricas(c["id"], token)
-        if tipo == "resumo":
-            puxar_perguntas(c["id"], token, user_id)
-            try:
-                puxar_ads_dia(c["id"], token, user_id)
-            except Exception:
-                pass
-        if tipo == "promocoes":
-            puxar_promocoes(c["id"], token, user_id)
-        if tipo == "campanhas":
-            try:
-                puxar_ads(c["id"], token, user_id)
-                puxar_ads_dia(c["id"], token, user_id)
-            except Exception:
-                pass
-    if tipo in ("resumo", "desempenho"):
-        gravar_historico(c["id"])
-    if tipo == "resumo":
-        destino = "/painel/" + str(cid)
-    else:
-        destino = "/" + tipo + "/" + str(cid)
-    return redirect(destino)
-
-
-@app.route("/atualizar")
-@login_required
-def atualizar():
-    cid = request.args.get("cid", type=int)
-    with banco() as conn:
-        if cid:
-            c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        else:
-            c = consultar(conn, "SELECT * FROM conexoes "
-                                "WHERE status='ativa' ORDER BY id LIMIT 1")
-        c = c[0] if c else None
-    if not c:
-        return pagina("Sem loja",
-                      "<div class='card'><h2>Nenhuma loja conectada</h2>"
-                      "<p><a class='link' href='/'>Conectar</a></p></div>")
-    if not pode_ver_loja(c["id"]):
-        return pagina("Acesso negado",
-                      "<div class='card'><h2>Acesso restrito</h2></div>")
-    ok = executar_atualizacao(c["id"])
-    if not ok:
-        return pagina("Erro",
-                      "<div class='card'><h2>Falha ao renovar o token</h2>"
-                      "<p>Tente conectar a loja novamente.</p></div>")
-    if cid:
-        return redirect("/painel/" + str(cid))
-    return redirect("/painel")
+def atualizar(tipo, cid):
+    enfileirar_atualizacao(cid)
+    return redirect("/painel/" + str(cid))
 
 
 # ---------- CONEXÃO / TOKENS ----------
