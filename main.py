@@ -389,6 +389,25 @@ def pagina(titulo, corpo):
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
     cab += "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
     fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
+    <script>
+document.addEventListener("DOMContentLoaded", function () {
+  var cel = document.querySelectorAll("td, .num");
+  for (var i = 0; i < cel.length; i++) {
+    var t = cel[i].textContent.trim();
+    var ehDinheiro = t.indexOf("R$") === 0;
+    var s = t.replace("R$", "").trim();
+    var n = null;
+    if (/^\d+\.\d{2}$/.test(s)) { n = parseFloat(s); }
+    else if (/^\d+$/.test(s) && !ehDinheiro) { n = parseInt(s, 10); }
+    if (n === null) { continue; }
+    var f = n.toLocaleString("pt-BR", {
+      minimumFractionDigits: ehDinheiro ? 2 : 0,
+      maximumFractionDigits: ehDinheiro ? 2 : 0
+    });
+    cel[i].textContent = (ehDinheiro ? "R$ " : "") + f;
+  }
+});
+</script>
     return cab + topo + marca + links + fim
 
 
@@ -1448,7 +1467,7 @@ def painel():
                                 "FROM metricas "
                                 "WHERE conexao_id IN (" + ph + ")", ids)
             visitas_total = r[0]["v"] or 0
-            r = consultar(conn, "SELECT COALESCE(SUM(gasto),0) AS g "
+            r = consultar(conn, "SELECT COALESCE(SUM(faturamento),0) AS g "
                                 "FROM ads_dia "
                                 "WHERE conexao_id IN (" + ph + ") "
                                 "AND data=%s", (*ids, hoje_iso))
@@ -1528,7 +1547,7 @@ def painel():
     else:
         gasto_txt = "<span class='tag sem'>—</span>"
     corpo += ("<div class='stat'><div class='num'>" + gasto_txt
-              + "</div><div class='lab'>Gasto Ads hoje</div></div>")
+              + "</div><div class='lab'>Faturamento Ads hj</div></div>")
     corpo += ("<div class='stat'><div class='num'>R$ " + br(gasto_total)
               + "</div><div class='lab'>Investimento total em Ads</div></div>")
     if tacos is not None:
@@ -3212,52 +3231,7 @@ def puxar_anuncios(conexao_id, token, user_id):
 
 
 def puxar_metricas(conexao_id, token):
-    with banco() as conn:
-        linhas = consultar(conn, "SELECT item_id, vendidos FROM anuncios "
-                                 "WHERE conexao_id=%s", (conexao_id,))
-    itens = [l["item_id"] for l in linhas]
-    if not itens:
-        return
-    vendidos_por_item = {l["item_id"]: (l["vendidos"] or 0) for l in linhas}
-    agora = int(time.time())
-    total_puxado = 0
-    for i in range(0, len(itens), 100):
-        lote = itens[i:i + 100]
-        dados, erro = api_get(token, "/visits/items",
-                              {"ids": ",".join(lote)})
-        if erro or not isinstance(dados, dict):
-            registrar_erro(conexao_id, "metricas", erro or "sem resposta")
-            continue
-        for item_id in lote:
-            v = dados.get(item_id)
-            if isinstance(v, dict):
-                visitas = v.get("total_visits") or 0
-            elif isinstance(v, (int, float)):
-                visitas = v
-            else:
-                continue
-            vendidos = vendidos_por_item.get(item_id) or 0
-            if visitas:
-                conversao = round((vendidos * 100.0 / visitas), 2)
-            else:
-                conversao = 0
-            with banco() as conn:
-                executar(conn, """INSERT INTO metricas
-                                (conexao_id, item_id, vendidos, visitas,
-                                 conversao, atualizado_em)
-                                VALUES (%s,%s,%s,%s,%s,%s)
-                                ON CONFLICT (conexao_id, item_id) DO UPDATE SET
-                                  vendidos=EXCLUDED.vendidos,
-                                  visitas=EXCLUDED.visitas,
-                                  conversao=EXCLUDED.conversao,
-                                  atualizado_em=EXCLUDED.atualizado_em""",
-                         (conexao_id, item_id, vendidos, visitas,
-                          conversao, agora))
-            total_puxado += 1
-    if total_puxado == 0:
-        registrar_erro(conexao_id, "metricas",
-                       "nenhum dado de visita retornado")
-
+    return
 
 def puxar_perguntas(conexao_id, token, user_id):
     dados, erro = api_get(token, "/questions/search",
