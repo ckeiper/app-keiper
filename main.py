@@ -399,7 +399,6 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 """
-"""
 
 def pagina(titulo, corpo):
     topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
