@@ -3205,7 +3205,7 @@ def puxar_anuncios(conexao_id, token, user_id):
             else:
                 clips = 0
             tags = det.get("tags") or []
-                        original_price = det.get("original_price")
+            original_price = det.get("original_price")
             peso = None
             shipping = det.get("shipping") or {}
             dims = shipping.get("dimensions") or ""
