@@ -3281,11 +3281,19 @@ def puxar_anuncios(conexao_id, token, user_id):
                 for st in (det.get("sale_terms") or []):
                     if isinstance(st, dict) and str(st.get("id")) == "WEIGHT":
                         try:
-                            vn = st.get("value_name") or st.get("value_struct") or ""
-                            if isinstance(vn, dict):
-                                peso = float(vn.get("number") or 0)
+                            vn = st.get("value_struct") or {}
+                            unidade = str(vn.get("unit") or "")
+                            if vn.get("number") is not None:
+                                peso = float(vn.get("number"))
+                                if unidade in ("g", "gr", "gramas"):
+                                    peso = peso / 1000.0
                             else:
-                                peso = float(str(vn).replace(",", ".").replace("kg", "").strip())
+                                txt = str(st.get("value_name") or "")
+                                peso = float(txt.replace(",", ".")
+                                             .replace("kg", "")
+                                             .replace("g", "").strip())
+                                if "kg" not in txt:
+                                    peso = peso / 1000.0
                         except Exception:
                             peso = None
                         break
@@ -3477,6 +3485,23 @@ def puxar_promocoes(conexao_id, token, user_id):
             except Exception:
                 break
             if r2.status_code != 200:
+                registrar_erro(conexao_id, "promocoes",
+                               "itens " + pid + " HTTP "
+                               + str(r2.status_code) + ": " + r2.text[:100])
+                if "promotion_type" in params_i:
+                    params_i.pop("promotion_type")
+                    try:
+                        r2 = requests.get(API
+                                          + "/marketplace/seller-promotions/"
+                                          "promotions/" + pid + "/items",
+                                          headers=cab, params=params_i,
+                                          timeout=30)
+                    except Exception:
+                        break
+                    if r2.status_code != 200:
+                        break
+                else:
+                    break
                 break
             dados_i = r2.json()
             itens = dados_i.get("results") or []
