@@ -3307,7 +3307,8 @@ def puxar_anuncios(conexao_id, token, user_id):
                            det.get("status"), det.get("sold_quantity"),
                            agora, fotos, clips,
                            json.dumps(tags, ensure_ascii=False),
-                           peso, det.get("seller_custom_field")))
+                           peso, det.get("seller_custom_field"),
+                           original_price))
     with banco() as conn:
         for t in linhas:
             executar(conn, """INSERT INTO anuncios
