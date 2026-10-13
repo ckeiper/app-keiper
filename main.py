@@ -3360,22 +3360,33 @@ def puxar_perguntas(conexao_id, token, user_id):
 
 
 def puxar_envios(conexao_id, token, user_id):
-    dados, erro = api_get(token, "/shipments/search",
-                          {"seller_id": user_id, "limit": 50})
+    # O antigo /shipments/search foi desativado pelo ML.
+    # Novo fluxo: pega o envio de cada pedido recente e consulta o detalhe.
+    dados, erro = api_get(token, "/orders/search",
+                          {"seller": user_id, "sort": "date_desc",
+                           "limit": 50})
     if erro or not dados:
         registrar_erro(conexao_id, "envios", erro or "sem resposta")
         return
     resultados = dados.get("results") or []
     agora = int(time.time())
+    pares = []
+    for o in resultados:
+        ship = o.get("shipping") or {}
+        sid = ship.get("id")
+        if sid:
+            par = (str(o.get("id")), str(sid))
+            if par not in pares:
+                pares.append(par)
+        if len(pares) >= 20:
+            break
     with banco() as conn:
         executar(conn, "DELETE FROM envios WHERE conexao_id=%s",
                  (conexao_id,))
-    for s in resultados[:20]:
-        sid = str(s.get("id"))
-        custo_frete = None
+    for oid, sid in pares:
         det, det_erro = api_get(token, "/shipments/" + sid)
-        if not det_erro and det:
-            custo_frete = det.get("cost_to_seller")
+        if det_erro or not det:
+            continue
         with banco() as conn:
             executar(conn, """INSERT INTO envios
                             (conexao_id, envio_id, status, tracking,
@@ -3388,31 +3399,35 @@ def puxar_envios(conexao_id, token, user_id):
                               data=EXCLUDED.data,
                               custo_frete=EXCLUDED.custo_frete,
                               atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, sid, s.get("status"),
-                      s.get("tracking_number"), s.get("order_id"),
-                      s.get("date_created"), custo_frete, agora))
-
+                     (conexao_id, sid, det.get("status"),
+                      det.get("tracking_number"), oid,
+                      det.get("date_created"), det.get("cost_to_seller"),
+                      agora))
 
 def puxar_promocoes(conexao_id, token, user_id):
+    # O antigo /sellers/{id}/promotions foi desativado pelo ML.
+    # Novo fluxo: /seller-promotions/users + itens por promocao.
+    mapa_status = {"started": "active", "pending": "candidate",
+                   "finished": "finished"}
     promos = []
-    viu_erro = None
-    for st in ("active", "candidate", "paused", "finished"):
+    busca = None
+    erro = None
+    for _ in range(10):
+        params = {"app_version": "v2", "limit": 50}
+        if busca:
+            params["search_after"] = busca
         dados, erro = api_get(token,
-                              "/sellers/" + str(user_id) + "/promotions",
-                              {"promotion_type": "PRICE_DISCOUNT",
-                               "status": st, "limit": 50})
-        if erro:
-            if not viu_erro:
-                viu_erro = erro
-            continue
-        if isinstance(dados, dict):
-            lista = dados.get("results") or []
-        else:
-            lista = dados or []
-        for p in lista:
-            promos.append(p)
-    if viu_erro and not promos:
-        registrar_erro(conexao_id, "promocoes", viu_erro)
+                              "/seller-promotions/users/" + str(user_id),
+                              params)
+        if erro or not dados:
+            break
+        resultados = dados.get("results") or []
+        promos.extend(resultados)
+        busca = ((dados.get("paging") or {}).get("searchAfter") or "")
+        if not resultados or not busca:
+            break
+    if erro and not promos:
+        registrar_erro(conexao_id, "promocoes", erro)
         return
     agora = int(time.time())
     with banco() as conn:
@@ -3420,12 +3435,13 @@ def puxar_promocoes(conexao_id, token, user_id):
                  (conexao_id,))
         executar(conn, "DELETE FROM promocoes_itens WHERE conexao_id=%s",
                  (conexao_id,))
-        for p in promos:
-            itens = p.get("items")
-            if isinstance(itens, list):
-                qtd = len(itens)
-            else:
-                qtd = None
+    for p in promos:
+        pid = str(p.get("id") or "")
+        if not pid:
+            continue
+        st_novo = str(p.get("status") or "")
+        st_banco = mapa_status.get(st_novo, st_novo)
+        with banco() as conn:
             executar(conn, """INSERT INTO promocoes
                             (conexao_id, promocao_id, tipo, nome, status,
                              inicio, fim, qtd_itens, atualizado_em)
@@ -3436,20 +3452,31 @@ def puxar_promocoes(conexao_id, token, user_id):
                               inicio=EXCLUDED.inicio, fim=EXCLUDED.fim,
                               qtd_itens=EXCLUDED.qtd_itens,
                               atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, str(p.get("id")),
-                      p.get("type") or p.get("promotion_type"),
-                      p.get("name"), p.get("status"),
-                      p.get("start_date"), p.get("end_date"), qtd, agora))
-            if isinstance(itens, list):
+                     (conexao_id, pid, p.get("type"), p.get("name"),
+                      st_banco, p.get("start_date"), p.get("finish_date"),
+                      None, agora))
+        itens_busca = None
+        total_itens = 0
+        for _ in range(10):
+            params_i = {"app_version": "v2", "user_id": str(user_id),
+                        "limit": 50}
+            if itens_busca:
+                params_i["search_after"] = itens_busca
+            dados_i, erro_i = api_get(token,
+                                      "/seller-promotions/promotions/"
+                                      + pid + "/items", params_i)
+            if erro_i or not dados_i:
+                break
+            itens = dados_i.get("results") or []
+            with banco() as conn:
                 for it in itens:
-                    if isinstance(it, dict):
-                        item_id = it.get("id")
-                        preco_promo = it.get("price") or it.get("sale_price")
-                    else:
-                        item_id = it
-                        preco_promo = None
-                    if item_id:
-                        executar(conn, """INSERT INTO promocoes_itens
+                    if str(it.get("status") or "") != "started":
+                        continue
+                    item_id = it.get("id")
+                    if not item_id:
+                        continue
+                    total_itens += 1
+                    executar(conn, """INSERT INTO promocoes_itens
                             (conexao_id, item_id, promocao_id,
                              preco_promocional, atualizado_em)
                             VALUES (%s,%s,%s,%s,%s)
@@ -3457,8 +3484,16 @@ def puxar_promocoes(conexao_id, token, user_id):
                             DO UPDATE SET
                               preco_promocional=EXCLUDED.preco_promocional,
                               atualizado_em=EXCLUDED.atualizado_em""",
-                                 (conexao_id, str(item_id),
-                                  str(p.get("id")), preco_promo, agora))
+                             (conexao_id, str(item_id), pid,
+                              it.get("price"), agora))
+            itens_busca = ((dados_i.get("paging") or {}).get("searchAfter")
+                           or "")
+            if not itens or not itens_busca:
+                break
+        with banco() as conn:
+            executar(conn, "UPDATE promocoes SET qtd_itens=%s "
+                           "WHERE conexao_id=%s AND promocao_id=%s",
+                     (total_itens, conexao_id, pid))
 
 
 def puxar_ads(conexao_id, token, user_id):
