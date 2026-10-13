@@ -555,6 +555,7 @@ def iniciar_banco():
             executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS peso REAL")
             executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS custo REAL")
             executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS sku TEXT")
+            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS original_price REAL")
         except Exception:
             pass
         executar(conn, """CREATE TABLE IF NOT EXISTS pedidos (
@@ -2426,7 +2427,13 @@ def anuncios(cid):
             clips_html = "<span class='alerta atencao'>" + str(clips) + "</span>"
         else:
             clips_html = "<span class='alerta atencao'>0</span>"
-        if em_promo:
+        op = a["original_price"]
+        preco_a = a["preco"] or 0
+        if op and preco_a and op > preco_a:
+            desc = round((op - preco_a) * 100.0 / op)
+            promo_html = ("<span class='tag promocao'>de R$ %.2f por R$ %.2f "
+                          "(-%d%%)</span>" % (op, preco_a, desc))
+        elif em_promo:
             promo_html = "<span class='tag promocao'>Em promoção</span>"
         else:
             promo_html = "<span class='tag sem'>—</span>"
@@ -2446,25 +2453,24 @@ def anuncios(cid):
         if not tags_html:
             tags_html = "<span class='tag sem'>sem tags</span>"
         peso_kg = a["peso"]
+        if peso_kg:
+            peso_txt = "%.2f kg" % peso_kg
+        else:
+            peso_txt = "<span class='tag sem'>—</span>"
         f = frete_esperado(a["preco"], peso_kg)
         if f is not None:
             frete_html = "<span class='alerta ok'>R$ %.2f</span>" % f
-            if peso_kg:
-                peso_txt = "%.2f kg" % peso_kg
-            else:
-                peso_txt = "-"
         else:
             frete_html = "<span class='tag sem'>sem peso</span>"
-            peso_txt = "-"
         linhas_html += ("<tr>"
                         "<td><b>" + esc(str(a["titulo"])) + "</b><br>"
                         "<small class='muted'>" + str(a["item_id"]) + "</small></td>"
                         "<td>R$ %.2f" % (a["preco"] or 0) + "</td>"
+                        "<td>" + promo_html + "</td>"
                         "<td>" + str(a["quantidade"] or 0) + "</td>"
                         "<td>" + fotos_html + "</td>"
                         "<td>" + clips_html + "</td>"
                         "<td><span class='" + st_tag + "'>" + st_txt + "</span></td>"
-                        "<td>" + promo_html + "</td>"
                         "<td>" + tags_html + "</td>"
                         "<td>" + str(a["vendidos"] or 0) + "</td>"
                         "<td>" + peso_txt + "</td>"
@@ -2475,8 +2481,8 @@ def anuncios(cid):
               "<div class='sub'>Análises por produto — fotos, clips, promoção, "
               "tags e frete esperado</div>"
               "<div style='overflow-x:auto'><table>"
-              "<thead><tr><th>Anúncio</th><th>Preço</th><th>Estoque</th>"
-              "<th>Fotos</th><th>Clips</th><th>Status</th><th>Promoção</th>"
+              "<thead><tr><th>Anúncio</th><th>Preço</th><th>Promoção</th>"
+              "<th>Estoque</th><th>Fotos</th><th>Clips</th><th>Status</th>"
               "<th>Tags</th><th>Vendidos</th><th>Peso</th>"
               "<th>Frete esperado</th></tr></thead>"
               "<tbody>" + linhas_html + "</tbody></table></div>"
@@ -3199,7 +3205,34 @@ def puxar_anuncios(conexao_id, token, user_id):
             else:
                 clips = 0
             tags = det.get("tags") or []
+                        original_price = det.get("original_price")
             peso = None
+            shipping = det.get("shipping") or {}
+            dims = shipping.get("dimensions") or ""
+            if isinstance(dims, str) and "," in dims:
+                try:
+                    peso = float(dims.split(",")[-1].strip()) / 1000.0
+                except Exception:
+                    peso = None
+            if peso is None:
+                for st in (det.get("sale_terms") or []):
+                    if isinstance(st, dict) and str(st.get("id")) == "WEIGHT":
+                        try:
+                            vn = st.get("value_name") or st.get("value_struct") or ""
+                            if isinstance(vn, dict):
+                                peso = float(vn.get("number") or 0)
+                            else:
+                                peso = float(str(vn).replace(",", ".").replace("kg", "").strip())
+                        except Exception:
+                            peso = None
+                        break
+            linhas.append((conexao_id, det.get("id"), det.get("title"),
+                           det.get("price"), det.get("available_quantity"),
+                           det.get("status"), det.get("sold_quantity"),
+                           agora, fotos, clips,
+                           json.dumps(tags, ensure_ascii=False),
+                           peso, det.get("seller_custom_field"),
+                           original_price))
             shipping = det.get("shipping") or {}
             dims = shipping.get("dimensions") or ""
             if isinstance(dims, str) and "," in dims:
@@ -3218,8 +3251,8 @@ def puxar_anuncios(conexao_id, token, user_id):
             executar(conn, """INSERT INTO anuncios
                             (conexao_id, item_id, titulo, preco, quantidade,
                              status, vendidos, atualizado_em, fotos, clips,
-                             tags, peso, sku)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                             tags, peso, sku, original_price)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, item_id) DO UPDATE SET
                               titulo=EXCLUDED.titulo, preco=EXCLUDED.preco,
                               quantidade=EXCLUDED.quantidade,
@@ -3228,7 +3261,7 @@ def puxar_anuncios(conexao_id, token, user_id):
                               atualizado_em=EXCLUDED.atualizado_em,
                               fotos=EXCLUDED.fotos, clips=EXCLUDED.clips,
                               tags=EXCLUDED.tags, peso=EXCLUDED.peso,
-                              sku=EXCLUDED.sku""", t)
+                              sku=EXCLUDED.sku, original_price=EXCLUDED.original_price""", t)
 
 
 def puxar_metricas(conexao_id, token):
