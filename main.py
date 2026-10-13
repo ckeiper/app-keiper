@@ -833,7 +833,69 @@ def home():
         return redirect("/login")
     return redirect("/painel")
 
+@app.route("/conectar")
+@login_required
+def conectar():
+    if not CLIENT_ID or not REDIRECT_URI:
+        return pagina("Erro",
+                      "<div class='card'><h2>Configuração faltando</h2>"
+                      "<div class='aviso'>As variáveis ML_CLIENT_ID e "
+                      "ML_REDIRECT_URI precisam estar no Render "
+                      "(Environment).</div></div>")
+    url = (AUTH_URL + "?response_type=code&client_id=" + CLIENT_ID
+           + "&redirect_uri=" + REDIRECT_URI)
+    return redirect(url)
 
+
+@app.route("/callback")
+@app.route("/oauth")
+@login_required
+def callback_ml():
+    code = request.args.get("code")
+    if not code:
+        return pagina("Autorização",
+                      "<div class='card'><h2>Autorização não concluída</h2>"
+                      "<div class='sub'>O Mercado Livre não devolveu o código. "
+                      "Tente conectar de novo.</div></div>")
+    resp = requests.post(TOKEN_URL, data={
+        "grant_type": "authorization_code",
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+    }, timeout=25)
+    dados = resp.json()
+    if "access_token" not in dados:
+        return pagina("Erro",
+                      "<div class='card'><h2>Falha ao autorizar</h2>"
+                      "<div class='aviso'>" + esc(str(dados)[:200])
+                      + "</div></div>")
+    r = requests.get(API + "/users/me",
+                     headers={"Authorization": "Bearer "
+                              + dados["access_token"]}, timeout=25)
+    eu = r.json() if r.status_code == 200 else {}
+    with banco() as conn:
+        existe = consultar(conn, "SELECT id FROM conexoes WHERE user_id=%s",
+                           (eu.get("id"),))
+        if existe:
+            executar(conn, "UPDATE conexoes SET access_token=%s, "
+                           "refresh_token=%s, expires_at=%s, status='ativa' "
+                           "WHERE id=%s",
+                     (dados["access_token"], dados["refresh_token"],
+                      int(time.time()) + dados["expires_in"],
+                      existe[0]["id"]))
+            cid = existe[0]["id"]
+        else:
+            cur = executar(conn,
+                           """INSERT INTO conexoes
+                              (cliente, user_id, access_token, refresh_token,
+                               expires_at, status)
+                              VALUES (%s,%s,%s,%s,%s,'ativa') RETURNING id""",
+                           (eu.get("nickname") or "Nova loja", eu.get("id"),
+                            dados["access_token"], dados["refresh_token"],
+                            int(time.time()) + dados["expires_in"]))
+            cid = cur.fetchone()[0]
+    return redirect("/painel/" + str(cid))
 @app.route("/status")
 @login_required
 def status():
