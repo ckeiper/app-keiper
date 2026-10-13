@@ -3039,6 +3039,7 @@ def atualizar_tipo(tipo, cid):
                     "demandas", "custos"):
             puxar_anuncios(c["id"], token, user_id)
             puxar_metricas(c["id"], token)
+            puxar_promocoes(c["id"], token, user_id)
         if tipo == "resumo":
             puxar_perguntas(c["id"], token, user_id)
             try:
@@ -3406,36 +3407,39 @@ def puxar_envios(conexao_id, token, user_id):
                       agora))
 
 def puxar_promocoes(conexao_id, token, user_id):
-    # O antigo /sellers/{id}/promotions foi desativado pelo ML.
-    # Novo fluxo: /seller-promotions/users + itens por promocao.
-    mapa_status = {"started": "active", "pending": "candidate",
-                   "finished": "finished"}
+    # Endpoint novo do ML: /marketplace/seller-promotions (header version: v2).
+    cab = {"Authorization": "Bearer " + (token or ""), "version": "v2"}
     promos = []
-    busca = None
-    erro = None
+    busca = ""
     for _ in range(10):
-        params = {"app_version": "v2", "limit": 50}
+        params = {"limit": 50}
         if busca:
             params["search_after"] = busca
-        dados, erro = api_get(token,
-                              "/seller-promotions/users/" + str(user_id),
-                              params)
-        if erro or not dados:
-            break
+        try:
+            r = requests.get(API + "/marketplace/seller-promotions/users/"
+                             + str(user_id), headers=cab, params=params,
+                             timeout=30)
+        except Exception as e:
+            registrar_erro(conexao_id, "promocoes", repr(e)[:150])
+            return
+        if r.status_code != 200:
+            registrar_erro(conexao_id, "promocoes",
+                           "HTTP " + str(r.status_code) + ": " + r.text[:150])
+            return
+        dados = r.json()
         resultados = dados.get("results") or []
         promos.extend(resultados)
-        busca = ((dados.get("paging") or {}).get("searchAfter") or "")
+        busca = (dados.get("paging") or {}).get("searchAfter") or ""
         if not resultados or not busca:
             break
-    if erro and not promos:
-        registrar_erro(conexao_id, "promocoes", erro)
-        return
     agora = int(time.time())
     with banco() as conn:
         executar(conn, "DELETE FROM promocoes WHERE conexao_id=%s",
                  (conexao_id,))
         executar(conn, "DELETE FROM promocoes_itens WHERE conexao_id=%s",
                  (conexao_id,))
+    mapa_status = {"started": "active", "pending": "candidate",
+                   "finished": "finished"}
     for p in promos:
         pid = str(p.get("id") or "")
         if not pid:
@@ -3456,18 +3460,25 @@ def puxar_promocoes(conexao_id, token, user_id):
                      (conexao_id, pid, p.get("type"), p.get("name"),
                       st_banco, p.get("start_date"), p.get("finish_date"),
                       None, agora))
-        itens_busca = None
+        tipo_p = str(p.get("type") or "")
+        busca_i = ""
         total_itens = 0
         for _ in range(10):
-            params_i = {"app_version": "v2", "user_id": str(user_id),
-                        "limit": 50}
-            if itens_busca:
-                params_i["search_after"] = itens_busca
-            dados_i, erro_i = api_get(token,
-                                      "/seller-promotions/promotions/"
-                                      + pid + "/items", params_i)
-            if erro_i or not dados_i:
+            params_i = {"user_id": str(user_id), "limit": 50,
+                        "status": "started"}
+            if tipo_p:
+                params_i["promotion_type"] = tipo_p
+            if busca_i:
+                params_i["search_after"] = busca_i
+            try:
+                r2 = requests.get(API + "/marketplace/seller-promotions/"
+                                  "promotions/" + pid + "/items",
+                                  headers=cab, params=params_i, timeout=30)
+            except Exception:
                 break
+            if r2.status_code != 200:
+                break
+            dados_i = r2.json()
             itens = dados_i.get("results") or []
             with banco() as conn:
                 for it in itens:
@@ -3487,15 +3498,18 @@ def puxar_promocoes(conexao_id, token, user_id):
                               atualizado_em=EXCLUDED.atualizado_em""",
                              (conexao_id, str(item_id), pid,
                               it.get("price"), agora))
-            itens_busca = ((dados_i.get("paging") or {}).get("searchAfter")
-                           or "")
-            if not itens or not itens_busca:
+                    op = it.get("original_price")
+                    if op and float(op) > 0:
+                        executar(conn, "UPDATE anuncios SET original_price=%s "
+                                       "WHERE conexao_id=%s AND item_id=%s",
+                                 (op, conexao_id, str(item_id)))
+            busca_i = (dados_i.get("paging") or {}).get("searchAfter") or ""
+            if not itens or not busca_i:
                 break
         with banco() as conn:
             executar(conn, "UPDATE promocoes SET qtd_itens=%s "
                            "WHERE conexao_id=%s AND promocao_id=%s",
                      (total_itens, conexao_id, pid))
-
 
 def puxar_ads(conexao_id, token, user_id):
     cab = {"Authorization": "Bearer " + (token or ""), "Api-Version": "2"}
