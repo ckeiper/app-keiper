@@ -3416,7 +3416,9 @@ def puxar_envios(conexao_id, token, user_id):
 
 def puxar_promocoes(conexao_id, token, user_id):
     # Endpoint novo do ML: /marketplace/seller-promotions (header version: v2).
-    cab = {"Authorization": "Bearer " + (token or ""), "version": "v2"}
+    cab = {"Authorization": "Bearer " + (token or ""), "version": "v2",
+           "X-Client-Id": str(CLIENT_ID or ""),
+           "X-Caller-Id": str(os.getenv("ML_CALLER_ID") or "")}
     promos = []
     busca = ""
     for _ in range(10):
