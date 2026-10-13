@@ -404,7 +404,7 @@ def pagina(titulo, corpo):
     topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
     links = ""
-    links += "<a class='btn' href='/'>+ Conectar loja</a></div>"
+    links += "<a class='btn' href='/conectar'>+ Conectar loja</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
     cab += "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
@@ -1497,7 +1497,7 @@ def painel():
         corpo = ("<div class='card' style='text-align:center;padding:50px'>"
                  "<h2>Nenhuma loja conectada ainda</h2>"
                  "<div class='sub'>Comece conectando a primeira loja</div>"
-                 "<p><a class='link' href='/'>Conectar loja</a></p></div>")
+                 "<p><a class='link' href='/conectar'>Conectar loja</a></p></div>")
         return pagina("Painel", corpo)
     ids = [l["id"] for l in lojas]
     fat_hoje = fat_ontem = 0.0
@@ -3076,7 +3076,7 @@ def atualizar():
     if not c:
         return pagina("Sem loja",
                       "<div class='card'><h2>Nenhuma loja conectada</h2>"
-                      "<p><a class='link' href='/'>Conectar</a></p></div>")
+                      "<p><a class='link' href='/conectar'>Conectar</a></p></div>")
     if not pode_ver_loja(c["id"]):
         return pagina("Acesso negado",
                       "<div class='card'><h2>Acesso restrito</h2></div>")
