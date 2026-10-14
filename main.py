@@ -3539,94 +3539,6 @@ def puxar_promocoes(conexao_id, token, user_id):
                      (total_itens, conexao_id, pid))
 
 def puxar_ads(conexao_id, token, user_id):
-    cab = {"Authorization": "Bearer " + (token or ""), "Api-Version": "2"}
-    base = "/advertising/advertisers/" + str(user_id) + "/product_ads"
-    agora = int(time.time())
-    campanhas = []
-    offset = 0
-    while offset < 200:
-        try:
-            r = requests.get(API + base + "/campaigns/search",
-                             headers=cab,
-                             params={"limit": 50, "offset": offset},
-                             timeout=25)
-            if r.status_code != 200:
-                registrar_erro(conexao_id, "ads",
-                               "campanhas HTTP " + str(r.status_code)
-                               + ": " + r.text[:180])
-                break
-            dados = r.json()
-            resultados = dados.get("results") or []
-            campanhas.extend(resultados)
-            if len(resultados) < 50:
-                break
-            offset += len(resultados)
-        except Exception as e:
-            registrar_erro(conexao_id, "ads", "campanhas: " + str(e))
-            break
-    with banco() as conn:
-        executar(conn, "DELETE FROM ads_campanhas WHERE conexao_id=%s",
-                 (conexao_id,))
-        for c in campanhas:
-            executar(conn, """INSERT INTO ads_campanhas
-                            (conexao_id, campanha_id, nome, status, tipo,
-                             data_inicio, data_fim, orcamento, atualizado_em)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                            ON CONFLICT (conexao_id, campanha_id) DO UPDATE SET
-                              nome=EXCLUDED.nome, status=EXCLUDED.status,
-                              tipo=EXCLUDED.tipo,
-                              data_inicio=EXCLUDED.data_inicio,
-                              data_fim=EXCLUDED.data_fim,
-                              orcamento=EXCLUDED.orcamento,
-                              atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, str(c.get("id")), c.get("name"),
-                      c.get("status"), c.get("type") or c.get("campaign_type"),
-                      c.get("start_date"), c.get("end_date"),
-                      c.get("budget") or c.get("daily_budget"), agora))
-    ads = []
-    offset = 0
-    while offset < 200:
-        try:
-            r = requests.get(API + base + "/ads/search", headers=cab,
-                             params={"limit": 50, "offset": offset},
-                             timeout=25)
-            if r.status_code != 200:
-                registrar_erro(conexao_id, "ads",
-                               "anuncios HTTP " + str(r.status_code)
-                               + ": " + r.text[:180])
-                break
-            dados = r.json()
-            resultados = dados.get("results") or []
-            ads.extend(resultados)
-            if len(resultados) < 50:
-                break
-            offset += len(resultados)
-        except Exception as e:
-            registrar_erro(conexao_id, "ads", "anuncios: " + str(e))
-            break
-    with banco() as conn:
-        executar(conn, "DELETE FROM ads_metricas WHERE conexao_id=%s",
-                 (conexao_id,))
-        for ad in ads:
-            met = ad.get("metrics") or {}
-            executar(conn, """INSERT INTO ads_metricas
-                            (conexao_id, ad_id, campanha_id, item_id,
-                             impressoes, cliques, ctr, gasto, atualizado_em)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                            ON CONFLICT (conexao_id, ad_id) DO UPDATE SET
-                              campanha_id=EXCLUDED.campanha_id,
-                              item_id=EXCLUDED.item_id,
-                              impressoes=EXCLUDED.impressoes,
-                              cliques=EXCLUDED.cliques, ctr=EXCLUDED.ctr,
-                              gasto=EXCLUDED.gasto,
-                              atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, str(ad.get("id")),
-                      ad.get("campaign_id") or ad.get("ad_group_id"),
-                      ad.get("item_id"), met.get("impressions"),
-                      met.get("clicks"), met.get("ctr"),
-                      met.get("total_spend"), agora))
-
-def puxar_ads(conexao_id, token, user_id):
     hoje = datetime.date.today().isoformat()
     # 1) Descobre o advertiser_id no formato novo da API
     try:
@@ -3654,43 +3566,53 @@ def puxar_ads(conexao_id, token, user_id):
     url = (API + "/advertising/" + site + "/advertisers/" + adv_id
            + "/product_ads/campaigns/search")
     cab = {"Authorization": "Bearer " + token, "api-version": "2"}
-    # 2) Campanhas de hoje com metricas (gasto e faturamento)
-    offset = 0
-    tot_g = tot_f = 0.0
-    tot_i = tot_c = 0
-    linhas = []
-    while True:
-        try:
-            r = requests.get(url, headers=cab,
-                             params={"limit": 50, "offset": offset,
-                                     "date_from": hoje, "date_to": hoje,
-                                     "metrics": "clicks,prints,cost,"
-                                                "total_amount"},
-                             timeout=30)
-        except Exception as e:
-            registrar_erro(conexao_id, "ads", repr(e)[:150])
-            return False
-        if r.status_code != 200:
-            registrar_erro(conexao_id, "ads",
-                           "campanhas HTTP " + str(r.status_code)
-                           + ": " + r.text[:120])
-            return False
-        dados = r.json()
-        resultados = dados.get("results") or []
-        for c in resultados:
-            m = c.get("metrics") or {}
-            g = float(m.get("cost") or 0)
-            f = float(m.get("total_amount") or 0)
-            tot_i += int(m.get("prints") or 0)
-            tot_c += int(m.get("clicks") or 0)
-            tot_g += g
-            tot_f += f
-            linhas.append((str(c.get("id")), g, f))
-        offset += 50
-        total = (dados.get("paging") or {}).get("total") or 0
-        if not resultados or offset >= total:
-            break
-    # 3) Grava tudo no banco
+
+    def buscar_dia(dia):
+        # Campanhas do dia com metricas (gasto e faturamento)
+        offset = 0
+        tot_g = tot_f = 0.0
+        tot_i = tot_c = 0
+        linhas = []
+        while True:
+            try:
+                r = requests.get(url, headers=cab,
+                                 params={"limit": 50, "offset": offset,
+                                         "date_from": dia, "date_to": dia,
+                                         "metrics": "clicks,prints,cost,"
+                                                    "total_amount"},
+                                 timeout=30)
+            except Exception as e:
+                registrar_erro(conexao_id, "ads",
+                               dia + ": " + repr(e)[:120])
+                return None
+            if r.status_code != 200:
+                registrar_erro(conexao_id, "ads",
+                               dia + " HTTP " + str(r.status_code)
+                               + ": " + r.text[:120])
+                return None
+            dados = r.json()
+            resultados = dados.get("results") or []
+            for c in resultados:
+                m = c.get("metrics") or {}
+                g = float(m.get("cost") or 0)
+                f = float(m.get("total_amount") or 0)
+                tot_i += int(m.get("prints") or 0)
+                tot_c += int(m.get("clicks") or 0)
+                tot_g += g
+                tot_f += f
+                linhas.append((str(c.get("id")), g, f))
+            offset += 50
+            total = (dados.get("paging") or {}).get("total") or 0
+            if not resultados or offset >= total:
+                break
+        return (dia, tot_g, tot_f, tot_i, tot_c, linhas)
+
+    # 2) Hoje (igual a antes)
+    res_hoje = buscar_dia(hoje)
+    if res_hoje is None:
+        return False
+    _, tot_g, tot_f, tot_i, tot_c, linhas = res_hoje
+    agora = int(time.time())
     with banco() as conn:
         for camp_id, g, f in linhas:
             executar(conn,
@@ -3701,7 +3623,7 @@ def puxar_ads(conexao_id, token, user_id):
                         ON CONFLICT (conexao_id, campanha_id, data)
                         DO UPDATE SET gasto=EXCLUDED.gasto,
                           faturamento=EXCLUDED.faturamento""",
-                     (conexao_id, camp_id, hoje, g, f, int(time.time())))
+                     (conexao_id, camp_id, hoje, g, f, agora))
         executar(conn,
                  """INSERT INTO ads_dia
                     (conexao_id, data, gasto, faturamento, impressoes,
@@ -3712,8 +3634,44 @@ def puxar_ads(conexao_id, token, user_id):
                       faturamento=EXCLUDED.faturamento,
                       impressoes=EXCLUDED.impressoes,
                       cliques=EXCLUDED.cliques""",
-                 (conexao_id, hoje, tot_g, tot_f, tot_i, tot_c,
-                  int(time.time())))
+                 (conexao_id, hoje, tot_g, tot_f, tot_i, tot_c, agora))
+
+    # 3) Backfill: enquanto a tabela tiver menos de 60 dias gravados,
+    #    busca os ultimos 90 dias (depois pula sozinho)
+    with banco() as conn:
+        reg = consultar(conn, "SELECT COUNT(*) AS n FROM ads_dia "
+                              "WHERE conexao_id=%s", (conexao_id,))
+    n_dias = int(reg[0].get("n") or 0) if reg else 0
+    if n_dias < 60:
+        for i in range(1, 90):
+            dia_b = (datetime.date.today()
+                     - datetime.timedelta(days=i)).isoformat()
+            res = buscar_dia(dia_b)
+            if res is None:
+                continue
+            _, g2, f2, i2, c2, linhas2 = res
+            with banco() as conn:
+                for camp_id, g, f in linhas2:
+                    executar(conn,
+                             """INSERT INTO ads_campanha_dia
+                                (conexao_id, campanha_id, data, gasto,
+                                 faturamento, atualizado_em)
+                                VALUES (%s,%s,%s,%s,%s,%s)
+                                ON CONFLICT (conexao_id, campanha_id, data)
+                                DO UPDATE SET gasto=EXCLUDED.gasto,
+                                  faturamento=EXCLUDED.faturamento""",
+                             (conexao_id, camp_id, dia_b, g, f, agora))
+                executar(conn,
+                         """INSERT INTO ads_dia
+                            (conexao_id, data, gasto, faturamento, impressoes,
+                             cliques, atualizado_em)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s)
+                            ON CONFLICT (conexao_id, data)
+                            DO UPDATE SET gasto=EXCLUDED.gasto,
+                              faturamento=EXCLUDED.faturamento,
+                              impressoes=EXCLUDED.impressoes,
+                              cliques=EXCLUDED.cliques""",
+                         (conexao_id, dia_b, g2, f2, i2, c2, agora))
     return True
 
 
