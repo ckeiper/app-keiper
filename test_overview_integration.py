@@ -116,8 +116,10 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertNotIn('R$ 20,00',view)
 
     def test_legacy_dashboard_and_invalid_filters_remain_accessible(self):
-        with patch.object(self.m,'enfileirar_atualizacao',return_value=False):
-            self.assertEqual(self.client.get('/painel/legado').status_code,200)
+        with patch.object(self.m,'enfileirar_atualizacao',return_value=True):
+            legacy=self.client.get('/painel/legado')
+            self.assertEqual(legacy.status_code,200)
+            self.assertIn('/painel/legado?r=1',legacy.get_data(as_text=True))
         response=self.client.get('/painel?periodo=invalid')
         self.assertEqual(response.status_code,200)
         self.assertIn('Selecione 7, 15, 30, 60 ou 90 dias',response.get_data(as_text=True))
