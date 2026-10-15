@@ -7,6 +7,8 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from apscheduler.schedulers.background import BackgroundScheduler
 from werkzeug.security import generate_password_hash, check_password_hash
+from sales_sync import init_sales_schema, sync_orders
+from sales_view import render_sales
 try:
     import openpyxl
 except Exception:
@@ -569,6 +571,7 @@ def iniciar_banco():
             quantidade INTEGER, preco_unitario REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, pedido_id, item_id)
         )""")
+        init_sales_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
             visitas INTEGER, conversao REAL, atualizado_em BIGINT,
@@ -1271,6 +1274,7 @@ def vendas(cid):
              + str(cid) + "'>⬇ Exportar CSV</a>"
              "</div></div>"
              + barra_atualizar(cid, ultima, "vendas"))
+    corpo += render_sales(cid, request.args, banco, consultar)
     if not vendas:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhuma venda carregada ainda</h2>"
@@ -3675,107 +3679,8 @@ def puxar_ads(conexao_id, token, user_id):
     return True
 
 def puxar_pedidos(conexao_id, token, user_id):
-    agora = int(time.time())
-
-    def buscar_janela(de_iso, ate_iso):
-        lista = []
-        ids_fechados = []
-        offset = 0
-        total = 50
-        while offset < 1000 and offset <= total:
-            dados, erro = api_get(token, "/orders/search",
-                                  {"seller": user_id, "sort": "date_desc",
-                                   "limit": 50, "offset": offset,
-                                   "order.date_created.from":
-                                       de_iso + "T00:00:00",
-                                   "order.date_created.to":
-                                       ate_iso + "T23:59:59"})
-            if erro or not dados:
-                registrar_erro(conexao_id, "pedidos",
-                               de_iso + ": " + (erro or "sem resposta"))
-                break
-            resultados = dados.get("results") or []
-            for o in resultados:
-                oid = str(o.get("id"))
-                lista.append((conexao_id, oid, o.get("status"),
-                              o.get("total_amount"), o.get("currency_id"),
-                              o.get("date_closed") or o.get("date_created"),
-                              agora))
-                if o.get("date_closed"):
-                    ids_fechados.append(oid)
-            total = (dados.get("paging") or {}).get("total") or len(resultados)
-            offset += len(resultados)
-            if len(resultados) < 50:
-                break
-        return lista, ids_fechados
-
-    # 1) Janela recente: ultimos 7 dias (graficos e cartoes do Resumo)
-    ini7 = (datetime.date.today()
-            - datetime.timedelta(days=6)).isoformat()
-    hoje = datetime.date.today().isoformat()
-    lista, ids_fechados = buscar_janela(ini7, hoje)
-
-    # 2) Backfill: enquanto houver menos de 60 dias gravados, busca os
-    #    ultimos 90 dias, um dia por vez, pulando os ja armazenados
-    with banco() as conn:
-        reg_dias = consultar(conn,
-                             "SELECT DISTINCT SUBSTRING(fechado_em,1,10) AS d "
-                             "FROM pedidos WHERE conexao_id=%s "
-                             "AND fechado_em IS NOT NULL", (conexao_id,))
-    dias_gravados = {r["d"] for r in reg_dias}
-    if len(dias_gravados) < 60:
-        for i in range(1, 90):
-            dia_b = (datetime.date.today()
-                     - datetime.timedelta(days=i)).isoformat()
-            if dia_b in dias_gravados:
-                continue
-            l2, f2 = buscar_janela(dia_b, dia_b)
-            lista.extend(l2)
-            ids_fechados.extend(f2)
-
-    # 3) Grava com upsert — NUNCA apaga o historico
-    with banco() as conn:
-        if lista:
-            cur = conn.cursor()
-            cur.executemany("""INSERT INTO pedidos
-                                (conexao_id, pedido_id, status, total, moeda,
-                                 fechado_em, atualizado_em)
-                                VALUES (%s,%s,%s,%s,%s,%s,%s)
-                                ON CONFLICT (conexao_id, pedido_id) DO UPDATE SET
-                                  status=EXCLUDED.status, total=EXCLUDED.total,
-                                  moeda=EXCLUDED.moeda,
-                                  fechado_em=EXCLUDED.fechado_em,
-                                  atualizado_em=EXCLUDED.atualizado_em""", lista)
-        ja_tem = {r["pedido_id"] for r in
-                  consultar(conn, "SELECT DISTINCT pedido_id "
-                                  "FROM pedidos_itens WHERE conexao_id=%s",
-                            (conexao_id,))}
-    faltantes = [i for i in ids_fechados[:100] if i not in ja_tem]
-    for oid in faltantes:
-        det, det_erro = api_get(token, "/orders/" + oid)
-        if det_erro or not det:
-            continue
-        itens = det.get("order_items") or []
-        if not isinstance(itens, list):
-            continue
-        with banco() as conn:
-            for it in itens:
-                item = it.get("item") or {}
-                iid = item.get("id")
-                if not iid:
-                    continue
-                executar(conn, """INSERT INTO pedidos_itens
-                                (conexao_id, pedido_id, item_id,
-                                 quantidade, preco_unitario, atualizado_em)
-                                VALUES (%s,%s,%s,%s,%s,%s)
-                                ON CONFLICT (conexao_id, pedido_id, item_id)
-                                DO UPDATE SET
-                                  quantidade=EXCLUDED.quantidade,
-                                  preco_unitario=EXCLUDED.preco_unitario,
-                                  atualizado_em=EXCLUDED.atualizado_em""",
-                         (conexao_id, oid, str(iid), it.get("quantity"),
-                          it.get("unit_price"), agora))
-    return True
+    return sync_orders(conexao_id, token, user_id, banco, consultar,
+                       executar, api_get, registrar_erro)
 
 
 def executar_atualizacao(cid):
@@ -3851,3 +3756,4 @@ scheduler.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+
