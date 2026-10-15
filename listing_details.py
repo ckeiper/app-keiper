@@ -82,7 +82,8 @@ def legacy_weight(details):
 
 def read_json(value, default):
     try:
-        return json.loads(value) if isinstance(value, str) else value or default
+        parsed = json.loads(value) if isinstance(value, str) else value
+        return parsed if isinstance(parsed, type(default)) else default
     except (ValueError, TypeError):
         return default
 
@@ -156,25 +157,32 @@ def normalize_promotions(records):
     return output
 
 
+def promotion_status(promotion):
+    """Reconcile explicit timezone-aware dates without guessing a timezone."""
+    status = promotion.get('status')
+    if status != 'active':
+        return status
+    now = datetime.datetime.now(datetime.timezone.utc)
+    for field, label, compare in (
+            ('end', 'vigência encerrada', lambda date: date <= now),
+            ('start', 'aguardando início', lambda date: date > now)):
+        try:
+            value = promotion.get(field)
+            date = datetime.datetime.fromisoformat(value.replace('Z', '+00:00')) if value else None
+            if date is not None and date.tzinfo is not None and compare(date):
+                return label
+        except (ValueError, TypeError, AttributeError):
+            pass
+    return status
+
+
 def active_promotions(snapshot):
     if not snapshot or snapshot.get('error'):
         return []
     # Old snapshots must never silently keep an expired promotion active.
     if time.time() - snapshot.get('checked_at', 0) > 7200:
         return []
-    now = datetime.datetime.now(datetime.timezone.utc)
-    result = []
-    for p in snapshot.get('promotions', []):
-        if p['status'] != 'active':
-            continue
-        try:
-            end = datetime.datetime.fromisoformat(p['end'].replace('Z', '+00:00')) if p.get('end') else None
-            if end is not None and end.tzinfo is not None and end <= now:
-                continue
-        except (ValueError, TypeError):
-            pass
-        result.append(p)
-    return result
+    return [p for p in snapshot.get('promotions', []) if promotion_status(p) == 'active']
 
 
 def render_promotions(value):
@@ -187,9 +195,11 @@ def render_promotions(value):
         return 'Dados desatualizados — atualize os anúncios'
     rows = []
     for p in snap.get('promotions', []):
-        parts = [p['origin'], p['type'], 'Status: ' + p['status']]
+        status = promotion_status(p)
+        status_text = status if status == p['status'] else status + ' (API: ' + p['status'] + ')'
+        parts = [p['origin'], p['type'], 'Status: ' + status_text]
         for label, key in [('Original', 'original'), ('Promocional', 'price')]:
-            if key == 'price' and p['status'] != 'active':
+            if key == 'price' and status != 'active':
                 label = 'Preço informado (não ativo)'
             parts.append(label + ': ' + ('R$ %.2f' % p[key] if p.get(key) else 'Não disponível'))
         parts.append('Desconto: ' + ('%.2f%%' % p['discount'] if p.get('discount') is not None else 'Não disponível'))

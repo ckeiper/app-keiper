@@ -37,6 +37,10 @@ Tipos futuros têm origem “Não disponível”. Candidatas/pendentes/finalizad
 status explícito e preço identificado como não ativo; nunca entram no contador de ativos.
 Desconto percentual só é calculado com os dois preços positivos e original > promocional.
 Datas não retornadas ficam “Não disponível”. Todos os valores são escapados no HTML.
+Datas com fuso explícito também impedem que uma oferta vencida ou ainda não iniciada
+seja contada/exibida como ativa, mesmo que a última resposta da API ainda diga active.
+O status original é mantido visível entre parênteses. Datas sem fuso continuam exibidas
+como retornadas, sem presumir o fuso horário da campanha.
 
 ## Pesos e rastreabilidade
 
@@ -103,6 +107,11 @@ gravação e HTML sem inicializar banco/scheduler; não substituem uma verifica�
 PostgreSQL real. `test_listing_integration.py` é opt-in com
 `KEIPER_TEST_DATABASE_URL` apontando **exclusivamente a banco descartável**.
 Não foi realizada chamada autenticada ao Mercado Livre ou validação em produção.
+
+A suíte também verifica duas gravações reais sem duplicação e com preservação do custo,
+renderização autenticada sem chamadas de rede, isolamento por loja e rollback do cache
+de campanhas após falha de escrita. A preparação dos testes encerra o scheduler apenas
+se estiver rodando, permitindo executar Anúncios e Vendas juntos no mesmo processo.
 
 ## Fontes oficiais consultadas em 15/10/2026
 

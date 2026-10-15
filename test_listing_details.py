@@ -105,6 +105,21 @@ class PromotionTests(unittest.TestCase):
         snap = {'checked_at': time.time(), 'promotions': records}
         self.assertEqual(details.active_promotions(snap), [])
         self.assertNotIn('<script>', details.render_promotions(snap))
+        self.assertIn('vigência encerrada (API: active)', details.render_promotions(snap))
+        self.assertIn('Preço informado (não ativo)', details.render_promotions(snap))
+
+    def test_future_start_is_not_active(self):
+        records = details.normalize_promotions([{'type': 'DEAL', 'status': 'started',
+                                                 'start_date': '2999-01-01T00:00:00Z', 'price': 80}])
+        snap = {'checked_at': time.time(), 'promotions': records}
+        self.assertEqual(details.active_promotions(snap), [])
+        self.assertIn('aguardando início', details.render_promotions(snap))
+
+    def test_wrong_json_shape_is_unavailable(self):
+        self.assertEqual(details.read_json('[]', {}), {})
+        self.assertEqual(details.read_json('null', {}), {})
+        self.assertIn('Não verificado', details.render_promotions('[]'))
+        self.assertEqual(details.render_weights('null'), 'Não disponível')
 
 
 class RequestTests(unittest.TestCase):
