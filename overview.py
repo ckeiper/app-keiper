@@ -1,14 +1,16 @@
 """Administrative overview. Pure calculations, bounded batch reads, no API calls."""
 from collections import defaultdict
+from datetime import datetime, timedelta
 from decimal import Decimal
 from html import escape
 import time
 
-from sales_metrics import change, period, summarize
+from sales_metrics import SAO_PAULO, change, period, summarize
 from sales_view import filters, fmt
 
 MAX_ORDERS = 20000
 STALE_SECONDS = 3 * 60 * 60
+HISTORICAL_STALE_SECONDS = 48 * 60 * 60
 
 
 def load_overview(shops, args, banco, query):
@@ -39,6 +41,7 @@ def load_overview(shops, args, banco, query):
 def build_overview(shops, rows, coverage, errors, bounds, now=None, limited=False):
     start, end, prev_start, prev_end = bounds
     now = int(time.time()) if now is None else now
+    recent_start = datetime.fromtimestamp(now, SAO_PAULO).date() - timedelta(days=6)
     # Defense in depth: discard any data not belonging to the authorized shop list.
     allowed = {s['id'] for s in shops}
     by_shop, by_day, by_error = defaultdict(list), defaultdict(dict), defaultdict(list)
@@ -57,7 +60,14 @@ def build_overview(shops, rows, coverage, errors, bounds, now=None, limited=Fals
         days = by_day[cid]
         current = summarize(by_shop[cid], start, end, days)
         previous = summarize(by_shop[cid], prev_start, prev_end, days)
-        last = max(days.values(), default=None)
+        selected_days = current['days'] + previous['days']
+        selected_stamps = [days[d] for d in selected_days if d in days]
+        # Every selected day must satisfy its own freshness rule. A success on
+        # another day must not validate stale data or clear an unresolved error.
+        last = min(selected_stamps, default=None)
+        stale_days = [d for d in selected_days if d in days and
+                      now - days[d] > (STALE_SECONDS if d >= recent_start.isoformat()
+                                       else HISTORICAL_STALE_SECONDS)]
         reasons = []
         if limited:
             reasons.append('Limite de leitura atingido; totais não calculados')
@@ -67,8 +77,8 @@ def build_overview(shops, rows, coverage, errors, bounds, now=None, limited=Fals
             reasons.append('Problema de integridade dos pedidos')
         if shop.get('status') != 'ativa':
             reasons.append('Conexão inativa')
-        if last is None or now - last > STALE_SECONDS:
-            reasons.append('Sem sincronização bem-sucedida nas últimas 3 horas')
+        if last is None or stale_days:
+            reasons.append('Sincronização dos períodos desatualizada (3h recentes / 48h históricos)')
         if any(e.get('quando') is None or e['quando'] >= (last or 0) for e in by_error[cid]):
             reasons.append('Erro de sincronização sem resolução confirmada')
         eligible = not reasons and current['revenue'] is not None and previous['revenue'] is not None
@@ -156,7 +166,7 @@ def render_overview(data, args, admin=False):
         # A capped batch is not a usable subtotal even for an apparently complete shop.
         value = lambda key: None if r['limited'] else cur[key]
         status = 'Incluída na consolidação' if r['eligible'] else 'Fora da consolidação: ' + '; '.join(r['reasons'])
-        out += ("<tr><td><b>" + escape(s['cliente']) + "</b><span class='overview-status'>"
+        out += (f"<tr><td><b id='nome-{s['id']}'>" + escape(s['cliente']) + "</b><span class='overview-status'>"
                 + escape(status) + "</span></td><td>" + fmt(value('revenue'),True)
                 + "</td><td>" + fmt(value('orders'),False) + "</td><td>" + fmt(value('ticket'),True)
                 + "</td><td>" + (variation(cur['revenue'],r['previous']['revenue']) if r['eligible'] else 'Indisponível')
@@ -170,7 +180,9 @@ def render_overview(data, args, admin=False):
             "<p>Queda de faturamento: pelo menos 15%. Queda de pedidos: pelo menos 20% e 5 pedidos. "
             "Somente lojas elegíveis geram alertas de queda. Base anterior zero não gera queda percentual.</p>"
             "<p>Sincronização: conexão inativa, cobertura ausente, campos inválidos, pedidos sem data "
-            "localizável, erro de coleta não superado ou última busca há mais de 3 horas. "
+            "localizável, erro de coleta não superado ou dia da seleção com busca há mais "
+            "de 3 horas (últimos 7 dias) ou 48 horas (histórico). Atualizações fora da seleção "
+            "não validam seus dados; erros exigem sucesso posterior em todos os dias selecionados. "
             "Alertas são ordenados por queda absoluta do faturamento quando conhecida; os demais "
             "não têm impacto estimado. Alertas da mesma loja não devem ser somados.</p>"
             "<p>Leitura limitada a 20.000 pedidos verificados por seleção de lojas. Ao exceder, "

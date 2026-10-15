@@ -50,12 +50,20 @@ individual consegue mostrar um subtotal dos pedidos com data válida.
   critérios evitam alertas excessivos em bases pequenas.
 - Sincronização/dados: cobertura incompleta em qualquer intervalo, campos
   inválidos ou datas não localizáveis, conexão não ativa, nenhum sucesso de
-  busca registrado ou último sucesso há **mais de 3 horas**. O limite permite
-  a rotina horária e atrasos transitórios. Um erro nas categorias `pedidos`,
-  `atualizacao`, `refresh` ou `token` com data ausente ou `quando >= último sucesso` também
-  suspende elegibilidade. Erros mais antigos são considerados superados por
-  uma busca bem-sucedida posterior, desde que a cobertura do período esteja
-  completa. Erros de anúncios/Ads não são tratados como falhas de vendas.
+  busca registrado ou dia selecionado com busca há **mais de 3 horas nos últimos
+  7 dias**, ou **mais de 48 horas para dias históricos**. O marco de 7 dias usa
+  a data corrente de Brasília e corresponde à janela reconsultada em cada
+  sincronização; 48 horas acomodam a rotação diária do histórico e atrasos.
+  Todos os dias dos dois períodos precisam atender ao respectivo limite;
+  atualizar um dia externo ou apenas parte da seleção não valida os demais.
+  No limite exato de 3/48 horas, o dia ainda é aceito.
+  Um erro nas categorias `pedidos`, `atualizacao`, `refresh` ou `token` sem data
+  ou com `quando >= menor timestamp de sucesso dos dias selecionados` também
+  suspende elegibilidade. A resolução exige sucesso posterior ao erro em todos
+  os dias selecionados; um sucesso externo não apaga o problema. A cobertura
+  completa continua obrigatória. Erros de anúncios/Ads não são tratados como
+  falhas de vendas. A recuperação conservadora após erro pode aguardar a rotação
+  de todos os dias históricos selecionados.
 - Lojas não elegíveis não geram alertas de queda.
 - A prioridade financeira usa `max(faturamento anterior - atual, 0)` apenas
   quando ambos são confiáveis. Ordenação decrescente; impacto desconhecido
@@ -92,4 +100,6 @@ presumidas como pertencentes a todos os períodos.
 `Sales tests`. Cobrem coorte consistente, ticket ponderado, limites inclusivos,
 base zero, prioridade financeira, integridade, cobertura, atualização obsoleta,
 permissões, acesso anônimo, consultas em lote, teto de leitura, filtros e
-preservação da página antiga. A API de produção não é acionada nos testes.
+preservação da página antiga, atualização externa que não libera períodos
+antigos, limites de 3/48 horas, recuperação de erros por seleção e contrato DOM,
+persistência e permissões de renomeação. A API de produção não é acionada nos testes.

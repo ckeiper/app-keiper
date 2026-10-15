@@ -115,6 +115,36 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertNotIn('Faturamento caiu',view)
         self.assertNotIn('R$ 20,00',view)
 
+    def test_fresh_external_day_does_not_unblock_stale_selection(self):
+        from overview import HISTORICAL_STALE_SECONDS
+        with self.m.banco() as conn:
+            self.m.executar(conn,'UPDATE vendas_cobertura SET atualizado_em=%s WHERE conexao_id=ANY(%s)',
+                            (int(time.time())-HISTORICAL_STALE_SECONDS-1,self.ids[:2]))
+            for cid in self.ids[:2]:
+                self.m.executar(conn,"INSERT INTO vendas_cobertura VALUES(%s,'2026-10-15',%s)",
+                                (cid,int(time.time())))
+        view=self.client.get(self.url).get_data(as_text=True)
+        self.assertIn('0 de 3 lojas na consolidação',view)
+        self.assertIn('Sincronização dos períodos desatualizada',view)
+        self.assertNotIn('Faturamento caiu',view)
+        self.assertNotIn('Pedidos caíram',view)
+
+    def test_rename_dom_contract_persistence_and_permissions(self):
+        cid=self.ids[0]
+        view=self.client.get(self.url).get_data(as_text=True)
+        self.assertIn(f"id='nome-{cid}'",view)
+        self.assertIn(f'editarNome({cid})',view)
+        self.assertIn("document.getElementById('nome-' + id)",view)
+        renamed=self.client.post(f'/renomear/{cid}',data={'cliente':'Loja renomeada <teste>'})
+        self.assertEqual(renamed.status_code,200)
+        self.assertTrue(renamed.get_json()['ok'])
+        view=self.client.get(self.url).get_data(as_text=True)
+        self.assertIn(f"id='nome-{cid}'>Loja renomeada &lt;teste&gt;",view)
+        with self.client.session_transaction() as session:
+            session['tipo']='cliente'
+            session['conexao_id']=cid
+        self.assertEqual(self.client.post(f'/renomear/{self.ids[1]}',data={'cliente':'Negado'}).status_code,403)
+
     def test_legacy_dashboard_and_invalid_filters_remain_accessible(self):
         with patch.object(self.m,'enfileirar_atualizacao',return_value=True):
             legacy=self.client.get('/painel/legado')

@@ -1,14 +1,14 @@
 from contextlib import nullcontext
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 import unittest
 from unittest.mock import patch
 
-from overview import build_overview, load_overview, render_overview, STALE_SECONDS
-from sales_metrics import period
+from overview import build_overview, load_overview, render_overview, STALE_SECONDS, HISTORICAL_STALE_SECONDS
+from sales_metrics import SAO_PAULO, period
 
 BOUNDS = (date(2026,10,10),date(2026,10,11),date(2026,10,8),date(2026,10,9))
-NOW = 100000
+NOW = int(datetime(2026,10,15,12,tzinfo=SAO_PAULO).timestamp())
 
 
 def shop(cid=1, name='Loja A', status='ativa'):
@@ -99,6 +99,47 @@ class OverviewTests(unittest.TestCase):
         self.assertEqual(data['included'],0)
         self.assertEqual([a['kind'] for a in data['alerts']],['sync'])
 
+    def test_fresh_day_outside_selection_does_not_validate_stale_periods(self):
+        cov=coverage(1,timestamp=NOW-STALE_SECONDS-1)
+        cov.append(dict(conexao_id=1,dia='2026-10-15',atualizado_em=NOW))
+        data=build_overview([shop()],orders(),cov,[],BOUNDS,now=NOW)
+        self.assertEqual(data['included'],0)
+        self.assertEqual([a['kind'] for a in data['alerts']],['sync'])
+        self.assertIsNone(data['totals']['current']['revenue'])
+
+    def test_one_fresh_selected_day_does_not_mask_another_stale_day(self):
+        cov=coverage(1)
+        next(c for c in cov if c['dia']=='2026-10-10')['atualizado_em']=NOW-STALE_SECONDS-1
+        data=build_overview([shop()],orders(),cov,[],BOUNDS,now=NOW)
+        self.assertEqual(data['included'],0)
+        self.assertEqual([a['kind'] for a in data['alerts']],['sync'])
+
+    def test_historical_days_allow_rotation_but_enforce_48_hour_limit(self):
+        bounds=(date(2026,10,3),date(2026,10,4),date(2026,10,1),date(2026,10,2))
+        for age,expected in [(4*3600,1),(HISTORICAL_STALE_SECONDS,1),(HISTORICAL_STALE_SECONDS+1,0)]:
+            cov=[dict(conexao_id=1,dia=f'2026-10-{i:02}',atualizado_em=NOW-age) for i in range(1,5)]
+            data=build_overview([shop()],[],cov,[],bounds,now=NOW)
+            self.assertEqual(data['included'],expected)
+
+    def test_recent_boundary_and_inclusive_three_hour_limit(self):
+        for day,age,expected in [('2026-10-08',4*3600,1),('2026-10-09',4*3600,0),
+                                 ('2026-10-10',STALE_SECONDS,1)]:
+            cov=coverage(1)
+            next(c for c in cov if c['dia']==day)['atualizado_em']=NOW-age
+            data=build_overview([shop()],orders(),cov,[],BOUNDS,now=NOW)
+            self.assertEqual(data['included'],expected)
+
+    def test_error_requires_later_success_on_each_selected_day(self):
+        cov=coverage(1)
+        cov.append(dict(conexao_id=1,dia='2026-10-15',atualizado_em=NOW))
+        cov[0]['atualizado_em']=NOW-100
+        error=[dict(conexao_id=1,quando=NOW-50)]
+        data=build_overview([shop()],orders(),cov,error,BOUNDS,now=NOW)
+        self.assertEqual(data['included'],0)
+        cov[0]['atualizado_em']=NOW
+        data=build_overview([shop()],orders(),cov,error,BOUNDS,now=NOW)
+        self.assertEqual(data['included'],1)
+
     def test_unauthorized_records_never_reach_totals_names_or_alerts(self):
         data=build_overview([shop()],orders()+orders(99,90000,100000),coverage(1,99),
                             [dict(conexao_id=99,quando=NOW+1)],BOUNDS,now=NOW)
@@ -113,6 +154,7 @@ class OverviewTests(unittest.TestCase):
         data=build_overview([shop(name='<script>evil</script>')],orders(),coverage(1),[],BOUNDS,now=NOW)
         view=render_overview(data,{},admin=True)
         self.assertIn('&lt;script&gt;evil',view)
+        self.assertIn("id='nome-1'",view)
         self.assertNotIn('<script>evil',view)
         self.assertIn("action='/painel'",view)
         self.assertIn('/usuarios',view)
