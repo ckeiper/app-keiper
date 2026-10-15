@@ -114,9 +114,10 @@ def fmt(value, money):
     return ("R$ " if money else "") + number
 
 
-def filters(cid, args):
+def filters(cid, args, action=None):
     choice = args.get('periodo', '30')
-    out = f"<form method='get' action='/vendas/{cid}' class='card'><label>Período <select name='periodo'>"
+    action = html.escape(action or f'/vendas/{cid}', quote=True)
+    out = f"<form method='get' action='{action}' class='card'><label>Período <select name='periodo'>"
     for value, title in [(str(n), f'{n} dias') for n in PRESETS] + [('personalizado', 'Personalizado')]:
         out += "<option value='" + value + "'" + (" selected" if choice == value else "") + ">" + title + "</option>"
     out += "</select></label> "

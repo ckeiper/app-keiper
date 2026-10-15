@@ -9,6 +9,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from werkzeug.security import generate_password_hash, check_password_hash
 from sales_sync import init_sales_schema, sync_orders
 from sales_view import render_sales
+from overview import load_overview, render_overview
 try:
     import openpyxl
 except Exception:
@@ -1476,6 +1477,27 @@ def processar_fila():
 @app.route("/painel")
 @login_required
 def painel():
+    with banco() as conn:
+        if session.get("tipo") == "admin":
+            lojas = consultar(conn, "SELECT id, cliente, status FROM conexoes ORDER BY cliente, id")
+        else:
+            lojas = consultar(conn, "SELECT id, cliente, status FROM conexoes WHERE id=%s ORDER BY cliente, id",
+                              (session.get("conexao_id"),))
+    # Keep the existing access policy and apply it before any sales/coverage read.
+    lojas = [loja for loja in lojas if pode_ver_loja(loja["id"])]
+    try:
+        dados = load_overview(lojas, request.args, banco, consultar)
+    except ValueError as erro:
+        from sales_view import filters
+        return pagina("Visão Geral 2.0", "<div class='aviso'>" + esc(str(erro))
+                      + "</div>" + filters(None, request.args, action="/painel"))
+    return pagina("Visão Geral 2.0", render_overview(dados, request.args,
+                                                  admin=session.get("tipo") == "admin"))
+
+
+@app.route("/painel/legado")
+@login_required
+def painel_legado():
     hoje_iso = datetime.date.today().isoformat()
     ontem_iso = (datetime.date.today()
                  - datetime.timedelta(days=1)).isoformat()

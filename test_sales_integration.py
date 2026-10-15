@@ -10,7 +10,8 @@ class DatabaseIntegrationTests(unittest.TestCase):
         os.environ['DATABASE_URL'] = os.environ['KEIPER_TEST_DATABASE_URL']
         import main
         cls.app_module = main
-        main.scheduler.shutdown(wait=False)
+        if main.scheduler.running:
+            main.scheduler.shutdown(wait=False)
         main.iniciar_banco()  # Second initialization verifies additive/idempotent DDL.
 
     def setUp(self):
