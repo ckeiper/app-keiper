@@ -82,7 +82,7 @@ class MetricsTests(unittest.TestCase):
     def test_invalid_financial_fields_never_become_zero(self):
         for changes in ({'total': None}, {'total': 'NaN'}, {'total': '-1'}, {'moeda': 'USD'},
                         {'pagamentos_json': None}, {'pagamentos_json': []},
-                        {'pagamentos_json': [None]}, {'criado_em': None}, {'criado_em': '2026-10-10'}):
+                        {'pagamentos_json': [None]}, {'criado_em': '2026-10-10'}):
             report = self.summarize([row(**changes)])
             self.assertIsNone(report['revenue'], changes)
 
@@ -109,6 +109,70 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(order_fields({'order_items': [{'quantity': 2}, {'quantity': 3}]})[2], 5)
         self.assertEqual(order_fields({'payments': [{'id': 1, 'status': 'approved', 'payer': 'private'}]})[1],
                          [{'id': 1, 'status': 'approved'}])
+
+    def test_unlocated_dates_do_not_invalidate_every_period(self):
+        for value in (None, '', 'not-a-date', '2026-02-30T12:00:00-03:00'):
+            with self.subTest(value=value):
+                report = self.summarize([row(), row('broken', criado_em=value)])
+                self.assertEqual(report['revenue'], 120)
+                self.assertEqual(report['orders'], 1)
+                self.assertEqual(report['units'], 3)
+                self.assertEqual(report['invalid'], 0)
+                self.assertEqual(report['unallocated_dates'], 1)
+                self.assertTrue(report['complete'])
+                self.assertEqual(report['daily'], [120.0, 0.0])
+
+    def test_old_malformed_dates_and_collection_days_are_out_of_scope(self):
+        broken = [row('old-prefix', criado_em='2020-01-10Tbad'),
+                  row('old-origin', criado_em=None, vendas_dia_coleta='2020-01-10'),
+                  row('overflow', criado_em='9999-12-31T23:59:59-23:00'),
+                  row('old-valid', criado_em='2020-01-10T12:00:00-03:00', total=None)]
+        report = self.summarize([row()] + broken)
+        self.assertEqual(report['revenue'], 120)
+        self.assertEqual(report['invalid'], 0)
+        self.assertEqual(report['unallocated_dates'], 0)
+
+    def test_collection_day_limits_damage_to_affected_period_and_day(self):
+        rows = [row(), row('broken', criado_em=None, vendas_dia_coleta='2026-10-09')]
+        covered = {f'2026-10-{d:02}' for d in range(8, 12)}
+        current = summarize(rows, date(2026, 10, 10), date(2026, 10, 11), covered)
+        previous = summarize(rows, date(2026, 10, 8), date(2026, 10, 9), covered)
+        self.assertEqual(current['revenue'], 120)
+        self.assertEqual(current['invalid_dates'], 0)
+        self.assertIsNone(previous['revenue'])
+        self.assertIsNone(previous['cancellations'])
+        self.assertEqual(previous['invalid_dates'], 1)
+        self.assertEqual(previous['daily'], [0.0, None])
+        self.assertTrue(previous['complete'])  # Search coverage != field integrity.
+        self.assertIsNone(change(current['revenue'], previous['revenue']))
+        wider = summarize(rows, date(2026, 10, 8), date(2026, 10, 11), covered)
+        self.assertIsNone(wider['revenue'])
+        self.assertEqual(wider['daily'], [0.0, None, 120.0, 0.0])
+
+    def test_malformed_prefix_is_only_an_integrity_hint(self):
+        broken = row(criado_em='2026-10-10Tbad')
+        report = self.summarize([broken])
+        self.assertEqual(report['invalid_dates'], 1)
+        self.assertIsNone(report['orders'])
+        self.assertEqual(report['daily'], [None, None])
+        outside = summarize([broken], date(2026, 10, 12), date(2026, 10, 12), {'2026-10-12'})
+        self.assertEqual(outside['revenue'], 0)
+        # Missing timezone near midnight can affect either side of a boundary.
+        boundary = summarize([row(criado_em='2026-10-10T01:00:00')],
+                             date(2026, 10, 9), date(2026, 10, 9), {'2026-10-09'})
+        self.assertIsNone(boundary['revenue'])
+
+    def test_valid_creation_date_takes_priority_over_collection_hint(self):
+        report = self.summarize([row(vendas_dia_coleta='2020-01-01')])
+        self.assertEqual(report['revenue'], 120)
+        self.assertEqual(report['invalid_dates'], 0)
+
+    def test_unknown_dates_cannot_fill_missing_coverage(self):
+        report = self.summarize([row('broken', criado_em=None)], covered=set())
+        self.assertFalse(report['complete'])
+        self.assertIsNone(report['revenue'])
+        self.assertEqual(report['unallocated_dates'], 1)
+        self.assertEqual(report['daily'], [None, None])
 
 
 class SyncTests(unittest.TestCase):
@@ -166,7 +230,7 @@ class SyncTests(unittest.TestCase):
     def test_schema_is_additive_idempotent(self):
         statements = []
         init_sales_schema(None, lambda conn, sql: statements.append(sql))
-        self.assertEqual(len(statements), 5)
+        self.assertEqual(len(statements), 6)
         self.assertTrue(all('IF NOT EXISTS' in s for s in statements))
 
 
@@ -190,6 +254,39 @@ class ViewTests(unittest.TestCase):
         view = render_sales(4, {'periodo': 'invalid', 'inicio': "' onfocus='alert(1)"}, forbidden, forbidden)
         self.assertIn('&#x27;', view)
         self.assertNotIn("value='' onfocus=", view)
+
+    def test_view_reports_unlocated_dates_once_without_hiding_values(self):
+        records = [row(), row('broken', criado_em='garbage'),
+                   row('old', criado_em=None, vendas_dia_coleta='2020-01-01')]
+        def query(conn, sql, params):
+            if 'COUNT(*)' in sql:
+                return [{'n': 1}]
+            if 'vendas_cobertura' in sql:
+                return [{'dia': f'2026-10-{d:02}', 'atualizado_em': 1} for d in range(8, 12)]
+            self.assertNotIn('SUBSTRING', sql)
+            self.assertEqual(params, (4,))
+            return records
+        view = render_sales(4, {'periodo':'personalizado', 'inicio':'2026-10-10', 'fim':'2026-10-11'},
+                            lambda: contextlib.nullcontext(None), query)
+        self.assertIn('R$ 120,00', view)
+        self.assertIn('Anterior: R$ 0,00', view)
+        self.assertEqual(view.count('1 pedido(s) sem data de criação utilizável'), 1)
+        self.assertIn('a cobertura de busca não garante a integridade', view)
+        self.assertNotIn('Período atual: 1 pedido(s)', view)
+
+    def test_view_scopes_date_errors_to_previous_interval(self):
+        def query(conn, sql, params):
+            if 'COUNT(*)' in sql:
+                return [{'n': 0}]
+            if 'vendas_cobertura' in sql:
+                return [{'dia': f'2026-10-{d:02}', 'atualizado_em': 1} for d in range(8, 12)]
+            return [row(), row('broken', criado_em=None, vendas_dia_coleta='2026-10-09')]
+        view = render_sales(4, {'periodo':'personalizado', 'inicio':'2026-10-10', 'fim':'2026-10-11'},
+                            lambda: contextlib.nullcontext(None), query)
+        self.assertIn('R$ 120,00', view)
+        self.assertIn('Anterior: Indisponível', view)
+        self.assertIn('Período anterior: 1 pedido(s)', view)
+        self.assertNotIn('Período atual: 1 pedido(s)', view)
 
     def test_main_compiles_and_keeps_existing_routes(self):
         source = Path('main.py').read_text(encoding='utf-8')

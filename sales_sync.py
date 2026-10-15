@@ -2,12 +2,12 @@
 import datetime
 import json
 import time
-from sales_metrics import order_fields, reporting_today
+from sales_metrics import created_day, order_fields, reporting_today
 
 
 def init_sales_schema(conn, execute):
     for column in ("criado_em TEXT", "pagamentos_json JSONB", "unidades INTEGER",
-                   "vendas_verificado_em BIGINT"):
+                   "vendas_verificado_em BIGINT", "vendas_dia_coleta TEXT"):
         execute(conn, "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS " + column)
     execute(conn, """CREATE TABLE IF NOT EXISTS vendas_cobertura (
         conexao_id INTEGER NOT NULL, dia TEXT NOT NULL, atualizado_em BIGINT NOT NULL,
@@ -58,23 +58,25 @@ def sync_orders(cid, token, user_id, banco, query, execute, api_get, log):
         with banco() as conn:
             for oid, order in rows.items():
                 created, payments, units = order_fields(order)
-                if created is None or payments is None or units is None:
+                if created_day(created) is None or payments is None or units is None:
                     detail, error = api_get(token, "/orders/" + oid)
                     if not error and isinstance(detail, dict) and str(detail.get("id")) == oid:
                         order = detail
                         created, payments, units = order_fields(order)
                 execute(conn, """INSERT INTO pedidos
                     (conexao_id, pedido_id, status, total, moeda, fechado_em,
-                     atualizado_em, criado_em, pagamentos_json, unidades, vendas_verificado_em)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s)
+                     atualizado_em, criado_em, pagamentos_json, unidades, vendas_verificado_em,
+                     vendas_dia_coleta)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s)
                     ON CONFLICT (conexao_id, pedido_id) DO UPDATE SET
                       status=EXCLUDED.status, total=EXCLUDED.total, moeda=EXCLUDED.moeda,
                       fechado_em=EXCLUDED.fechado_em, atualizado_em=EXCLUDED.atualizado_em,
                       criado_em=EXCLUDED.criado_em, pagamentos_json=EXCLUDED.pagamentos_json,
-                      unidades=EXCLUDED.unidades, vendas_verificado_em=EXCLUDED.vendas_verificado_em""",
+                      unidades=EXCLUDED.unidades, vendas_verificado_em=EXCLUDED.vendas_verificado_em,
+                      vendas_dia_coleta=EXCLUDED.vendas_dia_coleta""",
                     (cid, oid, order.get("status"), order.get("total_amount"),
                      order.get("currency_id"), order.get("date_closed") or created, now,
-                     created, json.dumps(payments) if payments is not None else None, units, now))
+                     created, json.dumps(payments) if payments is not None else None, units, now, iso))
                 # Refresh every available item, summing variations of the same listing.
                 items = order.get("order_items")
                 if isinstance(items, list) and units is not None:

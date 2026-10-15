@@ -1,7 +1,7 @@
 """Server-rendered sales report, using only synchronized and qualified data."""
 import html
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from sales_metrics import SAO_PAULO
 from sales_metrics import PRESETS, change, period, summarize
 
@@ -13,11 +13,8 @@ def render_sales(cid, args, banco, query):
         return "<div class='aviso'>" + html.escape(str(error)) + "</div>" + filters(cid, args)
     with banco() as conn:
         rows = query(conn, """SELECT conexao_id, pedido_id, status, total, moeda,
-                   criado_em, pagamentos_json, unidades FROM pedidos
-                   WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL
-                   AND (criado_em IS NULL OR SUBSTRING(criado_em,1,10) BETWEEN %s AND %s)""",
-                   (cid, (prev_start - timedelta(days=1)).isoformat(),
-                    (end + timedelta(days=1)).isoformat()))
+                   criado_em, pagamentos_json, unidades, vendas_dia_coleta FROM pedidos
+                   WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL""", (cid,))
         coverage = query(conn, "SELECT dia, atualizado_em FROM vendas_cobertura WHERE conexao_id=%s", (cid,))
         legacy = query(conn, "SELECT COUNT(*) AS n FROM pedidos WHERE conexao_id=%s AND vendas_verificado_em IS NULL", (cid,))
     covered = {r["dia"] for r in coverage}
@@ -42,10 +39,24 @@ def render_sales(cid, args, banco, query):
                 "completa aparecem como indisponíveis; lacunas no gráfico não representam zero. "
                 "Use Atualizar agora para continuar a carga (até 30 dias históricos por execução, "
                 "janela automática de 180 dias). Períodos anteriores a essa janela não têm cobertura garantida.</div>")
-    if current['invalid'] or previous['invalid'] or (legacy and legacy[0]['n']):
-        out += ("<div class='aviso'>Há registros antigos ou campos não verificáveis. "
-                "Pedidos sem data de criação, moeda/valor válido ou dados de pagamento "
-                "não são presumidos como vendas. A sincronização revalida o histórico.</div>")
+    for title, report in (("Período atual", current), ("Período anterior", previous)):
+        if report['invalid']:
+            out += ("<div class='aviso'>" + title + ": " + str(report['invalid'])
+                    + " pedido(s) com campos não verificáveis, incluindo " + str(report['invalid_dates'])
+                    + " com data de criação ausente ou inválida. Os indicadores afetados "
+                    "ficam indisponíveis; no gráfico, somente os dias afetados têm lacunas.</div>")
+    # Both reports receive the same records. Do not count unlocated records twice.
+    unallocated = current['unallocated_dates']
+    if unallocated:
+        out += ("<div class='aviso'>Integridade do histórico: " + str(unallocated)
+                + " pedido(s) sem data de criação utilizável e sem dia de origem identificável. "
+                "Estão excluídos dos indicadores e não podem ser atribuídos a nenhum período. "
+                "Os valores exibidos consideram somente pedidos com data válida; a cobertura "
+                "de busca não garante a integridade desses registros. É necessário revalidá-los.</div>")
+    if legacy and legacy[0]['n']:
+        out += ("<div class='aviso'>Há " + str(legacy[0]['n'])
+                + " pedido(s) antigos ainda não revalidados, excluídos dos novos indicadores. "
+                "A disponibilidade de cada período depende da sua cobertura de sincronização.</div>")
     if current['unknown_units'] or previous['unknown_units']:
         out += "<div class='aviso'>Há vendas sem quantidades confiáveis; unidades e preço médio ficam indisponíveis.</div>"
     out += "<div class='grid' style='margin-bottom:18px'>"
