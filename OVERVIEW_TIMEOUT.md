@@ -19,3 +19,8 @@ limitado ou descartado; datas incomuns mantêm a classificação Python original
 O CI verifica também o plano da consulta de agregação completa com PostgreSQL.
 Cancelamentos registram somente a etapa (daily, coverage, errors ou unusual),
 sem parâmetros, credenciais ou dados das vendas.
+
+O plano de CI mostrou 706 ms apenas de compilação JIT para 25 linhas, além de
+verificações de pagamentos repetidas pela expansão das CTEs. A leitura desativa
+JIT apenas na própria transação e materializa as verificações intermediárias,
+sem modificar configurações persistentes do banco ou do serviço.

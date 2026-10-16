@@ -67,7 +67,7 @@ DAILY_SQL = '''WITH candidates AS MATERIALIZED (
           AND keiper_overview_day_v1(criado_em) BETWEEN days.dia::date AND days.dia::date
         OFFSET 0
     ) AS matching
-), payment_checks AS (
+), payment_checks AS MATERIALIZED (
     SELECT *, bad_shape OR jsonb_array_length(payments) = 0 OR EXISTS (
         SELECT 1 FROM jsonb_array_elements(payments) AS p
         WHERE jsonb_typeof(p) <> 'object' OR NOT (p ? 'status')
@@ -78,7 +78,7 @@ DAILY_SQL = '''WITH candidates AS MATERIALIZED (
             WHERE p->'status' = '"approved"'::jsonb) AS approved,
     COALESCE(total >= 0 AND total < 'Infinity'::real, false) AS valid_total
     FROM candidates
-), qualified AS (
+), qualified AS MATERIALIZED (
     SELECT *, status = 'paid' AND NOT bad_payments AND approved
               AND moeda = 'BRL' AND valid_total AS good,
            status = 'paid' AND (bad_payments OR (approved AND

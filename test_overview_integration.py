@@ -165,10 +165,23 @@ class OverviewIntegrationTests(unittest.TestCase):
             print('Overview selective PostgreSQL plan:',encoded)
             from overview_store import DAILY_SQL
             aggregate_plan = m.consultar(conn, 'EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) ' + DAILY_SQL,
-                                         ([self.ids[0]], '2026-10-08', '2026-10-09'))
+                                         ([self.ids[0]], '2026-10-08', '2026-10-10'))
             encoded_aggregate = json.dumps(aggregate_plan, default=str)
             self.assertIn('idx_overview_orders_day', encoded_aggregate)
             print('Overview actual aggregate PostgreSQL plan:', encoded_aggregate)
+
+    def test_overview_disables_jit_only_within_its_snapshot(self):
+        from overview import load_overview
+        original = self.m.consultar
+        seen = []
+        def query(conn, sql, params):
+            seen.append(original(conn, 'SHOW jit')[0]['jit'])
+            return original(conn, sql, params)
+        load_overview([dict(id=self.ids[0], cliente='A', status='ativa')],
+                      dict(periodo='personalizado', inicio='2026-10-10', fim='2026-10-11'),
+                      self.m.banco, query)
+        self.assertTrue(seen)
+        self.assertEqual(set(seen), {'off'})
 
     def test_sql_and_streamed_exception_summaries_match_sales_classifier(self):
         from overview import load_overview

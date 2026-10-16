@@ -16,7 +16,8 @@ def bounded_query(conn, query):
             raise ValueError(TIMEOUT_MESSAGE)
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT set_config('statement_timeout', %s, true)",
+                cursor.execute("SELECT set_config('jit', 'off', true), "
+                               "set_config('statement_timeout', %s, true)",
                                (str(remaining),))
             return query(connection, sql, params)
         except Exception as exc:
