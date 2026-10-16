@@ -189,6 +189,24 @@ STYLE = """<style>
 </style>"""
 
 
+def overview_layout(shops, body, admin=False):
+    """Keep authorized accounts reachable even when the report cannot load."""
+    menu = "<nav class='menu-lateral' aria-label='Contas conectadas'>"
+    menu += "<a class='item atual' href='/painel' aria-current='page'>Visão Geral</a>"
+    menu += "<div class='voltar' style='margin-top:14px'>Contas conectadas</div>"
+    for shop in shops:
+        color = '#1a9d5c' if shop.get('status') == 'ativa' else '#d64545'
+        menu += ("<a class='item' href='/painel/" + str(int(shop['id'])) + "'>"
+                 "<span aria-hidden='true' style='display:inline-block;width:8px;"
+                 "height:8px;border-radius:50%;margin-right:8px;background:"
+                 + color + "'></span>" + escape(str(shop['cliente'])) + "</a>")
+    if admin:
+        menu += "<hr><a class='item' href='/usuarios'>Usuários</a>"
+        menu += "<a class='item' href='/diagnostico'>Diagnóstico</a>"
+    menu += "</nav>"
+    return "<div class='layout'>" + menu + "<div class='conteudo'>" + body + "</div></div>"
+
+
 def render_overview(data, args, admin=False):
     start, end, prev_start, prev_end = data['bounds']
     out = STYLE + "<section class='overview-hero'><small>KEIPER CONSULTORIA · CENTRAL ADMINISTRATIVA</small>"
