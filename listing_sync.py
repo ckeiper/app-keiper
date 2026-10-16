@@ -77,9 +77,11 @@ def sync_promotions(cid, token, banco, consultar, executar, request_get, registr
     price_circuit_error = None
     for item in items:
         item_id = item['item_id']
-        if str(item.get('status') or '').lower() == 'closed':
+        item_status = str(item.get('status') or '').lower()
+        if item_status in ('closed', 'under_review'):
             snap = {'checked_at': int(time.time()), 'error': None, 'promotions': [],
-                    'not_applicable': 'Anúncio encerrado — promoções não se aplicam'}
+                    'not_applicable': ('Anúncio encerrado — promoções não se aplicam' if item_status == 'closed'
+                                       else 'Anúncio em análise — participação promocional indisponível')}
             snapshots.append((item_id, snap))
             with banco() as conn:
                 executar(conn, 'UPDATE anuncios SET promocoes_json=%s WHERE conexao_id=%s AND item_id=%s',

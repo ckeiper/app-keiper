@@ -103,8 +103,8 @@ class PromotionTests(unittest.TestCase):
                            'currency_id': 'BRL', 'metadata': {'promotion_id': 'OFFER-1'}}}}
         output = details.render_promotions(snap)
         self.assertIn('<b>Por R$ 75,00</b>', output)
-        self.assertIn('<details><summary>Ver 1', output)
-        self.assertIn('1 opção(ões) e outros status', output)
+        self.assertIn('<details><summary>Ver detalhes', output)
+        self.assertIn('Outras campanhas (1)', output)
         self.assertNotIn('<details open', output)
         self.assertNotIn(' | ', output)
         self.assertNotIn('Por R$ 50,00</b>', output)
@@ -242,13 +242,16 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(len(details.active_promotions(snapshots[1])), 0)
 
     def test_closed_item_does_not_request_promotions(self):
-        self.setup_sync(1)
-        self.items[0]['status'] = 'closed'
-        get = Mock(side_effect=AssertionError('closed item must not query ML'))
-        self.assertTrue(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error))
-        get.assert_not_called()
-        snap = json.loads(next(params[0] for sql, params in self.sql if 'UPDATE anuncios' in sql))
-        self.assertIn('Anúncio encerrado', details.render_promotions(snap))
+        for status, label in [('closed', 'Anúncio encerrado'), ('under_review', 'Anúncio em análise')]:
+            with self.subTest(status=status):
+                self.setup_sync(1)
+                self.items[0]['status'] = status
+                get = Mock(side_effect=AssertionError('ineligible item must not query ML'))
+                self.assertTrue(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error))
+                get.assert_not_called()
+                snap = json.loads(next(params[0] for sql, params in self.sql if 'UPDATE anuncios' in sql))
+                self.assertIn(label, details.render_promotions(snap))
+                self.assertIsNone(details.effective_promotion(snap))
 
     def test_official_price_is_collected_even_when_campaign_is_unavailable(self):
         self.setup_sync(1)

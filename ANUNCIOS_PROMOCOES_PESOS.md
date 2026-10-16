@@ -138,6 +138,10 @@ Confirmados em chamadas autenticadas: PACKAGE_WEIGHT e SELLER_PACKAGE_WEIGHT da 
 Ind retornam pesos diferentes; o mapeamento das colunas segue a escolha do usuário.
 O HTTP 400 de um anúncio encerrado retornou `Item status is not allowed (closed)`;
 anúncios com status closed agora são marcados como não aplicáveis sem consultar promoções.
+Nos demais oito anúncios afetados foi identificado status under_review; a resposta
+autenticada confirmou `Item status is not allowed (under_review)`. Também são excluídos
+da consulta/contador, com indicação de que a participação promocional está indisponível
+durante a análise. Um sale_price com metadados antigos não os transforma em oferta ativa.
 Um anúncio ativo retornou HTTP 409 na consulta de campanhas, mas sale_price confirmou
 amount 221.81, regular_amount 299 e metadata.promotion_id no contexto channel_marketplace.
 O preço vencedor tem sua própria data/erro no snapshot e pode ser mostrado com aviso
