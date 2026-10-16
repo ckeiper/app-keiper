@@ -1,5 +1,6 @@
 """Real PostgreSQL/Flask checks, on the same disposable database as sales CI."""
 import os
+import json
 import time
 import unittest
 from unittest.mock import patch
@@ -153,6 +154,82 @@ class OverviewIntegrationTests(unittest.TestCase):
         response=self.client.get('/painel?periodo=invalid')
         self.assertEqual(response.status_code,200)
         self.assertIn('Selecione 7, 15, 30, 60 ou 90 dias',response.get_data(as_text=True))
+
+    def test_fifteen_percent_alert_boundary_through_home_dashboard(self):
+        cid = self.ids[0]
+        # Previous: 25 x R$10 = R$250; current: 10 x R$21.25 = R$212.50.
+        for unit_total, expected in [('21.25', True), ('21.251', False)]:
+            with self.subTest(unit_total=unit_total):
+                with self.m.banco() as conn:
+                    self.m.executar(conn, "UPDATE pedidos SET total=%s WHERE conexao_id=%s AND pedido_id LIKE %s",
+                                    (unit_total, cid, 'c%'))
+                with patch.object(self.m.requests, 'get', side_effect=AssertionError('unexpected API read')), \
+                     patch.object(self.m, 'enfileirar_atualizacao') as enqueue:
+                    response = self.client.get(self.url)
+                    enqueue.assert_not_called()
+                self.assertEqual(response.status_code, 200)
+                view = response.get_data(as_text=True)
+                self.assertEqual('Faturamento caiu 15.0%' in view, expected)
+                self.assertIn('pelo menos 15%', view)
+
+    def test_home_sales_listings_and_promotions_coexist_after_main_update(self):
+        from listing_details import normalize_promotions, registered_weights
+        m, cid = self.m, self.ids[0]
+        weights = registered_weights({'attributes': [
+            {'id': 'PACKAGE_WEIGHT', 'value_name': '1000 g'},
+            {'id': 'SELLER_PACKAGE_WEIGHT', 'value_name': '1250 g'}]})
+        snapshot = {'checked_at': int(time.time()), 'error': None,
+                    'promotions': normalize_promotions([{'id': 'MERGE-PROMO', 'type': 'SELLER_CAMPAIGN',
+                        'status': 'started', 'price': 80, 'original_price': 100}]),
+                    'sale_price': {'checked_at': int(time.time()), 'error': None,
+                        'data': {'amount': 80, 'regular_amount': 100, 'currency_id': 'BRL',
+                                 'metadata': {'promotion_id': 'MERGE-OFFER'}}}}
+        with m.banco() as conn:
+            m.executar(conn, '''INSERT INTO anuncios
+                (conexao_id,item_id,titulo,preco,status,peso,pesos_json,promocoes_json,quantidade)
+                VALUES (%s,%s,%s,100,'active',1.25,%s,%s,5)''',
+                (cid, 'MLBMERGE', 'Anúncio integrado', json.dumps(weights), json.dumps(snapshot)))
+            m.executar(conn, '''INSERT INTO promocoes (conexao_id,promocao_id,tipo,nome,status)
+                VALUES (%s,'MERGE-PROMO','SELLER_CAMPAIGN','Campanha integrada','active')''', (cid,))
+            m.executar(conn, '''INSERT INTO promocoes_itens
+                (conexao_id,item_id,promocao_id,preco_promocional)
+                VALUES (%s,'MLBMERGE','MERGE-PROMO',80)''', (cid,))
+        try:
+            with patch.object(m.requests, 'get', side_effect=AssertionError('unexpected API read')), \
+                 patch.object(m.requests, 'post', side_effect=AssertionError('unexpected API write')), \
+                 patch.object(m, 'enfileirar_atualizacao', return_value=True):
+                home = self.client.get('/')
+                self.assertEqual(home.status_code, 302)
+                self.assertEqual(home.headers['Location'], '/painel')
+                initial = self.client.get(self.url)
+                self.assertEqual(initial.status_code, 200)
+                self.assertIn('Visão Geral 2.0', initial.get_data(as_text=True))
+                self.assertEqual(self.client.get('/painel/legado').status_code, 200)
+                sales = self.client.get(self.url.replace('/painel?', f'/vendas/{cid}?'))
+                self.assertEqual(sales.status_code, 200)
+                self.assertIn('R$ 100,00', sales.get_data(as_text=True))
+                listing = self.client.get(f'/anuncios/{cid}')
+                self.assertEqual(listing.status_code, 200)
+                listing_html = listing.get_data(as_text=True)
+                for value in ('Peso cadastrado', 'Peso logístico', 'PACKAGE_WEIGHT',
+                              'SELLER_PACKAGE_WEIGHT', 'Por R$ 80,00', 'Anúncio: 1 kg', 'Anúncio: 1.25 kg'):
+                    self.assertIn(value, listing_html)
+                self.assertNotIn('<details open', listing_html)
+                campaigns = self.client.get(f'/promocoes/{cid}')
+                self.assertEqual(campaigns.status_code, 200)
+                self.assertIn('Campanha integrada', campaigns.get_data(as_text=True))
+                for path in (self.url, f'/vendas/{cid}', f'/anuncios/{cid}', f'/promocoes/{cid}'):
+                    self.assertEqual(m.app.test_client().get(path).status_code, 302)
+                with self.client.session_transaction() as session:
+                    session.update(tipo='cliente', conexao_id=self.ids[1])
+                for path in (f'/vendas/{cid}', f'/anuncios/{cid}', f'/promocoes/{cid}'):
+                    denied = self.client.get(path).get_data(as_text=True)
+                    self.assertIn('Acesso restrito', denied)
+                    self.assertNotIn('Anúncio integrado', denied)
+        finally:
+            with m.banco() as conn:
+                for table in ('promocoes_itens', 'promocoes', 'anuncios'):
+                    m.executar(conn, 'DELETE FROM ' + table + ' WHERE conexao_id=%s', (cid,))
 
 
 if __name__=='__main__':

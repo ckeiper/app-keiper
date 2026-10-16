@@ -103,3 +103,21 @@ permissões, acesso anônimo, consultas em lote, teto de leitura, filtros e
 preservação da página antiga, atualização externa que não libera períodos
 antigos, limites de 3/48 horas, recuperação de erros por seleção e contrato DOM,
 persistência e permissões de renomeação. A API de produção não é acionada nos testes.
+
+## Atualização com a main de 16/10/2026
+
+Branch atualizada com `0838195616f659ae35cbf5a74c7c667f6740a0e2`, incluindo o
+PR #3 e os ajustes posteriores de Anúncios/Promoções/Pesos (#4–#6). A integração
+combina os imports, mantém `/painel` como Visão Geral 2.0 e preserva a página
+anterior em `/painel/legado`, a assinatura compatível dos filtros de Vendas e o
+encerramento idempotente do scheduler na preparação das suítes.
+
+Regressões de PostgreSQL/Flask exercitam juntos o redirecionamento da raiz, painel
+inicial, legado, Vendas, Anúncios com preço efetivo e colunas PACKAGE_WEIGHT /
+SELLER_PACKAGE_WEIGHT, Promoções e permissões, sem consultas à API. O teste de
+limite pelo painel confirma alerta para queda de exatamente 15% (R$250 para
+R$212,50) e ausência de alerta para queda inferior a 15%, mesmo quando a formatação
+arredonda a variação exibida para 15,0%.
+
+Esta atualização altera somente a branch do PR #2. Não faz merge na main,
+não altera o Render e não publica a aplicação.
