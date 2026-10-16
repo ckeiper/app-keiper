@@ -15,6 +15,7 @@ from listing_diagnostics import inspect_listing
 from sales_sync import init_sales_schema, sync_orders
 from overview_store import init_overview_schema
 from sync_runner import run_stages
+from listing_pagination import listing_page
 from sales_view import render_sales
 from overview import load_overview, render_overview
 try:
@@ -2479,7 +2480,7 @@ def anuncios(cid):
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
         anuncios = consultar(conn, "SELECT * FROM anuncios "
-                                   "WHERE conexao_id=%s ORDER BY vendidos DESC", (cid,))
+                                   "WHERE conexao_id=%s ORDER BY vendidos DESC NULLS LAST, item_id", (cid,))
         erros = consultar(conn, "SELECT * FROM erros WHERE conexao_id=%s AND resolvido_em IS NULL", (cid,))
     if not c:
         return pagina("Não encontrada",
@@ -2500,6 +2501,7 @@ def anuncios(cid):
     com_estoque_zero = sum(1 for a in anuncios if (a["quantidade"] or 0) <= 0)
     com_fotos_baixas = sum(1 for a in anuncios if (a["fotos"] or 0) < 10)
     em_promocao = sum(1 for a in anuncios if a["item_id"] in itens_promocao)
+    pagina_anuncios, controles, navegacao_final = listing_page(anuncios, request.args, cid)
     corpo += ("<div class='grid' style='margin-bottom:18px'>"
               "<div class='stat'><div class='num'>" + str(total)
               + "</div><div class='lab'>Total de anúncios</div></div>"
@@ -2511,7 +2513,7 @@ def anuncios(cid):
               + "</div><div class='lab'>Em promoção</div></div>"
               "</div>")
     linhas_html = ""
-    for a in anuncios:
+    for a in pagina_anuncios:
         em_promo = a["item_id"] in itens_promocao
         st = str(a["status"])
         if st in ("active", "ACTIVE"):
@@ -2579,13 +2581,14 @@ def anuncios(cid):
               + str(total) + "</span></h2>"
               "<div class='sub'>Análises por produto — fotos, clips, promoção, "
               "tags e frete esperado</div>"
+              + controles +
               "<div style='overflow-x:auto'><table>"
               "<thead><tr><th>Anúncio</th><th>Preço</th><th>Promoção</th>"
               "<th>Estoque</th><th>Fotos</th><th>Clips</th><th>Status</th>"
               "<th>Tags</th><th>Vendidos</th><th title='PACKAGE_WEIGHT'>Peso cadastrado</th>"
               "<th title='SELLER_PACKAGE_WEIGHT'>Peso logístico<br><small>Declarado pelo vendedor</small></th>"
               "<th>Frete esperado</th></tr></thead>"
-              "<tbody>" + linhas_html + "</tbody></table></div>"
+              "<tbody>" + linhas_html + "</tbody></table></div>" + navegacao_final +
               "<div class='muted'>Frete esperado = estimativa pela "
               "tabela existente e peso do pacote disponível; não é uma cotação de frete. Cadastre os custos na "
               "<a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a> "

@@ -10,6 +10,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import listing_details as details
+from listing_pagination import listing_page
 from listing_sync import sync_promotions, sync_campaign_cache, pages
 
 
@@ -376,6 +377,7 @@ class SyncTests(unittest.TestCase):
                    pesos_json=None, promocoes_json=None)
         query = Mock(side_effect=[[{'cliente': 'Loja'}], [row], []])
         namespace = dict(banco=self.banco, consultar=query, pode_ver_loja=lambda cid: True,
+                         listing_page=listing_page, request=SimpleNamespace(args={}),
                          pagina_loja=lambda *args: args[-1], ultima_atualizacao=lambda cid: None,
                          barra_atualizar=lambda *args: '', esc=html.escape, json=json,
                          render_promotions=details.render_promotions, read_json=details.read_json,
@@ -396,3 +398,4 @@ class SyncTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
