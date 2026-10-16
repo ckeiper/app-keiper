@@ -7,6 +7,9 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from apscheduler.schedulers.background import BackgroundScheduler
 from werkzeug.security import generate_password_hash, check_password_hash
+from listing_details import (registered_weights, legacy_weight, render_weights,
+                             render_promotions, active_promotions, read_json, get_json)
+from listing_sync import sync_promotions
 from sales_sync import init_sales_schema, sync_orders
 from sales_view import render_sales
 try:
@@ -560,6 +563,8 @@ def iniciar_banco():
             executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS original_price REAL")
         except Exception:
             pass
+        executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pesos_json TEXT")
+        executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS promocoes_json TEXT")
         executar(conn, """CREATE TABLE IF NOT EXISTS pedidos (
             id SERIAL PRIMARY KEY,
             conexao_id INTEGER, pedido_id TEXT, status TEXT,
@@ -2434,17 +2439,13 @@ def anuncios(cid):
         c = c[0] if c else None
         anuncios = consultar(conn, "SELECT * FROM anuncios "
                                    "WHERE conexao_id=%s ORDER BY vendidos DESC", (cid,))
-        promos_ativas = consultar(conn, """SELECT DISTINCT pi.item_id
-            FROM promocoes_itens pi
-            JOIN promocoes p ON p.conexao_id=pi.conexao_id
-              AND p.promocao_id=pi.promocao_id
-            WHERE pi.conexao_id=%s AND p.status IN ('active','ACTIVE')""", (cid,))
         erros = consultar(conn, "SELECT * FROM erros WHERE conexao_id=%s", (cid,))
     if not c:
         return pagina("Não encontrada",
                       "<div class='card'><h2>Loja não encontrada</h2></div>")
     ultima = ultima_atualizacao(cid)
-    itens_promocao = {r["item_id"] for r in promos_ativas}
+    itens_promocao = {a["item_id"] for a in anuncios
+                      if active_promotions(read_json(a.get("promocoes_json"), {}))}
     corpo = "<h2 style='margin-bottom:10px'>Anúncios</h2>" \
         + barra_atualizar(cid, ultima, "anuncios")
     if not anuncios:
@@ -2493,16 +2494,7 @@ def anuncios(cid):
             clips_html = "<span class='alerta atencao'>" + str(clips) + "</span>"
         else:
             clips_html = "<span class='alerta atencao'>0</span>"
-        op = a["original_price"]
-        preco_a = a["preco"] or 0
-        if op and preco_a and op > preco_a:
-            desc = round((op - preco_a) * 100.0 / op)
-            promo_html = ("<span class='tag promocao'>de R$ %.2f por R$ %.2f "
-                          "(-%d%%)</span>" % (op, preco_a, desc))
-        elif em_promo:
-            promo_html = "<span class='tag promocao'>Em promoção</span>"
-        else:
-            promo_html = "<span class='tag sem'>—</span>"
+        promo_html = render_promotions(a.get("promocoes_json"))
         tags = []
         try:
             tags = json.loads(a["tags"]) if a["tags"] else []
@@ -2519,10 +2511,7 @@ def anuncios(cid):
         if not tags_html:
             tags_html = "<span class='tag sem'>sem tags</span>"
         peso_kg = a["peso"]
-        if peso_kg:
-            peso_txt = "%.2f kg" % peso_kg
-        else:
-            peso_txt = "<span class='tag sem'>—</span>"
+        peso_txt = render_weights(a.get("pesos_json"))
         f = frete_esperado(a["preco"], peso_kg)
         if f is not None:
             frete_html = "<span class='alerta ok'>R$ %.2f</span>" % f
@@ -2540,6 +2529,7 @@ def anuncios(cid):
                         "<td>" + tags_html + "</td>"
                         "<td>" + str(a["vendidos"] or 0) + "</td>"
                         "<td>" + peso_txt + "</td>"
+                        "<td>Não disponível</td>"
                         "<td>" + frete_html + "</td>"
                         "</tr>")
     corpo += ("<div class='card'><h2>Lista de anúncios <span class='badge'>"
@@ -2549,11 +2539,11 @@ def anuncios(cid):
               "<div style='overflow-x:auto'><table>"
               "<thead><tr><th>Anúncio</th><th>Preço</th><th>Promoção</th>"
               "<th>Estoque</th><th>Fotos</th><th>Clips</th><th>Status</th>"
-              "<th>Tags</th><th>Vendidos</th><th>Peso</th>"
+              "<th>Tags</th><th>Vendidos</th><th>Peso cadastrado</th><th>Peso logístico</th>"
               "<th>Frete esperado</th></tr></thead>"
               "<tbody>" + linhas_html + "</tbody></table></div>"
-              "<div class='muted'>Frete esperado = custo do Mercado Livre pela "
-              "tabela oficial (peso × faixa de preço). Cadastre os custos na "
+              "<div class='muted'>Frete esperado = estimativa pela "
+              "tabela existente e peso cadastrado; não é o peso logístico nem uma cotação de frete. Cadastre os custos na "
               "<a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a> "
               "e veja a rentabilidade na <a class='link' href='/vendas/"
               + str(cid) + "'>tela de Vendas</a>.</div></div>")
@@ -3220,42 +3210,51 @@ def puxar_conta(conexao_id, token):
 
 def puxar_anuncios(conexao_id, token, user_id):
     ids = []
-    offset = 0
-    total = 50
-    while offset < 200 and offset <= total:
-        dados, erro = api_get(token,
-                              "/users/" + str(user_id) + "/items/search",
-                              {"limit": 50, "offset": offset})
-        if erro or not dados:
-            registrar_erro(conexao_id, "anuncios", erro or "sem resposta")
+    scroll = None
+    while True:
+        params = {"limit": 100, "search_type": "scan"}
+        if scroll:
+            params["scroll_id"] = scroll
+        dados, erro = get_json(token, "/users/" + str(user_id) + "/items/search", params, requests.get)
+        if not erro and scroll and isinstance(dados, dict) and dados.get("results") is None:
+            break  # Documented scan end sentinel.
+        if erro or not isinstance(dados, dict) or not isinstance(dados.get("results"), list):
+            registrar_erro(conexao_id, "anuncios", erro or "busca incompleta")
+            return
+        resultados = dados["results"]
+        if not resultados:
             break
-        resultados = dados.get("results") or []
+        if set(resultados).intersection(ids):
+            registrar_erro(conexao_id, "anuncios", "paginação repetida; dados anteriores preservados")
+            return
         ids.extend(resultados)
-        total = (dados.get("paging") or {}).get("total") or len(resultados)
-        offset += len(resultados)
-        if len(resultados) < 50:
+        novo_scroll = dados.get("scroll_id")
+        total = (dados.get("paging") or {}).get("total")
+        if total is not None and len(ids) >= total:
             break
+        if not novo_scroll:
+            if len(resultados) < 100:
+                break
+            registrar_erro(conexao_id, "anuncios", "paginação incompleta; dados anteriores preservados")
+            return
+        scroll = novo_scroll
     agora = int(time.time())
-    with banco() as conn:
-        atuais = set(ids)
-        velhos = [r["item_id"] for r in
-                  consultar(conn, "SELECT item_id FROM anuncios "
-                                  "WHERE conexao_id=%s", (conexao_id,))]
-        for v in velhos:
-            if v not in atuais:
-                executar(conn, "DELETE FROM anuncios WHERE conexao_id=%s "
-                               "AND item_id=%s", (conexao_id, v))
     linhas = []
     for i in range(0, len(ids), 20):
         lote = ids[i:i + 20]
-        dados, erro = api_get(token, "/items",
-                              {"ids": ",".join(lote)})
+        dados, erro = get_json(token, "/items",
+                              {"ids": ",".join(lote), "include_attributes": "all"}, requests.get)
         if erro or not isinstance(dados, list):
             registrar_erro(conexao_id, "anuncios",
                            erro or "lote sem resposta")
+            if erro and any(code in erro for code in ("HTTP 401", "HTTP 403", "HTTP 429")):
+                break
             continue
         for r in dados:
             if not isinstance(r, dict):
+                continue
+            if r.get("code", 200) != 200:
+                registrar_erro(conexao_id, "anuncios", "item indisponível HTTP " + str(r.get("code")))
                 continue
             det = r.get("body")
             if not isinstance(det, dict) or not det.get("id"):
@@ -3273,62 +3272,22 @@ def puxar_anuncios(conexao_id, token, user_id):
                 clips = 0
             tags = det.get("tags") or []
             original_price = det.get("original_price")
-            peso = None
-            shipping = det.get("shipping") or {}
-            dims = shipping.get("dimensions") or ""
-            if isinstance(dims, str) and "," in dims:
-                try:
-                    peso = float(dims.split(",")[-1].strip()) / 1000.0
-                except Exception:
-                    peso = None
-            if peso is None:
-                for st in (det.get("sale_terms") or []):
-                    if isinstance(st, dict) and str(st.get("id")) == "WEIGHT":
-                        try:
-                            vn = st.get("value_struct") or {}
-                            unidade = str(vn.get("unit") or "")
-                            if vn.get("number") is not None:
-                                peso = float(vn.get("number"))
-                                if unidade in ("g", "gr", "gramas"):
-                                    peso = peso / 1000.0
-                            else:
-                                txt = str(st.get("value_name") or "")
-                                peso = float(txt.replace(",", ".")
-                                             .replace("kg", "")
-                                             .replace("g", "").strip())
-                                if "kg" not in txt:
-                                    peso = peso / 1000.0
-                        except Exception:
-                            peso = None
-                        break
+            pesos = registered_weights(det)
+            peso = legacy_weight(pesos)
             linhas.append((conexao_id, det.get("id"), det.get("title"),
                            det.get("price"), det.get("available_quantity"),
                            det.get("status"), det.get("sold_quantity"),
                            agora, fotos, clips,
                            json.dumps(tags, ensure_ascii=False),
-                           peso, det.get("seller_custom_field"),
-                           original_price))
-            shipping = det.get("shipping") or {}
-            dims = shipping.get("dimensions") or ""
-            if isinstance(dims, str) and "," in dims:
-                try:
-                    peso = float(dims.split(",")[-1].strip()) / 1000.0
-                except Exception:
-                    peso = None
-            linhas.append((conexao_id, det.get("id"), det.get("title"),
-                           det.get("price"), det.get("available_quantity"),
-                           det.get("status"), det.get("sold_quantity"),
-                           agora, fotos, clips,
-                           json.dumps(tags, ensure_ascii=False),
-                           peso, det.get("seller_custom_field"),
-                           original_price))
+                           peso, det.get("seller_custom_field"), original_price,
+                           json.dumps(pesos, ensure_ascii=False)))
     with banco() as conn:
         for t in linhas:
             executar(conn, """INSERT INTO anuncios
                             (conexao_id, item_id, titulo, preco, quantidade,
                              status, vendidos, atualizado_em, fotos, clips,
-                             tags, peso, sku, original_price)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                             tags, peso, sku, original_price, pesos_json)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, item_id) DO UPDATE SET
                               titulo=EXCLUDED.titulo, preco=EXCLUDED.preco,
                               quantidade=EXCLUDED.quantidade,
@@ -3337,7 +3296,15 @@ def puxar_anuncios(conexao_id, token, user_id):
                               atualizado_em=EXCLUDED.atualizado_em,
                               fotos=EXCLUDED.fotos, clips=EXCLUDED.clips,
                               tags=EXCLUDED.tags, peso=EXCLUDED.peso,
-                              sku=EXCLUDED.sku, original_price=EXCLUDED.original_price""", t)
+                              sku=EXCLUDED.sku, original_price=EXCLUDED.original_price,
+                              pesos_json=EXCLUDED.pesos_json""", t)
+
+        velhos = consultar(conn, "SELECT item_id FROM anuncios WHERE conexao_id=%s", (conexao_id,))
+        atuais = set(ids)
+        for row in velhos:
+            if row["item_id"] not in atuais:
+                executar(conn, "DELETE FROM anuncios WHERE conexao_id=%s AND item_id=%s",
+                         (conexao_id, row["item_id"]))
 
 
 def puxar_metricas(conexao_id, token):
@@ -3419,128 +3386,9 @@ def puxar_envios(conexao_id, token, user_id):
                       agora))
 
 def puxar_promocoes(conexao_id, token, user_id):
-    # Endpoint novo do ML: /marketplace/seller-promotions (header version: v2).
-    cab = {"Authorization": "Bearer " + (token or ""), "version": "v2",
-           "X-Client-Id": str(CLIENT_ID or ""),
-           "X-Caller-Id": str(os.getenv("ML_CALLER_ID") or "")}
-    promos = []
-    busca = ""
-    for _ in range(10):
-        params = {"limit": 50}
-        if busca:
-            params["search_after"] = busca
-        try:
-            r = requests.get(API + "/marketplace/seller-promotions/users/"
-                             + str(user_id), headers=cab, params=params,
-                             timeout=30)
-        except Exception as e:
-            registrar_erro(conexao_id, "promocoes", repr(e)[:150])
-            return
-        if r.status_code != 200:
-            registrar_erro(conexao_id, "promocoes",
-                           "HTTP " + str(r.status_code) + ": " + r.text[:150])
-            return
-        dados = r.json()
-        resultados = dados.get("results") or []
-        promos.extend(resultados)
-        busca = (dados.get("paging") or {}).get("searchAfter") or ""
-        if not resultados or not busca:
-            break
-    agora = int(time.time())
-    with banco() as conn:
-        executar(conn, "DELETE FROM promocoes WHERE conexao_id=%s",
-                 (conexao_id,))
-        executar(conn, "DELETE FROM promocoes_itens WHERE conexao_id=%s",
-                 (conexao_id,))
-    mapa_status = {"started": "active", "pending": "candidate",
-                   "finished": "finished"}
-    for p in promos:
-        pid = str(p.get("id") or "")
-        if not pid:
-            continue
-        st_novo = str(p.get("status") or "")
-        st_banco = mapa_status.get(st_novo, st_novo)
-        with banco() as conn:
-            executar(conn, """INSERT INTO promocoes
-                            (conexao_id, promocao_id, tipo, nome, status,
-                             inicio, fim, qtd_itens, atualizado_em)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                            ON CONFLICT (conexao_id, promocao_id) DO UPDATE SET
-                              tipo=EXCLUDED.tipo, nome=EXCLUDED.nome,
-                              status=EXCLUDED.status,
-                              inicio=EXCLUDED.inicio, fim=EXCLUDED.fim,
-                              qtd_itens=EXCLUDED.qtd_itens,
-                              atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, pid, p.get("type"), p.get("name"),
-                      st_banco, p.get("start_date"), p.get("finish_date"),
-                      None, agora))
-        tipo_p = str(p.get("type") or "")
-        busca_i = ""
-        total_itens = 0
-        for _ in range(10):
-            params_i = {"user_id": str(user_id), "limit": 50,
-                        "status": "started"}
-            if tipo_p:
-                params_i["promotion_type"] = tipo_p
-            if busca_i:
-                params_i["search_after"] = busca_i
-            try:
-                r2 = requests.get(API + "/marketplace/seller-promotions/"
-                                  "promotions/" + pid + "/items",
-                                  headers=cab, params=params_i, timeout=30)
-            except Exception:
-                break
-            if r2.status_code != 200:
-                registrar_erro(conexao_id, "promocoes",
-                               "itens " + pid + " HTTP "
-                               + str(r2.status_code) + ": " + r2.text[:100])
-                if "promotion_type" in params_i:
-                    params_i.pop("promotion_type")
-                    try:
-                        r2 = requests.get(API
-                                          + "/marketplace/seller-promotions/"
-                                          "promotions/" + pid + "/items",
-                                          headers=cab, params=params_i,
-                                          timeout=30)
-                    except Exception:
-                        break
-                    if r2.status_code != 200:
-                        break
-                else:
-                    break
-                break
-            dados_i = r2.json()
-            itens = dados_i.get("results") or []
-            with banco() as conn:
-                for it in itens:
-                    if str(it.get("status") or "") != "started":
-                        continue
-                    item_id = it.get("id")
-                    if not item_id:
-                        continue
-                    total_itens += 1
-                    executar(conn, """INSERT INTO promocoes_itens
-                            (conexao_id, item_id, promocao_id,
-                             preco_promocional, atualizado_em)
-                            VALUES (%s,%s,%s,%s,%s)
-                            ON CONFLICT (conexao_id, item_id, promocao_id)
-                            DO UPDATE SET
-                              preco_promocional=EXCLUDED.preco_promocional,
-                              atualizado_em=EXCLUDED.atualizado_em""",
-                             (conexao_id, str(item_id), pid,
-                              it.get("price"), agora))
-                    op = it.get("original_price")
-                    if op and float(op) > 0:
-                        executar(conn, "UPDATE anuncios SET original_price=%s "
-                                       "WHERE conexao_id=%s AND item_id=%s",
-                                 (op, conexao_id, str(item_id)))
-            busca_i = (dados_i.get("paging") or {}).get("searchAfter") or ""
-            if not itens or not busca_i:
-                break
-        with banco() as conn:
-            executar(conn, "UPDATE promocoes SET qtd_itens=%s "
-                           "WHERE conexao_id=%s AND promocao_id=%s",
-                     (total_itens, conexao_id, pid))
+    return sync_promotions(conexao_id, token, banco, consultar, executar,
+                           requests.get, registrar_erro, user_id=user_id)
+
 
 def puxar_ads(conexao_id, token, user_id):
     hoje = datetime.date.today().isoformat()
