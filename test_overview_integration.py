@@ -250,6 +250,31 @@ class OverviewIntegrationTests(unittest.TestCase):
             m.executar(conn,'UPDATE vendas_cobertura SET atualizado_em=%s WHERE conexao_id=%s',(now,cid))
         self.assertEqual(load_overview(shops,args,m.banco,m.consultar)['included'],1)
 
+    def test_aggregation_coverage_errors_and_exception_pages_share_snapshot(self):
+        from overview import load_overview
+        m=self.m
+        cid=self.ids[0]
+        updated=False
+        def query(conn,sql,params):
+            nonlocal updated
+            rows=m.consultar(conn,sql,params)
+            if not updated:
+                updated=True
+                with m.banco() as writer:
+                    m.executar(writer,"INSERT INTO erros VALUES(%s,'pedidos','concurrent',%s)",(cid,int(time.time())+10))
+                    m.executar(writer,'''INSERT INTO pedidos
+                        (conexao_id,pedido_id,status,total,moeda,criado_em,vendas_verificado_em)
+                        VALUES(%s,'concurrent','paid',100,'BRL','unknown',1)''',(cid,))
+            return rows
+        shops=[dict(id=cid,cliente='A',status='ativa')]
+        args=dict(periodo='personalizado',inicio='2026-10-10',fim='2026-10-11')
+        first=load_overview(shops,args,m.banco,query)
+        self.assertEqual(first['included'],1)
+        self.assertEqual(first['reports'][0]['current']['unallocated_dates'],0)
+        second=load_overview(shops,args,m.banco,m.consultar)
+        self.assertEqual(second['included'],0)
+        self.assertEqual(second['reports'][0]['current']['unallocated_dates'],1)
+
     def test_fresh_external_day_does_not_unblock_stale_selection(self):
         from overview import HISTORICAL_STALE_SECONDS
         with self.m.banco() as conn:

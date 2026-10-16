@@ -106,6 +106,10 @@ no período por loja), histórico externo, paginação de exceções, paridade c
 sales_metrics para pagamentos/valores/datas, 30 mil registros de erros e sucesso
 parcial. EXPLAIN ANALYZE com BUFFERS verifica o índice da janela seletiva no
 PostgreSQL descartável; isso não é uma medição da latência em produção.
+Na execução 38896966440, o plano seletivo usou idx_overview_orders_day,
+retornou 25 linhas e acessou quatro blocos em cache, sem varrer os 102 mil
+registros inseridos. O teste de concorrência confirma que agregação, cobertura,
+erros e páginas de exceções não incorporam escritas posteriores ao snapshot.
 
 Persistem os limites da etapa 1: janela automática de 180 dias, carga gradual,
 ausência de fonte confiável para devoluções/reembolsos e falta de cobertura para
@@ -118,7 +122,7 @@ presumidas como pertencentes a todos os períodos.
 `KEIPER_TEST_DATABASE_URL` apontando a banco descartável, como no workflow
 `Sales tests`. Cobrem coorte consistente, ticket ponderado, limites inclusivos,
 base zero, prioridade financeira, integridade, cobertura, atualização obsoleta,
-permissões, acesso anônimo, consultas em lote, teto de leitura, filtros e
+permissões, acesso anônimo, consultas em lote, históricos grandes, filtros e
 preservação da página antiga, atualização externa que não libera períodos
 antigos, limites de 3/48 horas, recuperação de erros por seleção e contrato DOM,
 persistência e permissões de renomeação. A API de produção não é acionada nos testes.
