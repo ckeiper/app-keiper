@@ -14,6 +14,7 @@ from listing_sync import sync_promotions
 from listing_diagnostics import inspect_listing
 from sales_sync import init_sales_schema, sync_orders
 from overview_store import init_overview_schema
+from sync_runner import run_stages
 from sales_view import render_sales
 from overview import load_overview, render_overview
 try:
@@ -648,6 +649,7 @@ def iniciar_banco():
             conexao_id INTEGER, categoria TEXT, mensagem TEXT, quando BIGINT,
             PRIMARY KEY (conexao_id, categoria)
         )""")
+        executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
         init_overview_schema(conn, executar)
         # ---------- AUTENTICAÇÃO ----------
 
@@ -1394,7 +1396,7 @@ def executar_atualizacao_bg(cid):
         executar_atualizacao(cid)
     except Exception as e:
         try:
-            registrar_erro(cid, "atualizacao", str(e)[:200])
+            registrar_erro(cid, "atualizacao", "Falha na atualização: " + type(e).__name__)
         except Exception:
             pass
     finally:
@@ -1437,15 +1439,18 @@ def diagnostico():
               "<th>Última atualização</th></tr></thead><tbody>"
               + linhas + "</tbody></table></div>")
     linhas_e = ""
+    nomes = {loja["id"]: loja["cliente"] for loja in lojas}
     for e in erros:
-        linhas_e += ("<tr><td>" + esc(str(e["categoria"])) + "</td>"
+        estado = "Resolvido em " + hora_br(e["resolvido_em"]) if e.get("resolvido_em") else "Pendente"
+        linhas_e += ("<tr><td>" + esc(str(nomes.get(e["conexao_id"], "Loja indisponível"))) + "</td><td>"
+                     + esc(estado) + "</td><td>" + esc(str(e["categoria"])) + "</td>"
                      "<td>" + esc(str(e["mensagem"])) + "</td><td>"
                      + hora_br(e["quando"]) + "</td></tr>")
     if not linhas_e:
-        linhas_e = ("<tr><td colspan='3'><span class='alerta ok'>"
+        linhas_e = ("<tr><td colspan='5'><span class='alerta ok'>"
                     "Nenhum erro registrado</span></td></tr>")
     corpo += ("<div class='card'><h2>Erros de atualização</h2>"
-              "<table><thead><tr><th>Categoria</th><th>Mensagem</th>"
+              "<table><thead><tr><th>Loja</th><th>Situação</th><th>Categoria</th><th>Mensagem</th>"
               "<th>Quando</th></tr></thead><tbody>"
               + linhas_e + "</tbody></table></div>")
     return pagina("Diagnóstico", corpo)
@@ -1477,8 +1482,11 @@ def processar_fila():
             cid = FILA_ATUALIZACAO[0]
         try:
             executar_atualizacao(cid)
-        except Exception:
-            pass
+        except Exception as exc:
+            try:
+                registrar_erro(cid, "atualizacao", "Falha na atualização: " + type(exc).__name__)
+            except Exception:
+                pass  # Keep draining other shops even when persistence is unavailable.
         with LOCK_FILA:
             try:
                 FILA_ATUALIZACAO.remove(cid)
@@ -2466,7 +2474,7 @@ def anuncios(cid):
         c = c[0] if c else None
         anuncios = consultar(conn, "SELECT * FROM anuncios "
                                    "WHERE conexao_id=%s ORDER BY vendidos DESC", (cid,))
-        erros = consultar(conn, "SELECT * FROM erros WHERE conexao_id=%s", (cid,))
+        erros = consultar(conn, "SELECT * FROM erros WHERE conexao_id=%s AND resolvido_em IS NULL", (cid,))
     if not c:
         return pagina("Não encontrada",
                       "<div class='card'><h2>Loja não encontrada</h2></div>")
@@ -3074,7 +3082,7 @@ def atualizar_tipo(tipo, cid):
         if tipo == "resumo":
             puxar_perguntas(c["id"], token, user_id)
             try:
-                puxar_ads_dia(c["id"], token, user_id)
+                puxar_ads(c["id"], token, user_id)
             except Exception:
                 pass
         if tipo == "promocoes":
@@ -3082,7 +3090,6 @@ def atualizar_tipo(tipo, cid):
         if tipo == "campanhas":
             try:
                 puxar_ads(c["id"], token, user_id)
-                puxar_ads_dia(c["id"], token, user_id)
             except Exception:
                 pass
     if tipo in ("resumo", "desempenho"):
@@ -3112,11 +3119,7 @@ def atualizar():
     if not pode_ver_loja(c["id"]):
         return pagina("Acesso negado",
                       "<div class='card'><h2>Acesso restrito</h2></div>")
-    ok = executar_atualizacao(c["id"])
-    if not ok:
-        return pagina("Erro",
-                      "<div class='card'><h2>Falha ao renovar o token</h2>"
-                      "<p>Tente conectar a loja novamente.</p></div>")
+    enfileirar_atualizacao(c["id"])
     if cid:
         return redirect("/painel/" + str(cid))
     return redirect("/painel")
@@ -3190,9 +3193,18 @@ def registrar_erro(conexao_id, categoria, mensagem):
                         VALUES (%s,%s,%s,%s)
                         ON CONFLICT (conexao_id, categoria)
                         DO UPDATE SET mensagem=EXCLUDED.mensagem,
-                          quando=EXCLUDED.quando""",
+                          quando=EXCLUDED.quando, resolvido_em=NULL""",
                  (conexao_id, categoria, (mensagem or "")[:300],
                   int(time.time())))
+
+
+
+def resolver_erro(cid, categoria, iniciado_em):
+    # A concurrent/new error is not cleared by an older successful collection.
+    with banco() as conn:
+        executar(conn, """UPDATE erros SET resolvido_em=%s
+            WHERE conexao_id=%s AND categoria=%s AND quando < %s
+            AND resolvido_em IS NULL""", (int(time.time()),cid,categoria,iniciado_em))
 
 
 def gravar_historico(conexao_id):
@@ -3223,7 +3235,7 @@ def puxar_conta(conexao_id, token):
     dados, erro = api_get(token, "/users/me")
     if erro or not dados:
         registrar_erro(conexao_id, "conta", erro or "sem resposta")
-        return
+        return False
     rep = dados.get("seller_reputation") or {}
     metricas = rep.get("metrics") or {}
     sales = metricas.get("sales") or {}
@@ -3244,6 +3256,8 @@ def puxar_conta(conexao_id, token):
                   dados.get("first_name"), dados.get("last_name"),
                   rep.get("level_id"), pontos, int(time.time())))
 
+    return True
+
 
 def puxar_anuncios(conexao_id, token, user_id):
     ids = []
@@ -3257,13 +3271,13 @@ def puxar_anuncios(conexao_id, token, user_id):
             break  # Documented scan end sentinel.
         if erro or not isinstance(dados, dict) or not isinstance(dados.get("results"), list):
             registrar_erro(conexao_id, "anuncios", erro or "busca incompleta")
-            return
+            return False
         resultados = dados["results"]
         if not resultados:
             break
         if set(resultados).intersection(ids):
             registrar_erro(conexao_id, "anuncios", "paginação repetida; dados anteriores preservados")
-            return
+            return False
         ids.extend(resultados)
         novo_scroll = dados.get("scroll_id")
         total = (dados.get("paging") or {}).get("total")
@@ -3273,10 +3287,11 @@ def puxar_anuncios(conexao_id, token, user_id):
             if len(resultados) < 100:
                 break
             registrar_erro(conexao_id, "anuncios", "paginação incompleta; dados anteriores preservados")
-            return
+            return False
         scroll = novo_scroll
     agora = int(time.time())
     linhas = []
+    completo = True
     for i in range(0, len(ids), 20):
         lote = ids[i:i + 20]
         dados, erro = get_json(token, "/items",
@@ -3284,17 +3299,21 @@ def puxar_anuncios(conexao_id, token, user_id):
         if erro or not isinstance(dados, list):
             registrar_erro(conexao_id, "anuncios",
                            erro or "lote sem resposta")
+            completo = False
             if erro and any(code in erro for code in ("HTTP 401", "HTTP 403", "HTTP 429")):
                 break
             continue
         for r in dados:
             if not isinstance(r, dict):
+                completo = False
                 continue
             if r.get("code", 200) != 200:
+                completo = False
                 registrar_erro(conexao_id, "anuncios", "item indisponível HTTP " + str(r.get("code")))
                 continue
             det = r.get("body")
             if not isinstance(det, dict) or not det.get("id"):
+                completo = False
                 continue
             fotos = 0
             pics = det.get("pictures")
@@ -3342,6 +3361,7 @@ def puxar_anuncios(conexao_id, token, user_id):
             if row["item_id"] not in atuais:
                 executar(conn, "DELETE FROM anuncios WHERE conexao_id=%s AND item_id=%s",
                          (conexao_id, row["item_id"]))
+    return completo
 
 
 def puxar_metricas(conexao_id, token):
@@ -3353,7 +3373,7 @@ def puxar_perguntas(conexao_id, token, user_id):
                            "limit": 50})
     if erro or not dados:
         registrar_erro(conexao_id, "perguntas", erro or "sem resposta")
-        return
+        return False
     perguntas = dados.get("questions") or []
     agora = int(time.time())
     with banco() as conn:
@@ -3376,6 +3396,8 @@ def puxar_perguntas(conexao_id, token, user_id):
                       q.get("text"), q.get("status"), resp.get("text"),
                       q.get("date_created"), agora))
 
+    return True
+
 
 def puxar_envios(conexao_id, token, user_id):
     # O antigo /shipments/search foi desativado pelo ML.
@@ -3385,9 +3407,10 @@ def puxar_envios(conexao_id, token, user_id):
                            "limit": 50})
     if erro or not dados:
         registrar_erro(conexao_id, "envios", erro or "sem resposta")
-        return
+        return False
     resultados = dados.get("results") or []
     agora = int(time.time())
+    completo = True
     pares = []
     for o in resultados:
         ship = o.get("shipping") or {}
@@ -3404,6 +3427,8 @@ def puxar_envios(conexao_id, token, user_id):
     for oid, sid in pares:
         det, det_erro = api_get(token, "/shipments/" + sid)
         if det_erro or not det:
+            completo = False
+            registrar_erro(conexao_id, "envios", det_erro or "envio sem resposta")
             continue
         with banco() as conn:
             executar(conn, """INSERT INTO envios
@@ -3421,6 +3446,8 @@ def puxar_envios(conexao_id, token, user_id):
                       det.get("tracking_number"), oid,
                       det.get("date_created"), det.get("cost_to_seller"),
                       agora))
+    return completo
+
 
 def puxar_promocoes(conexao_id, token, user_id):
     return sync_promotions(conexao_id, token, banco, consultar, executar,
@@ -3599,29 +3626,31 @@ def puxar_pedidos(conexao_id, token, user_id):
 
 def executar_atualizacao(cid):
     with banco() as conn:
-        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        c = c[0] if c else None
-    if not c:
+        rows = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+    if not rows:
         return False
+    c = rows[0]
     token = token_atual(c)
     if not token:
         return False
+    started = int(time.time())
     user_id = c["user_id"]
-    puxar_conta(c["id"], token)
+    stages = [("conta", lambda: puxar_conta(cid, token))]
     if user_id:
-        puxar_anuncios(c["id"], token, user_id)
-        puxar_pedidos(c["id"], token, user_id)
-        puxar_metricas(c["id"], token)
-        puxar_perguntas(c["id"], token, user_id)
-        puxar_envios(c["id"], token, user_id)
-        puxar_promocoes(c["id"], token, user_id)
-        try:
-            puxar_ads(c["id"], token, user_id)
-            puxar_ads_dia(c["id"], token, user_id)
-        except Exception:
-            pass
-    gravar_historico(c["id"])
-    return True
+        stages.extend([
+            ("anuncios", lambda: puxar_anuncios(cid, token, user_id)),
+            ("pedidos", lambda: puxar_pedidos(cid, token, user_id)),
+            ("perguntas", lambda: puxar_perguntas(cid, token, user_id)),
+            ("envios", lambda: puxar_envios(cid, token, user_id)),
+            ("promocoes", lambda: puxar_promocoes(cid, token, user_id)),
+            ("ads", lambda: puxar_ads(cid, token, user_id)),
+        ])
+    # puxar_ads already refreshes daily metrics. No second/undefined collector.
+    # Disabled visit collection is not reported as a successful refresh.
+    stages.append(("historico", lambda: (gravar_historico(cid), True)[1]))
+    ok = run_stages(cid, stages, registrar_erro, resolver_erro, time.time)
+    resolver_erro(cid, "atualizacao", started)
+    return ok
 
 
 def executar_atualizacao_bg(cid):
@@ -3629,7 +3658,7 @@ def executar_atualizacao_bg(cid):
         executar_atualizacao(cid)
     except Exception as e:
         try:
-            registrar_erro(cid, "atualizacao", str(e)[:200])
+            registrar_erro(cid, "atualizacao", "Falha na atualização: " + type(e).__name__)
         except Exception:
             pass
     finally:
@@ -3639,26 +3668,11 @@ def executar_atualizacao_bg(cid):
 
 def job_dados():
     with banco() as conn:
-        conexoes = consultar(conn, "SELECT * FROM conexoes "
-                                   "WHERE status='ativa'")
+        conexoes = consultar(conn, "SELECT id FROM conexoes WHERE status='ativa'")
     for c in conexoes:
-        token = token_atual(c)
-        if not token:
-            continue
-        puxar_conta(c["id"], token)
-        if c["user_id"]:
-            puxar_anuncios(c["id"], token, c["user_id"])
-            puxar_pedidos(c["id"], token, c["user_id"])
-            puxar_metricas(c["id"], token)
-            puxar_perguntas(c["id"], token, c["user_id"])
-            puxar_envios(c["id"], token, c["user_id"])
-            puxar_promocoes(c["id"], token, c["user_id"])
-            try:
-                puxar_ads(c["id"], token, c["user_id"])
-                puxar_ads_dia(c["id"], token, c["user_id"])
-            except Exception:
-                pass
-        gravar_historico(c["id"])
+        # Use the existing queue so the scheduler does not abort subsequent shops
+        # or overlap a collection already queued from the dashboard.
+        enfileirar_atualizacao(c["id"])
 
 
 iniciar_banco()
