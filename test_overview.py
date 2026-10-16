@@ -162,6 +162,9 @@ class OverviewTests(unittest.TestCase):
 
     def test_loader_uses_batched_authorized_bounded_snapshot(self):
         class Conn:
+            def cursor(self):
+                from unittest.mock import MagicMock
+                return MagicMock()
             def set_session(self,**kwargs):
                 self.options=kwargs
         conn=Conn()

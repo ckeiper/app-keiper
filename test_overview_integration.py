@@ -69,6 +69,20 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertNotIn('conversão',view)
         self.assertIn('/painel/legado',view)
 
+    def test_slow_overview_cancels_without_partial_totals_and_recovers(self):
+        original = self.m.consultar
+        def slow(conn, sql, params=None):
+            if 'WITH candidates AS MATERIALIZED' in sql:
+                return original(conn, 'SELECT pg_sleep(1)', ())
+            return original(conn, sql, params)
+        with patch('overview_read.READ_SECONDS', .05), patch.object(self.m, 'consultar', side_effect=slow):
+            response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        view = response.get_data(as_text=True)
+        self.assertIn('Nenhum total parcial', view)
+        self.assertNotIn('R$ 400,00', view)
+        self.assertIn('R$ 400,00', self.client.get(self.url).get_data(as_text=True))
+
     def test_customer_only_reads_and_sees_assigned_shop(self):
         with self.client.session_transaction() as session:
             session['tipo']='cliente'
