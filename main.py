@@ -9,7 +9,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from werkzeug.security import generate_password_hash, check_password_hash
 from listing_details import (registered_weights, legacy_weight, render_weights,
                              render_promotions, active_promotions, read_json, get_json,
-                             render_weight_column)
+                             render_weight_column, effective_promotion)
 from listing_sync import sync_promotions
 from listing_diagnostics import inspect_listing
 from sales_sync import init_sales_schema, sync_orders
@@ -479,7 +479,8 @@ def barra_atualizar(cid, ultima, tipo="resumo"):
             "🔄 Atualizar agora</a>"
             "<span style='color:#6b7280;font-size:13px'>"
             "Última atualização: " + ult_txt + "</span>"
-            "</div>")
+            + ("<span class='muted'>Atualização em andamento; recarregue em instantes.</span>"
+               if cid in ATUALIZANDO else "") + "</div>")
 
 
 def ultima_atualizacao(cid):
@@ -2447,7 +2448,8 @@ def anuncios(cid):
                       "<div class='card'><h2>Loja não encontrada</h2></div>")
     ultima = ultima_atualizacao(cid)
     itens_promocao = {a["item_id"] for a in anuncios
-                      if active_promotions(read_json(a.get("promocoes_json"), {}))}
+                      if (active_promotions(read_json(a.get("promocoes_json"), {}))
+                          or effective_promotion(read_json(a.get("promocoes_json"), {})))}
     corpo = "<h2 style='margin-bottom:10px'>Anúncios</h2>" \
         + barra_atualizar(cid, ultima, "anuncios")
     if not anuncios:
@@ -3029,6 +3031,13 @@ def atualizar_tipo(tipo, cid):
         return pagina("Erro",
                       "<div class='card'><h2>Falha ao renovar o token</h2></div>")
     user_id = c["user_id"]
+    if tipo in ("anuncios", "promocoes") and user_id:
+        with LOCK_ATUALIZACAO:
+            if cid not in ATUALIZANDO:
+                ATUALIZANDO.add(cid)
+                threading.Thread(target=atualizar_anuncios_bg,
+                                 args=(cid, token, user_id, tipo), daemon=True).start()
+        return redirect("/" + tipo + "/" + str(cid))
     if user_id:
         if tipo in ("resumo", "vendas"):
             puxar_pedidos(c["id"], token, user_id)
@@ -3392,6 +3401,18 @@ def puxar_envios(conexao_id, token, user_id):
 def puxar_promocoes(conexao_id, token, user_id):
     return sync_promotions(conexao_id, token, banco, consultar, executar,
                            requests.get, registrar_erro, user_id=user_id)
+
+
+def atualizar_anuncios_bg(cid, token, user_id, tipo):
+    try:
+        if tipo == "anuncios":
+            puxar_anuncios(cid, token, user_id)
+        puxar_promocoes(cid, token, user_id)
+    except Exception as exc:
+        registrar_erro(cid, "anuncios_atualizacao", "Falha na atualização: " + type(exc).__name__)
+    finally:
+        with LOCK_ATUALIZACAO:
+            ATUALIZANDO.discard(cid)
 
 
 @app.route("/diagnostico/anuncios/<int:cid>/<item_id>")

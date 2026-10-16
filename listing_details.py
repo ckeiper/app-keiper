@@ -217,28 +217,83 @@ def active_promotions(snapshot):
     return [p for p in snapshot.get('promotions', []) if promotion_status(p) == 'active']
 
 
+def effective_promotion(snapshot):
+    if not snapshot or snapshot.get('not_applicable'):
+        return None
+    price = snapshot.get('sale_price') or {}
+    if time.time() - price.get('checked_at', 0) > 7200 or price.get('error'):
+        return None
+    data = price.get('data') or {}
+    metadata = data.get('metadata') or {}
+    original, amount = positive(data.get('regular_amount')), positive(data.get('amount'))
+    # Only the official sale_price response with promotional metadata proves
+    # the effective offer. Never infer from items.price or pick the lowest campaign.
+    if (data.get('currency_id') != 'BRL' or not metadata.get('promotion_id')
+            or not original or not amount or amount >= original):
+        return None
+    return {'original': original, 'price': amount,
+            'discount': round((original - amount) * 100 / original, 2), 'metadata': metadata}
+
+
+def br_money(value):
+    return 'R$ ' + ('%.2f' % value).replace('.', ',')
+
+
+def display_date(value):
+    if not value:
+        return 'não informada'
+    try:
+        date = datetime.datetime.fromisoformat(value.replace('Z', '+00:00'))
+        return date.strftime('%d/%m/%Y %H:%M')
+    except (ValueError, TypeError, AttributeError):
+        return str(value)
+
+
 def render_promotions(value):
     snap = read_json(value, {})
     if not snap:
         return 'Não verificado — atualize os anúncios'
-    if snap.get('error'):
+    if snap.get('not_applicable'):
+        return html.escape(snap['not_applicable'])
+    winner = effective_promotion(snap)
+    if snap.get('error') and not winner:
         return html.escape('Não disponível — ' + snap['error']) + '<br>Dados anteriores não confirmados'
-    if time.time() - snap.get('checked_at', 0) > 7200:
+    if not winner and time.time() - snap.get('checked_at', 0) > 7200:
         return 'Dados desatualizados — atualize os anúncios'
-    rows = []
-    for p in snap.get('promotions', []):
+    active = active_promotions(snap)
+    proposals = [p for p in snap.get('promotions', []) if p not in active] if not snap.get('error') else []
+    if winner:
+        summary = ('<b>Por ' + br_money(winner['price']) + '</b><br><small>De '
+                   + br_money(winner['original']) + ' · -' + str(winner['discount']).replace('.', ',')
+                   + '%</small>')
+    else:
+        summary = ('<b>' + str(len(active)) + ' promoção(ões) ativa(s)</b>') if active else 'Sem promoção ativa confirmada'
+    labels = {'PRICE_DISCOUNT': 'Desconto do vendedor', 'SELLER_CAMPAIGN': 'Campanha do vendedor',
+              'SELLER_COUPON_CAMPAIGN': 'Cupom do vendedor', 'SMART': 'Campanha cofinanciada',
+              'DEAL': 'Campanha Mercado Livre', 'DOD': 'Oferta do dia', 'LIGHTNING': 'Oferta relâmpago'}
+    states = {'active': 'Ativa', 'candidate': 'Disponível para aderir', 'pending': 'Agendada',
+              'finished': 'Finalizada'}
+    def detail(p):
         status = promotion_status(p)
-        status_text = status if status == p['status'] else status + ' (API: ' + p['status'] + ')'
-        parts = [p['origin'], p['type'], 'Status: ' + status_text]
-        for label, key in [('Original', 'original'), ('Promocional', 'price')]:
-            if key == 'price' and status != 'active':
-                label = 'Preço informado (não ativo)'
-            parts.append(label + ': ' + ('R$ %.2f' % p[key] if p.get(key) else 'Não disponível'))
-        parts.append('Desconto: ' + ('%.2f%%' % p['discount'] if p.get('discount') is not None else 'Não disponível'))
-        parts.append('Vigência: %s até %s' % (p.get('start') or 'Não disponível', p.get('end') or 'Não disponível'))
+        status_text = states.get(status, status)
+        if status != p['status']:
+            status_text += ' (API: ' + p['status'] + ')'
+        title = (p.get('raw') or {}).get('name') or labels.get(p['type'], p['type'])
+        parts = [title + ' · ' + status_text]
+        if p.get('original'):
+            parts.append('Original: ' + br_money(p['original']))
+        if p.get('price'):
+            parts.append(('Promocional: ' if status == 'active' else 'Proposta (não ativa): ') + br_money(p['price']))
+        if p.get('discount') is not None:
+            parts.append('Desconto: ' + ('%.2f%%' % p['discount']).replace('.', ','))
+        parts.append('Vigência: %s até %s' % (display_date(p.get('start')), display_date(p.get('end'))))
         if p.get('variation_id'):
             parts.append('Variação: ' + str(p['variation_id']))
-        else:
-            parts.append('Escopo: anúncio (API não discrimina variações)')
-        rows.append(html.escape(' | '.join(parts)))
-    return '<br>'.join(rows) or 'Sem promoções associadas'
+        return '<div style="margin:8px 0;padding:6px;border-top:1px solid #eee">' + '<br>'.join(html.escape(part) for part in parts) + '</div>'
+    if active:
+        summary += '<details><summary>Ver ' + str(len(active)) + ' promoção(ões) ativa(s)</summary>' + ''.join(detail(p) for p in active) + '</details>'
+    if proposals:
+        summary += '<details><summary>' + str(len(proposals)) + ' opção(ões) e outros status</summary>' + ''.join(detail(p) for p in proposals) + '</details>'
+    if snap.get('error'):
+        summary += '<details><summary>Campanhas não confirmadas</summary>' + html.escape(snap['error']) + '</details>'
+    return '<div style="min-width:190px;max-width:320px">' + summary + '</div>'

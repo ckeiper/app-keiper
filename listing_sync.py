@@ -68,14 +68,23 @@ def sync_campaign_cache(cid, token, user_id, banco, executar, request_get):
                     VALUES (%s,%s,%s,%s,%s)''', (cid, item_id, str(campaign['id']), item.get('price'), now))
 
 
-def sync_promotions(cid, token, banco, consultar, executar, request_get, registrar_erro, user_id=None):
+def sync_promotions(cid, token, banco, consultar, executar, request_get, registrar_erro, user_id=None, include_sale_price=True):
     with banco() as conn:
-        items = consultar(conn, 'SELECT item_id, promocoes_json FROM anuncios WHERE conexao_id=%s', (cid,))
+        items = consultar(conn, 'SELECT item_id, status, promocoes_json FROM anuncios WHERE conexao_id=%s', (cid,))
     now = int(time.time())
     snapshots = []
     circuit_error = None
+    price_circuit_error = None
     for item in items:
         item_id = item['item_id']
+        if str(item.get('status') or '').lower() == 'closed':
+            snap = {'checked_at': int(time.time()), 'error': None, 'promotions': [],
+                    'not_applicable': 'Anúncio encerrado — promoções não se aplicam'}
+            snapshots.append((item_id, snap))
+            with banco() as conn:
+                executar(conn, 'UPDATE anuncios SET promocoes_json=%s WHERE conexao_id=%s AND item_id=%s',
+                         (json.dumps(snap, ensure_ascii=False), cid, item_id))
+            continue
         error = circuit_error
         data = None
         if not error:
@@ -92,14 +101,24 @@ def sync_promotions(cid, token, banco, consultar, executar, request_get, registr
             snap = dict(read_json(item.get('promocoes_json'), {}))
             snap.update(error=error, attempted_at=now)
         else:
-            snap = {'checked_at': now, 'promotions': promotions, 'error': None,
+            snap = {'checked_at': int(time.time()), 'promotions': promotions, 'error': None,
                     'source': '/seller-promotions/items/' + item_id + '?app_version=v2'}
+        if include_sale_price:
+            price, price_error = None, price_circuit_error
+            if not price_error:
+                price, price_error = get_json(token, '/items/' + item_id + '/sale_price',
+                                              {'context': 'channel_marketplace'}, request_get)
+                if price_error and any(code in price_error for code in ('HTTP 401', 'HTTP 403', 'HTTP 429')):
+                    price_circuit_error = price_error
+            snap['sale_price'] = {'checked_at': int(time.time()), 'error': price_error,
+                                 'data': price if isinstance(price, dict) else {}}
         snapshots.append((item_id, snap))
-    errors = [snap['error'] for _, snap in snapshots if snap.get('error')]
-    with banco() as conn:
-        for item_id, snap in snapshots:
+        # Persist each result so progress survives interruptions and long stores.
+        with banco() as conn:
             executar(conn, 'UPDATE anuncios SET promocoes_json=%s WHERE conexao_id=%s AND item_id=%s',
                      (json.dumps(snap, ensure_ascii=False), cid, item_id))
+    errors = [snap['error'] for _, snap in snapshots if snap.get('error')]
+    with banco() as conn:
         if not errors:
             executar(conn, "DELETE FROM erros WHERE conexao_id=%s AND categoria='promocoes'", (cid,))
     if not errors and user_id is not None:
