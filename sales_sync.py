@@ -29,31 +29,46 @@ def sync_orders(cid, token, user_id, banco, query, execute, api_get, log):
     for day in selected:
         iso = day.isoformat()
         offset, rows, complete = 0, {}, False
+        reason = "limite de paginação de 1000 resultados atingido"
+        expected_total = None
         while offset < 1000:
             data, error = api_get(token, "/orders/search", {
                 "seller": user_id, "sort": "date_desc", "limit": 50, "offset": offset,
                 "order.date_created.from": iso + "T00:00:00.000-03:00",
                 "order.date_created.to": iso + "T23:59:59.999-03:00"})
             if error or not isinstance(data, dict):
-                log(cid, "pedidos", iso + ": " + (error or "resposta inválida"))
+                reason = error or "resposta inválida"
                 break
             results = data.get("results")
             total = (data.get("paging") or {}).get("total")
             if not isinstance(results, list) or type(total) is not int or total < 0:
+                reason = "resposta inválida: results ou paging.total"
                 break
+            if expected_total is not None and total != expected_total:
+                reason = "total alterado durante a paginação; nova coleta necessária"
+                break
+            expected_total = total
             valid = True
+            before = len(rows)
             for order in results:
                 if not isinstance(order, dict) or not order.get("id"):
                     valid = False
+                    reason = "resposta inválida: pedido sem identificador"
                     break
                 rows[str(order["id"])] = order
             if not valid:
                 break
+            if results and len(rows) - before != len(results):
+                reason = "paginação repetida: identificadores duplicados"
+                break
             offset += len(results)
             if offset >= total:
                 complete = len(rows) == total
+                if not complete:
+                    reason = "quantidade recebida diferente de paging.total"
                 break
             if not results:
+                reason = "página vazia antes de paging.total"
                 break
         with banco() as conn:
             for oid, order in rows.items():
@@ -103,5 +118,6 @@ def sync_orders(cid, token, user_id, banco, query, execute, api_get, log):
                 # A failed refresh invalidates old coverage rather than showing a false zero.
                 execute(conn, "DELETE FROM vendas_cobertura WHERE conexao_id=%s AND dia=%s", (cid, iso))
                 success = False
-                log(cid, "pedidos", iso + ": janela incompleta (erro, paginação ou limite de 1000 pedidos)")
+                log(cid, "pedidos", iso + ": janela incompleta — " + reason)
     return success
+
