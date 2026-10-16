@@ -13,6 +13,7 @@ from listing_details import (registered_weights, legacy_weight, render_weights,
 from listing_sync import sync_promotions
 from listing_diagnostics import inspect_listing
 from sales_sync import init_sales_schema, sync_orders
+from overview_store import init_overview_schema
 from sales_view import render_sales
 from overview import load_overview, render_overview
 try:
@@ -647,6 +648,7 @@ def iniciar_banco():
             conexao_id INTEGER, categoria TEXT, mensagem TEXT, quando BIGINT,
             PRIMARY KEY (conexao_id, categoria)
         )""")
+        init_overview_schema(conn, executar)
         # ---------- AUTENTICAÇÃO ----------
 
 def login_required(f):

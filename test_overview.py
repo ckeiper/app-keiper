@@ -169,11 +169,14 @@ class OverviewTests(unittest.TestCase):
         def query(c,sql,params):
             calls.append((sql,params))
             self.assertEqual(params[0],[1,2])
-            if 'FROM pedidos' in sql:
+            if 'ORDER BY conexao_id,pedido_id' in sql:
                 self.assertIn('LIMIT',sql)
             return []
         load_overview([shop(),shop(2)],{},lambda:nullcontext(conn),query)
-        self.assertEqual(len(calls),3)
+        self.assertEqual(len(calls),4)
+        self.assertIn('GROUP BY conexao_id, dia', calls[0][0])
+        self.assertIn('BETWEEN', calls[0][0])
+        self.assertIn('NULLS FIRST LIMIT 1', calls[2][0])
         self.assertEqual(conn.options,dict(isolation_level='REPEATABLE READ',readonly=True))
 
     def test_safety_limit_never_exposes_truncated_subtotals(self):

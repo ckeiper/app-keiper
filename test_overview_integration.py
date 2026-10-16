@@ -58,7 +58,7 @@ class OverviewIntegrationTests(unittest.TestCase):
             response=self.client.get(self.url)
             enqueue.assert_not_called()
         self.assertEqual(response.status_code,200)
-        self.assertEqual(len(calls),4)
+        self.assertEqual(len(calls),5)
         view=response.get_data(as_text=True)
         self.assertIn('2 de 3 lojas na consolidação',view)
         self.assertIn('R$ 400,00',view)
@@ -108,13 +108,147 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertNotIn('Faturamento caiu',view)
         self.assertNotIn('Pedidos caíram',view)
 
-    def test_postgresql_row_cap_does_not_become_partial_consolidation(self):
-        with patch('overview.MAX_ORDERS',2):
-            view=self.client.get(self.url).get_data(as_text=True)
-        self.assertIn('0 de 3 lojas na consolidação',view)
-        self.assertIn('Limite de leitura atingido',view)
-        self.assertNotIn('Faturamento caiu',view)
-        self.assertNotIn('R$ 20,00',view)
+    def test_large_history_preserves_complete_totals_and_shop_isolation(self):
+        from overview import load_overview
+        from decimal import Decimal
+        m=self.m
+        with m.banco() as conn:
+            # Over 20k selected orders and 30k irrelevant historical orders per shop.
+            for cid in self.ids[:2]:
+                m.executar(conn, '''INSERT INTO pedidos
+                    (conexao_id,pedido_id,status,total,moeda,criado_em,pagamentos_json,
+                     unidades,vendas_verificado_em,vendas_dia_coleta)
+                    SELECT %s,'bulk-'||n,'paid',1,'BRL',
+                      CASE WHEN n<=21000 THEN '2026-10-10T12:00:00-03:00'
+                           ELSE '2020-01-01T12:00:00-03:00' END,
+                      '[{"status":"approved"}]'::jsonb,1,1,'2026-10-10'
+                    FROM generate_series(1,51000) n''',(cid,))
+        counts=[]
+        def query(conn,sql,params):
+            rows=m.consultar(conn,sql,params)
+            counts.append(len(rows))
+            return rows
+        shops=[dict(id=self.ids[0],cliente='A',status='ativa')]
+        data=load_overview(shops,dict(periodo='personalizado',inicio='2026-10-10',fim='2026-10-11'),m.banco,query)
+        self.assertEqual(data['included'],1)
+        self.assertEqual(data['totals']['current']['revenue'],Decimal(21100))
+        self.assertEqual(data['totals']['current']['orders'],21010)
+        self.assertLessEqual(max(counts),4)
+        with m.banco() as conn:
+            m.executar(conn,'ANALYZE pedidos')
+            plan=m.consultar(conn, '''EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON)
+                SELECT conexao_id FROM pedidos WHERE conexao_id=%s
+                AND vendas_verificado_em IS NOT NULL
+                AND keiper_overview_day_v1(criado_em) IS NOT NULL
+                AND keiper_overview_day_v1(criado_em) BETWEEN '2026-10-08' AND '2026-10-09' ''',(self.ids[0],))
+            encoded=json.dumps(plan,default=str)
+            self.assertIn('idx_overview_orders_day',encoded)
+            print('Overview selective PostgreSQL plan:',encoded)
+
+    def test_sql_and_streamed_exception_summaries_match_sales_classifier(self):
+        from overview import load_overview
+        from sales_metrics import summarize, period
+        m=self.m
+        cid=self.ids[0]
+        args=dict(periodo='personalizado',inicio='2026-10-10',fim='2026-10-11')
+        bounds=period(args)
+        cases=[
+            ('2026-10-10T03:00:00Z','paid',2.35,'BRL',[{'status':'approved'}],2),
+            ('2026-10-10T02:59:59.999999Z','paid',3,'BRL',[{'status':'approved'}],None),
+            ('20261010T120000-0300','paid',4,'BRL',[{'status':'approved'}],1),
+            ('2026-10-10T12:00:00','paid',4,'BRL',[{'status':'approved'}],1),
+            ('2026-10-10T12:00:00-03:00','cancelled',10,'BRL',None,1),
+            ('2026-10-10T12:00:00-03:00','paid',10,'USD',[{'status':'approved'}],1),
+            ('2026-10-10T12:00:00-03:00','paid',-1,'BRL',[{'status':'approved'}],1),
+            ('2026-10-10T12:00:00-03:00','paid',10,'BRL',[{'status':False}],1),
+            ('2026-10-10T12:00:00-03:00','paid',10,'BRL',[{'status':[]}],1),
+            ('2026-10-10T12:00:00-03:00','paid',10,'BRL',[{'status':'pending'}],1),
+            ('2026-10-10T12:00:00-03:00','paid',10,'BRL',{'status':'approved'},1),
+            ('not-a-date','paid',10,'BRL',[{'status':'approved'}],1),
+            ('2026-02-30T12:00:00-03:00','paid',10,'BRL',[{'status':'approved'}],1),
+        ]
+        with m.banco() as conn:
+            for i,(stamp,status,total,currency,payments,units) in enumerate(cases):
+                m.executar(conn,'''INSERT INTO pedidos
+                    (conexao_id,pedido_id,criado_em,status,total,moeda,pagamentos_json,
+                     unidades,vendas_verificado_em,vendas_dia_coleta)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb,%s,1,NULL)''',
+                    (cid,'case-'+str(i),stamp,status,total,currency,json.dumps(payments),units))
+            rows=m.consultar(conn,'SELECT * FROM pedidos WHERE conexao_id=%s',(cid,))
+            covered={r['dia']:r['atualizado_em'] for r in m.consultar(conn,
+                'SELECT * FROM vendas_cobertura WHERE conexao_id=%s',(cid,))}
+        # Force several pages, including batches ending exactly at the boundary.
+        with patch('overview.EXCEPTION_BATCH_SIZE',2):
+            data=load_overview([dict(id=cid,cliente='A',status='ativa')],args,m.banco,m.consultar)
+        for label,a,b in [('current',bounds[0],bounds[1]),('previous',bounds[2],bounds[3])]:
+            self.assertEqual(data['reports'][0][label],summarize(rows,a,b,covered))
+        self.assertEqual(data['included'],0)
+
+    def test_sql_classifier_parity_for_each_payment_and_amount_shape(self):
+        from overview_store import DAILY_SQL
+        from overview import daily_summary
+        from sales_metrics import summarize, created_day
+        from datetime import date
+        m=self.m
+        cid=self.ids[2]
+        day=date(2026,10,10)
+        covered={day.isoformat():int(time.time())}
+        shapes=[None,[],{},[None],[1],[{}],[{'status':False}],[{'status':0}],
+                [{'status':[]}],[{'status':{}}],[{'status':''}],[{'status':'pending'}],
+                [{'status':'approved'}],[{'status':'approved'},{'status':None}]]
+        with m.banco() as conn:
+            for i,payments in enumerate(shapes):
+                with self.subTest(payments=payments):
+                    m.executar(conn,'DELETE FROM pedidos WHERE conexao_id=%s',(cid,))
+                    m.executar(conn,'''INSERT INTO pedidos
+                        (conexao_id,pedido_id,status,total,moeda,criado_em,pagamentos_json,
+                         unidades,vendas_verificado_em) VALUES(%s,%s,'paid',2.35,'BRL',
+                         '2026-10-10T12:00:00-03:00',%s::jsonb,2,1)''',(cid,str(i),json.dumps(payments)))
+                    raw=m.consultar(conn,'SELECT * FROM pedidos WHERE conexao_id=%s',(cid,))
+                    facts=m.consultar(conn,DAILY_SQL,([cid],day,day))
+                    self.assertEqual(daily_summary(facts,day,day,covered),summarize(raw,day,day,covered))
+            for total in ('NaN','Infinity','-Infinity','-1','0','21.251'):
+                m.executar(conn,"UPDATE pedidos SET total=%s,pagamentos_json='[{\"status\":\"approved\"}]'::jsonb WHERE conexao_id=%s",(total,cid))
+                raw=m.consultar(conn,'SELECT * FROM pedidos WHERE conexao_id=%s',(cid,))
+                self.assertEqual(daily_summary(m.consultar(conn,DAILY_SQL,([cid],day,day)),day,day,covered),summarize(raw,day,day,covered))
+            for stamp in ('2026-10-10T03:00:00Z','2026-10-10T02:59:59.999999Z',
+                          '2026-10-10T00:00:00+23:59','2026-10-10T23:59:59-23:59',
+                          '2026-02-30T00:00:00Z','0001-01-01T00:00:00Z',
+                          '9999-12-31T23:59:59-23:59'):
+                self.assertEqual(m.consultar(conn,'SELECT keiper_overview_day_v1(%s) AS day',(stamp,))[0]['day'],created_day(stamp))
+
+    def test_error_history_is_bounded_without_losing_old_unresolved_or_null_errors(self):
+        from overview_store import LATEST_ERRORS_SQL
+        from overview import load_overview
+        m=self.m
+        cid=self.ids[0]
+        now=int(time.time())
+        # Shadow the live per-category table with a large historical fixture.
+        # Production's PK already bounds it to one row/category; no migration of it.
+        with m.banco() as conn:
+            m.executar(conn,'CREATE TEMP TABLE erros (conexao_id integer,categoria text,quando bigint) ON COMMIT DROP')
+            m.executar(conn,'''INSERT INTO erros SELECT %s,'pedidos',%s-n
+                               FROM generate_series(1,30000) n''',(cid,now-10000))
+            m.executar(conn,"INSERT INTO erros VALUES(%s,'token',%s),(%s,'ads',%s)",
+                       (cid,now-100,self.ids[1],now+1000))
+            m.executar(conn,'''CREATE INDEX ON erros(conexao_id,quando DESC NULLS FIRST)
+                WHERE categoria IN ('pedidos','atualizacao','refresh','token')''')
+            errors=m.consultar(conn,LATEST_ERRORS_SQL,(self.ids,))
+            self.assertEqual(errors,[dict(conexao_id=cid,quando=now-100)])
+            m.executar(conn,"INSERT INTO erros VALUES(%s,'refresh',NULL)",(cid,))
+            self.assertEqual(m.consultar(conn,LATEST_ERRORS_SQL,([cid],)),[dict(conexao_id=cid,quando=None)])
+        # A partial success cannot clear even an old unresolved error.
+        with m.banco() as conn:
+            m.executar(conn,"INSERT INTO erros VALUES(%s,'pedidos','old unresolved',%s)",(cid,now-200))
+            m.executar(conn,"UPDATE vendas_cobertura SET atualizado_em=%s WHERE conexao_id=%s AND dia='2026-10-08'",(now-300,cid))
+        args=dict(periodo='personalizado',inicio='2026-10-10',fim='2026-10-11')
+        shops=[dict(id=cid,cliente='A',status='ativa')]
+        data=load_overview(shops,args,m.banco,m.consultar)
+        self.assertEqual(data['included'],0)
+        self.assertIn('Erro de sincronização sem resolução confirmada',data['reports'][0]['reasons'])
+        with m.banco() as conn:
+            m.executar(conn,'UPDATE vendas_cobertura SET atualizado_em=%s WHERE conexao_id=%s',(now,cid))
+        self.assertEqual(load_overview(shops,args,m.banco,m.consultar)['included'],1)
 
     def test_fresh_external_day_does_not_unblock_stale_selection(self):
         from overview import HISTORICAL_STALE_SECONDS

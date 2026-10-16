@@ -7,38 +7,91 @@ import time
 
 from sales_metrics import SAO_PAULO, change, period, summarize
 from sales_view import filters, fmt
+from overview_store import DAILY_SQL, UNUSUAL_SQL, LATEST_ERRORS_SQL
 
-MAX_ORDERS = 20000
+EXCEPTION_BATCH_SIZE = 500
 STALE_SECONDS = 3 * 60 * 60
 HISTORICAL_STALE_SECONDS = 48 * 60 * 60
 
 
 def load_overview(shops, args, banco, query):
-    """Read one consistent snapshot; four queries including the caller's shop read.
-
-    Read all minimal verified records so malformed/unlocated dates remain visible.
-    Limit rows before Python processing; never present a truncated read as complete.
-    """
+    """Aggregate selected days and stream unusual dates in one read-only snapshot."""
     bounds = period(args)
     ids = [s['id'] for s in shops]
     if not ids:
         return build_overview(shops, [], [], [], bounds)
     with banco() as conn:
         conn.set_session(isolation_level='REPEATABLE READ', readonly=True)
-        rows = query(conn, """SELECT conexao_id, pedido_id, status, total, moeda,
-            criado_em, pagamentos_json, unidades, vendas_dia_coleta FROM pedidos
-            WHERE conexao_id = ANY(%s) AND vendas_verificado_em IS NOT NULL
-            ORDER BY conexao_id, pedido_id LIMIT %s""", (ids, MAX_ORDERS + 1))
+        daily = query(conn, DAILY_SQL, (ids, bounds[2], bounds[1]))
         coverage = query(conn, """SELECT conexao_id, dia, atualizado_em
-            FROM vendas_cobertura WHERE conexao_id = ANY(%s)""", (ids,))
-        errors = query(conn, """SELECT conexao_id, categoria, quando FROM erros
-            WHERE conexao_id = ANY(%s)
-            AND categoria IN ('pedidos','atualizacao','refresh','token')""", (ids,))
-    return build_overview(shops, rows[:MAX_ORDERS], coverage, errors, bounds,
-                          limited=len(rows) > MAX_ORDERS)
+            FROM vendas_cobertura WHERE conexao_id = ANY(%s)
+            AND dia BETWEEN %s AND %s""", (ids, bounds[2].isoformat(), bounds[1].isoformat()))
+        errors = query(conn, LATEST_ERRORS_SQL, (ids,))
+        covered = defaultdict(dict)
+        facts = defaultdict(list)
+        for row in coverage:
+            covered[row['conexao_id']][row['dia']] = row['atualizado_em']
+        for row in daily:
+            facts[row['conexao_id']].append(row)
+        summaries = {cid: [daily_summary(facts[cid], a, b, covered[cid])
+                          for a,b in ((bounds[0],bounds[1]),(bounds[2],bounds[3]))]
+                     for cid in ids}
+        cursor = None
+        while True:
+            condition = ' AND (conexao_id,pedido_id) > (%s,%s)' if cursor else ''
+            params = (ids,) + (cursor or ()) + (EXCEPTION_BATCH_SIZE,)
+            rows = query(conn, UNUSUAL_SQL + condition +
+                         ' ORDER BY conexao_id,pedido_id LIMIT %s', params)
+            grouped = defaultdict(list)
+            for row in rows:
+                grouped[row['conexao_id']].append(row)
+            for cid, batch in grouped.items():
+                for i,(a,b) in enumerate(((bounds[0],bounds[1]),(bounds[2],bounds[3]))):
+                    summaries[cid][i] = merge_summary(summaries[cid][i], summarize(batch,a,b,covered[cid]))
+            if len(rows) < EXCEPTION_BATCH_SIZE:
+                break
+            cursor = (rows[-1]['conexao_id'], rows[-1]['pedido_id'])
+    return build_overview(shops, [], coverage, errors, bounds, summaries=summaries)
 
 
-def build_overview(shops, rows, coverage, errors, bounds, now=None, limited=False):
+def daily_summary(rows, start, end, covered):
+    result = summarize([], start, end, covered)
+    selected = {r['dia'].isoformat(): r for r in rows if start <= r['dia'] <= end}
+    result['invalid'] = sum(r['invalid'] for r in selected.values())
+    result['unknown_units'] = sum(r['unknown_units'] for r in selected.values())
+    for key in ('revenue','orders','units','cancellations'):
+        result[key] = sum((r[key] for r in selected.values()), Decimal(0) if key == 'revenue' else 0)
+    result['daily'] = [None if d not in covered or selected.get(d,{}).get('invalid',0)
+                       else float(selected.get(d,{}).get('revenue',0)) for d in result['days']]
+    if not result['complete'] or result['invalid']:
+        for key in ('revenue','orders','units'):
+            result[key] = None
+    if not result['complete']:
+        result['cancellations'] = None
+    if result['unknown_units']:
+        result['units'] = None
+    return recalculate(result)
+
+
+def recalculate(result):
+    revenue = result['revenue']
+    result['ticket'] = revenue / result['orders'] if revenue is not None and result['orders'] else None
+    result['unit_price'] = revenue / result['units'] if revenue is not None and result['units'] else None
+    return result
+
+
+def merge_summary(left, right):
+    result = dict(left)
+    for key in ('revenue','orders','units','cancellations'):
+        result[key] = left[key] + right[key] if left[key] is not None and right[key] is not None else None
+    for key in ('invalid','unknown_units','invalid_dates','unallocated_dates'):
+        result[key] = left[key] + right[key]
+    result['daily'] = [a+b if a is not None and b is not None else None
+                       for a,b in zip(left['daily'],right['daily'])]
+    return recalculate(result)
+
+
+def build_overview(shops, rows, coverage, errors, bounds, now=None, limited=False, summaries=None):
     start, end, prev_start, prev_end = bounds
     now = int(time.time()) if now is None else now
     recent_start = datetime.fromtimestamp(now, SAO_PAULO).date() - timedelta(days=6)
@@ -58,8 +111,8 @@ def build_overview(shops, rows, coverage, errors, bounds, now=None, limited=Fals
     for shop in shops:
         cid = shop['id']
         days = by_day[cid]
-        current = summarize(by_shop[cid], start, end, days)
-        previous = summarize(by_shop[cid], prev_start, prev_end, days)
+        current, previous = summaries[cid] if summaries is not None else (
+            summarize(by_shop[cid], start, end, days), summarize(by_shop[cid], prev_start, prev_end, days))
         selected_days = current['days'] + previous['days']
         selected_stamps = [days[d] for d in selected_days if d in days]
         # Every selected day must satisfy its own freshness rule. A success on
@@ -185,8 +238,8 @@ def render_overview(data, args, admin=False):
             "não validam seus dados; erros exigem sucesso posterior em todos os dias selecionados. "
             "Alertas são ordenados por queda absoluta do faturamento quando conhecida; os demais "
             "não têm impacto estimado. Alertas da mesma loja não devem ser somados.</p>"
-            "<p>Leitura limitada a 20.000 pedidos verificados por seleção de lojas. Ao exceder, "
-            "a consolidação e os alertas de queda são suspensos. A coleta automática cobre até "
+            "<p>Consolidação dos pedidos verificados nos períodos selecionados, sem corte de totais. "
+            "Datas não localizáveis continuam sinalizadas. A coleta automática cobre até "
             "180 dias e a carga inicial é gradual.</p></details>")
     out += "<nav class='overview-actions'><a class='btn-acoes cinza' href='/painel/legado'>Visão anterior e recursos existentes</a>"
     if admin:

@@ -72,21 +72,40 @@ individual consegue mostrar um subtotal dos pedidos com data válida.
 
 ## Custo e limitações
 
-São quatro consultas por página com lojas: lista autorizada, pedidos mínimos,
-cobertura e erros. As três leituras de dados ocorrem na mesma transação somente
-leitura `REPEATABLE READ`. Não há consulta por loja, API externa, escrita,
-agendamento adicional ou recarga automática. Usa o índice existente de
-`(conexao_id, pedido_id)` para ordenar e limitar a leitura.
+A página executa a lista autorizada e quatro leituras de dados quando não há
+paginação de exceções: agregação diária SQL, cobertura apenas dos dois períodos,
+erro relevante mais recente por loja e primeiro lote de datas não canônicas.
+As leituras de dados usam uma única transação REPEATABLE READ somente leitura.
+Não há API externa, escrita nem sincronização no GET.
 
-O lote de pedidos verificados tem limite de **20.000 registros**, mais uma linha
-para detectar excesso, antes do processamento em Python. Nenhum total parcial
-é apresentado se ultrapassar: todas as lojas da seleção ficam excluídas, e os
-alertas de queda suspensos. A tabela explica o limite. A leitura inclui histórico
-verificado fora do intervalo para não esconder datas malformadas e problemas
-sem localização, logo esse teto considera também esses registros. Para volumes
-maiores será necessário agregar/instrumentar o histórico no banco; não elevar
-o limite sem medir memória/latência. O teto pode ser alcançado mesmo em filtros
-curtos se a base histórica for grande.
+Não há teto de 20 mil pedidos nem totais truncados. O PostgreSQL agrega apenas
+os pedidos verificados da janela selecionada (incluindo o período anterior),
+retornando no máximo uma linha por loja/dia. O índice parcial
+idx_overview_orders_day usa loja e a data normalizada por
+keiper_overview_day_v1: fuso fixo de Brasília, independente do fuso da sessão.
+O formato ISO canônico é validado sem lançar erros para datas impossíveis.
+Datas incomuns ou inválidas seguem o classificador Python original de Vendas,
+em lotes de 500 com paginação por (conexao_id,pedido_id), no índice parcial
+idx_overview_orders_unusual. Todos os lotes usam o mesmo snapshot; não há OFFSET
+nem descarte por limite. Assim, datas sem localização em qualquer parte do
+histórico continuam sinalizadas, e datas inválidas localizáveis afetam somente
+os dias possíveis. A memória dos pedidos é limitada ao lote, embora históricos
+com muitas datas incomuns ainda exijam percorrer todas essas exceções.
+
+idx_overview_errors_latest permite buscar somente o erro mais recente entre
+pedidos/atualizacao/refresh/token por loja. NULL vem primeiro e continua bloqueando
+a elegibilidade. Nenhum corte por idade é aplicado: erros antigos não resolvidos
+continuam bloqueando até todos os dias selecionados terem sucesso posterior.
+O esquema atual já guarda uma linha por loja/categoria; a consulta também fica
+limitada a uma linha por loja caso exista histórico. As funções e índices são
+instalados na inicialização, nunca pelo GET; a primeira construção de índices
+pode levar tempo proporcional ao histórico da base.
+
+As regressões incluem mais de 100 mil pedidos entre duas lojas (mais de 20 mil
+no período por loja), histórico externo, paginação de exceções, paridade com
+sales_metrics para pagamentos/valores/datas, 30 mil registros de erros e sucesso
+parcial. EXPLAIN ANALYZE com BUFFERS verifica o índice da janela seletiva no
+PostgreSQL descartável; isso não é uma medição da latência em produção.
 
 Persistem os limites da etapa 1: janela automática de 180 dias, carga gradual,
 ausência de fonte confiável para devoluções/reembolsos e falta de cobertura para
