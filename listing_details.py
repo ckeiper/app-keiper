@@ -126,7 +126,22 @@ def get_json(token, path, params, request_get, sleep=time.sleep):
                     continue
             hints = {401: 'token expirado ou inválido', 403: 'verifique a permissão funcional de leitura de promoções e a conta autorizada',
                      429: 'limite de requisições; aguarde a próxima atualização'}
-            return None, 'HTTP %s: %s' % (code, hints.get(code, 'consulta indisponível'))
+            reason = ''
+            try:
+                payload = response.json()
+                if isinstance(payload, dict):
+                    reason = '; '.join(str(payload[key]) for key in ('error', 'message', 'description')
+                                       if isinstance(payload.get(key), str))
+                    if token:
+                        reason = reason.replace(token, '[redigido]')
+                    reason = re.sub(r'(?i)Bearer\s+\S+', 'Bearer [redigido]', reason)
+                    reason = re.sub(r'(?i)(access_token|refresh_token|client_secret)([\s:=]+)[^\s,;]+',
+                                    r'\1\2[redigido]', reason)
+                    reason = ' '.join(reason.split())[:180]
+            except (ValueError, TypeError):
+                pass
+            message = hints.get(code, 'consulta indisponível')
+            return None, 'HTTP %s: %s%s' % (code, message, ('; ' + reason) if reason else '')
         except (OSError, ValueError):
             if attempt < 2:
                 sleep(2 ** attempt)

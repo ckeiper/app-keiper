@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from listing_details import (registered_weights, legacy_weight, render_weights,
                              render_promotions, active_promotions, read_json, get_json)
 from listing_sync import sync_promotions
+from listing_diagnostics import inspect_listing
 from sales_sync import init_sales_schema, sync_orders
 from sales_view import render_sales
 try:
@@ -3388,6 +3389,23 @@ def puxar_envios(conexao_id, token, user_id):
 def puxar_promocoes(conexao_id, token, user_id):
     return sync_promotions(conexao_id, token, banco, consultar, executar,
                            requests.get, registrar_erro, user_id=user_id)
+
+
+@app.route("/diagnostico/anuncios/<int:cid>/<item_id>")
+@login_required
+def diagnostico_anuncio(cid, item_id):
+    if session.get("tipo") != "admin":
+        return jsonify({"error": "Acesso restrito"}), 403
+    with banco() as conn:
+        contas = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+        itens = consultar(conn, "SELECT item_id FROM anuncios WHERE conexao_id=%s AND item_id=%s", (cid, item_id))
+    if not contas or not itens:
+        return jsonify({"error": "Anúncio não encontrado nesta loja"}), 404
+    conta = contas[0]
+    token = token_atual(conta)
+    if not token:
+        return jsonify({"error": "Conta precisa ser reconectada"}), 401
+    return jsonify(inspect_listing(token, conta["user_id"], item_id, requests.get))
 
 
 def puxar_ads(conexao_id, token, user_id):

@@ -123,6 +123,29 @@ class PromotionTests(unittest.TestCase):
 
 
 class RequestTests(unittest.TestCase):
+    def test_error_reason_is_retained_without_credentials(self):
+        get = Mock(return_value=response(400, data={'error': 'invalid_item',
+                         'message': 'Invalid item id. Bearer secret access_token=other',
+                         'access_token': 'not-for-output'}))
+        _, error = details.get_json('secret', '/test', {}, get, Mock())
+        self.assertIn('invalid_item', error)
+        self.assertNotIn('secret', error)
+        self.assertNotIn('other', error)
+        self.assertNotIn('not-for-output', error)
+
+    def test_diagnostics_only_return_allowlisted_account_fields(self):
+        from listing_diagnostics import inspect_listing
+        get = Mock(side_effect=[response(data={'id': 1, 'email': 'private@example.com'}),
+                               response(data={'id': 'MLB1', 'seller_id': 1, 'attributes': [attr('1 kg')]}),
+                               response(400, data={'message': 'Invalid item'}),
+                               response(data={'amount': 80, 'regular_amount': 100, 'metadata': {'promotion_id': 'P1'}})])
+        result = inspect_listing('secret', 1, 'MLB1', get)
+        self.assertTrue(result['token_matches_seller'])
+        self.assertTrue(result['item_matches_seller'])
+        self.assertIn('Invalid item', result['promotions_error'])
+        self.assertNotIn('private@example.com', json.dumps(result))
+        self.assertNotIn('secret', json.dumps(result))
+
     def test_retry_after_and_recovery(self):
         get = Mock(side_effect=[response(429, headers={'Retry-After': '3'}), response(data=[])])
         sleep = Mock()

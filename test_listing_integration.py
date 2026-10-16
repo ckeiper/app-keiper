@@ -77,6 +77,14 @@ class ListingDatabaseTests(unittest.TestCase):
             self.assertIn('Peso logístico', output)
             self.assertIn('1.5 kg', output)
             self.assertNotIn('de R$ 100.00', output)
+            with patch.object(main, 'token_atual', return_value='fake'), patch.object(
+                    main, 'inspect_listing', return_value={'item_id': 'MLBTEST'}) as inspect:
+                self.assertEqual(client.get('/diagnostico/anuncios/' + str(cid) + '/MLBTEST').status_code, 200)
+                self.assertEqual(client.get('/diagnostico/anuncios/' + str(cid + 1) + '/MLBTEST').status_code, 404)
+                self.assertEqual(inspect.call_count, 1)
+                with client.session_transaction() as session:
+                    session.update(tipo='cliente', conexao_id=cid)
+                self.assertEqual(client.get('/diagnostico/anuncios/' + str(cid) + '/MLBTEST').status_code, 403)
         finally:
             with main.banco() as conn:
                 for table in ('anuncios', 'erros'):
