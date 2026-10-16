@@ -11,3 +11,11 @@ não torna a fila persistente e não elimina reinícios por outras causas.
 Validação: testes de orçamento compartilhado, cancelamento real por pg_sleep no
 PostgreSQL, ausência de subtotal após cancelamento e recuperação na requisição
 seguinte. As configurações do Render não foram modificadas.
+
+A agregação canônica usa buscas por loja/dia no índice existente e reutiliza a
+data da busca. OFFSET 0 preserva a subconsulta lateral, evitando sua expansão
+em uma varredura com nova classificação de datas por linha. Nenhum pedido é
+limitado ou descartado; datas incomuns mantêm a classificação Python original.
+O CI verifica também o plano da consulta de agregação completa com PostgreSQL.
+Cancelamentos registram somente a etapa (daily, coverage, errors ou unusual),
+sem parâmetros, credenciais ou dados das vendas.

@@ -52,14 +52,21 @@ def init_overview_schema(conn, execute):
 
 
 DAILY_SQL = '''WITH candidates AS MATERIALIZED (
-    SELECT conexao_id, keiper_overview_day_v1(criado_em) AS dia,
+    SELECT ids.conexao_id, days.dia::date AS dia,
            status, total, moeda, unidades,
            CASE WHEN jsonb_typeof(pagamentos_json) = 'array'
                 THEN pagamentos_json ELSE '[]'::jsonb END AS payments,
            jsonb_typeof(pagamentos_json) IS DISTINCT FROM 'array' AS bad_shape
-    FROM pedidos WHERE conexao_id = ANY(%s) AND vendas_verificado_em IS NOT NULL
-      AND keiper_overview_day_v1(criado_em) IS NOT NULL
-      AND keiper_overview_day_v1(criado_em) BETWEEN %s AND %s
+    FROM unnest(%s::integer[]) AS ids(conexao_id)
+    CROSS JOIN generate_series(%s::timestamp, %s::timestamp, interval '1 day') AS days(dia)
+    CROSS JOIN LATERAL (
+        SELECT status, total, moeda, unidades, pagamentos_json
+        FROM pedidos WHERE conexao_id = ids.conexao_id
+          AND vendas_verificado_em IS NOT NULL
+          AND keiper_overview_day_v1(criado_em) IS NOT NULL
+          AND keiper_overview_day_v1(criado_em) BETWEEN days.dia::date AND days.dia::date
+        OFFSET 0
+    ) AS matching
 ), payment_checks AS (
     SELECT *, bad_shape OR jsonb_array_length(payments) = 0 OR EXISTS (
         SELECT 1 FROM jsonb_array_elements(payments) AS p

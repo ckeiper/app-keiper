@@ -163,6 +163,12 @@ class OverviewIntegrationTests(unittest.TestCase):
             encoded=json.dumps(plan,default=str)
             self.assertIn('idx_overview_orders_day',encoded)
             print('Overview selective PostgreSQL plan:',encoded)
+            from overview_store import DAILY_SQL
+            aggregate_plan = m.consultar(conn, 'EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) ' + DAILY_SQL,
+                                         ([self.ids[0]], '2026-10-08', '2026-10-09'))
+            encoded_aggregate = json.dumps(aggregate_plan, default=str)
+            self.assertIn('idx_overview_orders_day', encoded_aggregate)
+            print('Overview actual aggregate PostgreSQL plan:', encoded_aggregate)
 
     def test_sql_and_streamed_exception_summaries_match_sales_classifier(self):
         from overview import load_overview

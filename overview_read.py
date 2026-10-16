@@ -1,5 +1,6 @@
 """Bound the complete overview read before the web worker's timeout."""
 import time
+import logging
 
 READ_SECONDS = 12
 TIMEOUT_MESSAGE = ('A consulta excedeu o tempo disponível. Tente novamente ou selecione '
@@ -20,6 +21,10 @@ def bounded_query(conn, query):
             return query(connection, sql, params)
         except Exception as exc:
             if getattr(exc, 'pgcode', None) == '57014':
+                stage = ('daily' if 'WITH candidates AS MATERIALIZED' in sql else
+                         'unusual' if 'vendas_dia_coleta FROM pedidos' in sql else
+                         'coverage' if 'FROM vendas_cobertura' in sql else 'errors')
+                logging.getLogger(__name__).warning('overview_read_timeout stage=%s', stage)
                 raise ValueError(TIMEOUT_MESSAGE) from exc
             raise
     return read
