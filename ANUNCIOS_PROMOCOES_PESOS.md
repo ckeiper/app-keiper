@@ -158,3 +158,15 @@ Atualizações manuais de Anúncios/Promoções rodam em segundo plano, com prot
 duplicação por loja e aviso na página, evitando timeout HTTP em lojas com centenas de
 anúncios. Cada snapshot é gravado após a consulta do item, preservando progresso se a
 coleta for interrompida; o cache geral de campanhas continua atômico.
+
+
+## Paginação da lista
+
+A tabela exibe 20 anúncios por padrão. O seletor permite 10, 20, 50 ou 100;
+Aplicar retorna à primeira página. Anterior/Próxima preservam a quantidade.
+O intervalo exibido e o total ficam visíveis acima e abaixo da tabela.
+Páginas inválidas são limitadas às disponíveis, e quantidades não permitidas
+usam 20. A ordenação mantém vendidos decrescente e desempata por item_id.
+Os cartões resumem a loja inteira, incluindo as promoções; a leitura existente
+dos registros é mantida para esses totais, mas somente a página é renderizada.
+Não há alteração na coleta, nas permissões nem nos detalhes de promoção/pesos.
