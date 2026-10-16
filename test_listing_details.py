@@ -72,6 +72,26 @@ class WeightTests(unittest.TestCase):
         self.assertEqual(details.legacy_weight(result), .5)
         self.assertNotIn('<script>', details.render_weights(result))
 
+    def test_user_selected_columns_do_not_mix_sources(self):
+        weights = details.registered_weights({'attributes': [attr('10400 g', 'PACKAGE_WEIGHT'),
+                                                            attr('11570 g', 'SELLER_PACKAGE_WEIGHT')]})
+        registered = details.render_weight_column(weights, 'PACKAGE_WEIGHT')
+        logistic = details.render_weight_column(weights, 'SELLER_PACKAGE_WEIGHT')
+        self.assertIn('10.4 kg', registered)
+        self.assertNotIn('11.57 kg', registered)
+        self.assertIn('11.57 kg', logistic)
+        self.assertNotIn('10.4 kg', logistic)
+        self.assertIn('item.attributes.SELLER_PACKAGE_WEIGHT', logistic)
+
+    def test_missing_selected_weight_never_substitutes_or_infers(self):
+        weights = details.registered_weights({'attributes': [attr('2 kg', 'SELLER_PACKAGE_WEIGHT'), attr('1 kg')],
+                                              'shipping': {'dimensions': '10x10x10,3000'}})
+        self.assertEqual(details.render_weight_column(weights, 'PACKAGE_WEIGHT'), 'Não disponível')
+        weights = details.registered_weights({'variations': [{'id': 1, 'attributes': [attr('4 kg', 'PACKAGE_WEIGHT')]},
+                                                            {'id': 2, 'attributes': [attr('5 kg', 'SELLER_PACKAGE_WEIGHT')]}]})
+        self.assertIn('Variação 1: 4 kg', details.render_weight_column(weights, 'PACKAGE_WEIGHT'))
+        self.assertIn('Variação 2: Não disponível', details.render_weight_column(weights, 'PACKAGE_WEIGHT'))
+
 
 class PromotionTests(unittest.TestCase):
     def test_status_origin_and_fields(self):
@@ -123,6 +143,29 @@ class PromotionTests(unittest.TestCase):
 
 
 class RequestTests(unittest.TestCase):
+    def test_error_reason_is_retained_without_credentials(self):
+        get = Mock(return_value=response(400, data={'error': 'invalid_item',
+                         'message': 'Invalid item id. Bearer secret access_token=other',
+                         'access_token': 'not-for-output'}))
+        _, error = details.get_json('secret', '/test', {}, get, Mock())
+        self.assertIn('invalid_item', error)
+        self.assertNotIn('secret', error)
+        self.assertNotIn('other', error)
+        self.assertNotIn('not-for-output', error)
+
+    def test_diagnostics_only_return_allowlisted_account_fields(self):
+        from listing_diagnostics import inspect_listing
+        get = Mock(side_effect=[response(data={'id': 1, 'email': 'private@example.com'}),
+                               response(data={'id': 'MLB1', 'seller_id': 1, 'attributes': [attr('1 kg')]}),
+                               response(400, data={'message': 'Invalid item'}),
+                               response(data={'amount': 80, 'regular_amount': 100, 'metadata': {'promotion_id': 'P1'}})])
+        result = inspect_listing('secret', 1, 'MLB1', get)
+        self.assertTrue(result['token_matches_seller'])
+        self.assertTrue(result['item_matches_seller'])
+        self.assertIn('Invalid item', result['promotions_error'])
+        self.assertNotIn('private@example.com', json.dumps(result))
+        self.assertNotIn('secret', json.dumps(result))
+
     def test_retry_after_and_recovery(self):
         get = Mock(side_effect=[response(429, headers={'Retry-After': '3'}), response(data=[])])
         sleep = Mock()
@@ -275,13 +318,16 @@ class SyncTests(unittest.TestCase):
                          barra_atualizar=lambda *args: '', esc=html.escape, json=json,
                          render_promotions=details.render_promotions, read_json=details.read_json,
                          active_promotions=details.active_promotions, render_weights=details.render_weights,
+                         render_weight_column=details.render_weight_column,
                          frete_esperado=lambda *args: 10, TAGS_RUINS=set(), TAGS_BOAS=set())
         output = main_function('anuncios', namespace)(1)
-        self.assertIn('<th>Peso cadastrado</th><th>Peso logístico</th>', output)
+        self.assertIn("title='PACKAGE_WEIGHT'>Peso cadastrado", output)
+        self.assertIn("title='SELLER_PACKAGE_WEIGHT'>Peso logístico", output)
+        self.assertIn('Declarado pelo vendedor', output)
         self.assertIn('<td>Não disponível</td>', output)
         self.assertNotIn('de R$ 100.00', output)
         self.assertNotIn('<script>', output)
-        self.assertEqual(output.count('<th>'), 12)
+        self.assertEqual(output.count('</th>'), 12)
         self.assertEqual(output.count('<td>'), 12)
 
 

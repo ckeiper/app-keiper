@@ -102,6 +102,23 @@ def render_weights(value):
     return '<br>'.join(rows) or 'Não disponível'
 
 
+def render_weight_column(value, attribute_id):
+    """User-selected mapping: exact attribute IDs, never substitute another weight."""
+    details = read_json(value, {})
+    rows = []
+    groups = [('Anúncio', details.get('item', []))]
+    groups += [('Variação ' + str(v['id']), v['weights']) for v in details.get('variations', [])]
+    for label, records in groups:
+        matched = [r for r in records if r.get('source', '').split('.')[-1] == attribute_id]
+        for record in matched:
+            text = '%s: %.6g kg' % (label, record['kg'])
+            trace = '%s %s; %s' % (record['value'], record['unit'], record['source'])
+            rows.append('<span title="' + html.escape(trace, quote=True) + '">' + html.escape(text) + '</span>')
+        if label != 'Anúncio' and not matched:
+            rows.append(html.escape(label) + ': Não disponível')
+    return '<br>'.join(rows) or 'Não disponível'
+
+
 def get_json(token, path, params, request_get, sleep=time.sleep):
     """At most three requests; honor Retry-After without blocking a worker indefinitely."""
     for attempt in range(3):
@@ -126,7 +143,22 @@ def get_json(token, path, params, request_get, sleep=time.sleep):
                     continue
             hints = {401: 'token expirado ou inválido', 403: 'verifique a permissão funcional de leitura de promoções e a conta autorizada',
                      429: 'limite de requisições; aguarde a próxima atualização'}
-            return None, 'HTTP %s: %s' % (code, hints.get(code, 'consulta indisponível'))
+            reason = ''
+            try:
+                payload = response.json()
+                if isinstance(payload, dict):
+                    reason = '; '.join(str(payload[key]) for key in ('error', 'message', 'description')
+                                       if isinstance(payload.get(key), str))
+                    if token:
+                        reason = reason.replace(token, '[redigido]')
+                    reason = re.sub(r'(?i)Bearer\s+\S+', 'Bearer [redigido]', reason)
+                    reason = re.sub(r'(?i)(access_token|refresh_token|client_secret)([\s:=]+)[^\s,;]+',
+                                    r'\1\2[redigido]', reason)
+                    reason = ' '.join(reason.split())[:180]
+            except (ValueError, TypeError):
+                pass
+            message = hints.get(code, 'consulta indisponível')
+            return None, 'HTTP %s: %s%s' % (code, message, ('; ' + reason) if reason else '')
         except (OSError, ValueError):
             if attempt < 2:
                 sleep(2 ** attempt)
