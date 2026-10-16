@@ -267,7 +267,7 @@ def render_promotions(value):
                    + br_money(winner['original']) + ' · -' + str(winner['discount']).replace('.', ',')
                    + '%</small>')
     else:
-        summary = ('<b>' + str(len(active)) + ' promoção(ões) ativa(s)</b>') if active else 'Sem promoção ativa confirmada'
+        summary = ('<b>' + str(len(active)) + (' promoção ativa</b>' if len(active) == 1 else ' promoções ativas</b>')) if active else 'Sem promoção ativa confirmada'
     labels = {'PRICE_DISCOUNT': 'Desconto do vendedor', 'SELLER_CAMPAIGN': 'Campanha do vendedor',
               'SELLER_COUPON_CAMPAIGN': 'Cupom do vendedor', 'SMART': 'Campanha cofinanciada',
               'DEAL': 'Campanha Mercado Livre', 'DOD': 'Oferta do dia', 'LIGHTNING': 'Oferta relâmpago'}
@@ -291,9 +291,9 @@ def render_promotions(value):
             parts.append('Variação: ' + str(p['variation_id']))
         return '<div style="margin:8px 0;padding:6px;border-top:1px solid #eee">' + '<br>'.join(html.escape(part) for part in parts) + '</div>'
     if active:
-        summary += '<details><summary>Ver ' + str(len(active)) + ' promoção(ões) ativa(s)</summary>' + ''.join(detail(p) for p in active) + '</details>'
+        summary += '<details><summary>Ver detalhes</summary>' + ''.join(detail(p) for p in active) + '</details>'
     if proposals:
-        summary += '<details><summary>' + str(len(proposals)) + ' opção(ões) e outros status</summary>' + ''.join(detail(p) for p in proposals) + '</details>'
+        summary += '<details><summary>Outras campanhas (' + str(len(proposals)) + ')</summary>' + ''.join(detail(p) for p in proposals) + '</details>'
     if snap.get('error'):
         summary += '<details><summary>Campanhas não confirmadas</summary>' + html.escape(snap['error']) + '</details>'
     return '<div style="min-width:190px;max-width:320px">' + summary + '</div>'

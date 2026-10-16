@@ -103,8 +103,8 @@ class PromotionTests(unittest.TestCase):
                            'currency_id': 'BRL', 'metadata': {'promotion_id': 'OFFER-1'}}}}
         output = details.render_promotions(snap)
         self.assertIn('<b>Por R$ 75,00</b>', output)
-        self.assertIn('<details><summary>Ver 1', output)
-        self.assertIn('1 opção(ões) e outros status', output)
+        self.assertIn('<details><summary>Ver detalhes', output)
+        self.assertIn('Outras campanhas (1)', output)
         self.assertNotIn('<details open', output)
         self.assertNotIn(' | ', output)
         self.assertNotIn('Por R$ 50,00</b>', output)
