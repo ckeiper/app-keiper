@@ -202,6 +202,37 @@ class SyncTests(unittest.TestCase):
         self.assertTrue(logs)
         self.assertFalse(any('INSERT INTO vendas_cobertura' in s for s, p in writes))
         self.assertTrue(any('DELETE FROM vendas_cobertura' in s for s, p in writes))
+        self.assertEqual(len(logs),37)
+        self.assertTrue(all('HTTP 403' in entry[2] for entry in logs))
+
+    def test_rate_limit_reason_is_not_overwritten_by_generic_window_error(self):
+        success,writes,logs=self.run_sync(lambda *a:(None,'HTTP 429: too_many_requests'))
+        self.assertFalse(success)
+        self.assertTrue(all('HTTP 429: too_many_requests' in entry[2] for entry in logs))
+        self.assertFalse(any('INSERT INTO vendas_cobertura' in sql for sql,_ in writes))
+
+    def test_repeated_page_stops_without_claiming_complete_coverage(self):
+        calls=[]
+        def api(token,path,params=None):
+            if path.startswith('/orders/') and path!='/orders/search':
+                return None,'detail unavailable'
+            calls.append(params)
+            return {'results':[{'id':1}],'paging':{'total':3}},None
+        success,writes,logs=self.run_sync(api)
+        self.assertFalse(success)
+        self.assertEqual(len(calls),74)
+        self.assertTrue(all('identificadores duplicados' in entry[2] for entry in logs))
+        self.assertFalse(any('INSERT INTO vendas_cobertura' in sql for sql,_ in writes))
+
+    def test_changed_total_does_not_validate_inconsistent_pages(self):
+        def api(token,path,params=None):
+            if path!='/orders/search': return None,'detail unavailable'
+            offset=params['offset']
+            return {'results':[{'id':offset+1}],'paging':{'total':3 if offset==0 else 2}},None
+        success,writes,logs=self.run_sync(api)
+        self.assertFalse(success)
+        self.assertTrue(all('total alterado' in entry[2] for entry in logs))
+        self.assertFalse(any('INSERT INTO vendas_cobertura' in sql for sql,_ in writes))
 
     def test_pagination_cap_not_marked_complete(self):
         def api(token, path, params):
@@ -301,3 +332,4 @@ class ViewTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
