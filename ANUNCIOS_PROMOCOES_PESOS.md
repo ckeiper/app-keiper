@@ -130,4 +130,27 @@ se estiver rodando, permitindo executar Anúncios e Vendas juntos no mesmo proce
 - [Busca de itens e scan](https://developers.mercadolivre.com.br/pt_br/itens-e-buscas)
 - [Permissões funcionais](https://developers.mercadolivre.com.br/pt_br/recurso-visits/permissoes-funcionais)
 - [Envios](https://developers.mercadolivre.com.br/pt_br/registre-o-seu-aplicativo/gerenciamento-de-envios)
-- [sale_price](https://developers.mercadolivre.com.br/devcenter/api-de-precos): identifica o preço vencedor por contexto e regular_amount; não utilizado como fallback para converter preço corrente em promoção ou inventar vigência.
+- [sale_price](https://developers.mercadolivre.com.br/devcenter/api-de-precos): identifica o preço vencedor por contexto e regular_amount; usado no resumo somente quando há metadata.promotion_id e preços positivos em BRL com desconto. Não usa items.price como prova de promoção e não inventa vigência.
+
+## Ajustes após conferência da produção
+
+Confirmados em chamadas autenticadas: PACKAGE_WEIGHT e SELLER_PACKAGE_WEIGHT da Copas
+Ind retornam pesos diferentes; o mapeamento das colunas segue a escolha do usuário.
+O HTTP 400 de um anúncio encerrado retornou `Item status is not allowed (closed)`;
+anúncios com status closed agora são marcados como não aplicáveis sem consultar promoções.
+Um anúncio ativo retornou HTTP 409 na consulta de campanhas, mas sale_price confirmou
+amount 221.81, regular_amount 299 e metadata.promotion_id no contexto channel_marketplace.
+O preço vencedor tem sua própria data/erro no snapshot e pode ser mostrado com aviso
+explícito de campanhas não confirmadas. Os circuitos de 401/403/429 são separados por
+recurso. Um erro não vira ausência de promoção.
+
+A coluna Promoção mostra um resumo compacto, com o preço vencedor oficial quando
+confirmado. Campanhas ativas e candidaturas/outros status ficam em blocos expansíveis
+fechados por padrão. Não se escolhe arbitrariamente o menor preço das campanhas.
+Valores monetários e datas são formatados para leitura. Status e respostas brutas
+permanecem no snapshot para rastreabilidade.
+
+Atualizações manuais de Anúncios/Promoções rodam em segundo plano, com proteção contra
+duplicação por loja e aviso na página, evitando timeout HTTP em lojas com centenas de
+anúncios. Cada snapshot é gravado após a consulta do item, preservando progresso se a
+coleta for interrompida; o cache geral de campanhas continua atômico.

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 import time
+import threading
 import unittest
 from unittest.mock import Mock, patch
 
@@ -94,6 +95,31 @@ class WeightTests(unittest.TestCase):
 
 
 class PromotionTests(unittest.TestCase):
+    def test_effective_price_uses_official_winner_and_compact_details(self):
+        snap = {'checked_at': time.time(), 'promotions': details.normalize_promotions([
+            {'type': 'SMART', 'status': 'started', 'price': 80, 'original_price': 100},
+            {'type': 'DOD', 'status': 'candidate', 'price': 50, 'original_price': 100}]),
+            'sale_price': {'checked_at': time.time(), 'data': {'amount': 75, 'regular_amount': 100,
+                           'currency_id': 'BRL', 'metadata': {'promotion_id': 'OFFER-1'}}}}
+        output = details.render_promotions(snap)
+        self.assertIn('<b>Por R$ 75,00</b>', output)
+        self.assertIn('<details><summary>Ver 1', output)
+        self.assertIn('1 opção(ões) e outros status', output)
+        self.assertNotIn('<details open', output)
+        self.assertNotIn(' | ', output)
+        self.assertNotIn('Por R$ 50,00</b>', output)
+        snap['sale_price']['data']['metadata'] = {}
+        self.assertIsNone(details.effective_promotion(snap))
+
+    def test_winning_price_survives_campaign_failure_with_explicit_warning(self):
+        snap = {'error': 'HTTP 409', 'sale_price': {'checked_at': time.time(), 'data': {
+            'amount': 221.81, 'regular_amount': 299, 'currency_id': 'BRL',
+            'metadata': {'promotion_id': 'OFFER-1'}}}}
+        output = details.render_promotions(snap)
+        self.assertIn('Por R$ 221,81', output)
+        self.assertIn('Campanhas não confirmadas', output)
+        snap['sale_price']['checked_at'] = 1
+        self.assertIsNone(details.effective_promotion(snap))
     def test_status_origin_and_fields(self):
         records = details.normalize_promotions([
             {'id': '1', 'type': 'SELLER_CAMPAIGN', 'status': 'started', 'price': 80, 'original_price': 100},
@@ -106,11 +132,11 @@ class PromotionTests(unittest.TestCase):
         self.assertEqual(records[2]['origin'], 'Não disponível')
         snap = {'checked_at': time.time(), 'promotions': records}
         self.assertEqual(len(details.active_promotions(snap)), 1)
-        self.assertIn('Vigência: Não disponível', details.render_promotions(snap))
-        self.assertIn('candidate', details.render_promotions(snap))
+        self.assertIn('Vigência: não informada', details.render_promotions(snap))
+        self.assertIn('Disponível para aderir', details.render_promotions(snap))
 
     def test_failures_empty_stale_and_current_price(self):
-        self.assertIn('Sem promoções', details.render_promotions({'checked_at': time.time(), 'promotions': []}))
+        self.assertIn('Sem promoção ativa', details.render_promotions({'checked_at': time.time(), 'promotions': []}))
         self.assertIn('Não verificado', details.render_promotions(None))
         self.assertEqual(details.active_promotions({'error': 'HTTP 403'}), [])
         self.assertIn('desatualizados', details.render_promotions({'checked_at': 1}))
@@ -126,7 +152,7 @@ class PromotionTests(unittest.TestCase):
         self.assertEqual(details.active_promotions(snap), [])
         self.assertNotIn('<script>', details.render_promotions(snap))
         self.assertIn('vigência encerrada (API: active)', details.render_promotions(snap))
-        self.assertIn('Preço informado (não ativo)', details.render_promotions(snap))
+        self.assertNotIn('Promoção ativa</b>', details.render_promotions(snap))
 
     def test_future_start_is_not_active(self):
         records = details.normalize_promotions([{'type': 'DEAL', 'status': 'started',
@@ -208,12 +234,45 @@ class SyncTests(unittest.TestCase):
         self.setup_sync()
         get = Mock(side_effect=[response(data=[{'id': 'C1', 'type': 'SELLER_CAMPAIGN', 'status': 'started', 'price': 70}]),
                                 response(data=[{'id': 'C1', 'type': 'SELLER_CAMPAIGN', 'status': 'candidate'}])])
-        self.assertTrue(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error))
+        self.assertTrue(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error, include_sale_price=False))
         self.assertEqual(get.call_args_list[0].args[0], 'https://api.mercadolibre.com/seller-promotions/items/MLB0')
         self.assertEqual(get.call_args_list[0].kwargs['params'], {'app_version': 'v2'})
         snapshots = [json.loads(params[0]) for sql, params in self.sql if 'UPDATE anuncios' in sql]
         self.assertEqual(len(details.active_promotions(snapshots[0])), 1)
         self.assertEqual(len(details.active_promotions(snapshots[1])), 0)
+
+    def test_closed_item_does_not_request_promotions(self):
+        self.setup_sync(1)
+        self.items[0]['status'] = 'closed'
+        get = Mock(side_effect=AssertionError('closed item must not query ML'))
+        self.assertTrue(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error))
+        get.assert_not_called()
+        snap = json.loads(next(params[0] for sql, params in self.sql if 'UPDATE anuncios' in sql))
+        self.assertIn('Anúncio encerrado', details.render_promotions(snap))
+
+    def test_official_price_is_collected_even_when_campaign_is_unavailable(self):
+        self.setup_sync(1)
+        get = Mock(side_effect=[response(409), response(data={'amount': 80, 'regular_amount': 100,
+                                'currency_id': 'BRL', 'metadata': {'promotion_id': 'P1'}})])
+        self.assertFalse(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error))
+        snap = json.loads(next(params[0] for sql, params in self.sql if 'UPDATE anuncios' in sql))
+        self.assertEqual(details.effective_promotion(snap)['price'], 80)
+
+    def test_manual_refresh_returns_without_waiting_for_collection_and_deduplicates(self):
+        self.setup_sync(1)
+        thread = Mock()
+        running = set()
+        query = Mock(return_value=[{'id': 1, 'user_id': 2}])
+        namespace = dict(banco=self.banco, consultar=query, pode_ver_loja=lambda cid: True,
+                         token_atual=lambda c: 'fake', LOCK_ATUALIZACAO=threading.Lock(),
+                         ATUALIZANDO=running, threading=SimpleNamespace(Thread=thread),
+                         atualizar_anuncios_bg=Mock(), redirect=lambda path: path)
+        route = main_function('atualizar_tipo', namespace)
+        self.assertEqual(route('anuncios', 1), '/anuncios/1')
+        self.assertEqual(route('anuncios', 1), '/anuncios/1')
+        self.assertEqual(thread.call_count, 1)
+        thread.return_value.start.assert_called_once()
+        namespace['atualizar_anuncios_bg'].assert_not_called()
 
     def test_campaign_cache_keeps_empty_campaign_and_only_active_items(self):
         self.setup_sync()
@@ -246,7 +305,7 @@ class SyncTests(unittest.TestCase):
     def test_forbidden_opens_circuit_preserves_cache_and_marks_all_unconfirmed(self):
         self.setup_sync()
         get = Mock(return_value=response(403))
-        self.assertFalse(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error))
+        self.assertFalse(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error, include_sale_price=False))
         self.assertEqual(get.call_count, 1)
         self.assertFalse(any('DELETE FROM promocoes' in sql for sql, _ in self.sql))
         snapshots = [json.loads(params[0]) for sql, params in self.sql if 'UPDATE anuncios' in sql]
@@ -258,7 +317,7 @@ class SyncTests(unittest.TestCase):
     def test_individual_failure_does_not_block_other_items(self):
         self.setup_sync()
         get = Mock(side_effect=[response(404), response(data=[])])
-        self.assertFalse(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error))
+        self.assertFalse(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error, include_sale_price=False))
         self.assertEqual(get.call_count, 2)
         snapshots = [json.loads(params[0]) for sql, params in self.sql if 'UPDATE anuncios' in sql]
         self.assertIsNone(snapshots[1]['error'])
@@ -319,6 +378,7 @@ class SyncTests(unittest.TestCase):
                          render_promotions=details.render_promotions, read_json=details.read_json,
                          active_promotions=details.active_promotions, render_weights=details.render_weights,
                          render_weight_column=details.render_weight_column,
+                         effective_promotion=details.effective_promotion,
                          frete_esperado=lambda *args: 10, TAGS_RUINS=set(), TAGS_BOAS=set())
         output = main_function('anuncios', namespace)(1)
         self.assertIn("title='PACKAGE_WEIGHT'>Peso cadastrado", output)
