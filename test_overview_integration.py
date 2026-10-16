@@ -239,7 +239,7 @@ class OverviewIntegrationTests(unittest.TestCase):
             self.assertEqual(m.consultar(conn,LATEST_ERRORS_SQL,([cid],)),[dict(conexao_id=cid,quando=None)])
         # A partial success cannot clear even an old unresolved error.
         with m.banco() as conn:
-            m.executar(conn,"INSERT INTO erros VALUES(%s,'pedidos','old unresolved',%s)",(cid,now-200))
+            m.executar(conn,"INSERT INTO erros(conexao_id,categoria,mensagem,quando) VALUES(%s,'pedidos','old unresolved',%s)",(cid,now-200))
             m.executar(conn,"UPDATE vendas_cobertura SET atualizado_em=%s WHERE conexao_id=%s AND dia='2026-10-08'",(now-300,cid))
         args=dict(periodo='personalizado',inicio='2026-10-10',fim='2026-10-11')
         shops=[dict(id=cid,cliente='A',status='ativa')]
@@ -261,7 +261,7 @@ class OverviewIntegrationTests(unittest.TestCase):
             if not updated:
                 updated=True
                 with m.banco() as writer:
-                    m.executar(writer,"INSERT INTO erros VALUES(%s,'pedidos','concurrent',%s)",(cid,int(time.time())+10))
+                    m.executar(writer,"INSERT INTO erros(conexao_id,categoria,mensagem,quando) VALUES(%s,'pedidos','concurrent',%s)",(cid,int(time.time())+10))
                     m.executar(writer,'''INSERT INTO pedidos
                         (conexao_id,pedido_id,status,total,moeda,criado_em,vendas_verificado_em)
                         VALUES(%s,'concurrent','paid',100,'BRL','unknown',1)''',(cid,))
