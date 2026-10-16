@@ -68,6 +68,8 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertNotIn('Visitas',view)
         self.assertNotIn('conversão',view)
         self.assertIn('/painel/legado',view)
+        self.assertIn("aria-label='Contas conectadas'", view)
+        self.assertIn("href='/painel/" + str(self.ids[0]) + "'", view)
 
     def test_slow_overview_cancels_without_partial_totals_and_recovers(self):
         original = self.m.consultar
@@ -80,6 +82,7 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         view = response.get_data(as_text=True)
         self.assertIn('Nenhum total parcial', view)
+        self.assertIn("aria-label='Contas conectadas'", view)
         self.assertNotIn('R$ 400,00', view)
         self.assertIn('R$ 400,00', self.client.get(self.url).get_data(as_text=True))
 
@@ -97,6 +100,8 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertIn('Overview A',view)
         self.assertNotIn('Overview B',view)
         self.assertNotIn('Overview Incompleta',view)
+        self.assertIn("aria-label='Contas conectadas'", view)
+        self.assertNotIn("href='/painel/" + str(self.ids[1]) + "'", view)
         self.assertIn('1 de 1 lojas na consolidação',view)
         self.assertTrue(all(params[0]==[self.ids[0]] for sql,params in calls[1:]))
         self.assertNotIn('/usuarios',view)

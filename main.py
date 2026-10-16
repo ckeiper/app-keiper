@@ -17,7 +17,7 @@ from overview_store import init_overview_schema
 from sync_runner import run_stages
 from listing_pagination import listing_page
 from sales_view import render_sales
-from overview import load_overview, render_overview
+from overview import load_overview, render_overview, overview_layout
 try:
     import openpyxl
 except Exception:
@@ -1510,14 +1510,15 @@ def painel():
                               (session.get("conexao_id"),))
     # Keep the existing access policy and apply it before any sales/coverage read.
     lojas = [loja for loja in lojas if pode_ver_loja(loja["id"])]
+    admin = session.get("tipo") == "admin"
     try:
         dados = load_overview(lojas, request.args, banco, consultar)
+        corpo = render_overview(dados, request.args, admin=admin)
     except ValueError as erro:
         from sales_view import filters
-        return pagina("Visão Geral 2.0", "<div class='aviso'>" + esc(str(erro))
-                      + "</div>" + filters(None, request.args, action="/painel"))
-    return pagina("Visão Geral 2.0", render_overview(dados, request.args,
-                                                  admin=session.get("tipo") == "admin"))
+        corpo = ("<div class='aviso'>" + esc(str(erro))
+                 + "</div>" + filters(None, request.args, action="/painel"))
+    return pagina("Visão Geral 2.0", overview_layout(lojas, corpo, admin=admin))
 
 
 @app.route("/painel/legado")
