@@ -8,7 +8,8 @@ from psycopg2.extras import RealDictCursor
 from apscheduler.schedulers.background import BackgroundScheduler
 from werkzeug.security import generate_password_hash, check_password_hash
 from listing_details import (registered_weights, legacy_weight, render_weights,
-                             render_promotions, active_promotions, read_json, get_json)
+                             render_promotions, active_promotions, read_json, get_json,
+                             render_weight_column)
 from listing_sync import sync_promotions
 from listing_diagnostics import inspect_listing
 from sales_sync import init_sales_schema, sync_orders
@@ -2512,7 +2513,8 @@ def anuncios(cid):
         if not tags_html:
             tags_html = "<span class='tag sem'>sem tags</span>"
         peso_kg = a["peso"]
-        peso_txt = render_weights(a.get("pesos_json"))
+        peso_txt = render_weight_column(a.get("pesos_json"), "PACKAGE_WEIGHT")
+        peso_logistico_txt = render_weight_column(a.get("pesos_json"), "SELLER_PACKAGE_WEIGHT")
         f = frete_esperado(a["preco"], peso_kg)
         if f is not None:
             frete_html = "<span class='alerta ok'>R$ %.2f</span>" % f
@@ -2530,7 +2532,7 @@ def anuncios(cid):
                         "<td>" + tags_html + "</td>"
                         "<td>" + str(a["vendidos"] or 0) + "</td>"
                         "<td>" + peso_txt + "</td>"
-                        "<td>Não disponível</td>"
+                        "<td>" + peso_logistico_txt + "</td>"
                         "<td>" + frete_html + "</td>"
                         "</tr>")
     corpo += ("<div class='card'><h2>Lista de anúncios <span class='badge'>"
@@ -2540,11 +2542,12 @@ def anuncios(cid):
               "<div style='overflow-x:auto'><table>"
               "<thead><tr><th>Anúncio</th><th>Preço</th><th>Promoção</th>"
               "<th>Estoque</th><th>Fotos</th><th>Clips</th><th>Status</th>"
-              "<th>Tags</th><th>Vendidos</th><th>Peso cadastrado</th><th>Peso logístico</th>"
+              "<th>Tags</th><th>Vendidos</th><th title='PACKAGE_WEIGHT'>Peso cadastrado</th>"
+              "<th title='SELLER_PACKAGE_WEIGHT'>Peso logístico<br><small>Declarado pelo vendedor</small></th>"
               "<th>Frete esperado</th></tr></thead>"
               "<tbody>" + linhas_html + "</tbody></table></div>"
               "<div class='muted'>Frete esperado = estimativa pela "
-              "tabela existente e peso cadastrado; não é o peso logístico nem uma cotação de frete. Cadastre os custos na "
+              "tabela existente e peso do pacote disponível; não é uma cotação de frete. Cadastre os custos na "
               "<a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a> "
               "e veja a rentabilidade na <a class='link' href='/vendas/"
               + str(cid) + "'>tela de Vendas</a>.</div></div>")

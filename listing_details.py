@@ -102,6 +102,23 @@ def render_weights(value):
     return '<br>'.join(rows) or 'Não disponível'
 
 
+def render_weight_column(value, attribute_id):
+    """User-selected mapping: exact attribute IDs, never substitute another weight."""
+    details = read_json(value, {})
+    rows = []
+    groups = [('Anúncio', details.get('item', []))]
+    groups += [('Variação ' + str(v['id']), v['weights']) for v in details.get('variations', [])]
+    for label, records in groups:
+        matched = [r for r in records if r.get('source', '').split('.')[-1] == attribute_id]
+        for record in matched:
+            text = '%s: %.6g kg' % (label, record['kg'])
+            trace = '%s %s; %s' % (record['value'], record['unit'], record['source'])
+            rows.append('<span title="' + html.escape(trace, quote=True) + '">' + html.escape(text) + '</span>')
+        if label != 'Anúncio' and not matched:
+            rows.append(html.escape(label) + ': Não disponível')
+    return '<br>'.join(rows) or 'Não disponível'
+
+
 def get_json(token, path, params, request_get, sleep=time.sleep):
     """At most three requests; honor Retry-After without blocking a worker indefinitely."""
     for attempt in range(3):

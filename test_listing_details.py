@@ -72,6 +72,26 @@ class WeightTests(unittest.TestCase):
         self.assertEqual(details.legacy_weight(result), .5)
         self.assertNotIn('<script>', details.render_weights(result))
 
+    def test_user_selected_columns_do_not_mix_sources(self):
+        weights = details.registered_weights({'attributes': [attr('10400 g', 'PACKAGE_WEIGHT'),
+                                                            attr('11570 g', 'SELLER_PACKAGE_WEIGHT')]})
+        registered = details.render_weight_column(weights, 'PACKAGE_WEIGHT')
+        logistic = details.render_weight_column(weights, 'SELLER_PACKAGE_WEIGHT')
+        self.assertIn('10.4 kg', registered)
+        self.assertNotIn('11.57 kg', registered)
+        self.assertIn('11.57 kg', logistic)
+        self.assertNotIn('10.4 kg', logistic)
+        self.assertIn('item.attributes.SELLER_PACKAGE_WEIGHT', logistic)
+
+    def test_missing_selected_weight_never_substitutes_or_infers(self):
+        weights = details.registered_weights({'attributes': [attr('2 kg', 'SELLER_PACKAGE_WEIGHT'), attr('1 kg')],
+                                              'shipping': {'dimensions': '10x10x10,3000'}})
+        self.assertEqual(details.render_weight_column(weights, 'PACKAGE_WEIGHT'), 'Não disponível')
+        weights = details.registered_weights({'variations': [{'id': 1, 'attributes': [attr('4 kg', 'PACKAGE_WEIGHT')]},
+                                                            {'id': 2, 'attributes': [attr('5 kg', 'SELLER_PACKAGE_WEIGHT')]}]})
+        self.assertIn('Variação 1: 4 kg', details.render_weight_column(weights, 'PACKAGE_WEIGHT'))
+        self.assertIn('Variação 2: Não disponível', details.render_weight_column(weights, 'PACKAGE_WEIGHT'))
+
 
 class PromotionTests(unittest.TestCase):
     def test_status_origin_and_fields(self):
@@ -298,13 +318,16 @@ class SyncTests(unittest.TestCase):
                          barra_atualizar=lambda *args: '', esc=html.escape, json=json,
                          render_promotions=details.render_promotions, read_json=details.read_json,
                          active_promotions=details.active_promotions, render_weights=details.render_weights,
+                         render_weight_column=details.render_weight_column,
                          frete_esperado=lambda *args: 10, TAGS_RUINS=set(), TAGS_BOAS=set())
         output = main_function('anuncios', namespace)(1)
-        self.assertIn('<th>Peso cadastrado</th><th>Peso logístico</th>', output)
+        self.assertIn("title='PACKAGE_WEIGHT'>Peso cadastrado", output)
+        self.assertIn("title='SELLER_PACKAGE_WEIGHT'>Peso logístico", output)
+        self.assertIn('Declarado pelo vendedor', output)
         self.assertIn('<td>Não disponível</td>', output)
         self.assertNotIn('de R$ 100.00', output)
         self.assertNotIn('<script>', output)
-        self.assertEqual(output.count('<th>'), 12)
+        self.assertEqual(output.count('</th>'), 12)
         self.assertEqual(output.count('<td>'), 12)
 
 

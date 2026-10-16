@@ -62,14 +62,21 @@ próprios de variações, só há escalar quando todas informam o mesmo valor; n
 ou escolha arbitrária da primeira variação. A coluna de frete continua sendo estimativa
 pela tabela existente e peso cadastrado, com esse limite explicitado na tela.
 
-**Peso logístico:** “Não disponível”. Não foi confirmado um campo por anúncio com
+**Mapeamento atualizado por solicitação do usuário em 15/10/2026:** Peso cadastrado
+exibe exclusivamente PACKAGE_WEIGHT; Peso logístico exibe exclusivamente
+SELLER_PACKAGE_WEIGHT e traz a indicação “Declarado pelo vendedor”. São valores oficiais
+retornados nos atributos da API, sem afirmar que SELLER_PACKAGE_WEIGHT é peso aferido ou
+faturável pela transportadora. Ausência de um campo não usa o outro como substituto.
+Cada variação mantém seu próprio valor e a origem/unidade permanecem no tooltip e JSON.
+
+Limite semântico mantido: não foi confirmado um campo por anúncio com
 contrato público de peso logístico aferido/faturável nos recursos utilizados. A API de
 envios possui `shipments/{id}.dimensions.weight` e `shipments/{id}/items[].dimensions.weight`,
 mas são dados de um envio/itens de uma venda: não se transfere peso de pacote, múltiplas
 unidades ou envio histórico para o cadastro do anúncio. Também não se usa peso cadastrado,
 PACKAGE_WEIGHT read_only, dimensões cúbicas ou cálculo volumétrico como prova de peso
-logístico. Um futuro adaptador deve comprovar semântica, unidade, item/variação, origem
-e data antes de preencher a coluna; este PR não inventa um endpoint para isso.
+logístico aferido. A coluna usa a definição operacional expressamente escolhida pelo
+usuário, com a ressalva do peso declarado visível; não foi criado um endpoint de pesagem.
 
 ## Permissões, falhas e atualização
 
