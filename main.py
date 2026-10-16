@@ -13,7 +13,9 @@ from listing_details import (registered_weights, legacy_weight, render_weights,
 from listing_sync import sync_promotions
 from listing_diagnostics import inspect_listing
 from sales_sync import init_sales_schema, sync_orders
+from overview_store import init_overview_schema
 from sales_view import render_sales
+from overview import load_overview, render_overview
 try:
     import openpyxl
 except Exception:
@@ -646,6 +648,7 @@ def iniciar_banco():
             conexao_id INTEGER, categoria TEXT, mensagem TEXT, quando BIGINT,
             PRIMARY KEY (conexao_id, categoria)
         )""")
+        init_overview_schema(conn, executar)
         # ---------- AUTENTICAÇÃO ----------
 
 def login_required(f):
@@ -1484,6 +1487,27 @@ def processar_fila():
 @app.route("/painel")
 @login_required
 def painel():
+    with banco() as conn:
+        if session.get("tipo") == "admin":
+            lojas = consultar(conn, "SELECT id, cliente, status FROM conexoes ORDER BY cliente, id")
+        else:
+            lojas = consultar(conn, "SELECT id, cliente, status FROM conexoes WHERE id=%s ORDER BY cliente, id",
+                              (session.get("conexao_id"),))
+    # Keep the existing access policy and apply it before any sales/coverage read.
+    lojas = [loja for loja in lojas if pode_ver_loja(loja["id"])]
+    try:
+        dados = load_overview(lojas, request.args, banco, consultar)
+    except ValueError as erro:
+        from sales_view import filters
+        return pagina("Visão Geral 2.0", "<div class='aviso'>" + esc(str(erro))
+                      + "</div>" + filters(None, request.args, action="/painel"))
+    return pagina("Visão Geral 2.0", render_overview(dados, request.args,
+                                                  admin=session.get("tipo") == "admin"))
+
+
+@app.route("/painel/legado")
+@login_required
+def painel_legado():
     hoje_iso = datetime.date.today().isoformat()
     ontem_iso = (datetime.date.today()
                  - datetime.timedelta(days=1)).isoformat()
@@ -1669,7 +1693,7 @@ def painel():
                       "(restam " + str(len(FILA_ATUALIZACAO))
                       + " na fila) — a página recarrega sozinha.</div>")
             corpo += ("<script>setTimeout(function(){ location.href = "
-                      "'/painel?r=" + str(tenta_r + 1) + "'; }, 60000);</script>")
+                      "'/painel/legado?r=" + str(tenta_r + 1) + "'; }, 60000);</script>")
          else:
             corpo += ("<div class='aviso'>A atualização ainda está rodando em "
                       "segundo plano. Recarregue a página em instantes.</div>")
@@ -3646,4 +3670,3 @@ scheduler.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
-
