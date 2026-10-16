@@ -40,10 +40,12 @@ class SyncRunnerTests(unittest.TestCase):
         queue=[5,6]
         collect=Mock(side_effect=[IndexError('simulated'),True])
         namespace=dict(FILA_ATUALIZACAO=queue,LOCK_FILA=threading.Lock(),WORKER_VIVO=True,
+                       ATUALIZANDO={5,6},LOCK_ATUALIZACAO=threading.Lock(),
                        executar_atualizacao=collect,registrar_erro=Mock(side_effect=RuntimeError('database unavailable')))
         main_function('processar_fila',namespace)()
         self.assertEqual([c.args[0] for c in collect.call_args_list],[5,6])
         self.assertEqual(queue,[])
+        self.assertEqual(namespace["ATUALIZANDO"],set())
         self.assertFalse(namespace['WORKER_VIVO'])
 
     def test_scheduler_enqueues_all_active_shops_without_running_network_calls(self):
@@ -52,3 +54,18 @@ class SyncRunnerTests(unittest.TestCase):
                        consultar=Mock(return_value=[dict(id=5),dict(id=6)]),enfileirar_atualizacao=enqueue)
         main_function('job_dados',namespace)()
         self.assertEqual([c.args[0] for c in enqueue.call_args_list],[5,6])
+
+    def test_queue_and_direct_collection_share_exclusion_guard(self):
+        queue=[]
+        active={5}
+        thread=Mock()
+        namespace=dict(FILA_ATUALIZACAO=queue,LOCK_FILA=threading.Lock(),WORKER_VIVO=False,
+                       ATUALIZANDO=active,LOCK_ATUALIZACAO=threading.Lock(),
+                       threading=SimpleNamespace(Thread=thread),processar_fila=Mock())
+        enqueue=main_function('enfileirar_atualizacao',namespace)
+        self.assertFalse(enqueue(5))
+        self.assertTrue(enqueue(6))
+        self.assertFalse(enqueue(6))
+        self.assertEqual(queue,[6])
+        self.assertEqual(active,{5,6})
+        thread.assert_called_once()

@@ -1464,6 +1464,10 @@ def enfileirar_atualizacao(cid):
     with LOCK_FILA:
         if cid in FILA_ATUALIZACAO:
             return False
+        with LOCK_ATUALIZACAO:
+            if cid in ATUALIZANDO:
+                return False
+            ATUALIZANDO.add(cid)
         FILA_ATUALIZACAO.append(cid)
         if WORKER_VIVO:
             return True
@@ -1487,6 +1491,8 @@ def processar_fila():
                 registrar_erro(cid, "atualizacao", "Falha na atualização: " + type(exc).__name__)
             except Exception:
                 pass  # Keep draining other shops even when persistence is unavailable.
+        with LOCK_ATUALIZACAO:
+            ATUALIZANDO.discard(cid)
         with LOCK_FILA:
             try:
                 FILA_ATUALIZACAO.remove(cid)
@@ -2867,12 +2873,8 @@ def painel_detalhe(cid):
     atualizando = False
     if (ultima is None or (int(time.time()) - ultima) > GATILHO_AUTO_SEG) \
             and c["user_id"]:
-        with LOCK_ATUALIZACAO:
-            if cid not in ATUALIZANDO:
-                ATUALIZANDO.add(cid)
-                threading.Thread(target=executar_atualizacao_bg,
-                                 args=(cid,), daemon=True).start()
-            atualizando = True
+        enfileirar_atualizacao(cid)
+        atualizando = cid in ATUALIZANDO
     por_dia = {}
     for v in vendas:
         dia = v["data"][:10]
