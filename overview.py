@@ -8,6 +8,7 @@ import time
 from sales_metrics import SAO_PAULO, change, period, summarize
 from sales_view import filters, fmt
 from overview_store import DAILY_SQL, UNUSUAL_SQL, LATEST_ERRORS_SQL
+from overview_read import bounded_query
 
 EXCEPTION_BATCH_SIZE = 500
 STALE_SECONDS = 3 * 60 * 60
@@ -22,6 +23,7 @@ def load_overview(shops, args, banco, query):
         return build_overview(shops, [], [], [], bounds)
     with banco() as conn:
         conn.set_session(isolation_level='REPEATABLE READ', readonly=True)
+        query = bounded_query(conn, query)
         daily = query(conn, DAILY_SQL, (ids, bounds[2], bounds[1]))
         coverage = query(conn, """SELECT conexao_id, dia, atualizado_em
             FROM vendas_cobertura WHERE conexao_id = ANY(%s)
