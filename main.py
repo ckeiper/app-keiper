@@ -850,6 +850,29 @@ def logout():
     return redirect("/login")
 
 
+@app.route("/gerador-contestacao-frete", methods=["GET", "POST"])
+def gerador_contestacao_frete_publico():
+    """Free, no-login generator; never stores order/shipment identifiers."""
+    values = request.form if request.method == "POST" else {}
+    body = ('<div class="card"><p>Ferramenta gratuita da Keiper Consultoria. '
+            'Sem cadastro e sem conexão com sua conta do Mercado Livre.</p>'
+            '<p>Os dados preenchidos não são armazenados pelo gerador. '
+            'As mensagens devem ser revisadas antes do envio ao suporte.</p></div>')
+    body += render_generator(values, method="post")
+    body += ('<p><a href="/login">Já é cliente? Entrar no painel</a></p>')
+    page = ('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<meta name="robots" content="index,follow">'
+            '<title>Gerador gratuito de contestação de frete | Keiper Consultoria</title>'
+            + CSS + '</head><body><div class="top"><div><h1>'
+            + img_logo(34) + 'Keiper Consultoria</h1></div></div>'
+            '<div class="wrap">' + body + '</div>' + SCRIPT + '</body></html>')
+    response = Response(page, mimetype="text/html")
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 @app.route("/")
 def home():
     if "usuario_id" not in session:
