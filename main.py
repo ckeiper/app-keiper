@@ -2468,7 +2468,8 @@ def diagnostico_saude_anuncio(cid, item_id):
             FROM pedidos WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL
         """, (cid,))
         itens_pedidos = consultar(conn, """
-            SELECT pi.conexao_id, pi.pedido_id, pi.item_id, pi.quantidade
+            SELECT pi.conexao_id, pi.pedido_id, pi.item_id, pi.quantidade,
+                   pi.preco_unitario
             FROM pedidos_itens pi JOIN pedidos p
               ON p.conexao_id=pi.conexao_id AND p.pedido_id=pi.pedido_id
             WHERE pi.conexao_id=%s AND p.vendas_verificado_em IS NOT NULL
@@ -2486,12 +2487,16 @@ def diagnostico_saude_anuncio(cid, item_id):
                           "<div class='card'>Anúncio não encontrado nesta loja.</div>"), 404
     item = anuncios_encontrados[0]
     resultados = diagnose_listing(item)
-    vendas = listing_sales_summary(
-        pedidos_verificados, itens_pedidos, [r["dia"] for r in cobertura], item_id)
+    vendas_7 = listing_sales_summary(
+        pedidos_verificados, itens_pedidos, [r["dia"] for r in cobertura],
+        item_id, days=7)
+    vendas_30 = listing_sales_summary(
+        pedidos_verificados, itens_pedidos, [r["dia"] for r in cobertura],
+        item_id, days=30)
     if pendentes and pendentes[0]["n"]:
-        vendas["orders"] = None
-        vendas["units"] = None
-        vendas["reason"] = "Há pedidos antigos ainda não verificados nesta loja."
+        for vendas in (vendas_7, vendas_30):
+            vendas.update(orders=None, units=None, gross_items=None, ticket=None,
+                          reason="Há pedidos antigos ainda não verificados nesta loja.")
     titulo = esc(str(item.get("titulo") or "Anúncio sem título"))
     corpo = ("<h2>Diagnóstico do anúncio</h2>"
              "<div class='card'><h3>" + titulo + "</h3><p class='muted'>"
@@ -2499,17 +2504,35 @@ def diagnostico_saude_anuncio(cid, item_id):
              "<p>Análise de estoque, status, imagens e preço com base na última coleta. "
              "Este diagnóstico não identifica causas de queda de vendas nem compara "
              "concorrentes, tráfego ou conversão.</p></div>")
-    if vendas["orders"] is None:
-        corpo += ("<div class='card'><h3>Vendas pagas · últimos 30 dias</h3>"
-                  "<p><b>Indisponível</b></p><p class='muted'>"
-                  + esc(vendas["reason"] or "Sem dados validados.")
-                  + "</p><p>Não é possível afirmar que o anúncio não vendeu.</p></div>")
-    else:
-        corpo += ("<div class='card'><h3>Vendas pagas · últimos 30 dias</h3>"
-                  "<p><b>" + str(vendas["orders"]) + " pedido(s) · "
-                  + str(vendas["units"]) + " unidade(s)</b></p>"
-                  "<p class='muted'>Pedidos pagos e aprovados, vinculados a este anúncio, "
-                  "com cobertura e quantidades verificadas. Não inclui tráfego ou conversão.</p></div>")
+    corpo += ("<div class='card'><h3>Indicadores de vendas por anúncio</h3>"
+              "<p class='muted'>Somente pedidos pagos e aprovados, com cobertura "
+              "diária e vínculo completo dos itens. Valor bruto dos itens = "
+              "preço unitário registrado na venda × quantidade. "
+              "Não equivale ao valor líquido recebido, nem inclui rateio de "
+              "frete, cupons ou taxas.</p>"
+              "<div style='overflow-x:auto'><table><thead><tr>"
+              "<th>Período</th><th>Pedidos</th><th>Unidades</th>"
+              "<th>Valor dos itens</th><th>Ticket médio por pedido</th>"
+              "</tr></thead><tbody>")
+    for periodo, vendas in (("7 dias", vendas_7), ("30 dias", vendas_30)):
+        if vendas["orders"] is None:
+            corpo += ("<tr><td>" + periodo + "</td><td colspan='4'>"
+                      "<b>Indisponível</b> — "
+                      + esc(vendas["reason"] or "Sem dados validados.")
+                      + "</td></tr>")
+        else:
+            valor = "R$ %.2f" % vendas["gross_items"]
+            ticket = ("R$ %.2f" % vendas["ticket"]
+                      if vendas["ticket"] is not None else "—")
+            corpo += ("<tr><td>" + periodo + "</td><td>"
+                      + str(vendas["orders"]) + "</td><td>"
+                      + str(vendas["units"]) + "</td><td>"
+                      + valor + "</td><td>" + ticket + "</td></tr>")
+    corpo += ("</tbody></table></div><p class='muted'>"
+              "Ticket médio = valor bruto dos itens deste anúncio ÷ "
+              "pedidos que contêm este anúncio. Quando não há pedidos, "
+              "o ticket não é calculado. Visitas e conversão seguem "
+              "indisponíveis até termos fonte validada.</p></div>")
     for acao in resultados:
         gravidade = acao["priority"]
         classe = "urgente" if gravidade == "alta" else "atencao" if gravidade in ("media", "revisar") else "ok"
