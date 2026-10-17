@@ -1319,6 +1319,8 @@ def detalhe_chamado_frete(cid, case_id):
     if not store or not rows:
         return "Chamado não encontrado", 404
     case = rows[0]
+    if "frete_csrf" not in session:
+        session["frete_csrf"] = secrets.token_urlsafe(32)
     if request.method == "POST":
         if not freight_csrf_valid():
             return "Token inválido", 403
