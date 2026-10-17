@@ -1360,6 +1360,24 @@ def detalhe_chamado_frete(cid, case_id):
                'required placeholder="Anote a resposta do ML ou o próximo passo" '
                'style="width:100%;min-height:120px"></textarea></p>'
                '<button type="submit">Salvar atualização</button></form></div>')
+    # Messages are saved only when the user explicitly submits an edited draft.
+    from freight_contestation import generate_messages
+    templates = generate_messages(
+        case["pedido_id"] or "", case["anuncio_id"] or "",
+        case["envio_id"] or "", "", "")
+    content += ('<div class="card"><h3>Mensagens editáveis para o chamado</h3>'
+                '<p>Valores de frete não confirmados: revise antes de enviar ao suporte.</p></div>')
+    for title, draft in templates:
+        content += ('<div class="card"><h4>' + esc(title) + '</h4>'
+                    '<form method="post" action="/fretes/' + str(cid)
+                    + '/chamado/' + str(case_id) + '/mensagem">'
+                    '<input type="hidden" name="csrf_token" value="'
+                    + esc(session["frete_csrf"]) + '">'
+                    '<input type="hidden" name="modelo" value="' + esc(title) + '">'
+                    '<textarea name="mensagem" maxlength="10000" required '
+                    'style="width:100%;min-height:240px;box-sizing:border-box">'
+                    + esc(draft) + '</textarea><p><button type="submit">'
+                    'Salvar mensagem editada no histórico</button></p></form></div>')
     content += '<div class="card"><h3>Histórico</h3>'
     for event in events:
         content += ('<p><b>' + esc(str(event["tipo"])) + '</b> — '
@@ -1368,6 +1386,33 @@ def detalhe_chamado_frete(cid, case_id):
                     + esc(event["detalhe"]) + '</p>')
     content += '</div><p><a href="/fretes/' + str(cid) + '">← Voltar</a></p>'
     return pagina_loja("Chamado de frete", cid, store[0]["cliente"], "fretes", content)
+
+
+@app.route("/fretes/<int:cid>/chamado/<int:case_id>/mensagem", methods=["POST"])
+@login_required
+def salvar_mensagem_frete(cid, case_id):
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    if not freight_csrf_valid():
+        return "Token inválido", 403
+    template = (request.form.get("modelo") or "").strip()
+    message = (request.form.get("mensagem") or "").strip()
+    if template not in TEMPLATES or not message or len(message) > 10000:
+        return "Modelo ou mensagem inválidos (máximo 10.000 caracteres)", 400
+    now = int(time.time())
+    with banco() as conn:
+        cases = consultar(conn, """SELECT id FROM frete_chamados
+            WHERE conexao_id=%s AND id=%s""", (cid, case_id))
+        if not cases:
+            return "Chamado não encontrado", 404
+        executar(conn, """INSERT INTO frete_chamados_historico
+            (conexao_id, chamado_id, usuario_id, tipo, detalhe, criado_em)
+            VALUES (%s,%s,%s,%s,%s,%s)""",
+            (cid, case_id, session["usuario_id"], "mensagem: " + template,
+             message, now))
+        executar(conn, """UPDATE frete_chamados SET atualizado_em=%s
+            WHERE conexao_id=%s AND id=%s""", (now, cid, case_id))
+    return redirect("/fretes/" + str(cid) + "/chamado/" + str(case_id))
 
 
 @app.route("/fretes/<int:cid>")
