@@ -267,7 +267,22 @@ def render_promotions(value):
                    + br_money(winner['original']) + ' · -' + str(winner['discount']).replace('.', ',')
                    + '%</small>')
     else:
+        # The official sale_price endpoint did not confirm the final checkout
+        # price. Campaign prices may still be displayed as *campaign data*,
+        # never as the effective sale price. In case of competing offers,
+        # avoid selecting an arbitrary campaign.
         summary = ('<b>' + str(len(active)) + (' promoção ativa</b>' if len(active) == 1 else ' promoções ativas</b>')) if active else 'Sem promoção ativa confirmada'
+        campaign_prices = {p['price'] for p in active if p.get('price') is not None}
+        if active and len(campaign_prices) == 1 and all(p.get('price') is not None for p in active):
+            summary += ('<br><b>Preço informado pela campanha: '
+                        + br_money(next(iter(campaign_prices))) + '</b>'
+                        '<br><small>Preço final de venda não confirmado pela API de sale_price.</small>')
+        elif active and len(campaign_prices) > 1:
+            summary += ('<br><small>Campanhas com preços diferentes. '
+                        'Consulte os detalhes; preço final não confirmado.</small>')
+        elif active:
+            summary += ('<br><small>Preço da campanha não informado ou não confirmado; '
+                        'consulte os detalhes.</small>')
     labels = {'PRICE_DISCOUNT': 'Desconto do vendedor', 'SELLER_CAMPAIGN': 'Campanha do vendedor',
               'SELLER_COUPON_CAMPAIGN': 'Cupom do vendedor', 'SMART': 'Campanha cofinanciada',
               'DEAL': 'Campanha Mercado Livre', 'DOD': 'Oferta do dia', 'LIGHTNING': 'Oferta relâmpago'}
