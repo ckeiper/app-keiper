@@ -27,6 +27,18 @@ class FreightCasesTests(unittest.TestCase):
         self.assertNotIn("<b>123</b>", html)
         self.assertIn("/fretes/7/chamado/3", html)
 
+    def test_manual_discrepancy_is_flagged_without_claiming_confirmation(self):
+        from decimal import Decimal
+        html = render_cases([{
+            "id": 9, "status": "Pendente", "pedido_id": "123",
+            "envio_id": "456", "protocolo": None,
+            "ultima_avaliacao": "Possível divergência",
+            "ultima_diferenca": Decimal("3.25"),
+        }], 7)
+        self.assertIn("R$ 3,25", html)
+        self.assertIn("conferência manual", html)
+        self.assertIn("Requer validação", html)
+
     def test_empty_list(self):
         self.assertIn("Nenhum chamado registrado", render_cases([], 4))
 
