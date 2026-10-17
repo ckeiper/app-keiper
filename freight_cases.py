@@ -38,6 +38,7 @@ def init_case_schema(conn, execute):
         valor_cobrado NUMERIC(12,2),
         data_referencia TEXT,
         origem_cobranca TEXT,
+        fonte_api_verificada BOOLEAN NOT NULL DEFAULT FALSE,
         contexto_confirmado BOOLEAN NOT NULL DEFAULT FALSE,
         itens_envio INTEGER,
         avaliacao TEXT NOT NULL,
@@ -46,6 +47,8 @@ def init_case_schema(conn, execute):
         usuario_id INTEGER NOT NULL,
         criado_em BIGINT NOT NULL
     )""")
+    execute(conn, """ALTER TABLE frete_evidencias
+        ADD COLUMN IF NOT EXISTS fonte_api_verificada BOOLEAN NOT NULL DEFAULT FALSE""")
     execute(conn, """CREATE INDEX IF NOT EXISTS idx_frete_evidencias_chamado
         ON frete_evidencias (conexao_id, chamado_id, id DESC)""")
     execute(conn, """CREATE INDEX IF NOT EXISTS idx_frete_historico_chamado
