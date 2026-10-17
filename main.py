@@ -2787,6 +2787,11 @@ def ranking_anuncios(cid):
              "Somente pedidos pagos e aprovados com dados verificados. "
              "Valor bruto dos itens, não valor líquido recebido. "
              "Visitas e conversão não estão disponíveis.</p>")
+    corpo += ("<div class='card'><p>Período: "
+              "<a class='filtro' href='/ranking-anuncios/" + str(cid)
+              + "?dias=7'>7 dias</a> "
+              "<a class='filtro' href='/ranking-anuncios/" + str(cid)
+              + "?dias=30'>30 dias</a></p></div>")
     if not resumo["available"]:
         corpo += ("<div class='card'><b>Ranking indisponível</b><p>"
                   + esc(resumo["reason"] or "Dados não verificados.")
@@ -2812,13 +2817,7 @@ def ranking_anuncios(cid):
         registros.sort(key=lambda x: (
             x[1]["growth_pct"] is None, x[1]["growth_pct"] or 0,
             str(x[0]["item_id"])))
-    corpo += ("<div class='card'><p>Período: "
-              "<a class='filtro' href='/ranking-anuncios/" + str(cid)
-              + "?dias=7&ordem=" + ordem + "'>7 dias</a> "
-              "<a class='filtro' href='/ranking-anuncios/" + str(cid)
-              + "?dias=30&ordem=" + ordem + "'>30 dias</a></p>"
-              "<p>Ordenar por: ")
-
+    corpo += "<div class='card'><p>Ordenar por: "
     for chave, titulo in opcoes.items():
         corpo += ("<a class='filtro' href='/ranking-anuncios/" + str(cid)
                   + "?dias=" + dias + "&ordem=" + chave + "'>" + titulo + "</a> ")
