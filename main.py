@@ -1726,7 +1726,13 @@ def contestar_frete(cid):
                 ORDER BY c.atualizado_em DESC LIMIT 50""", (cid,))
     if "frete_csrf" not in session:
         session["frete_csrf"] = secrets.token_urlsafe(32)
-    content = render_generator(request.args)
+    content = ('<div class="card"><h2>Auditoria de Fretes</h2>'
+               '<p>A conferência começa com a planilha de conciliação bancária. '
+               'Sem importação, nenhuma auditoria automática é executada.</p>'
+               '<p><a href="/fretes/' + str(cid)
+               + '/importar-conciliacao">Importar Excel de conciliação</a></p>'
+               '</div>')
+    content += render_generator(request.args)
     content += render_cases(cases, cid)
     content += ('<div class="card"><h3>Salvar novo chamado</h3>'
                 '<p>Use os dados informados acima; o registro não comprova cobrança indevida.</p>'
