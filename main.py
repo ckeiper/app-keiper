@@ -1554,7 +1554,7 @@ def painel_legado():
     ids = [l["id"] for l in lojas]
     fat_hoje = fat_ontem = 0.0
     vendas_hoje = vendas_ontem = 0
-    visitas_total = 0
+    visitas_total = None
     gasto_hoje = None
     gasto_total = 0.0
     fat_geral = 0.0
@@ -1619,7 +1619,7 @@ def painel_legado():
         iso = d.isoformat()
         rotulos.append(d.strftime("%d/%m"))
         serie_fat.append(round(fat_map.get(iso, 0), 2))
-        serie_vis.append(vis_map.get(iso, 0))
+        serie_vis.append(None)
         d += datetime.timedelta(days=1)
     tacos = None
     if fat_geral and fat_geral > 0:
@@ -1655,9 +1655,9 @@ def painel_legado():
               + "</div><div class='lab'>Vendas hoje</div>"
               + "<div class='var estavel'>ontem: "
               + br(vendas_ontem, 0) + "</div></div>")
-    corpo += ("<div class='stat'><div class='num'>" + br(visitas_total, 0)
-              + "</div><div class='lab'>Visitas totais (todas as contas)"
-              + "</div></div>")
+    corpo += ("<div class='stat'><div class='num'>Indisponível"
+              "</div><div class='lab'>Visitas totais (API indisponível)"
+              "</div></div>")
     if gasto_hoje is not None:
         gasto_txt = "R$ " + br(gasto_hoje)
     else:
@@ -2312,11 +2312,11 @@ def exportar_demandas(cid):
     if not c:
         return "Loja não encontrada", 404
     itens_promocao = {r["item_id"] for r in promos_ativas}
-    visitas_por_item = {m["item_id"]: (m["visitas"] or 0) for m in metricas}
-    conv_por_item = {m["item_id"]: (m["conversao"] or 0) for m in metricas}
+    visitas_por_item = {}  # API indisponível; não reutilizar zeros antigos
+    conv_por_item = {}  # conversão sem visitas verificadas não é confiável
     linhas = []
     for a in anuncios:
-        a["visitas"] = visitas_por_item.get(a["item_id"], 0)
+        a["visitas"] = None
         demandas_lista = montar_demandas_anuncio(
             a, a["item_id"] in itens_promocao, conv_por_item.get(a["item_id"]))
         for acao, grav in demandas_lista:
@@ -2360,11 +2360,11 @@ def demandas(cid):
                       "<div class='card'><h2>Loja não encontrada</h2></div>")
     ultima = ultima_atualizacao(cid)
     itens_promocao = {r["item_id"] for r in promos_ativas}
-    visitas_por_item = {m["item_id"]: (m["visitas"] or 0) for m in metricas}
-    conv_por_item = {m["item_id"]: (m["conversao"] or 0) for m in metricas}
+    visitas_por_item = {}  # API indisponível; não reutilizar zeros antigos
+    conv_por_item = {}  # conversão sem visitas verificadas não é confiável
     itens_demandas = []
     for a in anuncios:
-        a["visitas"] = visitas_por_item.get(a["item_id"], 0)
+        a["visitas"] = None
         demandas_lista = montar_demandas_anuncio(
             a, a["item_id"] in itens_promocao, conv_por_item.get(a["item_id"]))
         if not demandas_lista:
