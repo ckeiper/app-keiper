@@ -1516,7 +1516,10 @@ def consultar_custo_frete_ml(cid, case_id):
     if not seller_id:
         return "Identificador do vendedor indisponível", 400
     # Refresh an expired/near-expiry OAuth token before calling the ML API.
-    token = token_atual(shop)
+    try:
+        token = token_atual(shop)
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        return "Falha ao renovar a conexão com o Mercado Livre", 502
     if not token:
         return "Não foi possível renovar a conexão com o Mercado Livre", 502
     try:
