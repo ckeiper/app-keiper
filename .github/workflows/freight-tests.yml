@@ -1,0 +1,26 @@
+name: Freight unit tests
+on:
+  pull_request:
+    paths:
+      - 'freight_*.py'
+      - 'test_freight_*.py'
+      - 'main.py'
+      - '.github/workflows/freight-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'freight_*.py'
+      - 'test_freight_*.py'
+      - 'main.py'
+jobs:
+  freight-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile source
+        run: python -m py_compile main.py freight_audit.py freight_cases.py freight_contestation.py
+      - name: Run freight unit tests
+        run: python -m unittest -v test_freight_audit test_freight_contestation
