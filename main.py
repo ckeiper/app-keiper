@@ -13,6 +13,7 @@ from listing_details import (registered_weights, legacy_weight, render_weights,
 from listing_sync import sync_promotions
 from listing_diagnostics import inspect_listing
 from listing_health import diagnose_listing
+from listing_sales import listing_sales_summary
 from sales_sync import init_sales_schema, sync_orders
 from overview_store import init_overview_schema
 from sync_runner import run_stages
@@ -2482,6 +2483,23 @@ def diagnostico_saude_anuncio(cid, item_id):
         anuncios_encontrados = consultar(
             conn, "SELECT * FROM anuncios WHERE conexao_id=%s AND item_id=%s",
             (cid, item_id))
+        pedidos_verificados = consultar(conn, """
+            SELECT conexao_id, pedido_id, status, total, moeda, criado_em,
+                   pagamentos_json, unidades, vendas_dia_coleta
+            FROM pedidos WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL
+        """, (cid,))
+        itens_pedidos = consultar(conn, """
+            SELECT pi.conexao_id, pi.pedido_id, pi.item_id, pi.quantidade
+            FROM pedidos_itens pi JOIN pedidos p
+              ON p.conexao_id=pi.conexao_id AND p.pedido_id=pi.pedido_id
+            WHERE pi.conexao_id=%s AND p.vendas_verificado_em IS NOT NULL
+        """, (cid,))
+        cobertura = consultar(conn,
+            "SELECT dia FROM vendas_cobertura WHERE conexao_id=%s", (cid,))
+        pendentes = consultar(conn, """
+            SELECT COUNT(*) AS n FROM pedidos
+            WHERE conexao_id=%s AND vendas_verificado_em IS NULL
+        """, (cid,))
     if not lojas:
         return pagina("Loja não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
     if not anuncios_encontrados:
@@ -2489,6 +2507,12 @@ def diagnostico_saude_anuncio(cid, item_id):
                           "<div class='card'>Anúncio não encontrado nesta loja.</div>"), 404
     item = anuncios_encontrados[0]
     resultados = diagnose_listing(item)
+    vendas = listing_sales_summary(
+        pedidos_verificados, itens_pedidos, [r["dia"] for r in cobertura], item_id)
+    if pendentes and pendentes[0]["n"]:
+        vendas["orders"] = None
+        vendas["units"] = None
+        vendas["reason"] = "Há pedidos antigos ainda não verificados nesta loja."
     titulo = esc(str(item.get("titulo") or "Anúncio sem título"))
     corpo = ("<h2>Diagnóstico do anúncio</h2>"
              "<div class='card'><h3>" + titulo + "</h3><p class='muted'>"
@@ -2496,6 +2520,17 @@ def diagnostico_saude_anuncio(cid, item_id):
              "<p>Análise de estoque, status, imagens e preço com base na última coleta. "
              "Este diagnóstico não identifica causas de queda de vendas nem compara "
              "concorrentes, tráfego ou conversão.</p></div>")
+    if vendas["orders"] is None:
+        corpo += ("<div class='card'><h3>Vendas pagas · últimos 30 dias</h3>"
+                  "<p><b>Indisponível</b></p><p class='muted'>"
+                  + esc(vendas["reason"] or "Sem dados validados.")
+                  + "</p><p>Não é possível afirmar que o anúncio não vendeu.</p></div>")
+    else:
+        corpo += ("<div class='card'><h3>Vendas pagas · últimos 30 dias</h3>"
+                  "<p><b>" + str(vendas["orders"]) + " pedido(s) · "
+                  + str(vendas["units"]) + " unidade(s)</b></p>"
+                  "<p class='muted'>Pedidos pagos e aprovados, vinculados a este anúncio, "
+                  "com cobertura e quantidades verificadas. Não inclui tráfego ou conversão.</p></div>")
     for acao in resultados:
         gravidade = acao["priority"]
         classe = "urgente" if gravidade == "alta" else "atencao" if gravidade in ("media", "revisar") else "ok"
