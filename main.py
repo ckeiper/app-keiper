@@ -1655,13 +1655,22 @@ def contestar_frete(cid):
         return pagina("Loja não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
     with banco() as conn:
         cases = consultar(conn, """SELECT c.id, c.status, c.pedido_id, c.envio_id,
-                c.protocolo, e.avaliacao AS ultima_avaliacao, e.diferenca AS ultima_diferenca
+                c.protocolo, e.avaliacao AS ultima_avaliacao,
+                e.diferenca AS ultima_diferenca, api.valor_cobrado AS custo_api
                 FROM frete_chamados c
                 LEFT JOIN LATERAL (
                     SELECT avaliacao, diferenca FROM frete_evidencias
                     WHERE conexao_id=c.conexao_id AND chamado_id=c.id
+                    AND valor_referencia IS NOT NULL
                     ORDER BY id DESC LIMIT 1
                 ) e ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT valor_cobrado FROM frete_evidencias
+                    WHERE conexao_id=c.conexao_id AND chamado_id=c.id
+                    AND origem_cobranca LIKE 'API Mercado Livre /shipments/%%'
+                    AND valor_cobrado IS NOT NULL
+                    ORDER BY id DESC LIMIT 1
+                ) api ON TRUE
                 WHERE c.conexao_id=%s
                 ORDER BY c.atualizado_em DESC LIMIT 50""", (cid,))
     if "frete_csrf" not in session:
