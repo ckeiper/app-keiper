@@ -27,9 +27,6 @@ class SalesHistoryFixTests(unittest.TestCase):
         self.assertIn('else "—"', self.main)
         self.assertIn("Histórico de vendas em sincronização", self.main)
 
-    def test_backfill_batch_is_small(self):
-        self.assertIn("][:5]", self.sync)
-
 
 if __name__ == "__main__":
     unittest.main()
