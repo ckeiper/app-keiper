@@ -12,6 +12,7 @@ from listing_details import (registered_weights, legacy_weight, render_weights,
                              render_weight_column, effective_promotion)
 from listing_sync import sync_promotions
 from listing_diagnostics import inspect_listing
+from listing_health import diagnose_listing
 from sales_sync import init_sales_schema, sync_orders
 from overview_store import init_overview_schema
 from sync_runner import run_stages
@@ -2471,6 +2472,43 @@ def demandas(cid):
         corpo += "</div>"
     corpo += "</div>"
     return pagina_loja("Demandas", cid, c["cliente"], "demandas", corpo)
+@app.route("/diagnostico/<int:cid>/<item_id>")
+@login_required
+def diagnostico_anuncio(cid, item_id):
+    if not pode_ver_loja(cid):
+        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>"), 403
+    with banco() as conn:
+        lojas = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+        anuncios_encontrados = consultar(
+            conn, "SELECT * FROM anuncios WHERE conexao_id=%s AND item_id=%s",
+            (cid, item_id))
+    if not lojas:
+        return pagina("Loja não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
+    if not anuncios_encontrados:
+        return pagina_loja("Diagnóstico", cid, lojas[0]["cliente"], "anuncios",
+                          "<div class='card'>Anúncio não encontrado nesta loja.</div>"), 404
+    item = anuncios_encontrados[0]
+    resultados = diagnose_listing(item)
+    titulo = esc(str(item.get("titulo") or "Anúncio sem título"))
+    corpo = ("<h2>Diagnóstico do anúncio</h2>"
+             "<div class='card'><h3>" + titulo + "</h3><p class='muted'>"
+             + esc(str(item_id)) + "</p>"
+             "<p>Análise de estoque, status, imagens e preço com base na última coleta. "
+             "Este diagnóstico não identifica causas de queda de vendas nem compara "
+             "concorrentes, tráfego ou conversão.</p></div>")
+    for acao in resultados:
+        gravidade = acao["priority"]
+        classe = "urgente" if gravidade == "alta" else "atencao" if gravidade in ("media", "revisar") else "ok"
+        corpo += ("<div class='card'><div class='demanda-item " + classe + "'>"
+                  "<h3>" + esc(acao["title"]) + "</h3>"
+                  "<p><b>Evidência:</b> " + esc(acao["evidence"]) + "</p>"
+                  "<p><b>Próxima ação:</b> " + esc(acao["action"]) + "</p>"
+                  "<small>Prioridade: " + esc(gravidade) + "</small></div></div>")
+    corpo += ("<p><a href='/anuncios/" + str(cid)
+              + "'>← Voltar aos anúncios</a></p>")
+    return pagina_loja("Diagnóstico do anúncio", cid, lojas[0]["cliente"], "anuncios", corpo)
+
+
 @app.route("/anuncios/<int:cid>")
 @login_required
 def anuncios(cid):
@@ -2565,7 +2603,9 @@ def anuncios(cid):
             frete_html = "<span class='tag sem'>sem peso</span>"
         linhas_html += ("<tr>"
                         "<td><b>" + esc(str(a["titulo"])) + "</b><br>"
-                        "<small class='muted'>" + str(a["item_id"]) + "</small></td>"
+                        "<small class='muted'>" + esc(str(a["item_id"])) + "</small><br>"
+                        "<a href='/diagnostico/" + str(cid) + "/" + esc(str(a["item_id"]))
+                        + "'>Ver diagnóstico</a></td>"
                         "<td>R$ %.2f" % (a["preco"] or 0) + "</td>"
                         "<td>" + promo_html + "</td>"
                         "<td>" + str(a["quantidade"] or 0) + "</td>"
