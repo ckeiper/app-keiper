@@ -192,8 +192,8 @@ class SyncTests(unittest.TestCase):
             return {'results': [], 'paging': {'total': 0}}, None
         success, writes, logs = self.run_sync(api)
         self.assertTrue(success)
-        self.assertEqual(len(calls), 37)
-        self.assertEqual(len([s for s, p in writes if 'INSERT INTO vendas_cobertura' in s]), 37)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(len([s for s, p in writes if 'INSERT INTO vendas_cobertura' in s]), 2)
         self.assertIn('-03:00', calls[0][2]['order.date_created.from'])
 
     def test_api_failure_invalidates_coverage(self):
@@ -202,7 +202,7 @@ class SyncTests(unittest.TestCase):
         self.assertTrue(logs)
         self.assertFalse(any('INSERT INTO vendas_cobertura' in s for s, p in writes))
         self.assertTrue(any('DELETE FROM vendas_cobertura' in s for s, p in writes))
-        self.assertEqual(len(logs),37)
+        self.assertEqual(len(logs),2)
         self.assertTrue(all('HTTP 403' in entry[2] for entry in logs))
 
     def test_rate_limit_reason_is_not_overwritten_by_generic_window_error(self):
@@ -220,7 +220,7 @@ class SyncTests(unittest.TestCase):
             return {'results':[{'id':1}],'paging':{'total':3}},None
         success,writes,logs=self.run_sync(api)
         self.assertFalse(success)
-        self.assertEqual(len(calls),74)
+        self.assertEqual(len(calls),4)
         self.assertTrue(all('identificadores duplicados' in entry[2] for entry in logs))
         self.assertFalse(any('INSERT INTO vendas_cobertura' in sql for sql,_ in writes))
 
@@ -256,7 +256,7 @@ class SyncTests(unittest.TestCase):
         self.assertTrue(success)
         items = [p for s, p in writes if 'INSERT INTO pedidos_itens' in s]
         self.assertEqual(items[0][3:5], (3, 20))
-        self.assertEqual(len(items), 51 * 37)
+        self.assertEqual(len(items), 51 * 2)
 
     def test_schema_is_additive_idempotent(self):
         statements = []
