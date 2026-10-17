@@ -17,6 +17,7 @@ from listing_sales import listing_sales_summary
 from listing_trends import comparison
 from listing_ranking import ranking_metrics
 from visual_theme import VISUAL_CSS
+from page_performance import ranking_query_bounds
 from sales_sync import init_sales_schema, sync_orders
 from overview_store import init_overview_schema
 from sync_runner import run_stages
@@ -2747,6 +2748,10 @@ def ranking_anuncios(cid):
     """Store-level verified listing ranking; never use lifetime vendidos."""
     if not pode_ver_loja(cid):
         return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
+    dias = request.args.get("dias", "30")
+    if dias not in ("7", "30"):
+        dias = "30"
+    inicio_sql, fim_sql, inicio_cobertura, fim_cobertura = ranking_query_bounds(int(dias))
     with banco() as conn:
         lojas = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         if not lojas:
@@ -2758,25 +2763,30 @@ def ranking_anuncios(cid):
         pedidos = consultar(conn, """
             SELECT conexao_id, pedido_id, status, total, moeda, criado_em,
                    pagamentos_json, unidades, vendas_dia_coleta
-            FROM pedidos WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL
-        """, (cid,))
+            FROM pedidos
+            WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL
+              AND (LEFT(criado_em,10) BETWEEN %s AND %s
+                   OR vendas_dia_coleta BETWEEN %s AND %s)
+        """, (cid, inicio_sql, fim_sql, inicio_cobertura, fim_cobertura))
         itens = consultar(conn, """
             SELECT pi.conexao_id, pi.pedido_id, pi.item_id,
                    pi.quantidade, pi.preco_unitario
             FROM pedidos_itens pi JOIN pedidos p
               ON p.conexao_id=pi.conexao_id AND p.pedido_id=pi.pedido_id
             WHERE pi.conexao_id=%s AND p.vendas_verificado_em IS NOT NULL
-        """, (cid,))
+              AND (LEFT(p.criado_em,10) BETWEEN %s AND %s
+                   OR p.vendas_dia_coleta BETWEEN %s AND %s)
+        """, (cid, inicio_sql, fim_sql, inicio_cobertura, fim_cobertura))
         cobertura = consultar(conn, """
-            SELECT dia FROM vendas_cobertura WHERE conexao_id=%s
-        """, (cid,))
+            SELECT dia FROM vendas_cobertura
+            WHERE conexao_id=%s AND dia BETWEEN %s AND %s
+        """, (cid, inicio_cobertura, fim_cobertura))
         pendentes = consultar(conn, """
-            SELECT COUNT(*) AS n FROM pedidos
-            WHERE conexao_id=%s AND vendas_verificado_em IS NULL
+            SELECT EXISTS (
+                SELECT 1 FROM pedidos WHERE conexao_id=%s
+                AND vendas_verificado_em IS NULL
+            ) AS n
         """, (cid,))
-    dias = request.args.get("dias", "30")
-    if dias not in ("7", "30"):
-        dias = "30"
     resumo = ranking_metrics(
         pedidos, itens, [r["dia"] for r in cobertura],
         [a["item_id"] for a in anuncios_loja],
