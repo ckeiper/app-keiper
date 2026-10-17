@@ -23,6 +23,6 @@ jobs:
       - name: Install Excel reader
         run: python -m pip install openpyxl
       - name: Compile source
-        run: python -m py_compile main.py freight_audit.py freight_cases.py freight_contestation.py freight_ml.py freight_import.py
+        run: python -m py_compile main.py freight_audit.py freight_cases.py freight_contestation.py freight_ml.py freight_import.py freight_reconciliation.py
       - name: Run freight unit tests
-        run: python -m unittest -v test_freight_audit test_freight_contestation test_freight_cases test_freight_ml test_freight_import
+        run: python -m unittest -v test_freight_audit test_freight_contestation test_freight_cases test_freight_ml test_freight_import test_freight_reconciliation
