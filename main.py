@@ -1200,23 +1200,40 @@ def custos(cid):
     return pagina_loja("Custos", cid, c["cliente"], "custos", corpo)
 
 
-def calcular_vendas(cid):
+def calcular_vendas(cid, inicio=None):
+    """Detail: latest 100. Store summary: ALL orders in its bounded date range."""
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
         if not c:
             return None, []
-        pedidos = consultar(conn, "SELECT * FROM pedidos WHERE conexao_id=%s "
-                                  "AND fechado_em IS NOT NULL "
-                                  "ORDER BY fechado_em DESC LIMIT 100", (cid,))
-        itens = consultar(conn, """SELECT pi.pedido_id, pi.quantidade, pi.preco_unitario,
-                                          a.custo, a.peso
-                                   FROM pedidos_itens pi
-                                   LEFT JOIN anuncios a
-                                     ON a.conexao_id=pi.conexao_id AND a.item_id=pi.item_id
-                                   WHERE pi.conexao_id=%s""", (cid,))
-        envios = consultar(conn, "SELECT pedido_id, custo_frete FROM envios "
-                                 "WHERE conexao_id=%s AND custo_frete IS NOT NULL", (cid,))
+        if inicio is None:
+            pedidos = consultar(conn, "SELECT * FROM pedidos WHERE conexao_id=%s "
+                                "AND fechado_em IS NOT NULL "
+                                "ORDER BY fechado_em DESC LIMIT 100", (cid,))
+        else:
+            pedidos = consultar(conn, """
+                SELECT * FROM pedidos
+                WHERE conexao_id=%s AND fechado_em IS NOT NULL
+                  AND LEFT(fechado_em,10) >= %s
+                ORDER BY fechado_em DESC
+            """, (cid, inicio))
+        # Only load details for the selected orders, not the store's entire history.
+        ids = [p["pedido_id"] for p in pedidos]
+        if ids:
+            itens = consultar(conn, """SELECT pi.pedido_id, pi.quantidade, pi.preco_unitario,
+                                              a.custo, a.peso
+                                       FROM pedidos_itens pi
+                                       LEFT JOIN anuncios a
+                                         ON a.conexao_id=pi.conexao_id
+                                        AND a.item_id=pi.item_id
+                                       WHERE pi.conexao_id=%s
+                                         AND pi.pedido_id = ANY(%s)""", (cid, ids))
+            envios = consultar(conn, """SELECT pedido_id, custo_frete FROM envios
+                                       WHERE conexao_id=%s AND custo_frete IS NOT NULL
+                                         AND pedido_id = ANY(%s)""", (cid, ids))
+        else:
+            itens, envios = [], []
     aliquota_pct = c["aliquota_imposto"] if c["aliquota_imposto"] is not None else 0
     comissao_pct = c["comissao_pct"] if c["comissao_pct"] is not None else 12
     aliquota = aliquota_pct / 100.0
@@ -3006,11 +3023,17 @@ def painel_detalhe(cid):
     hoje_iso = datetime.date.today().isoformat()
     ontem_iso = (datetime.date.today()
                  - datetime.timedelta(days=1)).isoformat()
-    c, vendas = calcular_vendas(cid)
+    inicio_semana = (datetime.date.today() - datetime.timedelta(days=6)).isoformat()
+    c, vendas = calcular_vendas(cid, inicio=inicio_semana)
     if not c:
         return pagina("Não encontrada",
                       "<div class='card'><h2>Loja não encontrada</h2></div>")
     with banco() as conn:
+        cobertura_vendas = consultar(conn, """
+            SELECT dia FROM vendas_cobertura
+            WHERE conexao_id=%s AND dia >= %s
+        """, (cid, inicio_semana))
+        dias_cobertos = {r["dia"] for r in cobertura_vendas}
         conta = consultar(conn, "SELECT * FROM dados_conta WHERE conexao_id=%s", (cid,))
         conta = conta[0] if conta else None
         ads_dias = consultar(conn, "SELECT * FROM ads_dia WHERE conexao_id=%s "
@@ -3117,6 +3140,15 @@ def painel_detalhe(cid):
                   "o lucro do dia pode estar incompleto. "
                   "<a class='link' href='/custos/" + str(cid)
                   + "'>Cadastrar custos</a>.</div>")
+    dias_incompletos = [
+        (datetime.date.today() - datetime.timedelta(days=i)).isoformat()
+        for i in range(7) if (datetime.date.today() - datetime.timedelta(days=i)).isoformat()
+        not in dias_cobertos
+    ]
+    if dias_incompletos:
+        corpo += ("<div class='aviso'><b>Histórico de vendas em sincronização.</b> "
+                  "Os dias sem cobertura confirmada podem estar incompletos. "
+                  "Um traço não significa zero vendas.</div>")
     rotulos7, fat7, lucro7 = [], [], []
     d = datetime.date.today() - datetime.timedelta(days=6)
     while d <= datetime.date.today():
@@ -3124,8 +3156,10 @@ def painel_detalhe(cid):
         info = por_dia.get(iso, {"fat": 0.0, "qtd": 0,
                                  "lucro": 0.0, "pendente": False})
         rotulos7.append(d.strftime("%d/%m"))
-        fat7.append(round(info["fat"], 2))
-        lucro7.append(round(info["lucro"], 2))
+        fat7.append(round(info["fat"], 2) if iso in dias_cobertos
+                    else (round(info["fat"], 2) if info["qtd"] else None))
+        lucro7.append(round(info["lucro"], 2) if iso in dias_cobertos
+                      else (round(info["lucro"], 2) if info["qtd"] else None))
         d += datetime.timedelta(days=1)
     corpo += ("<div class='card'><h2>Evolução dos últimos 7 dias</h2>"
               "<div class='sub'>Faturamento e lucro (MC) por dia</div>"
@@ -3167,13 +3201,21 @@ def painel_detalhe(cid):
             lucro_txt = "<span class='tag sem'>custo pendente</span>"
         else:
             lucro_txt = "R$ %.2f" % info["lucro"]
+        completo = iso in dias_cobertos
+        receita_txt = ("R$ %.2f" % info["fat"]
+                       if completo or info["qtd"] else "—")
+        vendas_txt = (str(info["qtd"]) if completo or info["qtd"] else "—")
+        if not completo and not info["qtd"]:
+            lucro_txt = "<span class='tag sem'>—</span>"
         badge = ""
+        if not completo:
+            badge += " <span class='tag sem'>parcial</span>"
         if iso == hoje_iso:
             badge = " <span class='badge'>hoje</span>"
         linhas_html += ("<tr><td><b>" + d.strftime("%d/%m") + "</b>"
                         + badge + "</td>"
-                        "<td>R$ %.2f" % info["fat"] + "</td><td>"
-                        + str(info["qtd"]) + "</td><td>" + lucro_txt
+                        "<td>" + receita_txt + "</td><td>"
+                        + vendas_txt + "</td><td>" + lucro_txt
                         + "</td><td>" + gasto_txt + "</td><td>"
                         + fatads_txt + "</td></tr>")
         d += datetime.timedelta(days=1)
@@ -3211,6 +3253,11 @@ def atualizar_tipo(tipo, cid):
     if not pode_ver_loja(cid):
         return pagina("Acesso negado",
                       "<div class='card'><h2>Acesso restrito</h2></div>")
+    # Full order history sync can take minutes; never run it in an HTTP worker.
+    if tipo in ("resumo", "vendas"):
+        enfileirar_atualizacao(cid)
+        return redirect("/painel/" + str(cid) if tipo == "resumo"
+                        else "/vendas/" + str(cid))
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
