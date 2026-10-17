@@ -1362,24 +1362,38 @@ def detalhe_chamado_frete(cid, case_id):
                'required placeholder="Anote a resposta do ML ou o próximo passo" '
                'style="width:100%;min-height:120px"></textarea></p>'
                '<button type="submit">Salvar atualização</button></form></div>')
-    # Messages are saved only when the user explicitly submits an edited draft.
+    # Use the latest recorded evidence as an editable draft, never as proof
+    # that Mercado Livre confirmed an incorrect charge.
+    with banco() as conn:
+        latest_evidence = consultar(conn, """SELECT valor_referencia, valor_cobrado,
+            avaliacao FROM frete_evidencias WHERE conexao_id=%s AND chamado_id=%s
+            ORDER BY id DESC LIMIT 1""", (cid, case_id))
+    evidence = latest_evidence[0] if latest_evidence else None
     from freight_contestation import generate_messages
     templates = generate_messages(
         case["pedido_id"] or "", case["anuncio_id"] or "",
-        case["envio_id"] or "", "", "")
+        case["envio_id"] or "",
+        str(evidence["valor_referencia"]) if evidence and evidence["valor_referencia"] is not None else "",
+        str(evidence["valor_cobrado"]) if evidence and evidence["valor_cobrado"] is not None else "")
     content += ('<div class="card"><h3>Mensagens editáveis para o chamado</h3>'
-                '<p>Valores de frete não confirmados: revise antes de enviar ao suporte.</p></div>')
-    for title, draft in templates:
+                '<p>Valores provenientes da última conferência registrada pelo usuário, '
+                'não de validação independente do Mercado Livre. Revise antes de enviar.</p></div>')
+    for idx, (title, draft) in enumerate(templates):
+        field_id = "frete_msg_" + str(case_id) + "_" + str(idx)
         content += ('<div class="card"><h4>' + esc(title) + '</h4>'
                     '<form method="post" action="/fretes/' + str(cid)
                     + '/chamado/' + str(case_id) + '/mensagem">'
                     '<input type="hidden" name="csrf_token" value="'
                     + esc(session["frete_csrf"]) + '">'
                     '<input type="hidden" name="modelo" value="' + esc(title) + '">'
-                    '<textarea name="mensagem" maxlength="10000" required '
+                    '<textarea id="' + field_id + '" name="mensagem" maxlength="10000" required '
                     'style="width:100%;min-height:240px;box-sizing:border-box">'
                     + esc(draft) + '</textarea><p><button type="submit">'
-                    'Salvar mensagem editada no histórico</button></p></form></div>')
+                    'Salvar mensagem editada no histórico</button> '
+                    '<button type="button" onclick="navigator.clipboard.writeText('
+                    'document.getElementById(\'' + field_id
+                    + '\').value).then(()=>{this.textContent=\'Copiado!\'})">'
+                    'Copiar texto editado</button></p></form></div>')
     content += ('<div class="card"><h3>Conferir evidências do frete</h3>'
                 '<p>Informe somente valores e datas que você possa comprovar. '
                 'Uma diferença positiva é um indício, não confirmação de erro.</p>'
@@ -1521,9 +1535,12 @@ def contestar_frete(cid):
                 '<p>Use os dados informados acima; o registro não comprova cobrança indevida.</p>'
                 '<form method="post" action="/fretes/' + str(cid) + '/novo">'
                 '<input type="hidden" name="csrf_token" value="' + esc(session["frete_csrf"]) + '">'
-                '<label>Pedido <input name="pedido_id" maxlength="100"></label> '
-                '<label>Anúncio <input name="anuncio_id" maxlength="100"></label> '
-                '<label>Envio <input name="envio_id" maxlength="100"></label> '
+                '<label>Pedido <input name="pedido_id" maxlength="100" value="'
+                + esc(request.args.get("order_id", "")[:100], quote=True) + '"></label> '
+                '<label>Anúncio <input name="anuncio_id" maxlength="100" value="'
+                + esc(request.args.get("listing_id", "")[:100], quote=True) + '"></label> '
+                '<label>Envio <input name="envio_id" maxlength="100" value="'
+                + esc(request.args.get("shipment_id", "")[:100], quote=True) + '"></label> '
                 '<label>Protocolo (opcional) <input name="protocolo" maxlength="100"></label>'
                 '<button type="submit">Salvar chamado</button></form></div>')
     return pagina_loja("Contestar frete", cid, contas[0]["cliente"], "fretes", content)
