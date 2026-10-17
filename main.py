@@ -855,6 +855,8 @@ def logout():
 @app.route("/gerador-contestacao-frete", methods=["GET", "POST"])
 def gerador_contestacao_frete_publico():
     """Free, no-login generator; never stores order/shipment identifiers."""
+    if request.content_length is not None and request.content_length > 8192:
+        return "Formulário muito grande", 413
     values = request.form if request.method == "POST" else {}
     body = ('<div class="card"><p>Ferramenta gratuita da Keiper Consultoria. '
             'Sem cadastro e sem conexão com sua conta do Mercado Livre.</p>'
