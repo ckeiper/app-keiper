@@ -23,4 +23,4 @@ jobs:
       - name: Compile source
         run: python -m py_compile main.py freight_audit.py freight_cases.py freight_contestation.py
       - name: Run freight unit tests
-        run: python -m unittest -v test_freight_audit test_freight_contestation
+        run: python -m unittest -v test_freight_audit test_freight_contestation test_freight_cases
