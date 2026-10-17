@@ -20,6 +20,8 @@ from sales_view import render_sales
 from overview import load_overview, render_overview, overview_layout
 from freight_contestation import render_generator
 from freight_cases import init_case_schema, render_cases, STATUSES, TEMPLATES
+from freight_audit import assess_freight
+from freight_contestation import money, brl
 try:
     import openpyxl
 except Exception:
@@ -1378,6 +1380,43 @@ def detalhe_chamado_frete(cid, case_id):
                     'style="width:100%;min-height:240px;box-sizing:border-box">'
                     + esc(draft) + '</textarea><p><button type="submit">'
                     'Salvar mensagem editada no histórico</button></p></form></div>')
+    content += ('<div class="card"><h3>Conferir evidências do frete</h3>'
+                '<p>Informe somente valores e datas que você possa comprovar. '
+                'Uma diferença positiva é um indício, não confirmação de erro.</p>'
+                '<form method="post" action="/fretes/' + str(cid)
+                + '/chamado/' + str(case_id) + '/evidencia">'
+                '<input type="hidden" name="csrf_token" value="'
+                + esc(session["frete_csrf"]) + '">'
+                '<label>Tarifa histórica esperada (R$) '
+                '<input name="valor_referencia" placeholder="12,50"></label> '
+                '<label>Frete debitado do vendedor (R$) '
+                '<input name="valor_cobrado" placeholder="15,00"></label> '
+                '<label>Data da referência <input type="date" name="data_referencia"></label> '
+                '<label>Origem do débito <input name="origem_cobranca" '
+                'maxlength="200" placeholder="Extrato / detalhe do envio"></label> '
+                '<label>Quantidade de itens no envio <input type="number" '
+                'min="1" max="1000" name="itens_envio"></label>'
+                '<p><label><input type="checkbox" name="contexto_confirmado" '
+                'value="sim"> Confirmei que os valores são do mesmo vendedor, '
+                'envio, data e modalidade logística</label></p>'
+                '<button type="submit">Registrar conferência</button></form></div>')
+    with banco() as conn:
+        evidences = consultar(conn, """SELECT avaliacao, diferenca, justificativa,
+            valor_referencia, valor_cobrado, data_referencia, origem_cobranca,
+            criado_em FROM frete_evidencias
+            WHERE conexao_id=%s AND chamado_id=%s
+            ORDER BY id DESC LIMIT 20""", (cid, case_id))
+    content += '<div class="card"><h3>Conferências registradas</h3>'
+    for ev in evidences:
+        content += ('<p><b>' + esc(ev["avaliacao"]) + '</b> — '
+                    + esc(ev["justificativa"]) + '<br>Referência: '
+                    + esc(brl(ev["valor_referencia"])) + ' | Cobrança: '
+                    + esc(brl(ev["valor_cobrado"])) + ' | Diferença: '
+                    + esc(brl(ev["diferenca"])) + '<br>Data: '
+                    + esc(ev["data_referencia"] or "não informada")
+                    + ' | Origem: ' + esc(ev["origem_cobranca"] or "não informada")
+                    + '</p>')
+    content += '</div>'
     content += '<div class="card"><h3>Histórico</h3>'
     for event in events:
         content += ('<p><b>' + esc(str(event["tipo"])) + '</b> — '
@@ -1386,6 +1425,52 @@ def detalhe_chamado_frete(cid, case_id):
                     + esc(event["detalhe"]) + '</p>')
     content += '</div><p><a href="/fretes/' + str(cid) + '">← Voltar</a></p>'
     return pagina_loja("Chamado de frete", cid, store[0]["cliente"], "fretes", content)
+
+
+@app.route("/fretes/<int:cid>/chamado/<int:case_id>/evidencia", methods=["POST"])
+@login_required
+def registrar_evidencia_frete(cid, case_id):
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    if not freight_csrf_valid():
+        return "Token inválido", 403
+    reference = money(request.form.get("valor_referencia"))
+    charged = money(request.form.get("valor_cobrado"))
+    reference_date = (request.form.get("data_referencia") or "").strip()[:50]
+    source = (request.form.get("origem_cobranca") or "").strip()[:200]
+    context_ok = request.form.get("contexto_confirmado") == "sim"
+    items_raw = (request.form.get("itens_envio") or "").strip()
+    try:
+        items = int(items_raw) if items_raw else None
+        if items is not None and not 1 <= items <= 1000:
+            return "Quantidade de itens inválida", 400
+    except ValueError:
+        return "Quantidade de itens inválida", 400
+    if reference_date:
+        try:
+            datetime.date.fromisoformat(reference_date)
+        except ValueError:
+            return "Data de referência inválida", 400
+    assessment = assess_freight(
+        reference, charged, reference_date=reference_date,
+        charge_source=source, comparable=context_ok, shipment_items=items)
+    now = int(time.time())
+    with banco() as conn:
+        cases = consultar(conn, """SELECT id FROM frete_chamados
+            WHERE conexao_id=%s AND id=%s""", (cid, case_id))
+        if not cases:
+            return "Chamado não encontrado", 404
+        executar(conn, """INSERT INTO frete_evidencias
+            (conexao_id, chamado_id, valor_referencia, valor_cobrado,
+             data_referencia, origem_cobranca, contexto_confirmado, itens_envio,
+             avaliacao, diferenca, justificativa, usuario_id, criado_em)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (cid, case_id, reference, charged, reference_date or None, source or None,
+             context_ok, items, assessment["status"], assessment["difference"],
+             assessment["reason"], session["usuario_id"], now))
+        executar(conn, """UPDATE frete_chamados SET atualizado_em=%s
+            WHERE conexao_id=%s AND id=%s""", (now, cid, case_id))
+    return redirect("/fretes/" + str(cid) + "/chamado/" + str(case_id))
 
 
 @app.route("/fretes/<int:cid>/chamado/<int:case_id>/mensagem", methods=["POST"])
