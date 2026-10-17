@@ -21,6 +21,7 @@ from overview import load_overview, render_overview, overview_layout
 from freight_contestation import render_generator
 from freight_cases import init_case_schema, render_cases, STATUSES, TEMPLATES
 from freight_audit import assess_freight
+from freight_ml import seller_shipping_cost, seller_shipment_item_count
 from freight_contestation import money, brl
 try:
     import openpyxl
@@ -1421,6 +1422,15 @@ def detalhe_chamado_frete(cid, case_id):
                     'document.getElementById(\'' + field_id
                     + '\').value).then(()=>{this.textContent=\'Copiado!\'})">'
                     'Copiar texto editado</button></p></form></div>')
+    content += ('<div class="card"><h3>Consultar custo cobrado pelo Mercado Livre</h3>'
+                '<p>Consulta o valor de <code>senders[].cost</code> do envio informado '
+                'no chamado. Não representa a tarifa histórica esperada do anúncio.</p>'
+                '<form method="post" action="/fretes/' + str(cid)
+                + '/chamado/' + str(case_id) + '/consultar-custo-ml">'
+                '<input type="hidden" name="csrf_token" value="'
+                + esc(session["frete_csrf"]) + '">'
+                '<button type="submit">Consultar custo do vendedor na API</button>'
+                '</form></div>')
     content += ('<div class="card"><h3>Conferir evidências do frete</h3>'
                 '<p>Informe somente valores e datas que você possa comprovar. '
                 'Uma diferença positiva é um indício, não confirmação de erro.</p>'
@@ -1466,6 +1476,81 @@ def detalhe_chamado_frete(cid, case_id):
                     + esc(event["detalhe"]) + '</p>')
     content += '</div><p><a href="/fretes/' + str(cid) + '">← Voltar</a></p>'
     return pagina_loja("Chamado de frete", cid, store[0]["cliente"], "fretes", content)
+
+
+@app.route("/fretes/<int:cid>/chamado/<int:case_id>/consultar-custo-ml", methods=["POST"])
+@login_required
+def consultar_custo_frete_ml(cid, case_id):
+    """Read the seller's shipment charge, not a historical listing quotation."""
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    if not freight_csrf_valid():
+        return "Token inválido", 403
+    with banco() as conn:
+        cases = consultar(conn, """SELECT envio_id FROM frete_chamados
+            WHERE conexao_id=%s AND id=%s""", (cid, case_id))
+        shops = consultar(conn, """SELECT user_id, access_token FROM conexoes
+            WHERE id=%s""", (cid,))
+    if not cases or not shops:
+        return "Chamado ou loja não encontrado", 404
+    shipment_id = str(cases[0]["envio_id"] or "").strip()
+    if not shipment_id.isascii() or not shipment_id.isdigit() or len(shipment_id) > 24:
+        return "Informe um número de envio válido no chamado", 400
+    shop = shops[0]
+    token = shop["access_token"]
+    seller_id = shop["user_id"]
+    if not token or not seller_id:
+        return "Conexão do Mercado Livre indisponível", 400
+    try:
+        headers = {"Authorization": "Bearer " + token, "x-format-new": "true"}
+        resp = requests.get(API + "/shipments/" + shipment_id + "/costs",
+                            headers=headers, timeout=15)
+        if resp.status_code != 200:
+            return ("Não foi possível consultar os custos do envio no Mercado Livre "
+                    "(HTTP " + str(resp.status_code) + ")."), 502
+        payload = resp.json()
+        amount, reason = seller_shipping_cost(payload, seller_id)
+        if reason:
+            return esc(reason), 422
+        items = None
+        try:
+            item_resp = requests.get(API + "/shipments/" + shipment_id + "/items",
+                                     headers=headers, timeout=10)
+            if item_resp.status_code == 200:
+                items = seller_shipment_item_count(item_resp.json(), seller_id)
+        except (requests.RequestException, ValueError, TypeError):
+            pass
+    except (requests.RequestException, ValueError, TypeError):
+        return "Falha ao consultar os custos do Mercado Livre. Tente novamente.", 502
+    # A confirmed sender cost does not prove the historical expected tariff.
+    assessment = assess_freight(None, amount, reference_date=None,
+                                charge_source="API Mercado Livre /shipments/{id}/costs",
+                                comparable=False, shipment_items=items)
+    now = int(time.time())
+    with banco() as conn:
+        still_exists = consultar(conn, """SELECT id FROM frete_chamados
+            WHERE conexao_id=%s AND id=%s AND envio_id=%s""",
+            (cid, case_id, shipment_id))
+        if not still_exists:
+            return "Chamado alterado durante a consulta; tente novamente", 409
+        executar(conn, """INSERT INTO frete_evidencias
+            (conexao_id, chamado_id, valor_referencia, valor_cobrado,
+             data_referencia, origem_cobranca, contexto_confirmado, itens_envio,
+             avaliacao, diferenca, justificativa, usuario_id, criado_em)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (cid, case_id, None, amount, None,
+             "API Mercado Livre /shipments/" + shipment_id + "/costs — senders[].cost",
+             False, items, assessment["status"], assessment["difference"],
+             assessment["reason"], session["usuario_id"], now))
+        executar(conn, """INSERT INTO frete_chamados_historico
+            (conexao_id, chamado_id, usuario_id, tipo, detalhe, criado_em)
+            VALUES (%s,%s,%s,%s,%s,%s)""",
+            (cid, case_id, session["usuario_id"], "consulta_api_custos",
+             "Custo do vendedor consultado na API do Mercado Livre: " + brl(amount)
+             + ". Tarifa histórica esperada ainda não confirmada.", now))
+        executar(conn, """UPDATE frete_chamados SET atualizado_em=%s
+            WHERE conexao_id=%s AND id=%s""", (now, cid, case_id))
+    return redirect("/fretes/" + str(cid) + "/chamado/" + str(case_id))
 
 
 @app.route("/fretes/<int:cid>/chamado/<int:case_id>/evidencia", methods=["POST"])
