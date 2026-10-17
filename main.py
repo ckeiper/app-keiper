@@ -1,7 +1,7 @@
 import os, time, html, json, datetime, csv, io, threading, smtplib, secrets, hashlib
 from email.mime.text import MIMEText
 from functools import wraps
-from flask import Flask, request, redirect, jsonify, Response, session, send_from_directory
+from flask import Flask, request, redirect, jsonify, Response, session, send_from_directory, g
 import requests
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -44,6 +44,24 @@ LOGO_PATH = os.path.join(BASE_DIR, "logo_Keiper_Consultoria.png")
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+
+@app.before_request
+def registrar_inicio_requisicao():
+    g.inicio_pagina = time.perf_counter()
+
+
+@app.after_request
+def registrar_pagina_lenta(response):
+    """Only log slow endpoint names; no URLs, tokens or personal data."""
+    inicio = getattr(g, "inicio_pagina", None)
+    if inicio is not None:
+        duracao_ms = (time.perf_counter() - inicio) * 1000
+        if duracao_ms >= 750:
+            app.logger.warning(
+                "pagina_lenta endpoint=%s duracao_ms=%.0f status=%s",
+                request.endpoint or "desconhecido", duracao_ms,
+                response.status_code)
+    return response
 esc = html.escape
 
 ATUALIZANDO = set()
