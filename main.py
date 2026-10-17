@@ -3427,9 +3427,9 @@ def puxar_envios(conexao_id, token, user_id):
                 pares.append(par)
         if len(pares) >= 20:
             break
-    with banco() as conn:
-        executar(conn, "DELETE FROM envios WHERE conexao_id=%s",
-                 (conexao_id,))
+    # Preserve previously synchronized shipments: this refresh only covers
+    # a small recent window, so deleting all rows would lose historical data.
+    # The INSERT ... ON CONFLICT below updates refreshed shipments in place.
     for oid, sid in pares:
         det, det_erro = api_get(token, "/shipments/" + sid)
         if det_erro or not det:
