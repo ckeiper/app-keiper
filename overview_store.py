@@ -60,7 +60,7 @@ DAILY_SQL = '''WITH candidates AS MATERIALIZED (
     FROM pedidos WHERE conexao_id = ANY(%s) AND vendas_verificado_em IS NOT NULL
       AND keiper_overview_day_v1(criado_em) IS NOT NULL
       AND keiper_overview_day_v1(criado_em) BETWEEN %s AND %s
-), payment_checks AS (
+), payment_checks AS MATERIALIZED (
     SELECT *, bad_shape OR jsonb_array_length(payments) = 0 OR EXISTS (
         SELECT 1 FROM jsonb_array_elements(payments) AS p
         WHERE jsonb_typeof(p) <> 'object' OR NOT (p ? 'status')
