@@ -1654,6 +1654,47 @@ def salvar_mensagem_frete(cid, case_id):
     return redirect("/fretes/" + str(cid) + "/chamado/" + str(case_id))
 
 
+@app.route("/fretes/<int:cid>/importar-conciliacao", methods=["GET", "POST"])
+@login_required
+def importar_conciliacao_frete(cid):
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    with banco() as conn:
+        lojas = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
+    if not lojas:
+        return "Loja não encontrada", 404
+    if "frete_csrf" not in session:
+        session["frete_csrf"] = secrets.token_urlsafe(32)
+    content = ('<div class="card"><h2>Importar conciliação bancária</h2>'
+               '<p>Pré-visualização do Excel desta loja. '
+               'Nenhuma divergência será calculada nesta etapa.</p>'
+               '<form method="post" enctype="multipart/form-data">'
+               '<input type="hidden" name="csrf_token" value="'
+               + esc(session["frete_csrf"]) + '">'
+               '<input type="file" name="arquivo" accept=".xlsx,.csv" required>'
+               '<button type="submit">Pré-visualizar planilha</button></form>'
+               '<p>XLSX ou CSV, máximo 2 MB. Arquivo não armazenado.</p></div>')
+    if request.method == "POST":
+        if not freight_csrf_valid():
+            return "Token inválido", 403
+        if request.content_length is None or request.content_length > MAX_UPLOAD_BYTES + 65536:
+            return "Arquivo muito grande", 413
+        arquivo = request.files.get("arquivo")
+        if arquivo is None:
+            return "Selecione um arquivo", 400
+        try:
+            abas = preview_reconciliation_upload(
+                arquivo.filename, arquivo.read(MAX_UPLOAD_BYTES + 1))
+        except PreviewError as exc:
+            return esc(str(exc)), 400
+        content += render_reconciliation_preview(abas)
+    response = Response(pagina_loja("Importar conciliação", cid,
+                        lojas[0]["cliente"], "fretes", content),
+                        mimetype="text/html")
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.route("/fretes/<int:cid>")
 @login_required
 def contestar_frete(cid):
