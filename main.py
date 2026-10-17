@@ -3891,15 +3891,26 @@ def puxar_envios(conexao_id, token, user_id):
     dados, erro = api_get(token, "/orders/search",
                           {"seller": user_id, "sort": "date_desc",
                            "limit": 50})
-    if erro or not dados:
-        registrar_erro(conexao_id, "envios", erro or "sem resposta")
+    if erro or not isinstance(dados, dict):
+        registrar_erro(conexao_id, "envios", erro or "resposta inválida")
         return False
-    resultados = dados.get("results") or []
+    resultados = dados.get("results")
+    if not isinstance(resultados, list):
+        registrar_erro(conexao_id, "envios", "lista de pedidos inválida")
+        return False
     agora = int(time.time())
     completo = True
     pares = []
     for o in resultados:
+        if not isinstance(o, dict):
+            completo = False
+            registrar_erro(conexao_id, "envios", "pedido inválido na resposta")
+            continue
         ship = o.get("shipping") or {}
+        if not isinstance(ship, dict):
+            completo = False
+            registrar_erro(conexao_id, "envios", "dados de envio inválidos")
+            continue
         sid = ship.get("id")
         if sid:
             par = (str(o.get("id")), str(sid))
