@@ -48,7 +48,7 @@ class ShipmentSyncRegressionTests(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(paths, ["/orders/search", "/shipments/501", "/shipments/502"])
         self.assertEqual(len(statements), 2)
-        self.assertFalse(any("DELETE FROM envios" in sql.upper()
+        self.assertFalse(any("DELETE FROM ENVIOS" in sql.upper()
                              for sql, _ in statements))
         self.assertTrue(all("ON CONFLICT (conexao_id, envio_id)" in sql
                             for sql, _ in statements))
@@ -70,7 +70,7 @@ class ShipmentSyncRegressionTests(unittest.TestCase):
         self.assertFalse(result)
         self.assertEqual(len(statements), 1)
         self.assertTrue(errors)
-        self.assertFalse(any("DELETE FROM envios" in sql.upper() for sql in statements))
+        self.assertFalse(any("DELETE FROM ENVIOS" in sql.upper() for sql in statements))
 
     def test_limits_refresh_to_twenty_unique_shipments(self):
         statements, paths, errors = [], [], []
