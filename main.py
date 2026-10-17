@@ -2775,15 +2775,23 @@ def ranking_anuncios(cid):
             SELECT COUNT(*) AS n FROM pedidos
             WHERE conexao_id=%s AND vendas_verificado_em IS NULL
         """, (cid,))
+    dias = request.args.get("dias", "30")
+    if dias not in ("7", "30"):
+        dias = "30"
     resumo = ranking_metrics(
         pedidos, itens, [r["dia"] for r in cobertura],
         [a["item_id"] for a in anuncios_loja],
-        pending=bool(pendentes and pendentes[0]["n"]))
+        days=int(dias), pending=bool(pendentes and pendentes[0]["n"]))
     corpo = ("<h2>Ranking de vendas por anúncio</h2>"
-             "<p class='muted'>Últimos 30 dias comparados aos 30 anteriores. "
+             "<p class='muted'>Últimos " + dias + " dias comparados aos " + dias + " anteriores. "
              "Somente pedidos pagos e aprovados com dados verificados. "
              "Valor bruto dos itens, não valor líquido recebido. "
              "Visitas e conversão não estão disponíveis.</p>")
+    corpo += ("<div class='card'><p>Período: "
+              "<a class='filtro' href='/ranking-anuncios/" + str(cid)
+              + "?dias=7'>7 dias</a> "
+              "<a class='filtro' href='/ranking-anuncios/" + str(cid)
+              + "?dias=30'>30 dias</a></p></div>")
     if not resumo["available"]:
         corpo += ("<div class='card'><b>Ranking indisponível</b><p>"
                   + esc(resumo["reason"] or "Dados não verificados.")
@@ -2812,7 +2820,7 @@ def ranking_anuncios(cid):
     corpo += "<div class='card'><p>Ordenar por: "
     for chave, titulo in opcoes.items():
         corpo += ("<a class='filtro' href='/ranking-anuncios/" + str(cid)
-                  + "?ordem=" + chave + "'>" + titulo + "</a> ")
+                  + "?dias=" + dias + "&ordem=" + chave + "'>" + titulo + "</a> ")
     corpo += ("</p><p class='muted'>Exibindo até 100 de "
               + str(len(registros)) + " anúncios. "
               "Crescimento percentual requer vendas no período anterior; "

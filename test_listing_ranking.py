@@ -33,6 +33,15 @@ class ListingRankingTests(unittest.TestCase):
         self.assertEqual(r["rows"]["MLB1"]["trend"], "novas")
         self.assertEqual(r["rows"]["MLB2"]["orders"], 0)
 
+    def test_seven_days_works_without_sixty_day_history(self):
+        r = ranking_metrics(
+            [self.order], [self.item], self.covered[:14],
+            ["MLB1"], end=self.end, days=7)
+        self.assertTrue(r["available"])
+        self.assertEqual(r["rows"]["MLB1"]["orders"], 1)
+        r30 = self.run_ranking(covered=self.covered[:14])
+        self.assertFalse(r30["available"])
+
     def test_missing_earlier_coverage_hides_ranking(self):
         r = self.run_ranking(covered=self.covered[:30])
         self.assertFalse(r["available"])
