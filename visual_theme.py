@@ -134,6 +134,26 @@ a.link {color:var(--kp-blue);}
 a:focus-visible,button:focus-visible {
   outline:3px solid #8baafc;outline-offset:3px;
 }
+.period-filter {
+  display:grid;grid-template-columns:minmax(160px,1fr) repeat(2,minmax(165px,1fr)) auto;
+  gap:14px;align-items:end;
+}
+.period-filter label {display:flex;flex-direction:column;gap:7px;font-weight:600;font-size:13px;color:#53637c;min-width:0;}
+.period-filter select,.period-filter input[type=date] {
+  width:100%;min-width:0;min-height:43px;padding:10px 12px;
+  border:1px solid #d8e1ef;border-radius:10px;
+  background:#fff;color:#17233c;font:inherit;box-sizing:border-box;
+}
+.period-filter button {min-height:43px;white-space:nowrap;}
+@media(max-width:820px) {
+  .period-filter {grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+  .period-filter label:first-child {grid-column:1/-1;}
+  .period-filter button {grid-column:1/-1;width:100%;}
+}
+@media(max-width:380px) {
+  .period-filter {grid-template-columns:1fr;}
+  .period-filter label:first-child,.period-filter button {grid-column:auto;}
+}
 @media(max-width:1000px) {
   .wrap {margin-top:20px;}
   .layout {gap:17px;}
