@@ -11,7 +11,7 @@ def assess_freight(expected, charged, *, reference_date=None, charge_source=None
     they concern the same shipment, logistics context, date and seller.
     Unknown/multi-item composition cannot be assumed comparable.
     """
-    expected_value, charged_value = money(str(expected) if expected is not None else "")
+    expected_value = money(str(expected) if expected is not None else "")
     charged_value = money(str(charged) if charged is not None else "")
     base = {
         "status": "Não foi possível conferir",
