@@ -72,6 +72,32 @@ class ShipmentSyncRegressionTests(unittest.TestCase):
         self.assertTrue(errors)
         self.assertFalse(any("DELETE FROM ENVIOS" in sql.upper() for sql in statements))
 
+    def test_malformed_search_response_does_not_modify_history(self):
+        for response in (None, [], {"results": None}, {"results": "broken"}):
+            with self.subTest(response=response):
+                statements, errors = [], []
+                def api(token, path, params=None):
+                    return response, None
+                result = shipment_sync(
+                    api, lambda conn, sql, params: statements.append(sql),
+                    errors)(4, "token", 123)
+                self.assertFalse(result)
+                self.assertEqual(statements, [])
+                self.assertTrue(errors)
+
+    def test_invalid_order_is_skipped_but_valid_shipments_are_kept(self):
+        statements, errors = [], []
+        def api(token, path, params=None):
+            if path == "/orders/search":
+                return {"results": [None, {"id": 101, "shipping": {"id": 501}}]}, None
+            return {"status": "ready"}, None
+        result = shipment_sync(
+            api, lambda conn, sql, params: statements.append(params),
+            errors)(4, "token", 123)
+        self.assertFalse(result)
+        self.assertEqual(len(statements), 1)
+        self.assertEqual(statements[0][1], "501")
+
     def test_limits_refresh_to_twenty_unique_shipments(self):
         statements, paths, errors = [], [], []
         def api(token, path, params=None):
