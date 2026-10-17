@@ -51,8 +51,11 @@ def init_overview_schema(conn, execute):
         WHERE categoria IN ('pedidos','atualizacao','refresh','token')''')
 
 
+# The index predicate guarantees canonical, valid timezone-aware timestamps.
+# The native PostgreSQL timestamp conversion is far cheaper than re-running
+# the PL/pgSQL regex classifier for each selected row.
 DAILY_SQL = '''WITH candidates AS MATERIALIZED (
-    SELECT conexao_id, keiper_overview_day_v1(criado_em) AS dia,
+    SELECT conexao_id, ((criado_em::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date) AS dia,
            status, total, moeda, unidades,
            CASE WHEN jsonb_typeof(pagamentos_json) = 'array'
                 THEN pagamentos_json ELSE '[]'::jsonb END AS payments,
