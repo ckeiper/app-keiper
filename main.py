@@ -18,6 +18,7 @@ from sync_runner import run_stages
 from listing_pagination import listing_page
 from sales_view import render_sales
 from overview import load_overview, render_overview, overview_layout
+from freight_contestation import render_generator
 try:
     import openpyxl
 except Exception:
@@ -433,6 +434,7 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
         ("campanhas", "📢 Campanhas", "/campanhas/" + str(cid)),
         ("custos", "💰 Custos", "/custos/" + str(cid)),
         ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
+        ("fretes", "🚚 Contestar frete", "/fretes/" + str(cid)),
     ]
     menu = "<div class='menu-lateral'>"
     menu += "<a class='voltar' href='/painel'>← Todas as lojas</a>"
@@ -1269,6 +1271,19 @@ def calcular_vendas(cid):
             "sem_custo": sem_custo,
         })
     return c, vendas
+
+
+@app.route("/fretes/<int:cid>")
+@login_required
+def contestar_frete(cid):
+    if not pode_ver_loja(cid):
+        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>"), 403
+    with banco() as conn:
+        contas = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
+    if not contas:
+        return pagina("Loja não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
+    return pagina_loja("Contestar frete", cid, contas[0]["cliente"],
+                      "fretes", render_generator(request.args))
 
 
 @app.route("/vendas/<int:cid>")
