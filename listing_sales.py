@@ -3,6 +3,7 @@
 Traffic/conversion cannot be inferred from these order counts.
 """
 from datetime import timedelta
+from decimal import Decimal
 from sales_metrics import created_day, reporting_today, summarize
 
 
@@ -10,7 +11,8 @@ def listing_sales_summary(orders, items, covered, item_id, end=None, days=30):
     end = end or reporting_today()
     start = end - timedelta(days=days - 1)
     result = {"start": start.isoformat(), "end": end.isoformat(),
-              "orders": None, "units": None, "reason": None}
+              "orders": None, "units": None, "gross_items": None,
+              "ticket": None, "reason": None}
     summary = summarize(orders, start, end, set(covered))
     if not summary["complete"] or summary["orders"] is None:
         result["reason"] = "Período sem cobertura completa ou com pedidos não verificáveis."
@@ -47,8 +49,26 @@ def listing_sales_summary(orders, items, covered, item_id, end=None, days=30):
         if sum(i["quantidade"] for i in by_order.get(key, [])) != order.get("unidades"):
             result["reason"] = "Há pedidos pagos com vínculo de anúncios incompleto."
             return result
+    # The order's total can include freight, coupons and other items. Only
+    # sum the verified per-item unit price; never allocate the order total.
+    gross = Decimal(0)
+    for key, group in by_order.items():
+        for item in group:
+            if str(item["item_id"]) != str(item_id):
+                continue
+            try:
+                price = Decimal(str(item.get("preco_unitario")))
+            except (TypeError, ValueError, ArithmeticError):
+                result["reason"] = "Preço unitário de item vendido não verificável."
+                return result
+            if not price.is_finite() or price < 0:
+                result["reason"] = "Preço unitário de item vendido não verificável."
+                return result
+            gross += price * item["quantidade"]
     matched = [i for key, group in by_order.items() for i in group
                if str(i["item_id"]) == str(item_id)]
     result["orders"] = len({(i["conexao_id"], str(i["pedido_id"])) for i in matched})
     result["units"] = sum(i["quantidade"] for i in matched)
+    result["gross_items"] = gross
+    result["ticket"] = gross / result["orders"] if result["orders"] else None
     return result
