@@ -2474,7 +2474,7 @@ def demandas(cid):
     return pagina_loja("Demandas", cid, c["cliente"], "demandas", corpo)
 @app.route("/diagnostico/<int:cid>/<item_id>")
 @login_required
-def diagnostico_anuncio(cid, item_id):
+def diagnostico_saude_anuncio(cid, item_id):
     if not pode_ver_loja(cid):
         return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>"), 403
     with banco() as conn:
