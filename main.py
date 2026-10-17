@@ -14,6 +14,7 @@ from listing_sync import sync_promotions
 from listing_diagnostics import inspect_listing
 from listing_health import diagnose_listing
 from listing_sales import listing_sales_summary
+from listing_trends import comparison
 from sales_sync import init_sales_schema, sync_orders
 from overview_store import init_overview_schema
 from sync_runner import run_stages
@@ -2533,6 +2534,54 @@ def diagnostico_saude_anuncio(cid, item_id):
               "pedidos que contêm este anúncio. Quando não há pedidos, "
               "o ticket não é calculado. Visitas e conversão seguem "
               "indisponíveis até termos fonte validada.</p></div>")
+    # Compare complete, non-overlapping periods using the same paid-order
+    # verification gates as the headline indicators.
+    corpo += ("<div class='card'><h3>Evolução das vendas por anúncio</h3>"
+              "<p class='muted'>Comparação com o período imediatamente anterior, "
+              "sem sobreposição de dias. Valores em reais são brutos dos itens "
+              "vendidos, não repasses líquidos.</p>"
+              "<div style='overflow-x:auto'><table><thead><tr>"
+              "<th>Comparação</th><th>Pedidos</th><th>Unidades</th>"
+              "<th>Valor dos itens</th></tr></thead><tbody>")
+    for dias, atual in ((7, vendas_7), (30, vendas_30)):
+        fim_anterior = datetime.datetime.fromisoformat(
+            atual["start"]).date() - datetime.timedelta(days=1)
+        anterior = listing_sales_summary(
+            pedidos_verificados, itens_pedidos, [r["dia"] for r in cobertura],
+            item_id, end=fim_anterior, days=dias)
+        if pendentes and pendentes[0]["n"]:
+            anterior.update(orders=None, units=None, gross_items=None,
+                            ticket=None, reason="Há pedidos antigos não verificados.")
+        evolucao = comparison(atual, anterior)
+        if not evolucao["available"]:
+            corpo += ("<tr><td>" + str(dias) + " dias vs. anteriores</td>"
+                      "<td colspan='3'><b>Indisponível</b> — "
+                      + esc(evolucao["reason"]) + "</td></tr>")
+            continue
+        celulas = []
+        for campo in ("orders", "units", "gross_items"):
+            valor = evolucao[campo]
+            if valor["status"] == "novas_vendas":
+                rotulo = "Novas vendas (base anterior zero)"
+            elif valor["status"] == "sem_movimento":
+                rotulo = "Sem movimento nos dois períodos"
+            else:
+                rotulo = ("%+.1f%%" % valor["percent"])
+            if campo == "gross_items":
+                atual_txt = "R$ %.2f" % valor["current"]
+                anterior_txt = "R$ %.2f" % valor["previous"]
+            else:
+                atual_txt = str(int(valor["current"]))
+                anterior_txt = str(int(valor["previous"]))
+            celulas.append("<td><b>" + atual_txt + "</b><br>"
+                           "<small class='muted'>Antes: " + anterior_txt
+                           + " · " + rotulo + "</small></td>")
+        corpo += ("<tr><td>" + str(dias) + " dias vs. anteriores</td>"
+                  + "".join(celulas) + "</tr>")
+    corpo += ("</tbody></table></div><p class='muted'>"
+              "Sem cobertura verificada em qualquer período, a comparação "
+              "fica indisponível. Quando a base anterior é zero, não exibimos "
+              "crescimento percentual artificial.</p></div>")
     for acao in resultados:
         gravidade = acao["priority"]
         classe = "urgente" if gravidade == "alta" else "atencao" if gravidade in ("media", "revisar") else "ok"
