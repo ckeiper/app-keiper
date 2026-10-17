@@ -21,6 +21,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Compile source
-        run: python -m py_compile main.py freight_audit.py freight_cases.py freight_contestation.py
+        run: python -m py_compile main.py freight_audit.py freight_cases.py freight_contestation.py freight_ml.py
       - name: Run freight unit tests
-        run: python -m unittest -v test_freight_audit test_freight_contestation test_freight_cases
+        run: python -m unittest -v test_freight_audit test_freight_contestation test_freight_cases test_freight_ml
