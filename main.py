@@ -2542,7 +2542,7 @@ def anuncios(cid):
         promo_html = render_promotions(a.get("promocoes_json"))
         # Admin-only, read-only live API diagnostic for discrepancies between
         # the seller-facing price and our last collected promotion snapshot.
-        if session.get("tipo") == "admin":
+        if globals().get("session") is not None and session.get("tipo") == "admin":
             promo_html += ("<div style='margin-top:6px'><a class='link' "
                            "target='_blank' rel='noopener noreferrer' "
                            "href='/diagnostico/anuncios/" + str(cid) + "/"
