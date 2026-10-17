@@ -54,6 +54,8 @@ def listing_sales_summary(orders, items, covered, item_id, end=None, days=30):
     gross = Decimal(0)
     for key, group in by_order.items():
         for item in group:
+            if str(item["item_id"]) != str(item_id):
+                continue
             try:
                 price = Decimal(str(item.get("preco_unitario")))
             except (TypeError, ValueError, ArithmeticError):
@@ -62,8 +64,7 @@ def listing_sales_summary(orders, items, covered, item_id, end=None, days=30):
             if not price.is_finite() or price < 0:
                 result["reason"] = "Preço unitário de item vendido não verificável."
                 return result
-            if str(item["item_id"]) == str(item_id):
-                gross += price * item["quantidade"]
+            gross += price * item["quantidade"]
     matched = [i for key, group in by_order.items() for i in group
                if str(i["item_id"]) == str(item_id)]
     result["orders"] = len({(i["conexao_id"], str(i["pedido_id"])) for i in matched})
