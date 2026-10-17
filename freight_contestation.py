@@ -66,16 +66,18 @@ def generate_messages(order_id="", listing_id="", shipment_id="", expected="", c
     ]
 
 
-def render_generator(values):
+def render_generator(values, *, method="get"):
     """HTML fragment; escaped input, editable textarea and copy buttons."""
     keys = (("order_id", "Número do pedido"), ("listing_id", "Código do anúncio (MLB)"),
             ("shipment_id", "Número do envio"), ("expected", "Frete de referência (R$)"),
             ("charged", "Frete cobrado (R$)"))
+    if method not in ("get", "post"):
+        raise ValueError("Invalid generator method")
     html = ['<div class="card"><h2>Gerador gratuito de contestações de frete</h2>',
             '<p>Preencha os dados para montar três mensagens editáveis. '
             'Valores informados aqui não são verificados automaticamente; '
             'não comprovam cobrança indevida.</p>',
-            '<form method="get">']
+            '<form method="' + method + '">']
     for key, label in keys:
         html.append('<label style="display:block;margin:12px 0 4px">' + escape(label) + '</label>')
         html.append('<input style="width:100%;max-width:440px" name="' + key
