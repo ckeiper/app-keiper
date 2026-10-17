@@ -1559,7 +1559,6 @@ def painel_legado():
     gasto_total = 0.0
     fat_geral = 0.0
     g_fat = []
-    g_vis = []
     if ids:
         ph = ",".join(["%s"] * len(ids))
         with banco() as conn:
@@ -1579,10 +1578,6 @@ def painel_legado():
                           (*ids, ontem_iso))
             fat_ontem = r[0]["t"] or 0
             vendas_ontem = r[0]["n"] or 0
-            r = consultar(conn, "SELECT COALESCE(SUM(visitas),0) AS v "
-                                "FROM metricas "
-                                "WHERE conexao_id IN (" + ph + ")", ids)
-            visitas_total = r[0]["v"] or 0
             r = consultar(conn, "SELECT COALESCE(SUM(faturamento),0) AS g "
                                 "FROM ads_dia "
                                 "WHERE conexao_id IN (" + ph + ") "
@@ -1605,14 +1600,7 @@ def painel_legado():
                                     "AND SUBSTRING(fechado_em,1,10) >= %s "
                                     "GROUP BY SUBSTRING(fechado_em,1,10)",
                               (*ids, ini7))
-            g_vis = consultar(conn, "SELECT data, "
-                                    "COALESCE(SUM(visitas),0) AS v "
-                                    "FROM desempenho_historico "
-                                    "WHERE conexao_id IN (" + ph + ") "
-                                    "AND data >= %s GROUP BY data",
-                              (*ids, ini7))
     fat_map = {r["dia"]: r["t"] for r in g_fat}
-    vis_map = {r["data"]: r["v"] for r in g_vis}
     rotulos, serie_fat, serie_vis = [], [], []
     d = datetime.date.today() - datetime.timedelta(days=6)
     while d <= datetime.date.today():
@@ -1682,23 +1670,14 @@ def painel_legado():
               "chart.js@4.4.1/dist/chart.umd.min.js'></script>")
     corpo += ("<script>var rot = " + json.dumps(rotulos) + ";"
               "var sf = " + json.dumps(serie_fat) + ";"
-              "var sv = " + json.dumps(serie_vis) + ";"
               "new Chart(document.getElementById('graficoGeral'), {"
               "type:'line',"
               "data:{labels:rot,datasets:["
-              "{label:'Faturamento (R$)',data:sf,borderColor:'#3483FA',"
-              "backgroundColor:'rgba(52,131,250,0.12)',yAxisID:'y',"
-              "tension:0.3,fill:true},"
-              "{label:'Visitas',data:sv,borderColor:'#f59e0b',"
-              "backgroundColor:'rgba(245,158,11,0.12)',yAxisID:'y1',"
-              "tension:0.3,fill:true}]},"
+              "{label:'Faturamento registrado (R$)',data:sf,borderColor:'#3483FA',"
+              "backgroundColor:'rgba(52,131,250,0.12)',tension:0.3,fill:true}]},"
               "options:{responsive:true,maintainAspectRatio:false,"
               "plugins:{legend:{position:'top'}},"
-              "scales:{y:{type:'linear',position:'left',"
-              "title:{display:true,text:'R$'},beginAtZero:true},"
-              "y1:{type:'linear',position:'right',"
-              "title:{display:true,text:'Visitas'},"
-              "beginAtZero:true,grid:{drawOnChartArea:false}}}}});</script>")
+              "scales:{y:{beginAtZero:true,title:{display:true,text:'R$'}}}}});</script>")
     try:
         tenta_r = int(request.args.get("r", 0))
     except Exception:
