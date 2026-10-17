@@ -3029,6 +3029,11 @@ def painel_detalhe(cid):
         return pagina("Não encontrada",
                       "<div class='card'><h2>Loja não encontrada</h2></div>")
     with banco() as conn:
+        cobertura_vendas = consultar(conn, """
+            SELECT dia FROM vendas_cobertura
+            WHERE conexao_id=%s AND dia >= %s
+        """, (cid, inicio_semana))
+        dias_cobertos = {r["dia"] for r in cobertura_vendas}
         conta = consultar(conn, "SELECT * FROM dados_conta WHERE conexao_id=%s", (cid,))
         conta = conta[0] if conta else None
         ads_dias = consultar(conn, "SELECT * FROM ads_dia WHERE conexao_id=%s "
@@ -3135,6 +3140,15 @@ def painel_detalhe(cid):
                   "o lucro do dia pode estar incompleto. "
                   "<a class='link' href='/custos/" + str(cid)
                   + "'>Cadastrar custos</a>.</div>")
+    dias_incompletos = [
+        (datetime.date.today() - datetime.timedelta(days=i)).isoformat()
+        for i in range(7) if (datetime.date.today() - datetime.timedelta(days=i)).isoformat()
+        not in dias_cobertos
+    ]
+    if dias_incompletos:
+        corpo += ("<div class='aviso'><b>Histórico de vendas em sincronização.</b> "
+                  "Os dias sem cobertura confirmada podem estar incompletos. "
+                  "Um traço não significa zero vendas.</div>")
     rotulos7, fat7, lucro7 = [], [], []
     d = datetime.date.today() - datetime.timedelta(days=6)
     while d <= datetime.date.today():
@@ -3142,8 +3156,10 @@ def painel_detalhe(cid):
         info = por_dia.get(iso, {"fat": 0.0, "qtd": 0,
                                  "lucro": 0.0, "pendente": False})
         rotulos7.append(d.strftime("%d/%m"))
-        fat7.append(round(info["fat"], 2))
-        lucro7.append(round(info["lucro"], 2))
+        fat7.append(round(info["fat"], 2) if iso in dias_cobertos
+                    else (round(info["fat"], 2) if info["qtd"] else None))
+        lucro7.append(round(info["lucro"], 2) if iso in dias_cobertos
+                      else (round(info["lucro"], 2) if info["qtd"] else None))
         d += datetime.timedelta(days=1)
     corpo += ("<div class='card'><h2>Evolução dos últimos 7 dias</h2>"
               "<div class='sub'>Faturamento e lucro (MC) por dia</div>"
@@ -3185,13 +3201,21 @@ def painel_detalhe(cid):
             lucro_txt = "<span class='tag sem'>custo pendente</span>"
         else:
             lucro_txt = "R$ %.2f" % info["lucro"]
+        completo = iso in dias_cobertos
+        receita_txt = ("R$ %.2f" % info["fat"]
+                       if completo or info["qtd"] else "—")
+        vendas_txt = (str(info["qtd"]) if completo or info["qtd"] else "—")
+        if not completo and not info["qtd"]:
+            lucro_txt = "<span class='tag sem'>—</span>"
         badge = ""
+        if not completo:
+            badge += " <span class='tag sem'>parcial</span>"
         if iso == hoje_iso:
             badge = " <span class='badge'>hoje</span>"
         linhas_html += ("<tr><td><b>" + d.strftime("%d/%m") + "</b>"
                         + badge + "</td>"
-                        "<td>R$ %.2f" % info["fat"] + "</td><td>"
-                        + str(info["qtd"]) + "</td><td>" + lucro_txt
+                        "<td>" + receita_txt + "</td><td>"
+                        + vendas_txt + "</td><td>" + lucro_txt
                         + "</td><td>" + gasto_txt + "</td><td>"
                         + fatads_txt + "</td></tr>")
         d += datetime.timedelta(days=1)
