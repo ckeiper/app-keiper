@@ -2540,6 +2540,14 @@ def anuncios(cid):
         else:
             clips_html = "<span class='alerta atencao'>0</span>"
         promo_html = render_promotions(a.get("promocoes_json"))
+        # Admin-only, read-only live API diagnostic for discrepancies between
+        # the seller-facing price and our last collected promotion snapshot.
+        if session.get("tipo") == "admin":
+            promo_html += ("<div style='margin-top:6px'><a class='link' "
+                           "target='_blank' rel='noopener noreferrer' "
+                           "href='/diagnostico/anuncios/" + str(cid) + "/"
+                           + esc(str(a["item_id"])) + "'>"
+                           "Diagnosticar preço na API</a></div>")
         tags = []
         try:
             tags = json.loads(a["tags"]) if a["tags"] else []
