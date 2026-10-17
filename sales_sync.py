@@ -20,11 +20,11 @@ def sync_orders(cid, token, user_id, banco, query, execute, api_get, log):
     with banco() as conn:
         saved = query(conn, "SELECT dia, atualizado_em FROM vendas_cobertura WHERE conexao_id=%s", (cid,))
     coverage = {r["dia"]: r["atualizado_em"] for r in saved}
-    # Always refresh recent days; backfill/rotate at most 30 older days per run.
+    # Always refresh the last seven days; process at most five older days per run.
     recent = [today - datetime.timedelta(days=i) for i in range(7)]
     older = [today - datetime.timedelta(days=i) for i in range(7, 180)]
     older.sort(key=lambda d: (coverage.get(d.isoformat(), 0), -d.toordinal()))
-    selected = recent + [d for d in older if now - coverage.get(d.isoformat(), 0) >= 86400][:30]
+    selected = recent + [d for d in older if now - coverage.get(d.isoformat(), 0) >= 86400][:5]
     success = True
     for day in selected:
         iso = day.isoformat()
