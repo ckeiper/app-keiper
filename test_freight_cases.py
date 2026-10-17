@@ -39,6 +39,19 @@ class FreightCasesTests(unittest.TestCase):
         self.assertIn("conferência manual", html)
         self.assertIn("Requer validação", html)
 
+    def test_api_charge_and_manual_assessment_are_separate(self):
+        from decimal import Decimal
+        html = render_cases([{
+            "id": 10, "status": "Pendente", "pedido_id": "123",
+            "envio_id": "456", "protocolo": None,
+            "ultima_avaliacao": "Possível divergência",
+            "ultima_diferenca": Decimal("2.10"),
+            "custo_api": Decimal("12.50"),
+        }], 7)
+        self.assertIn("R$ 2,10", html)
+        self.assertIn("R$ 12,50", html)
+        self.assertIn("não comprova tarifa histórica esperada", html)
+
     def test_empty_list(self):
         self.assertIn("Nenhum chamado registrado", render_cases([], 4))
 
