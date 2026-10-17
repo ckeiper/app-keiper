@@ -52,7 +52,8 @@ def init_overview_schema(conn, execute):
 
 
 DAILY_SQL = '''WITH candidates AS MATERIALIZED (
-    SELECT conexao_id, keiper_overview_day_v1(criado_em) AS dia,
+    SELECT conexao_id, ((criado_em::timestamptz AT TIME ZONE 'UTC')
+           - INTERVAL '3 hours')::date AS dia,
            status, total, moeda, unidades,
            CASE WHEN jsonb_typeof(pagamentos_json) = 'array'
                 THEN pagamentos_json ELSE '[]'::jsonb END AS payments,
