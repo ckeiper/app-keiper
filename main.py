@@ -1393,19 +1393,34 @@ def detalhe_chamado_frete(cid, case_id):
     # Use the latest recorded evidence as an editable draft, never as proof
     # that Mercado Livre confirmed an incorrect charge.
     with banco() as conn:
-        latest_evidence = consultar(conn, """SELECT valor_referencia, valor_cobrado,
-            avaliacao FROM frete_evidencias WHERE conexao_id=%s AND chamado_id=%s
-            ORDER BY id DESC LIMIT 1""", (cid, case_id))
-    evidence = latest_evidence[0] if latest_evidence else None
+        # Keep the historical reference distinct from an API cost lookup:
+        # API responses do not establish the expected tariff at sale time.
+        last_manual = consultar(conn, """SELECT valor_referencia, valor_cobrado
+            FROM frete_evidencias WHERE conexao_id=%s AND chamado_id=%s
+            AND valor_referencia IS NOT NULL ORDER BY id DESC LIMIT 1""",
+            (cid, case_id))
+        last_api = consultar(conn, """SELECT valor_cobrado, origem_cobranca
+            FROM frete_evidencias WHERE conexao_id=%s AND chamado_id=%s
+            AND origem_cobranca LIKE 'API Mercado Livre /shipments/%%'
+            AND valor_cobrado IS NOT NULL ORDER BY id DESC LIMIT 1""",
+            (cid, case_id))
+    manual = last_manual[0] if last_manual else None
+    api_charge = last_api[0] if last_api else None
+    draft_expected = (str(manual["valor_referencia"])
+                      if manual and manual["valor_referencia"] is not None else "")
+    draft_charged = (str(api_charge["valor_cobrado"]) if api_charge else
+                     str(manual["valor_cobrado"])
+                     if manual and manual["valor_cobrado"] is not None else "")
     from freight_contestation import generate_messages
     templates = generate_messages(
         case["pedido_id"] or "", case["anuncio_id"] or "",
-        case["envio_id"] or "",
-        str(evidence["valor_referencia"]) if evidence and evidence["valor_referencia"] is not None else "",
-        str(evidence["valor_cobrado"]) if evidence and evidence["valor_cobrado"] is not None else "")
+        case["envio_id"] or "", draft_expected, draft_charged)
     content += ('<div class="card"><h3>Mensagens editáveis para o chamado</h3>'
-                '<p>Valores provenientes da última conferência registrada pelo usuário, '
-                'não de validação independente do Mercado Livre. Revise antes de enviar.</p></div>')
+                '<p>Referência histórica: conferência manual. '
+                'Cobrança: ' + ('última consulta da API do Mercado Livre'
+                               if api_charge else 'conferência manual')
+                + '. Esses valores podem ter datas ou contextos distintos; '
+                'confirme a comparabilidade antes de alegar divergência.</p></div>')
     for idx, (title, draft) in enumerate(templates):
         field_id = "frete_msg_" + str(case_id) + "_" + str(idx)
         content += ('<div class="card"><h4>' + esc(title) + '</h4>'
