@@ -3446,7 +3446,7 @@ def puxar_envios(conexao_id, token, user_id):
                               tracking=EXCLUDED.tracking,
                               pedido_id=EXCLUDED.pedido_id,
                               data=EXCLUDED.data,
-                              custo_frete=EXCLUDED.custo_frete,
+                              custo_frete=COALESCE(EXCLUDED.custo_frete, envios.custo_frete),
                               atualizado_em=EXCLUDED.atualizado_em""",
                      (conexao_id, sid, det.get("status"),
                       det.get("tracking_number"), oid,
