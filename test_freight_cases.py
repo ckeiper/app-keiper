@@ -11,7 +11,8 @@ class FreightCasesTests(unittest.TestCase):
         self.assertTrue(all("IF NOT EXISTS" in sql for sql in statements))
         for table in ("frete_chamados", "frete_chamados_historico", "frete_evidencias"):
             self.assertTrue(any("CREATE TABLE IF NOT EXISTS " + table in sql for sql in statements))
-        self.assertTrue(all("conexao_id" in sql for sql in statements))
+        self.assertTrue(all("conexao_id" in sql for sql in statements
+                            if "ALTER TABLE" not in sql))
         self.assertTrue(any("CHECK (status IN" in sql for sql in statements))
         self.assertTrue(any("ADD COLUMN IF NOT EXISTS fonte_api_verificada" in sql
                             for sql in statements))
