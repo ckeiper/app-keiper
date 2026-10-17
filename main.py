@@ -1549,9 +1549,16 @@ def contestar_frete(cid):
     if not contas:
         return pagina("Loja não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
     with banco() as conn:
-        cases = consultar(conn, """SELECT id, status, pedido_id, envio_id, protocolo
-                                  FROM frete_chamados WHERE conexao_id=%s
-                                  ORDER BY atualizado_em DESC LIMIT 50""", (cid,))
+        cases = consultar(conn, """SELECT c.id, c.status, c.pedido_id, c.envio_id,
+                c.protocolo, e.avaliacao AS ultima_avaliacao, e.diferenca AS ultima_diferenca
+                FROM frete_chamados c
+                LEFT JOIN LATERAL (
+                    SELECT avaliacao, diferenca FROM frete_evidencias
+                    WHERE conexao_id=c.conexao_id AND chamado_id=c.id
+                    ORDER BY id DESC LIMIT 1
+                ) e ON TRUE
+                WHERE c.conexao_id=%s
+                ORDER BY c.atualizado_em DESC LIMIT 50""", (cid,))
     if "frete_csrf" not in session:
         session["frete_csrf"] = secrets.token_urlsafe(32)
     content = render_generator(request.args)
