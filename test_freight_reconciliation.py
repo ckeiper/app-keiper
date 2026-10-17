@@ -43,6 +43,14 @@ class ReconciliationTests(unittest.TestCase):
         self.assertEqual(result[0]["status"], "ambiguous_dashboard")
         self.assertIsNone(result[0]["difference"])
 
+    def test_refunds_greater_than_debits_require_review(self):
+        result = compare_normalized_freight(
+            [ledger("t1", "100", "debit", "5"),
+             ledger("t2", "100", "refund", "8")],
+            [dashboard("100", "s1", "5")])
+        self.assertEqual(result[0]["status"], "review_ledger")
+        self.assertIsNone(result[0]["difference"])
+
     def test_duplicate_transaction_fails_closed(self):
         with self.assertRaises(ReconciliationError):
             compare_normalized_freight(
