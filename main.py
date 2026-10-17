@@ -15,6 +15,7 @@ from listing_diagnostics import inspect_listing
 from listing_health import diagnose_listing
 from listing_sales import listing_sales_summary
 from listing_trends import comparison
+from listing_ranking import ranking_metrics
 from sales_sync import init_sales_schema, sync_orders
 from overview_store import init_overview_schema
 from sync_runner import run_stages
@@ -2741,6 +2742,107 @@ def anuncios(cid):
     return pagina_loja("Anúncios", cid, c["cliente"], "anuncios", corpo)
 
 
+@app.route("/ranking-anuncios/<int:cid>")
+@login_required
+def ranking_anuncios(cid):
+    """Store-level verified listing ranking; never use lifetime vendidos."""
+    if not pode_ver_loja(cid):
+        return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
+    with banco() as conn:
+        lojas = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+        if not lojas:
+            return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
+        anuncios_loja = consultar(conn, """
+            SELECT item_id, titulo, status, quantidade FROM anuncios
+            WHERE conexao_id=%s ORDER BY item_id
+        """, (cid,))
+        pedidos = consultar(conn, """
+            SELECT conexao_id, pedido_id, status, total, moeda, criado_em,
+                   pagamentos_json, unidades, vendas_dia_coleta
+            FROM pedidos WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL
+        """, (cid,))
+        itens = consultar(conn, """
+            SELECT pi.conexao_id, pi.pedido_id, pi.item_id,
+                   pi.quantidade, pi.preco_unitario
+            FROM pedidos_itens pi JOIN pedidos p
+              ON p.conexao_id=pi.conexao_id AND p.pedido_id=pi.pedido_id
+            WHERE pi.conexao_id=%s AND p.vendas_verificado_em IS NOT NULL
+        """, (cid,))
+        cobertura = consultar(conn, """
+            SELECT dia FROM vendas_cobertura WHERE conexao_id=%s
+        """, (cid,))
+        pendentes = consultar(conn, """
+            SELECT COUNT(*) AS n FROM pedidos
+            WHERE conexao_id=%s AND vendas_verificado_em IS NULL
+        """, (cid,))
+    resumo = ranking_metrics(
+        pedidos, itens, [r["dia"] for r in cobertura],
+        [a["item_id"] for a in anuncios_loja],
+        pending=bool(pendentes and pendentes[0]["n"]))
+    corpo = ("<h2>Ranking de vendas por anúncio</h2>"
+             "<p class='muted'>Últimos 30 dias comparados aos 30 anteriores. "
+             "Somente pedidos pagos e aprovados com dados verificados. "
+             "Valor bruto dos itens, não valor líquido recebido. "
+             "Visitas e conversão não estão disponíveis.</p>")
+    if not resumo["available"]:
+        corpo += ("<div class='card'><b>Ranking indisponível</b><p>"
+                  + esc(resumo["reason"] or "Dados não verificados.")
+                  + "</p><p>Não interpretamos dados incompletos como vendas zeradas."
+                  "</p></div>")
+        return pagina_loja("Ranking de anúncios", cid, lojas[0]["cliente"],
+                          "desempenho", corpo)
+    opcoes = {"valor": "Maior valor vendido", "pedidos": "Mais pedidos",
+              "alta": "Maior crescimento", "queda": "Maior queda"}
+    ordem = request.args.get("ordem", "valor")
+    if ordem not in opcoes:
+        ordem = "valor"
+    registros = [(a, resumo["rows"][str(a["item_id"])]) for a in anuncios_loja]
+    if ordem == "valor":
+        registros.sort(key=lambda x: (-x[1]["value"], str(x[0]["item_id"])))
+    elif ordem == "pedidos":
+        registros.sort(key=lambda x: (-x[1]["orders"], str(x[0]["item_id"])))
+    elif ordem == "alta":
+        registros.sort(key=lambda x: (
+            x[1]["growth_pct"] is None, -(x[1]["growth_pct"] or 0),
+            str(x[0]["item_id"])))
+    else:
+        registros.sort(key=lambda x: (
+            x[1]["growth_pct"] is None, x[1]["growth_pct"] or 0,
+            str(x[0]["item_id"])))
+    corpo += "<div class='card'><p>Ordenar por: "
+    for chave, titulo in opcoes.items():
+        corpo += ("<a class='filtro' href='/ranking-anuncios/" + str(cid)
+                  + "?ordem=" + chave + "'>" + titulo + "</a> ")
+    corpo += ("</p><p class='muted'>Exibindo até 100 de "
+              + str(len(registros)) + " anúncios. "
+              "Crescimento percentual requer vendas no período anterior; "
+              "anúncios com base zero não recebem porcentagem artificial."
+              "</p><div style='overflow-x:auto'><table><thead><tr>"
+              "<th>Anúncio</th><th>Pedidos</th><th>Unidades</th>"
+              "<th>Valor dos itens</th><th>Ticket médio</th>"
+              "<th>Pedidos anteriores</th><th>Evolução</th>"
+              "</tr></thead><tbody>")
+    for anuncio, m in registros[:100]:
+        if m["growth_pct"] is None:
+            evolucao = ("Novas vendas" if m["trend"] == "novas"
+                        else "Sem base percentual")
+        else:
+            evolucao = "%+.1f%%" % m["growth_pct"]
+        ticket = "R$ %.2f" % m["ticket"] if m["ticket"] is not None else "—"
+        corpo += ("<tr><td><b>" + esc(str(anuncio["titulo"] or "Sem título"))
+                  + "</b><br><small>" + esc(str(anuncio["item_id"]))
+                  + "</small><br><a href='/diagnostico/" + str(cid) + "/"
+                  + esc(str(anuncio["item_id"])) + "'>Ver diagnóstico</a></td>"
+                  "<td>" + str(m["orders"]) + "</td><td>" + str(m["units"])
+                  + "</td><td>R$ %.2f" % m["value"]
+                  + "</td><td>" + ticket + "</td><td>"
+                  + str(m["previous_orders"]) + "</td><td>"
+                  + esc(evolucao) + "</td></tr>")
+    corpo += "</tbody></table></div></div>"
+    return pagina_loja("Ranking de anúncios", cid, lojas[0]["cliente"],
+                      "desempenho", corpo)
+
+
 @app.route("/desempenho/<int:cid>")
 @login_required
 def desempenho(cid):
@@ -2797,7 +2899,9 @@ def desempenho(cid):
             GROUP BY SUBSTRING(fechado_em,1,10)
         """, (cid, ini, fim))
     ultima = ultima_atualizacao(cid)
-    corpo = ("<h2 style='margin-bottom:10px'>Desempenho</h2>"
+    link_ranking = ("<p><a class='btn-acoes cinza' href='/ranking-anuncios/"
+                    + str(cid) + "'>Ranking de vendas por anúncio →</a></p>")
+    corpo = (link_ranking + "<h2 style='margin-bottom:10px'>Desempenho</h2>"
              + barra_atualizar(cid, ultima, "desempenho")
              + "<div class='aviso'><b>Visitas e conversão indisponíveis.</b> "
              "O Mercado Livre não está fornecendo visitas confiáveis pela API. "
