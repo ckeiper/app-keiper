@@ -30,6 +30,24 @@ def init_case_schema(conn, execute):
         detalhe TEXT NOT NULL,
         criado_em BIGINT NOT NULL
     )""")
+    execute(conn, """CREATE TABLE IF NOT EXISTS frete_evidencias (
+        id BIGSERIAL PRIMARY KEY,
+        conexao_id INTEGER NOT NULL,
+        chamado_id BIGINT NOT NULL REFERENCES frete_chamados(id),
+        valor_referencia NUMERIC(12,2),
+        valor_cobrado NUMERIC(12,2),
+        data_referencia TEXT,
+        origem_cobranca TEXT,
+        contexto_confirmado BOOLEAN NOT NULL DEFAULT FALSE,
+        itens_envio INTEGER,
+        avaliacao TEXT NOT NULL,
+        diferenca NUMERIC(12,2),
+        justificativa TEXT NOT NULL,
+        usuario_id INTEGER NOT NULL,
+        criado_em BIGINT NOT NULL
+    )""")
+    execute(conn, """CREATE INDEX IF NOT EXISTS idx_frete_evidencias_chamado
+        ON frete_evidencias (conexao_id, chamado_id, id DESC)""")
     execute(conn, """CREATE INDEX IF NOT EXISTS idx_frete_historico_chamado
         ON frete_chamados_historico (conexao_id, chamado_id, criado_em)""")
 
