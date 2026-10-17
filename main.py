@@ -3211,6 +3211,11 @@ def atualizar_tipo(tipo, cid):
     if not pode_ver_loja(cid):
         return pagina("Acesso negado",
                       "<div class='card'><h2>Acesso restrito</h2></div>")
+    # Full order history sync can take minutes; never run it in an HTTP worker.
+    if tipo in ("resumo", "vendas"):
+        enfileirar_atualizacao(cid)
+        return redirect("/painel/" + str(cid) if tipo == "resumo"
+                        else "/vendas/" + str(cid))
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
