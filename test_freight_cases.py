@@ -7,12 +7,16 @@ class FreightCasesTests(unittest.TestCase):
     def test_schema_is_idempotent_and_scoped(self):
         statements = []
         init_case_schema(None, lambda conn, sql: statements.append(sql))
-        self.assertEqual(len(statements), 6)
+        self.assertEqual(len(statements), 7)
         self.assertTrue(all("IF NOT EXISTS" in sql for sql in statements))
         for table in ("frete_chamados", "frete_chamados_historico", "frete_evidencias"):
             self.assertTrue(any("CREATE TABLE IF NOT EXISTS " + table in sql for sql in statements))
         self.assertTrue(all("conexao_id" in sql for sql in statements))
         self.assertTrue(any("CHECK (status IN" in sql for sql in statements))
+        self.assertTrue(any("ADD COLUMN IF NOT EXISTS fonte_api_verificada" in sql
+                            for sql in statements))
+        self.assertTrue(any("fonte_api_verificada BOOLEAN NOT NULL DEFAULT FALSE"
+                            in sql for sql in statements))
 
     def test_case_list_escapes_untrusted_content(self):
         html = render_cases([{
