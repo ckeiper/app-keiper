@@ -58,12 +58,23 @@ def render_cases(cases, cid):
     result = ['<div class="card"><h3>Chamados salvos</h3>']
     for case in cases:
         cid_case = str(case["id"])
+        assessment = case.get("ultima_avaliacao")
+        alert = ""
+        if assessment == "Possível divergência":
+            difference = case.get("ultima_diferenca")
+            amount = ("R$ " + format(difference, ".2f").replace(".", ",")
+                      if difference is not None else "valor não informado")
+            alert = ('<p><strong>Possível divergência (conferência manual): '
+                     + escape(amount) + '</strong>. Requer validação pelo Mercado Livre.</p>')
+        elif assessment:
+            alert = '<p>Última conferência: ' + escape(str(assessment)) + '</p>'
         result.append('<div style="padding:12px;border-top:1px solid #ddd">'
                       '<b>Chamado #' + escape(cid_case) + '</b> — '
                       + escape(case.get("status") or "") + '<br>Pedido: '
                       + escape(case.get("pedido_id") or "não informado")
                       + ' | Envio: ' + escape(case.get("envio_id") or "não informado")
                       + ' | Protocolo: ' + escape(case.get("protocolo") or "não informado")
+                      + alert
                       + '<br><a href="/fretes/' + str(cid) + '/chamado/' + cid_case
                       + '">Abrir histórico e atualizar</a></div>')
     return "".join(result) + "</div>"
