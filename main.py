@@ -16,6 +16,7 @@ from listing_health import diagnose_listing
 from listing_sales import listing_sales_summary
 from listing_trends import comparison
 from listing_ranking import ranking_metrics
+from visual_theme import VISUAL_CSS
 from sales_sync import init_sales_schema, sync_orders
 from overview_store import init_overview_schema
 from sync_runner import run_stages
@@ -422,7 +423,7 @@ def pagina(titulo, corpo):
     links += "<a class='btn' href='/conectar'>+ Conectar loja</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    cab += "<title>" + esc(titulo) + "</title>" + CSS + "</head><body>"
+    cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS + "</head><body>"
     fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
     return cab + topo + marca + links + fim
 
@@ -455,12 +456,10 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
     links += "<a class='btn sair' href='/logout'>Sair</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    cab += "<title>" + esc(titulo) + "</title>" + CSS
-    cab += "</head><body><div class='top' style='position:relative'>"
+    cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS
+    cab += "</head><body><div class='top'>"
     cab += "<div><h1>" + img_logo(34) + "Keiper Consultoria</h1></div>"
-    cab += ("<div class='brand' style='position:absolute;left:50%;"
-            "top:50%;transform:translate(-50%,-50%);font-size:16px;"
-            "font-weight:600'>")
+    cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>"
     cab += esc(str(cliente)) + "</div>"
     cab += links
     cab += "<div class='wrap'><div class='layout'>" + menu
