@@ -760,7 +760,9 @@ def form_login():
             "<input name='username' required placeholder='Usuário' class='input'>"
             "<input type='password' name='senha' required placeholder='Senha' class='input'>"
             "<button class='btn-salvar' style='width:100%'>Entrar</button></form>"
-            "<p style='margin-top:12px'><a class='link' href='/recuperar'>Esqueci minha senha</a></p>")
+            "<p style='margin-top:12px'><a class='link' href='/recuperar'>Esqueci minha senha</a></p>"
+            "<p style='margin-top:16px'><a class='link' href='/gerador-contestacao-frete'>"
+            "Gerador gratuito de contestação de frete</a></p>")
 
 
 @app.route("/recuperar", methods=["GET", "POST"])
