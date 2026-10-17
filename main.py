@@ -3821,9 +3821,8 @@ def puxar_envios(conexao_id, token, user_id):
                 pares.append(par)
         if len(pares) >= 20:
             break
-    with banco() as conn:
-        executar(conn, "DELETE FROM envios WHERE conexao_id=%s",
-                 (conexao_id,))
+    # This fetch only covers the most recent 20 shipments. Never delete the
+    # complete history: older shipments are needed for freight reconciliation.
     for oid, sid in pares:
         det, det_erro = api_get(token, "/shipments/" + sid)
         if det_erro or not det:
