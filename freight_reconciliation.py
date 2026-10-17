@@ -32,7 +32,7 @@ def compare_normalized_freight(ledger_entries, dashboard_entries):
     dashboard_entries: [{order_id, shipment_id, amount}]
 
     Output statuses: matched, difference, missing_dashboard, missing_ledger,
-    ambiguous_dashboard. Differences are observations, not improper charges.
+    ambiguous_dashboard, review_ledger. Differences are observations, not improper charges.
     """
     transactions = set()
     ledger = defaultdict(lambda: Decimal("0.00"))
@@ -68,6 +68,11 @@ def compare_normalized_freight(ledger_entries, dashboard_entries):
             status, expected, difference = "ambiguous_dashboard", None, None
         elif net is None:
             status, expected, difference = "missing_ledger", charges[0][1], None
+        elif net < 0:
+            # A negative net debit suggests an adjustment crossing report
+            # periods or an incomplete classification. Never flag it as an
+            # ordinary freight overcharge.
+            status, expected, difference = "review_ledger", charges[0][1], None
         else:
             expected = charges[0][1]
             difference = net - expected
