@@ -19,6 +19,7 @@ from listing_pagination import listing_page
 from sales_view import render_sales
 from overview import load_overview, render_overview, overview_layout
 from freight_contestation import render_generator
+from freight_cases import init_case_schema, render_cases, STATUSES, TEMPLATES
 try:
     import openpyxl
 except Exception:
@@ -654,6 +655,7 @@ def iniciar_banco():
         )""")
         executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
         init_overview_schema(conn, executar)
+        init_case_schema(conn, executar)
         # ---------- AUTENTICAÇÃO ----------
 
 def login_required(f):
@@ -1273,6 +1275,99 @@ def calcular_vendas(cid):
     return c, vendas
 
 
+def freight_csrf_valid():
+    return secrets.compare_digest(session.get("frete_csrf", ""),
+                                  request.form.get("csrf_token", "")) and bool(session.get("frete_csrf"))
+
+
+@app.route("/fretes/<int:cid>/novo", methods=["POST"])
+@login_required
+def criar_chamado_frete(cid):
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    if not freight_csrf_valid():
+        return "Token inválido", 403
+    fields = [(request.form.get(k) or "").strip()[:100] for k in
+              ("pedido_id", "anuncio_id", "envio_id", "protocolo")]
+    with banco() as conn:
+        rows = consultar(conn, "SELECT id FROM conexoes WHERE id=%s", (cid,))
+        if not rows:
+            return "Loja não encontrada", 404
+        now = int(time.time())
+        created = consultar(conn, """INSERT INTO frete_chamados
+            (conexao_id, pedido_id, anuncio_id, envio_id, protocolo,
+             criado_por, criado_em, atualizado_em)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (cid, *fields, session["usuario_id"], now, now))
+        case_id = created[0]["id"]
+        executar(conn, """INSERT INTO frete_chamados_historico
+            (conexao_id, chamado_id, usuario_id, tipo, detalhe, criado_em)
+            VALUES (%s,%s,%s,%s,%s,%s)""",
+            (cid, case_id, session["usuario_id"], "criado", "Chamado criado", now))
+    return redirect("/fretes/" + str(cid) + "/chamado/" + str(case_id))
+
+
+@app.route("/fretes/<int:cid>/chamado/<int:case_id>", methods=["GET", "POST"])
+@login_required
+def detalhe_chamado_frete(cid, case_id):
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    with banco() as conn:
+        store = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
+        rows = consultar(conn, """SELECT * FROM frete_chamados
+            WHERE conexao_id=%s AND id=%s""", (cid, case_id))
+    if not store or not rows:
+        return "Chamado não encontrado", 404
+    case = rows[0]
+    if request.method == "POST":
+        if not freight_csrf_valid():
+            return "Token inválido", 403
+        status = (request.form.get("status") or "").strip()
+        note = (request.form.get("nota") or "").strip()[:5000]
+        if status not in STATUSES or not note:
+            return "Informe um status válido e uma anotação", 400
+        now = int(time.time())
+        with banco() as conn:
+            updated = consultar(conn, """UPDATE frete_chamados SET status=%s,
+                atualizado_em=%s WHERE id=%s AND conexao_id=%s
+                RETURNING id""", (status, now, case_id, cid))
+            if not updated:
+                return "Chamado não encontrado", 404
+            executar(conn, """INSERT INTO frete_chamados_historico
+                (conexao_id, chamado_id, usuario_id, tipo, detalhe, criado_em)
+                VALUES (%s,%s,%s,%s,%s,%s)""",
+                (cid, case_id, session["usuario_id"], "status: " + case["status"]
+                 + " -> " + status, note, now))
+        return redirect(request.path)
+    with banco() as conn:
+        events = consultar(conn, """SELECT h.tipo, h.detalhe, h.criado_em, u.nome
+            FROM frete_chamados_historico h
+            LEFT JOIN usuarios u ON u.id=h.usuario_id
+            WHERE h.conexao_id=%s AND h.chamado_id=%s
+            ORDER BY h.id DESC LIMIT 100""", (cid, case_id))
+    content = ('<div class="card"><h2>Chamado #' + str(case_id)
+               + '</h2><p>Pedido: ' + esc(case["pedido_id"] or "não informado")
+               + ' | Envio: ' + esc(case["envio_id"] or "não informado")
+               + ' | Status: ' + esc(case["status"]) + '</p>'
+               '<form method="post"><input type="hidden" name="csrf_token" value="'
+               + esc(session["frete_csrf"]) + '"><label>Status <select name="status">'
+               + "".join('<option value="' + esc(s) + '"' +
+                         (' selected' if s == case["status"] else '') + '>'
+                         + esc(s) + '</option>' for s in STATUSES)
+               + '</select></label><p><textarea name="nota" maxlength="5000" '
+               'required placeholder="Anote a resposta do ML ou o próximo passo" '
+               'style="width:100%;min-height:120px"></textarea></p>'
+               '<button type="submit">Salvar atualização</button></form></div>')
+    content += '<div class="card"><h3>Histórico</h3>'
+    for event in events:
+        content += ('<p><b>' + esc(str(event["tipo"])) + '</b> — '
+                    + esc(event["nome"] or "Usuário") + ' — '
+                    + esc(str(event["criado_em"])) + '<br>'
+                    + esc(event["detalhe"]) + '</p>')
+    content += '</div><p><a href="/fretes/' + str(cid) + '">← Voltar</a></p>'
+    return pagina_loja("Chamado de frete", cid, store[0]["cliente"], "fretes", content)
+
+
 @app.route("/fretes/<int:cid>")
 @login_required
 def contestar_frete(cid):
@@ -1282,8 +1377,24 @@ def contestar_frete(cid):
         contas = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
     if not contas:
         return pagina("Loja não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
-    return pagina_loja("Contestar frete", cid, contas[0]["cliente"],
-                      "fretes", render_generator(request.args))
+    with banco() as conn:
+        cases = consultar(conn, """SELECT id, status, pedido_id, envio_id, protocolo
+                                  FROM frete_chamados WHERE conexao_id=%s
+                                  ORDER BY atualizado_em DESC LIMIT 50""", (cid,))
+    if "frete_csrf" not in session:
+        session["frete_csrf"] = secrets.token_urlsafe(32)
+    content = render_generator(request.args)
+    content += render_cases(cases, cid)
+    content += ('<div class="card"><h3>Salvar novo chamado</h3>'
+                '<p>Use os dados informados acima; o registro não comprova cobrança indevida.</p>'
+                '<form method="post" action="/fretes/' + str(cid) + '/novo">'
+                '<input type="hidden" name="csrf_token" value="' + esc(session["frete_csrf"]) + '">'
+                '<label>Pedido <input name="pedido_id" maxlength="100"></label> '
+                '<label>Anúncio <input name="anuncio_id" maxlength="100"></label> '
+                '<label>Envio <input name="envio_id" maxlength="100"></label> '
+                '<label>Protocolo (opcional) <input name="protocolo" maxlength="100"></label>'
+                '<button type="submit">Salvar chamado</button></form></div>')
+    return pagina_loja("Contestar frete", cid, contas[0]["cliente"], "fretes", content)
 
 
 @app.route("/vendas/<int:cid>")
