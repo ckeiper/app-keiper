@@ -1399,8 +1399,8 @@ def detalhe_chamado_frete(cid, case_id):
             FROM frete_evidencias WHERE conexao_id=%s AND chamado_id=%s
             AND valor_referencia IS NOT NULL ORDER BY id DESC LIMIT 1""",
             (cid, case_id))
-        last_api = consultar(conn, """SELECT valor_cobrado, origem_cobranca
-            FROM frete_evidencias WHERE conexao_id=%s AND chamado_id=%s
+        last_api = consultar(conn, """SELECT valor_cobrado, origem_cobranca,
+            itens_envio FROM frete_evidencias WHERE conexao_id=%s AND chamado_id=%s
             AND origem_cobranca LIKE 'API Mercado Livre /shipments/%%'
             AND valor_cobrado IS NOT NULL ORDER BY id DESC LIMIT 1""",
             (cid, case_id))
@@ -1456,12 +1456,18 @@ def detalhe_chamado_frete(cid, case_id):
                 '<label>Tarifa histórica esperada (R$) '
                 '<input name="valor_referencia" placeholder="12,50"></label> '
                 '<label>Frete debitado do vendedor (R$) '
-                '<input name="valor_cobrado" placeholder="15,00"></label> '
+                '<input name="valor_cobrado" placeholder="15,00" value="'
+                + esc(str(api_charge["valor_cobrado"]) if api_charge else "", quote=True)
+                + '"></label> '
                 '<label>Data da referência <input type="date" name="data_referencia"></label> '
                 '<label>Origem do débito <input name="origem_cobranca" '
-                'maxlength="200" placeholder="Extrato / detalhe do envio"></label> '
+                'maxlength="200" placeholder="Extrato / detalhe do envio" value="'
+                + esc(api_charge["origem_cobranca"] or "" if api_charge else "", quote=True)
+                + '"></label> '
                 '<label>Quantidade de itens no envio <input type="number" '
-                'min="1" max="1000" name="itens_envio"></label>'
+                'min="1" max="1000" name="itens_envio" value="'
+                + esc(str(api_charge["itens_envio"]) if api_charge and api_charge["itens_envio"] is not None else "", quote=True)
+                + '"></label>'
                 '<p><label><input type="checkbox" name="contexto_confirmado" '
                 'value="sim"> Confirmei que os valores são do mesmo vendedor, '
                 'envio, data e modalidade logística</label></p>'
