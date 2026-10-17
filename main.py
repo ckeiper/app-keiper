@@ -2610,210 +2610,118 @@ def anuncios(cid):
 @app.route("/desempenho/<int:cid>")
 @login_required
 def desempenho(cid):
+    """Sem visitas da API, não apresentar zeros ou conversões artificiais."""
     if not pode_ver_loja(cid):
         return pagina("Acesso negado",
-                      "<div class='card'><h2>Acesso restrito</h2></div>")
+                      "<div class='card'><h2>Acesso restrito</h2></div>"), 403
+    hoje = datetime.date.today()
     dias = request.args.get("dias", type=int, default=30)
+    dias = dias if dias in (7, 30, 90) else 30
     de = request.args.get("de", "").strip()
     ate = request.args.get("ate", "").strip()
-    hoje = datetime.date.today()
-    if de and ate:
-        try:
-            d_inicio = datetime.datetime.strptime(de, "%Y-%m-%d").date()
-            d_fim = datetime.datetime.strptime(ate, "%Y-%m-%d").date()
-        except Exception:
-            d_inicio = hoje - datetime.timedelta(days=30)
-            d_fim = hoje
-    else:
-        d_inicio = hoje - datetime.timedelta(days=dias)
+    try:
+        d_inicio = datetime.date.fromisoformat(de) if de and ate else hoje - datetime.timedelta(days=dias - 1)
+        d_fim = datetime.date.fromisoformat(ate) if de and ate else hoje
+    except ValueError:
+        d_inicio = hoje - datetime.timedelta(days=29)
         d_fim = hoje
     if d_fim < d_inicio:
         d_inicio, d_fim = d_fim, d_inicio
-    dur = (d_fim - d_inicio).days + 1
-    p_inicio = d_inicio - datetime.timedelta(days=dur)
-    p_fim = d_inicio - datetime.timedelta(days=1)
+    if d_fim > hoje:
+        d_fim = hoje
+    if (d_fim - d_inicio).days > 365:
+        d_inicio = d_fim - datetime.timedelta(days=365)
+    ini, fim = d_inicio.isoformat(), d_fim.isoformat()
     with banco() as conn:
-        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        c = c[0] if c else None
-        if c:
-            linhas = consultar(conn, """
-                SELECT a.item_id, a.titulo, a.status, a.preco,
-                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s
-                    THEN h.visitas ELSE 0 END),0) AS visitas,
-                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s
-                    THEN h.vendidos ELSE 0 END),0) AS vendidos,
-                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s
-                    THEN h.visitas ELSE 0 END),0) AS visitas_ant,
-                  COALESCE(SUM(CASE WHEN h.data BETWEEN %s AND %s
-                    THEN h.vendidos ELSE 0 END),0) AS vendidos_ant
-                FROM anuncios a
-                LEFT JOIN desempenho_historico h
-                  ON h.conexao_id=a.conexao_id AND h.item_id=a.item_id
-                WHERE a.conexao_id=%s
-                GROUP BY a.item_id, a.titulo, a.status, a.preco
-                ORDER BY vendidos DESC
-            """, (d_inicio.isoformat(), d_fim.isoformat(),
-                  d_inicio.isoformat(), d_fim.isoformat(),
-                  p_inicio.isoformat(), p_fim.isoformat(),
-                  p_inicio.isoformat(), p_fim.isoformat(), cid))
-            grafico_v = consultar(conn, """
-                SELECT h.data, COALESCE(SUM(h.visitas),0) AS visitas
-                FROM desempenho_historico h
-                WHERE h.conexao_id=%s AND h.data BETWEEN %s AND %s
-                GROUP BY h.data ORDER BY h.data
-            """, (cid, d_inicio.isoformat(), d_fim.isoformat()))
-            grafico_f = consultar(conn, """
-                SELECT SUBSTRING(fechado_em,1,10) AS dia,
-                       COALESCE(SUM(total),0) AS total
-                FROM pedidos
-                WHERE conexao_id=%s AND fechado_em IS NOT NULL
-                  AND SUBSTRING(fechado_em,1,10) BETWEEN %s AND %s
-                GROUP BY SUBSTRING(fechado_em,1,10)
-            """, (cid, d_inicio.isoformat(), d_fim.isoformat()))
-    if not c:
-        return pagina("Não encontrada",
-                      "<div class='card'><h2>Loja não encontrada</h2></div>")
+        lojas = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+        if not lojas:
+            return pagina("Não encontrada", "<div class='card'><h2>Loja não encontrada</h2></div>"), 404
+        c = lojas[0]
+        # O campo anuncios.vendidos é acumulado desde a criação do anúncio,
+        # NÃO corresponde às vendas do período. Usar pedidos registrados.
+        linhas = consultar(conn, """
+            SELECT a.item_id, a.titulo, a.status, a.preco,
+                   COUNT(DISTINCT CASE WHEN p.status='paid'
+                       AND SUBSTRING(p.fechado_em,1,10) BETWEEN %s AND %s
+                       THEN p.pedido_id END) AS pedidos
+            FROM anuncios a
+            LEFT JOIN pedidos_itens pi ON pi.conexao_id=a.conexao_id
+                AND pi.item_id=a.item_id
+            LEFT JOIN pedidos p ON p.conexao_id=pi.conexao_id
+                AND p.pedido_id=pi.pedido_id
+            WHERE a.conexao_id=%s
+            GROUP BY a.item_id, a.titulo, a.status, a.preco
+            ORDER BY pedidos DESC, a.item_id
+        """, (ini, fim, cid))
+        grafico_f = consultar(conn, """
+            SELECT SUBSTRING(fechado_em,1,10) AS dia,
+                   COALESCE(SUM(total),0) AS total
+            FROM pedidos
+            WHERE conexao_id=%s AND status='paid'
+              AND fechado_em IS NOT NULL
+              AND SUBSTRING(fechado_em,1,10) BETWEEN %s AND %s
+            GROUP BY SUBSTRING(fechado_em,1,10)
+        """, (cid, ini, fim))
     ultima = ultima_atualizacao(cid)
-    visitas_por_dia = {r["data"]: r["visitas"] for r in grafico_v}
-    fat_por_dia = {r["dia"]: r["total"] for r in grafico_f}
-    rotulos, visitas_serie, fat_serie = [], [], []
-    d = d_inicio
-    while d <= d_fim:
-        iso = d.isoformat()
-        rotulos.append(d.strftime("%d/%m"))
-        visitas_serie.append(visitas_por_dia.get(iso, 0))
-        fat_serie.append(round(fat_por_dia.get(iso, 0), 2))
-        d += datetime.timedelta(days=1)
-    corpo = "<h2 style='margin-bottom:10px'>Desempenho</h2>" \
-        + barra_atualizar(cid, ultima, "desempenho")
-    corpo += ("<div class='card'><h2>Período de análise</h2>"
-              "<div class='sub'>Escolha o período para comparar visitas, "
-              "vendas e faturamento</div>"
-              "<form method='get' action='/desempenho/" + str(cid)
-              + "' style='display:flex;flex-wrap:wrap;align-items:center;gap:8px'>"
-              "<a class='filtro' href='/desempenho/" + str(cid)
-              + "?dias=7' style='text-decoration:none'>7 dias</a>"
-              "<a class='filtro' href='/desempenho/" + str(cid)
-              + "?dias=30' style='text-decoration:none'>30 dias</a>"
-              "<a class='filtro' href='/desempenho/" + str(cid)
-              + "?dias=90' style='text-decoration:none'>90 dias</a>"
-              "<input type='date' name='de' value='" + de
-              + "' class='filtro' style='margin-left:10px'>"
-              "<span style='color:#6b7280;font-size:13px'>até</span>"
-              "<input type='date' name='ate' value='" + ate + "' class='filtro'>"
-              "<button class='filtro-btn'>Aplicar</button>"
-              "</form>"
-              "<div class='muted'>Período selecionado: "
-              + d_inicio.strftime("%d/%m/%Y") + " a "
-              + d_fim.strftime("%d/%m/%Y") + " (comparado com "
-              + p_inicio.strftime("%d/%m/%Y") + " a "
-              + p_fim.strftime("%d/%m/%Y") + ")</div></div>")
-    if not linhas:
-        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
-                  "<h2>Sem dados de desempenho ainda</h2>"
-                  "<div class='sub'>O histórico é gravado a cada atualização. "
-                  "Use 'Atualizar agora' acima para começar a acumular.</div></div>")
-        return pagina_loja("Desempenho", cid, c["cliente"], "desempenho", corpo)
-    tot_visitas = sum(r["visitas"] or 0 for r in linhas)
-    tot_vendas = sum(r["vendidos"] or 0 for r in linhas)
-    if tot_visitas:
-        tot_conv = round((tot_vendas * 100.0 / tot_visitas), 2)
-    else:
-        tot_conv = 0
-    tot_fat = round(sum(fat_serie), 2)
+    corpo = ("<h2 style='margin-bottom:10px'>Desempenho</h2>"
+             + barra_atualizar(cid, ultima, "desempenho")
+             + "<div class='aviso'><b>Visitas e conversão indisponíveis.</b> "
+             "O Mercado Livre não está fornecendo visitas confiáveis pela API. "
+             "Os zeros do histórico antigo não representam ausência de tráfego. "
+             "Nenhuma taxa de conversão é estimada.</div>"
+             "<div class='card'><h2>Período de análise</h2>"
+             "<form method='get' action='/desempenho/" + str(cid)
+             + "' style='display:flex;flex-wrap:wrap;gap:8px'>"
+             "<a class='filtro' href='/desempenho/" + str(cid) + "?dias=7'>7 dias</a>"
+             "<a class='filtro' href='/desempenho/" + str(cid) + "?dias=30'>30 dias</a>"
+             "<a class='filtro' href='/desempenho/" + str(cid) + "?dias=90'>90 dias</a>"
+             "<input type='date' name='de' value='" + esc(ini) + "' class='filtro'>"
+             "<input type='date' name='ate' value='" + esc(fim) + "' class='filtro'>"
+             "<button class='filtro-btn'>Aplicar</button></form>"
+             "<div class='muted'>Período: " + d_inicio.strftime("%d/%m/%Y")
+             + " a " + d_fim.strftime("%d/%m/%Y") + "</div></div>")
+    fat_por_dia = {r["dia"]: float(r["total"] or 0) for r in grafico_f}
+    rotulos, fat_serie = [], []
+    dia = d_inicio
+    while dia <= d_fim:
+        rotulos.append(dia.strftime("%d/%m"))
+        fat_serie.append(round(fat_por_dia.get(dia.isoformat(), 0), 2))
+        dia += datetime.timedelta(days=1)
+    total_pedidos = sum(int(r["pedidos"] or 0) for r in linhas)
+    total_fat = round(sum(fat_serie), 2)
     corpo += ("<div class='grid' style='margin-bottom:18px'>"
-              "<div class='stat'><div class='num'>" + str(tot_visitas)
-              + "</div><div class='lab'>Visitas no período</div></div>"
-              "<div class='stat'><div class='num'>" + str(tot_vendas)
-              + "</div><div class='lab'>Vendas no período</div></div>"
-              "<div class='stat'><div class='num'>R$ %.2f" % tot_fat
-              + "</div><div class='lab'>Faturamento no período</div></div>"
-              "<div class='stat'><div class='num'>" + ("%.2f%%" % tot_conv)
-              + "</div><div class='lab'>Conversão</div></div>"
-              "</div>")
-    corpo += ("<div class='card'><h2>Evolução diária</h2>"
-              "<div class='sub'>Faturamento diário (R$) e visitas no período</div>"
-              "<div class='grafico-box'>"
-              "<canvas id='graficoDesempenho'></canvas></div></div>")
-    corpo += ("<script src='https://cdn.jsdelivr.net/npm/"
-              "chart.js@4.4.1/dist/chart.umd.min.js'></script>")
-    corpo += ("<script>var rotulos = " + json.dumps(rotulos) + ";"
-              "var visitas = " + json.dumps(visitas_serie) + ";"
-              "var faturamento = " + json.dumps(fat_serie) + ";"
-              "new Chart(document.getElementById('graficoDesempenho'), {"
-              "type:'line',"
-              "data:{labels:rotulos,datasets:["
-              "{label:'Visitas',data:visitas,borderColor:'#3483FA',"
-              "backgroundColor:'rgba(52,131,250,0.12)',yAxisID:'y',"
-              "tension:0.3,fill:true},"
-              "{label:'Faturamento (R$)',data:faturamento,"
-              "borderColor:'#FFE600',"
-              "backgroundColor:'rgba(255,230,0,0.25)',yAxisID:'y1',"
-              "tension:0.3,fill:true}]},"
-              "options:{responsive:true,maintainAspectRatio:false,"
-              "plugins:{legend:{position:'top'}},"
-              "scales:{y:{type:'linear',position:'left',"
-              "title:{display:true,text:'Visitas'},beginAtZero:true},"
-              "y1:{type:'linear',position:'right',"
-              "title:{display:true,text:'Faturamento (R$)'},"
-              "beginAtZero:true,grid:{drawOnChartArea:false}}}}});</script>")
-    linhas_html = ""
+              "<div class='stat'><div class='num'>Indisponível</div><div class='lab'>Visitas</div></div>"
+              "<div class='stat'><div class='num'>Indisponível</div><div class='lab'>Conversão</div></div>"
+              "<div class='stat'><div class='num'>" + str(total_pedidos)
+              + "</div><div class='lab'>Pedidos pagos por anúncio (base legada)</div></div>"
+              "<div class='stat'><div class='num'>R$ %.2f" % total_fat
+              + "</div><div class='lab'>Faturamento registrado (base legada)</div></div>"
+              "</div><div class='card'><h2>Faturamento diário registrado</h2>"
+              "<div class='grafico-box'><canvas id='graficoDesempenho'></canvas></div></div>"
+              "<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
+              "<script>new Chart(document.getElementById('graficoDesempenho'),{"
+              "type:'line',data:{labels:" + json.dumps(rotulos)
+              + ",datasets:[{label:'Faturamento registrado (R$)',data:"
+              + json.dumps(fat_serie)
+              + ",borderColor:'#3483FA',tension:0.3}]},"
+              "options:{responsive:true,maintainAspectRatio:false}});</script>")
+    corpo += ("<div class='card'><h2>Desempenho por anúncio</h2>"
+              "<div class='muted'>Pedidos pagos registrados no período; "
+              "visitas e conversão aguardam uma fonte validada. "
+              "Para vendas auditadas e cobertura da sincronização, consulte "
+              "<a class='link' href='/vendas/" + str(cid) + "'>Vendas</a>.</div>"
+              "<div style='overflow-x:auto'><table><thead><tr>"
+              "<th>Anúncio</th><th>Status</th><th>Preço</th>"
+              "<th>Visitas</th><th>Pedidos registrados</th><th>Conversão</th>"
+              "</tr></thead><tbody>")
     for r in linhas:
-        st = str(r["status"])
-        if st in ("active", "ACTIVE"):
-            st_tag, st_txt = "tag ativa", "ativo"
-        elif st in ("paused", "PAUSED"):
-            st_tag, st_txt = "tag pausado", "pausado"
-        else:
-            st_tag, st_txt = "tag normal", st
-        visitas = r["visitas"] or 0
-        vendidos = r["vendidos"] or 0
-        if visitas:
-            conv = round((vendidos * 100.0 / visitas), 2)
-            conv_txt = "%.2f%%" % conv
-        else:
-            conv_txt = "-"
-        v_ant = r["visitas_ant"] or 0
-        if v_ant > 0:
-            delta_v = round(((visitas - v_ant) * 100.0 / v_ant), 1)
-            if delta_v > 0:
-                tend_v = "<span class='alerta subiu'>▲ +" + str(delta_v) + "%</span>"
-            elif delta_v < 0:
-                tend_v = "<span class='alerta caiu'>▼ " + str(delta_v) + "%</span>"
-            else:
-                tend_v = "<span class='alerta estavel'>— 0%</span>"
-        else:
-            tend_v = "<span class='tag sem'>sem base</span>"
-        s_ant = r["vendidos_ant"] or 0
-        if s_ant > 0:
-            delta_s = round(((vendidos - s_ant) * 100.0 / s_ant), 1)
-            if delta_s > 0:
-                tend_s = "<span class='alerta subiu'>▲ +" + str(delta_s) + "%</span>"
-            elif delta_s < 0:
-                tend_s = "<span class='alerta caiu'>▼ " + str(delta_s) + "%</span>"
-            else:
-                tend_s = "<span class='alerta estavel'>— 0%</span>"
-        else:
-            tend_s = "<span class='tag sem'>sem base</span>"
-        linhas_html += ("<tr>"
-                        "<td><b>" + esc(str(r["titulo"])) + "</b><br>"
-                        "<small class='muted'>" + str(r["item_id"]) + "</small></td>"
-                        "<td><span class='" + st_tag + "'>" + st_txt + "</span></td>"
-                        "<td>R$ %.2f" % (r["preco"] or 0) + "</td>"
-                        "<td>" + str(visitas) + " " + tend_v + "</td>"
-                        "<td>" + str(vendidos) + " " + tend_s + "</td>"
-                        "<td>" + conv_txt + "</td>"
-                        "</tr>")
-    corpo += ("<div class='card'><h2>Desempenho por anúncio "
-              "<span class='badge'>" + str(len(linhas)) + "</span></h2>"
-              "<div class='sub'>Visitas, vendas e conversão no período, "
-              "com tendência vs período anterior</div>"
-              "<div style='overflow-x:auto'><table>"
-              "<thead><tr><th>Anúncio</th><th>Status</th><th>Preço</th>"
-              "<th>Visitas</th><th>Vendas</th><th>Conversão</th></tr></thead>"
-              "<tbody>" + linhas_html + "</tbody></table></div>"
-              "<div class='muted'>▲/▼ compara com o período anterior de "
-              "mesma duração. O histórico acumula a cada atualização.</div></div>")
+        corpo += ("<tr><td><b>" + esc(str(r["titulo"] or "Sem título"))
+                  + "</b><br><small class='muted'>" + esc(str(r["item_id"]))
+                  + "</small></td><td>" + esc(str(r["status"] or "-"))
+                  + "</td><td>R$ %.2f" % (r["preco"] or 0)
+                  + "</td><td>Indisponível</td><td>" + str(r["pedidos"] or 0)
+                  + "</td><td>Indisponível</td></tr>")
+    corpo += "</tbody></table></div></div>"
     return pagina_loja("Desempenho", cid, c["cliente"], "desempenho", corpo)
 
 
@@ -3221,10 +3129,10 @@ def gravar_historico(conexao_id):
                                  "WHERE conexao_id=%s", (conexao_id,))
         metricas = consultar(conn, "SELECT item_id, visitas FROM metricas "
                                    "WHERE conexao_id=%s", (conexao_id,))
-    visitas_por_item = {m["item_id"]: (m["visitas"] or 0) for m in metricas}
+    # Visitas da API indisponíveis: NULL significa desconhecido, nunca zero.
     for l in linhas:
         item_id = l["item_id"]
-        visitas = visitas_por_item.get(item_id, 0)
+        visitas = None
         vendidos = l["vendidos"] or 0
         with banco() as conn:
             executar(conn, """INSERT INTO desempenho_historico
