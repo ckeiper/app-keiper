@@ -1489,7 +1489,7 @@ def consultar_custo_frete_ml(cid, case_id):
     with banco() as conn:
         cases = consultar(conn, """SELECT envio_id FROM frete_chamados
             WHERE conexao_id=%s AND id=%s""", (cid, case_id))
-        shops = consultar(conn, """SELECT user_id, access_token FROM conexoes
+        shops = consultar(conn, """SELECT * FROM conexoes
             WHERE id=%s""", (cid,))
     if not cases or not shops:
         return "Chamado ou loja não encontrado", 404
@@ -1497,10 +1497,13 @@ def consultar_custo_frete_ml(cid, case_id):
     if not shipment_id.isascii() or not shipment_id.isdigit() or len(shipment_id) > 24:
         return "Informe um número de envio válido no chamado", 400
     shop = shops[0]
-    token = shop["access_token"]
     seller_id = shop["user_id"]
-    if not token or not seller_id:
-        return "Conexão do Mercado Livre indisponível", 400
+    if not seller_id:
+        return "Identificador do vendedor indisponível", 400
+    # Refresh an expired/near-expiry OAuth token before calling the ML API.
+    token = token_atual(shop)
+    if not token:
+        return "Não foi possível renovar a conexão com o Mercado Livre", 502
     try:
         headers = {"Authorization": "Bearer " + token, "x-format-new": "true"}
         resp = requests.get(API + "/shipments/" + shipment_id + "/costs",
