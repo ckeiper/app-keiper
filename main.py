@@ -1402,7 +1402,7 @@ def detalhe_chamado_frete(cid, case_id):
             (cid, case_id))
         last_api = consultar(conn, """SELECT valor_cobrado, origem_cobranca,
             itens_envio FROM frete_evidencias WHERE conexao_id=%s AND chamado_id=%s
-            AND origem_cobranca LIKE 'API Mercado Livre /shipments/%%'
+            AND fonte_api_verificada = TRUE
             AND valor_cobrado IS NOT NULL ORDER BY id DESC LIMIT 1""",
             (cid, case_id))
     manual = last_manual[0] if last_manual else None
@@ -1563,12 +1563,13 @@ def consultar_custo_frete_ml(cid, case_id):
             return "Chamado alterado durante a consulta; tente novamente", 409
         executar(conn, """INSERT INTO frete_evidencias
             (conexao_id, chamado_id, valor_referencia, valor_cobrado,
-             data_referencia, origem_cobranca, contexto_confirmado, itens_envio,
+             data_referencia, origem_cobranca, fonte_api_verificada,
+             contexto_confirmado, itens_envio,
              avaliacao, diferenca, justificativa, usuario_id, criado_em)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (cid, case_id, None, amount, None,
              "API Mercado Livre /shipments/" + shipment_id + "/costs — senders[].cost",
-             False, items, assessment["status"], assessment["difference"],
+             True, False, items, assessment["status"], assessment["difference"],
              assessment["reason"], session["usuario_id"], now))
         executar(conn, """INSERT INTO frete_chamados_historico
             (conexao_id, chamado_id, usuario_id, tipo, detalhe, criado_em)
@@ -1616,11 +1617,12 @@ def registrar_evidencia_frete(cid, case_id):
             return "Chamado não encontrado", 404
         executar(conn, """INSERT INTO frete_evidencias
             (conexao_id, chamado_id, valor_referencia, valor_cobrado,
-             data_referencia, origem_cobranca, contexto_confirmado, itens_envio,
+             data_referencia, origem_cobranca, fonte_api_verificada,
+             contexto_confirmado, itens_envio,
              avaliacao, diferenca, justificativa, usuario_id, criado_em)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (cid, case_id, reference, charged, reference_date or None, source or None,
-             context_ok, items, assessment["status"], assessment["difference"],
+             False, context_ok, items, assessment["status"], assessment["difference"],
              assessment["reason"], session["usuario_id"], now))
         executar(conn, """UPDATE frete_chamados SET atualizado_em=%s
             WHERE conexao_id=%s AND id=%s""", (now, cid, case_id))
@@ -1718,7 +1720,7 @@ def contestar_frete(cid):
                 LEFT JOIN LATERAL (
                     SELECT valor_cobrado FROM frete_evidencias
                     WHERE conexao_id=c.conexao_id AND chamado_id=c.id
-                    AND origem_cobranca LIKE 'API Mercado Livre /shipments/%%'
+                    AND fonte_api_verificada = TRUE
                     AND valor_cobrado IS NOT NULL
                     ORDER BY id DESC LIMIT 1
                 ) api ON TRUE
@@ -3923,7 +3925,7 @@ def puxar_envios(conexao_id, token, user_id):
                               tracking=EXCLUDED.tracking,
                               pedido_id=EXCLUDED.pedido_id,
                               data=EXCLUDED.data,
-                              custo_frete=EXCLUDED.custo_frete,
+                              custo_frete=COALESCE(EXCLUDED.custo_frete, envios.custo_frete),
                               atualizado_em=EXCLUDED.atualizado_em""",
                      (conexao_id, sid, det.get("status"),
                       det.get("tracking_number"), oid,
