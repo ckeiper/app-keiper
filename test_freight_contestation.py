@@ -26,6 +26,14 @@ class FreightContestationTests(unittest.TestCase):
         text = generate_messages("1", "", "", "15,50", "12,00")[0][1]
         self.assertIn("Possível diferença positiva: não informado", text)
 
+    def test_public_post_generator_avoids_query_string(self):
+        html = render_generator({"order_id": "123"}, method="post")
+        self.assertIn('<form method="post">', html)
+        self.assertNotIn('<form method="get">', html)
+        self.assertIn("Pedido: 123", html)
+        with self.assertRaises(ValueError):
+            render_generator({}, method="delete")
+
     def test_escape_html_and_attributes(self):
         html = render_generator({"order_id": '"><script>alert(1)</script>'})
         self.assertNotIn("<script>alert(1)</script>", html)
