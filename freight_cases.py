@@ -67,7 +67,12 @@ def render_cases(cases, cid):
             alert = ('<p><strong>Possível divergência (conferência manual): '
                      + escape(amount) + '</strong>. Requer validação pelo Mercado Livre.</p>')
         elif assessment:
-            alert = '<p>Última conferência: ' + escape(str(assessment)) + '</p>'
+            alert = '<p>Última conferência manual: ' + escape(str(assessment)) + '</p>'
+        api_cost = case.get("custo_api")
+        if api_cost is not None:
+            alert += ('<p>Custo consultado na API do Mercado Livre: R$ '
+                      + escape(format(api_cost, ".2f").replace(".", ","))
+                      + ' (não comprova tarifa histórica esperada)</p>')
         result.append('<div style="padding:12px;border-top:1px solid #ddd">'
                       '<b>Chamado #' + escape(cid_case) + '</b> — '
                       + escape(case.get("status") or "") + '<br>Pedido: '
