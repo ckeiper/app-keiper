@@ -4074,7 +4074,9 @@ def executar_atualizacao_bg(cid):
 
 def job_dados():
     with banco() as conn:
-        conexoes = consultar(conn, "SELECT id FROM conexoes WHERE status='ativa'")
+        conexoes = consultar(conn, "SELECT id FROM conexoes "
+                            "WHERE status='ativa' AND cliente <> %s",
+                            ("CASAMIX_STORE",))
     for c in conexoes:
         # Use the existing queue so the scheduler does not abort subsequent shops
         # or overlap a collection already queued from the dashboard.
