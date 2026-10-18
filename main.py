@@ -494,6 +494,7 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
         ("campanhas", "📢 Campanhas", "/campanhas/" + str(cid)),
         ("custos", "💰 Custos", "/custos/" + str(cid)),
         ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
+        ("auditoria_frete", "🚚 Auditoria de Frete", "/auditoria-frete/" + str(cid)),
     ]
     menu = "<div class='menu-lateral'>"
     menu += "<a class='voltar' href='/painel'>← Todas as lojas</a>"
@@ -1584,6 +1585,26 @@ def processar_fila():
                 FILA_ATUALIZACAO.remove(cid)
             except Exception:
                 pass    
+@app.route("/auditoria-frete/<int:cid>")
+@login_required
+def auditoria_frete(cid):
+    if not pode_ver_loja(cid):
+        return redirect("/painel")
+    corpo = (
+        "<section class='card'><h2>🚚 Auditoria de Frete</h2>"
+        "<p>A auditoria desta loja começa com a importação da planilha "
+        "<b>Conciliação Bancária do Mercado Livre</b>.</p>"
+        "<div class='aviso'>A importação e a conferência dos campos da planilha "
+        "ainda estão em validação. Nenhuma divergência foi calculada, "
+        "e nenhum alerta foi gerado.</div>"
+        "<p>Após validar o arquivo, serão comparados o frete esperado no anúncio "
+        "e o frete efetivamente debitado na venda, incluindo diferenças a partir "
+        "de R$ 0,01. Alertas e acompanhamento de status ficarão nesta aba.</p>"
+        "</section>"
+    )
+    return pagina("Auditoria de Frete", corpo, cid=cid, secao="auditoria_frete")
+
+
 @app.route("/painel")
 @login_required
 def painel():
