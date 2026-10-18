@@ -1591,6 +1591,15 @@ def processar_tarefa_persistente_uma():
         return False
 
 
+def loja_habilitada_fila_persistente(cid):
+    """Explicit per-store opt-in; empty env keeps every store on legacy queue."""
+    raw = os.getenv("DURABLE_QUEUE_STORE_IDS", "").strip()
+    if not raw:
+        return False
+    ids = {part.strip() for part in raw.split(",") if part.strip().isdigit()}
+    return str(cid) in ids
+
+
 def enfileirar_atualizacao(cid):
     global WORKER_VIVO
     with LOCK_FILA:
