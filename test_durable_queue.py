@@ -38,6 +38,25 @@ class DurableQueueTests(unittest.TestCase):
         query = self.ns["consultar"].call_args.args[1]
         self.assertIn("a.conexao_id=t.conexao_id", query)
 
+    def test_worker_empty_queue_does_not_run_sync(self):
+        main_function("processar_tarefa_persistente_uma", self.ns)
+        self.ns["reservar_tarefa_persistente"] = Mock(return_value=None)
+        self.ns["executar_atualizacao"] = Mock()
+        self.assertFalse(self.ns["processar_tarefa_persistente_uma"]())
+        self.ns["executar_atualizacao"].assert_not_called()
+
+    def test_worker_success_finalizes_job(self):
+        main_function("processar_tarefa_persistente_uma", self.ns)
+        self.ns["reservar_tarefa_persistente"] = Mock(return_value={"id": 10, "conexao_id": 5})
+        self.ns["registrar_execucao_inicio"] = Mock(return_value=20)
+        self.ns["executar_atualizacao"] = Mock(return_value=True)
+        self.ns["registrar_execucao_fim"] = Mock()
+        self.ns["finalizar_tarefa_persistente"] = Mock()
+        self.ns["reagendar_tarefa_persistente"] = Mock()
+        self.assertTrue(self.ns["processar_tarefa_persistente_uma"]())
+        self.ns["finalizar_tarefa_persistente"].assert_called_once_with(10, True)
+        self.ns["reagendar_tarefa_persistente"].assert_not_called()
+
     def test_claim_skips_empty_queue(self):
         self.ns["consultar"].return_value = []
         result = self.ns["reservar_tarefa_persistente"](agora=100)
