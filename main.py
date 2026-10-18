@@ -4144,6 +4144,12 @@ def executar_atualizacao_bg(cid):
 
 
 def job_dados():
+    # Recover expired durable leases before scheduling more work.
+    # The legacy worker remains active until durable processing is enabled.
+    try:
+        recuperar_tarefas_persistentes()
+    except Exception:
+        pass  # Queue maintenance must not block store synchronization.
     # Mark abandoned execution records even if the process did not restart.
     # Do not let monitoring errors prevent normal sync scheduling.
     try:
