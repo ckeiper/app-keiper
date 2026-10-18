@@ -26,6 +26,12 @@ from sync_runner import run_stages
 from listing_pagination import listing_page
 from sales_view import render_sales
 from overview import load_overview, render_overview, overview_layout
+from freight_contestation import render_generator
+from freight_cases import init_case_schema, render_cases, STATUSES, TEMPLATES
+from freight_audit import assess_freight
+from freight_ml import seller_shipping_cost, seller_shipment_item_count
+from freight_import import preview_reconciliation_upload, render_reconciliation_preview, PreviewError, MAX_UPLOAD_BYTES
+from freight_contestation import money, brl
 try:
     import openpyxl
 except Exception:
@@ -494,6 +500,7 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
         ("campanhas", "📢 Campanhas", "/campanhas/" + str(cid)),
         ("custos", "💰 Custos", "/custos/" + str(cid)),
         ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
+        ("fretes", "🚚 Contestar frete", "/fretes/" + str(cid)),
     ]
     menu = "<div class='menu-lateral'>"
     menu += "<a class='voltar' href='/painel'>← Todas as lojas</a>"
@@ -720,6 +727,7 @@ def iniciar_banco():
         )""")
         executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
         init_overview_schema(conn, executar)
+        init_case_schema(conn, executar)
         # ---------- AUTENTICAÇÃO ----------
 
 def login_required(f):
@@ -822,7 +830,9 @@ def form_login():
             "<input name='username' required placeholder='Usuário' class='input'>"
             "<input type='password' name='senha' required placeholder='Senha' class='input'>"
             "<button class='btn-salvar' style='width:100%'>Entrar</button></form>"
-            "<p style='margin-top:12px'><a class='link' href='/recuperar'>Esqueci minha senha</a></p>")
+            "<p style='margin-top:12px'><a class='link' href='/recuperar'>Esqueci minha senha</a></p>"
+            "<p style='margin-top:16px'><a class='link' href='/gerador-contestacao-frete'>"
+            "Gerador gratuito de contestação de frete</a></p>")
 
 
 @app.route("/recuperar", methods=["GET", "POST"])
@@ -910,6 +920,31 @@ def redefinir(token):
 def logout():
     session.clear()
     return redirect("/login")
+
+
+@app.route("/gerador-contestacao-frete", methods=["GET", "POST"])
+def gerador_contestacao_frete_publico():
+    """Free, no-login generator; never stores order/shipment identifiers."""
+    if request.content_length is not None and request.content_length > 8192:
+        return "Formulário muito grande", 413
+    values = request.form if request.method == "POST" else {}
+    body = ('<div class="card"><p>Ferramenta gratuita da Keiper Consultoria. '
+            'Sem cadastro e sem conexão com sua conta do Mercado Livre.</p>'
+            '<p>Os dados preenchidos não são armazenados pelo gerador. '
+            'As mensagens devem ser revisadas antes do envio ao suporte.</p></div>')
+    body += render_generator(values, method="post")
+    body += ('<p><a href="/login">Já é cliente? Entrar no painel</a></p>')
+    page = ('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<meta name="robots" content="index,follow">'
+            '<title>Gerador gratuito de contestação de frete | Keiper Consultoria</title>'
+            + CSS + '</head><body><div class="top"><div><h1>'
+            + img_logo(34) + 'Keiper Consultoria</h1></div></div>'
+            '<div class="wrap">' + body + '</div>' + SCRIPT + '</body></html>')
+    response = Response(page, mimetype="text/html")
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 
 @app.route("/")
@@ -1354,6 +1389,451 @@ def calcular_vendas(cid, inicio=None):
             "sem_custo": sem_custo,
         })
     return c, vendas
+
+
+def freight_csrf_valid():
+    return secrets.compare_digest(session.get("frete_csrf", ""),
+                                  request.form.get("csrf_token", "")) and bool(session.get("frete_csrf"))
+
+
+@app.route("/fretes/<int:cid>/novo", methods=["POST"])
+@login_required
+def criar_chamado_frete(cid):
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    if not freight_csrf_valid():
+        return "Token inválido", 403
+    fields = [(request.form.get(k) or "").strip()[:100] for k in
+              ("pedido_id", "anuncio_id", "envio_id", "protocolo")]
+    with banco() as conn:
+        rows = consultar(conn, "SELECT id FROM conexoes WHERE id=%s", (cid,))
+        if not rows:
+            return "Loja não encontrada", 404
+        now = int(time.time())
+        created = consultar(conn, """INSERT INTO frete_chamados
+            (conexao_id, pedido_id, anuncio_id, envio_id, protocolo,
+             criado_por, criado_em, atualizado_em)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (cid, *fields, session["usuario_id"], now, now))
+        case_id = created[0]["id"]
+        executar(conn, """INSERT INTO frete_chamados_historico
+            (conexao_id, chamado_id, usuario_id, tipo, detalhe, criado_em)
+            VALUES (%s,%s,%s,%s,%s,%s)""",
+            (cid, case_id, session["usuario_id"], "criado", "Chamado criado", now))
+    return redirect("/fretes/" + str(cid) + "/chamado/" + str(case_id))
+
+
+@app.route("/fretes/<int:cid>/chamado/<int:case_id>", methods=["GET", "POST"])
+@login_required
+def detalhe_chamado_frete(cid, case_id):
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    with banco() as conn:
+        store = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
+        rows = consultar(conn, """SELECT * FROM frete_chamados
+            WHERE conexao_id=%s AND id=%s""", (cid, case_id))
+    if not store or not rows:
+        return "Chamado não encontrado", 404
+    case = rows[0]
+    if "frete_csrf" not in session:
+        session["frete_csrf"] = secrets.token_urlsafe(32)
+    if request.method == "POST":
+        if not freight_csrf_valid():
+            return "Token inválido", 403
+        status = (request.form.get("status") or "").strip()
+        note = (request.form.get("nota") or "").strip()[:5000]
+        if status not in STATUSES or not note:
+            return "Informe um status válido e uma anotação", 400
+        now = int(time.time())
+        with banco() as conn:
+            updated = consultar(conn, """UPDATE frete_chamados SET status=%s,
+                atualizado_em=%s WHERE id=%s AND conexao_id=%s
+                RETURNING id""", (status, now, case_id, cid))
+            if not updated:
+                return "Chamado não encontrado", 404
+            executar(conn, """INSERT INTO frete_chamados_historico
+                (conexao_id, chamado_id, usuario_id, tipo, detalhe, criado_em)
+                VALUES (%s,%s,%s,%s,%s,%s)""",
+                (cid, case_id, session["usuario_id"], "status: " + case["status"]
+                 + " -> " + status, note, now))
+        return redirect(request.path)
+    with banco() as conn:
+        events = consultar(conn, """SELECT h.tipo, h.detalhe, h.criado_em, u.nome
+            FROM frete_chamados_historico h
+            LEFT JOIN usuarios u ON u.id=h.usuario_id
+            WHERE h.conexao_id=%s AND h.chamado_id=%s
+            ORDER BY h.id DESC LIMIT 100""", (cid, case_id))
+    content = ('<div class="card"><h2>Chamado #' + str(case_id)
+               + '</h2><p>Pedido: ' + esc(case["pedido_id"] or "não informado")
+               + ' | Envio: ' + esc(case["envio_id"] or "não informado")
+               + ' | Status: ' + esc(case["status"]) + '</p>'
+               '<form method="post"><input type="hidden" name="csrf_token" value="'
+               + esc(session["frete_csrf"]) + '"><label>Status <select name="status">'
+               + "".join('<option value="' + esc(s) + '"' +
+                         (' selected' if s == case["status"] else '') + '>'
+                         + esc(s) + '</option>' for s in STATUSES)
+               + '</select></label><p><textarea name="nota" maxlength="5000" '
+               'required placeholder="Anote a resposta do ML ou o próximo passo" '
+               'style="width:100%;min-height:120px"></textarea></p>'
+               '<button type="submit">Salvar atualização</button></form></div>')
+    # Use the latest recorded evidence as an editable draft, never as proof
+    # that Mercado Livre confirmed an incorrect charge.
+    with banco() as conn:
+        # Keep the historical reference distinct from an API cost lookup:
+        # API responses do not establish the expected tariff at sale time.
+        last_manual = consultar(conn, """SELECT valor_referencia, valor_cobrado
+            FROM frete_evidencias WHERE conexao_id=%s AND chamado_id=%s
+            AND valor_referencia IS NOT NULL ORDER BY id DESC LIMIT 1""",
+            (cid, case_id))
+        last_api = consultar(conn, """SELECT valor_cobrado, origem_cobranca,
+            itens_envio FROM frete_evidencias WHERE conexao_id=%s AND chamado_id=%s
+            AND fonte_api_verificada = TRUE
+            AND valor_cobrado IS NOT NULL ORDER BY id DESC LIMIT 1""",
+            (cid, case_id))
+    manual = last_manual[0] if last_manual else None
+    api_charge = last_api[0] if last_api else None
+    draft_expected = (str(manual["valor_referencia"])
+                      if manual and manual["valor_referencia"] is not None else "")
+    draft_charged = (str(api_charge["valor_cobrado"]) if api_charge else
+                     str(manual["valor_cobrado"])
+                     if manual and manual["valor_cobrado"] is not None else "")
+    from freight_contestation import generate_messages
+    templates = generate_messages(
+        case["pedido_id"] or "", case["anuncio_id"] or "",
+        case["envio_id"] or "", draft_expected, draft_charged)
+    content += ('<div class="card"><h3>Mensagens editáveis para o chamado</h3>'
+                '<p>Referência histórica: conferência manual. '
+                'Cobrança: ' + ('última consulta da API do Mercado Livre'
+                               if api_charge else 'conferência manual')
+                + '. Esses valores podem ter datas ou contextos distintos; '
+                'confirme a comparabilidade antes de alegar divergência.</p></div>')
+    for idx, (title, draft) in enumerate(templates):
+        field_id = "frete_msg_" + str(case_id) + "_" + str(idx)
+        content += ('<div class="card"><h4>' + esc(title) + '</h4>'
+                    '<form method="post" action="/fretes/' + str(cid)
+                    + '/chamado/' + str(case_id) + '/mensagem">'
+                    '<input type="hidden" name="csrf_token" value="'
+                    + esc(session["frete_csrf"]) + '">'
+                    '<input type="hidden" name="modelo" value="' + esc(title) + '">'
+                    '<textarea id="' + field_id + '" name="mensagem" maxlength="10000" required '
+                    'style="width:100%;min-height:240px;box-sizing:border-box">'
+                    + esc(draft) + '</textarea><p><button type="submit">'
+                    'Salvar mensagem editada no histórico</button> '
+                    '<button type="button" onclick="navigator.clipboard.writeText('
+                    'document.getElementById(\'' + field_id
+                    + '\').value).then(()=>{this.textContent=\'Copiado!\'})">'
+                    'Copiar texto editado</button></p></form></div>')
+    content += ('<div class="card"><h3>Consultar custo cobrado pelo Mercado Livre</h3>'
+                '<p>Consulta o valor de <code>senders[].cost</code> do envio informado '
+                'no chamado. Não representa a tarifa histórica esperada do anúncio.</p>'
+                '<form method="post" action="/fretes/' + str(cid)
+                + '/chamado/' + str(case_id) + '/consultar-custo-ml">'
+                '<input type="hidden" name="csrf_token" value="'
+                + esc(session["frete_csrf"]) + '">'
+                '<button type="submit">Consultar custo do vendedor na API</button>'
+                '</form></div>')
+    content += ('<div class="card"><h3>Conferir evidências do frete</h3>'
+                '<p>Informe somente valores e datas que você possa comprovar. '
+                'Uma diferença positiva é um indício, não confirmação de erro.</p>'
+                '<form method="post" action="/fretes/' + str(cid)
+                + '/chamado/' + str(case_id) + '/evidencia">'
+                '<input type="hidden" name="csrf_token" value="'
+                + esc(session["frete_csrf"]) + '">'
+                '<label>Tarifa histórica esperada (R$) '
+                '<input name="valor_referencia" placeholder="12,50"></label> '
+                '<label>Frete debitado do vendedor (R$) '
+                '<input name="valor_cobrado" placeholder="15,00" value="'
+                + esc(str(api_charge["valor_cobrado"]) if api_charge else "", quote=True)
+                + '"></label> '
+                '<label>Data da referência <input type="date" name="data_referencia"></label> '
+                '<label>Origem do débito <input name="origem_cobranca" '
+                'maxlength="200" placeholder="Extrato / detalhe do envio" value="'
+                + esc(api_charge["origem_cobranca"] or "" if api_charge else "", quote=True)
+                + '"></label> '
+                '<label>Quantidade de itens no envio <input type="number" '
+                'min="1" max="1000" name="itens_envio" value="'
+                + esc(str(api_charge["itens_envio"]) if api_charge and api_charge["itens_envio"] is not None else "", quote=True)
+                + '"></label>'
+                '<p><label><input type="checkbox" name="contexto_confirmado" '
+                'value="sim"> Confirmei que os valores são do mesmo vendedor, '
+                'envio, data e modalidade logística</label></p>'
+                '<button type="submit">Registrar conferência</button></form></div>')
+    with banco() as conn:
+        evidences = consultar(conn, """SELECT avaliacao, diferenca, justificativa,
+            valor_referencia, valor_cobrado, data_referencia, origem_cobranca,
+            criado_em FROM frete_evidencias
+            WHERE conexao_id=%s AND chamado_id=%s
+            ORDER BY id DESC LIMIT 20""", (cid, case_id))
+    content += '<div class="card"><h3>Conferências registradas</h3>'
+    for ev in evidences:
+        content += ('<p><b>' + esc(ev["avaliacao"]) + '</b> — '
+                    + esc(ev["justificativa"]) + '<br>Referência: '
+                    + esc(brl(ev["valor_referencia"])) + ' | Cobrança: '
+                    + esc(brl(ev["valor_cobrado"])) + ' | Diferença: '
+                    + esc(brl(ev["diferenca"])) + '<br>Data: '
+                    + esc(ev["data_referencia"] or "não informada")
+                    + ' | Origem: ' + esc(ev["origem_cobranca"] or "não informada")
+                    + '</p>')
+    content += '</div>'
+    content += '<div class="card"><h3>Histórico</h3>'
+    for event in events:
+        content += ('<p><b>' + esc(str(event["tipo"])) + '</b> — '
+                    + esc(event["nome"] or "Usuário") + ' — '
+                    + esc(str(event["criado_em"])) + '<br>'
+                    + esc(event["detalhe"]) + '</p>')
+    content += '</div><p><a href="/fretes/' + str(cid) + '">← Voltar</a></p>'
+    return pagina_loja("Chamado de frete", cid, store[0]["cliente"], "fretes", content)
+
+
+@app.route("/fretes/<int:cid>/chamado/<int:case_id>/consultar-custo-ml", methods=["POST"])
+@login_required
+def consultar_custo_frete_ml(cid, case_id):
+    """Read the seller's shipment charge, not a historical listing quotation."""
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    if not freight_csrf_valid():
+        return "Token inválido", 403
+    with banco() as conn:
+        cases = consultar(conn, """SELECT envio_id FROM frete_chamados
+            WHERE conexao_id=%s AND id=%s""", (cid, case_id))
+        shops = consultar(conn, """SELECT * FROM conexoes
+            WHERE id=%s""", (cid,))
+    if not cases or not shops:
+        return "Chamado ou loja não encontrado", 404
+    shipment_id = str(cases[0]["envio_id"] or "").strip()
+    if not shipment_id.isascii() or not shipment_id.isdigit() or len(shipment_id) > 24:
+        return "Informe um número de envio válido no chamado", 400
+    shop = shops[0]
+    seller_id = shop["user_id"]
+    if not seller_id:
+        return "Identificador do vendedor indisponível", 400
+    # Refresh an expired/near-expiry OAuth token before calling the ML API.
+    try:
+        token = token_atual(shop)
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        return "Falha ao renovar a conexão com o Mercado Livre", 502
+    if not token:
+        return "Não foi possível renovar a conexão com o Mercado Livre", 502
+    try:
+        headers = {"Authorization": "Bearer " + token, "x-format-new": "true"}
+        resp = requests.get(API + "/shipments/" + shipment_id + "/costs",
+                            headers=headers, timeout=15)
+        if resp.status_code != 200:
+            return ("Não foi possível consultar os custos do envio no Mercado Livre "
+                    "(HTTP " + str(resp.status_code) + ")."), 502
+        payload = resp.json()
+        amount, reason = seller_shipping_cost(payload, seller_id)
+        if reason:
+            return esc(reason), 422
+        items = None
+        try:
+            item_resp = requests.get(API + "/shipments/" + shipment_id + "/items",
+                                     headers=headers, timeout=10)
+            if item_resp.status_code == 200:
+                items = seller_shipment_item_count(item_resp.json(), seller_id)
+        except (requests.RequestException, ValueError, TypeError):
+            pass
+    except (requests.RequestException, ValueError, TypeError):
+        return "Falha ao consultar os custos do Mercado Livre. Tente novamente.", 502
+    # A confirmed sender cost does not prove the historical expected tariff.
+    assessment = assess_freight(None, amount, reference_date=None,
+                                charge_source="API Mercado Livre /shipments/{id}/costs",
+                                comparable=False, shipment_items=items)
+    now = int(time.time())
+    with banco() as conn:
+        still_exists = consultar(conn, """SELECT id FROM frete_chamados
+            WHERE conexao_id=%s AND id=%s AND envio_id=%s""",
+            (cid, case_id, shipment_id))
+        if not still_exists:
+            return "Chamado alterado durante a consulta; tente novamente", 409
+        executar(conn, """INSERT INTO frete_evidencias
+            (conexao_id, chamado_id, valor_referencia, valor_cobrado,
+             data_referencia, origem_cobranca, fonte_api_verificada,
+             contexto_confirmado, itens_envio,
+             avaliacao, diferenca, justificativa, usuario_id, criado_em)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (cid, case_id, None, amount, None,
+             "API Mercado Livre /shipments/" + shipment_id + "/costs — senders[].cost",
+             True, False, items, assessment["status"], assessment["difference"],
+             assessment["reason"], session["usuario_id"], now))
+        executar(conn, """INSERT INTO frete_chamados_historico
+            (conexao_id, chamado_id, usuario_id, tipo, detalhe, criado_em)
+            VALUES (%s,%s,%s,%s,%s,%s)""",
+            (cid, case_id, session["usuario_id"], "consulta_api_custos",
+             "Custo do vendedor consultado na API do Mercado Livre: " + brl(amount)
+             + ". Tarifa histórica esperada ainda não confirmada.", now))
+        executar(conn, """UPDATE frete_chamados SET atualizado_em=%s
+            WHERE conexao_id=%s AND id=%s""", (now, cid, case_id))
+    return redirect("/fretes/" + str(cid) + "/chamado/" + str(case_id))
+
+
+@app.route("/fretes/<int:cid>/chamado/<int:case_id>/evidencia", methods=["POST"])
+@login_required
+def registrar_evidencia_frete(cid, case_id):
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    if not freight_csrf_valid():
+        return "Token inválido", 403
+    reference = money(request.form.get("valor_referencia"))
+    charged = money(request.form.get("valor_cobrado"))
+    reference_date = (request.form.get("data_referencia") or "").strip()[:50]
+    source = (request.form.get("origem_cobranca") or "").strip()[:200]
+    context_ok = request.form.get("contexto_confirmado") == "sim"
+    items_raw = (request.form.get("itens_envio") or "").strip()
+    try:
+        items = int(items_raw) if items_raw else None
+        if items is not None and not 1 <= items <= 1000:
+            return "Quantidade de itens inválida", 400
+    except ValueError:
+        return "Quantidade de itens inválida", 400
+    if reference_date:
+        try:
+            datetime.date.fromisoformat(reference_date)
+        except ValueError:
+            return "Data de referência inválida", 400
+    assessment = assess_freight(
+        reference, charged, reference_date=reference_date,
+        charge_source=source, comparable=context_ok, shipment_items=items)
+    now = int(time.time())
+    with banco() as conn:
+        cases = consultar(conn, """SELECT id FROM frete_chamados
+            WHERE conexao_id=%s AND id=%s""", (cid, case_id))
+        if not cases:
+            return "Chamado não encontrado", 404
+        executar(conn, """INSERT INTO frete_evidencias
+            (conexao_id, chamado_id, valor_referencia, valor_cobrado,
+             data_referencia, origem_cobranca, fonte_api_verificada,
+             contexto_confirmado, itens_envio,
+             avaliacao, diferenca, justificativa, usuario_id, criado_em)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (cid, case_id, reference, charged, reference_date or None, source or None,
+             False, context_ok, items, assessment["status"], assessment["difference"],
+             assessment["reason"], session["usuario_id"], now))
+        executar(conn, """UPDATE frete_chamados SET atualizado_em=%s
+            WHERE conexao_id=%s AND id=%s""", (now, cid, case_id))
+    return redirect("/fretes/" + str(cid) + "/chamado/" + str(case_id))
+
+
+@app.route("/fretes/<int:cid>/chamado/<int:case_id>/mensagem", methods=["POST"])
+@login_required
+def salvar_mensagem_frete(cid, case_id):
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    if not freight_csrf_valid():
+        return "Token inválido", 403
+    template = (request.form.get("modelo") or "").strip()
+    message = (request.form.get("mensagem") or "").strip()
+    if template not in TEMPLATES or not message or len(message) > 10000:
+        return "Modelo ou mensagem inválidos (máximo 10.000 caracteres)", 400
+    now = int(time.time())
+    with banco() as conn:
+        cases = consultar(conn, """SELECT id FROM frete_chamados
+            WHERE conexao_id=%s AND id=%s""", (cid, case_id))
+        if not cases:
+            return "Chamado não encontrado", 404
+        executar(conn, """INSERT INTO frete_chamados_historico
+            (conexao_id, chamado_id, usuario_id, tipo, detalhe, criado_em)
+            VALUES (%s,%s,%s,%s,%s,%s)""",
+            (cid, case_id, session["usuario_id"], "mensagem: " + template,
+             message, now))
+        executar(conn, """UPDATE frete_chamados SET atualizado_em=%s
+            WHERE conexao_id=%s AND id=%s""", (now, cid, case_id))
+    return redirect("/fretes/" + str(cid) + "/chamado/" + str(case_id))
+
+
+@app.route("/fretes/<int:cid>/importar-conciliacao", methods=["GET", "POST"])
+@login_required
+def importar_conciliacao_frete(cid):
+    if not pode_ver_loja(cid):
+        return "Acesso negado", 403
+    with banco() as conn:
+        lojas = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
+    if not lojas:
+        return "Loja não encontrada", 404
+    if "frete_csrf" not in session:
+        session["frete_csrf"] = secrets.token_urlsafe(32)
+    content = ('<div class="card"><h2>Importar conciliação bancária</h2>'
+               '<p>Pré-visualização do Excel desta loja. '
+               'Nenhuma divergência será calculada nesta etapa.</p>'
+               '<form method="post" enctype="multipart/form-data">'
+               '<input type="hidden" name="csrf_token" value="'
+               + esc(session["frete_csrf"]) + '">'
+               '<input type="file" name="arquivo" accept=".xlsx,.csv" required>'
+               '<button type="submit">Pré-visualizar planilha</button></form>'
+               '<p>XLSX ou CSV, máximo 2 MB. Arquivo não armazenado.</p></div>')
+    if request.method == "POST":
+        if not freight_csrf_valid():
+            return "Token inválido", 403
+        if request.content_length is None or request.content_length > MAX_UPLOAD_BYTES + 65536:
+            return "Arquivo muito grande", 413
+        arquivo = request.files.get("arquivo")
+        if arquivo is None:
+            return "Selecione um arquivo", 400
+        try:
+            abas = preview_reconciliation_upload(
+                arquivo.filename, arquivo.read(MAX_UPLOAD_BYTES + 1))
+        except PreviewError as exc:
+            return esc(str(exc)), 400
+        content += render_reconciliation_preview(abas)
+    response = Response(pagina_loja("Importar conciliação", cid,
+                        lojas[0]["cliente"], "fretes", content),
+                        mimetype="text/html")
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/fretes/<int:cid>")
+@login_required
+def contestar_frete(cid):
+    if not pode_ver_loja(cid):
+        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>"), 403
+    with banco() as conn:
+        contas = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
+    if not contas:
+        return pagina("Loja não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
+    with banco() as conn:
+        cases = consultar(conn, """SELECT c.id, c.status, c.pedido_id, c.envio_id,
+                c.protocolo, e.avaliacao AS ultima_avaliacao,
+                e.diferenca AS ultima_diferenca, api.valor_cobrado AS custo_api
+                FROM frete_chamados c
+                LEFT JOIN LATERAL (
+                    SELECT avaliacao, diferenca FROM frete_evidencias
+                    WHERE conexao_id=c.conexao_id AND chamado_id=c.id
+                    AND valor_referencia IS NOT NULL
+                    ORDER BY id DESC LIMIT 1
+                ) e ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT valor_cobrado FROM frete_evidencias
+                    WHERE conexao_id=c.conexao_id AND chamado_id=c.id
+                    AND fonte_api_verificada = TRUE
+                    AND valor_cobrado IS NOT NULL
+                    ORDER BY id DESC LIMIT 1
+                ) api ON TRUE
+                WHERE c.conexao_id=%s
+                ORDER BY c.atualizado_em DESC LIMIT 50""", (cid,))
+    if "frete_csrf" not in session:
+        session["frete_csrf"] = secrets.token_urlsafe(32)
+    content = ('<div class="card"><h2>Auditoria de Fretes</h2>'
+               '<p>A conferência começa com a planilha de conciliação bancária. '
+               'Sem importação, nenhuma auditoria automática é executada.</p>'
+               '<p><a href="/fretes/' + str(cid)
+               + '/importar-conciliacao">Importar Excel de conciliação</a></p>'
+               '</div>')
+    content += render_generator(request.args)
+    content += render_cases(cases, cid)
+    content += ('<div class="card"><h3>Salvar novo chamado</h3>'
+                '<p>Use os dados informados acima; o registro não comprova cobrança indevida.</p>'
+                '<form method="post" action="/fretes/' + str(cid) + '/novo">'
+                '<input type="hidden" name="csrf_token" value="' + esc(session["frete_csrf"]) + '">'
+                '<label>Pedido <input name="pedido_id" maxlength="100" value="'
+                + esc(request.args.get("order_id", "")[:100], quote=True) + '"></label> '
+                '<label>Anúncio <input name="anuncio_id" maxlength="100" value="'
+                + esc(request.args.get("listing_id", "")[:100], quote=True) + '"></label> '
+                '<label>Envio <input name="envio_id" maxlength="100" value="'
+                + esc(request.args.get("shipment_id", "")[:100], quote=True) + '"></label> '
+                '<label>Protocolo (opcional) <input name="protocolo" maxlength="100"></label>'
+                '<button type="submit">Salvar chamado</button></form></div>')
+    return pagina_loja("Contestar frete", cid, contas[0]["cliente"], "fretes", content)
 
 
 @app.route("/vendas/<int:cid>")
@@ -3763,15 +4243,26 @@ def puxar_envios(conexao_id, token, user_id):
     dados, erro = api_get(token, "/orders/search",
                           {"seller": user_id, "sort": "date_desc",
                            "limit": 50})
-    if erro or not dados:
-        registrar_erro(conexao_id, "envios", erro or "sem resposta")
+    if erro or not isinstance(dados, dict):
+        registrar_erro(conexao_id, "envios", erro or "resposta inválida")
         return False
-    resultados = dados.get("results") or []
+    resultados = dados.get("results")
+    if not isinstance(resultados, list):
+        registrar_erro(conexao_id, "envios", "lista de pedidos inválida")
+        return False
     agora = int(time.time())
     completo = True
     pares = []
     for o in resultados:
+        if not isinstance(o, dict):
+            completo = False
+            registrar_erro(conexao_id, "envios", "pedido inválido na resposta")
+            continue
         ship = o.get("shipping") or {}
+        if not isinstance(ship, dict):
+            completo = False
+            registrar_erro(conexao_id, "envios", "dados de envio inválidos")
+            continue
         sid = ship.get("id")
         if sid:
             par = (str(o.get("id")), str(sid))
@@ -3779,9 +4270,8 @@ def puxar_envios(conexao_id, token, user_id):
                 pares.append(par)
         if len(pares) >= 20:
             break
-    with banco() as conn:
-        executar(conn, "DELETE FROM envios WHERE conexao_id=%s",
-                 (conexao_id,))
+    # This fetch only covers the most recent 20 shipments. Never delete the
+    # complete history: older shipments are needed for freight reconciliation.
     for oid, sid in pares:
         det, det_erro = api_get(token, "/shipments/" + sid)
         if det_erro or not det:
@@ -3798,7 +4288,7 @@ def puxar_envios(conexao_id, token, user_id):
                               tracking=EXCLUDED.tracking,
                               pedido_id=EXCLUDED.pedido_id,
                               data=EXCLUDED.data,
-                              custo_frete=EXCLUDED.custo_frete,
+                              custo_frete=COALESCE(EXCLUDED.custo_frete, envios.custo_frete),
                               atualizado_em=EXCLUDED.atualizado_em""",
                      (conexao_id, sid, det.get("status"),
                       det.get("tracking_number"), oid,
