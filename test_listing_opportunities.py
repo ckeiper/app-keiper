@@ -1,5 +1,5 @@
 import unittest
-from listing_opportunities import listing_opportunities
+from listing_opportunities import listing_opportunities, opportunity_actions
 
 
 class ListingOpportunitiesTests(unittest.TestCase):
@@ -19,6 +19,13 @@ class ListingOpportunitiesTests(unittest.TestCase):
             "A": {"orders": 2, "previous_orders": 3},
             "B": {"orders": 9, "previous_orders": 4},
         }), [])
+
+    def test_actions_are_investigations_not_causal_claims(self):
+        for kind in ("interrupcao", "queda"):
+            steps = opportunity_actions(kind)
+            self.assertEqual(len(steps), 3)
+            self.assertTrue(all(isinstance(step, str) for step in steps))
+        self.assertEqual(opportunity_actions("unknown"), ())
 
     def test_limit_and_stable_order(self):
         rows = {str(i): {"orders": 0, "previous_orders": 5} for i in range(8)}

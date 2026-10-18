@@ -1,6 +1,25 @@
 """Conservative opportunity signals from verified per-listing order data."""
 
 
+ACTION_CHECKLISTS = {
+    "interrupcao": (
+        "Verificar se o anúncio está ativo, pausado ou sem estoque.",
+        "Conferir alterações recentes de preço, frete e prazo de envio.",
+        "Revisar exposição e campanhas antes de atribuir a queda à conversão.",
+    ),
+    "queda": (
+        "Comparar preço e condições comerciais entre os períodos.",
+        "Verificar estoque, prazo de entrega e eventuais alterações no anúncio.",
+        "Conferir visitas e publicidade em fontes próprias, se disponíveis.",
+    ),
+}
+
+
+def opportunity_actions(kind):
+    """Return investigation steps, not unsupported causal diagnoses."""
+    return ACTION_CHECKLISTS.get(kind, ())
+
+
 def listing_opportunities(rows, limit=5):
     """Return ranked signals without implying traffic, conversion or demand."""
     signals = []
