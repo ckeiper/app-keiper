@@ -1592,9 +1592,16 @@ def processar_fila():
             cid = FILA_ATUALIZACAO[0]
         execucao_id = None
         try:
-            execucao_id = registrar_execucao_inicio(cid)
+            try:
+                execucao_id = registrar_execucao_inicio(cid)
+            except Exception:
+                pass  # Telemetry failure must not prevent order collection.
             executar_atualizacao(cid)
-            registrar_execucao_fim(execucao_id, "concluida")
+            if execucao_id is not None:
+                try:
+                    registrar_execucao_fim(execucao_id, "concluida")
+                except Exception:
+                    pass
         except Exception as exc:
             if execucao_id is not None:
                 try:
