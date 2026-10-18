@@ -4282,6 +4282,13 @@ def reagendar_tarefa_persistente(tarefa_id, erro, agora=None, max_tentativas=3):
         return cur.rowcount
 
 
+# Database-level invariant: at most one running durable task per store.
+with banco() as conn:
+    executar(conn, """CREATE UNIQUE INDEX IF NOT EXISTS
+        idx_sync_tarefas_uma_execucao_por_loja
+        ON sincronizacao_tarefas (conexao_id)
+        WHERE status='executando'""")
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(job_refresh, "interval", minutes=30)
 scheduler.add_job(job_dados, "interval", minutes=60,
