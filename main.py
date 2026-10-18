@@ -282,6 +282,16 @@ a.link:hover { text-decoration:underline; }
 .campanha-item table { margin-top:6px; }
 .barra-topo { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
 .barra-topo h2 { margin:0; }
+/* A navegação das lojas deve permanecer em uma coluna, mesmo com o tema global. */
+.layout>.menu-lateral{
+  display:flex;flex-direction:column;align-items:stretch;flex-wrap:nowrap;
+  gap:3px;min-width:0;
+}
+.layout>.menu-lateral a.item,.layout>.menu-lateral a.voltar{
+  display:block;flex:0 0 auto;width:100%;max-width:100%;
+  box-sizing:border-box;min-width:0;white-space:normal;
+  overflow-wrap:anywhere;height:auto;min-height:0;
+}
 /* Navegação lateral persistente no desktop e gaveta lateral no celular. */
 .menu-lateral { max-height:calc(100vh - 32px); overflow-y:auto; }
 .sidebar-toggle, .sidebar-overlay { display:none; }
