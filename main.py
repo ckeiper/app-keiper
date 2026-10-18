@@ -17,6 +17,7 @@ from listing_sales import listing_sales_summary
 from listing_trends import comparison
 from listing_ranking import ranking_metrics
 from listing_kpis import listing_kpis
+from listing_opportunities import listing_opportunities
 from visual_theme import VISUAL_CSS
 from page_performance import ranking_query_bounds
 from sales_sync import init_sales_schema, sync_orders
@@ -2872,6 +2873,21 @@ def ranking_anuncios(cid):
               "<div class='stat'><div class='num'>" + concentracao
               + "</div><div class='lab'>Participação do anúncio líder</div></div>"
               "</div>")
+    sinais = listing_opportunities(resumo["rows"])
+    if sinais:
+        nomes = {str(a["item_id"]): str(a["titulo"] or a["item_id"])
+                 for a in anuncios_loja}
+        corpo += ("<div class='card'><h3>Oportunidades para investigar</h3>"
+                  "<p class='muted'>Alertas baseados apenas em pedidos verificados. "
+                  "Não comprovam queda de visitas, conversão ou demanda.</p><ul>")
+        for sinal in sinais:
+            corpo += ("<li><a href='/diagnostico/" + str(cid) + "/"
+                      + esc(sinal["item_id"]) + "'>"
+                      + esc(nomes.get(sinal["item_id"], sinal["item_id"]))
+                      + "</a>: " + esc(sinal["detail"]) + " ("
+                      + str(sinal["previous_orders"]) + " → "
+                      + str(sinal["orders"]) + " pedidos).</li>")
+        corpo += "</ul></div>"
     opcoes = {"valor": "Maior valor vendido", "pedidos": "Mais pedidos",
               "alta": "Maior crescimento", "queda": "Maior queda",
               "participacao": "Maior participação"}
