@@ -2878,7 +2878,23 @@ def ranking_anuncios(cid):
     ordem = request.args.get("ordem", "valor")
     if ordem not in opcoes:
         ordem = "valor"
+    filtros = {"todos": "Todos", "alta": "Em alta", "queda": "Em queda",
+               "novas": "Novas vendas", "sem_vendas": "Sem vendas"}
+    filtro = request.args.get("filtro", "todos")
+    if filtro not in filtros:
+        filtro = "todos"
     registros = [(a, resumo["rows"][str(a["item_id"])]) for a in anuncios_loja]
+    if filtro == "alta":
+        registros = [(a, m) for a, m in registros
+                     if m["previous_orders"] > 0 and m["orders"] > m["previous_orders"]]
+    elif filtro == "queda":
+        registros = [(a, m) for a, m in registros
+                     if m["previous_orders"] > 0 and m["orders"] < m["previous_orders"]]
+    elif filtro == "novas":
+        registros = [(a, m) for a, m in registros
+                     if m["orders"] > 0 and m["previous_orders"] == 0]
+    elif filtro == "sem_vendas":
+        registros = [(a, m) for a, m in registros if m["orders"] == 0]
     if ordem == "valor":
         registros.sort(key=lambda x: (-x[1]["value"], str(x[0]["item_id"])))
     elif ordem == "pedidos":
@@ -2896,7 +2912,12 @@ def ranking_anuncios(cid):
     corpo += "<div class='card'><p>Ordenar por: "
     for chave, titulo in opcoes.items():
         corpo += ("<a class='filtro' href='/ranking-anuncios/" + str(cid)
-                  + "?dias=" + dias + "&ordem=" + chave + "'>" + titulo + "</a> ")
+                  + "?dias=" + dias + "&filtro=" + filtro + "&ordem=" + chave + "'>" + titulo + "</a> ")
+    corpo += "</p><p>Filtrar por: "
+    for chave, titulo in filtros.items():
+        corpo += ("<a class='filtro' href='/ranking-anuncios/" + str(cid)
+                  + "?dias=" + dias + "&ordem=" + ordem + "&filtro=" + chave
+                  + "'>" + titulo + "</a> ")
     corpo += ("</p><p class='muted'>Exibindo até 100 de "
               + str(len(registros)) + " anúncios. "
               "Crescimento percentual requer vendas no período anterior; "
