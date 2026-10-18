@@ -4212,8 +4212,10 @@ def criar_tarefa_persistente(cid, agora=None):
     with banco() as conn:
         cur = executar(conn, """INSERT INTO sincronizacao_tarefas
             (conexao_id, disponivel_em, criada_em)
-            VALUES (%s,%s,%s) RETURNING id""", (cid, agora, agora))
-        return cur.fetchone()[0]
+            VALUES (%s,%s,%s) ON CONFLICT DO NOTHING RETURNING id""",
+            (cid, agora, agora))
+        row = cur.fetchone()
+        return row[0] if row else None
 
 
 def reservar_tarefa_persistente(agora=None, duracao_lease=7200):
@@ -4285,6 +4287,13 @@ def reagendar_tarefa_persistente(tarefa_id, erro, agora=None, max_tentativas=3):
              agora, str(erro)[:300], tarefa_id))
         return cur.rowcount
 
+
+# Avoid accumulating duplicate pending tasks from repeated scheduler runs.
+with banco() as conn:
+    executar(conn, """CREATE UNIQUE INDEX IF NOT EXISTS
+        idx_sync_tarefas_uma_pendente_por_loja
+        ON sincronizacao_tarefas (conexao_id)
+        WHERE status='pendente'""")
 
 # Database-level invariant: at most one running durable task per store.
 with banco() as conn:
