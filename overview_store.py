@@ -51,6 +51,14 @@ def init_overview_schema(conn, execute):
         WHERE categoria IN ('pedidos','atualizacao','refresh','token')''')
 
 
+# Cheap date-prefix candidate selection. Exact Brasília reporting days and
+# payment verification remain in sales_metrics.summarize, not in this SQL.
+PERIOD_ROWS_SQL = """SELECT conexao_id, pedido_id, status, total, moeda,
+    criado_em, pagamentos_json, unidades, vendas_dia_coleta
+    FROM pedidos
+    WHERE conexao_id = ANY(%s) AND vendas_verificado_em IS NOT NULL
+      AND LEFT(criado_em, 10) BETWEEN %s AND %s"""
+
 DAILY_SQL = '''WITH candidates AS MATERIALIZED (
     SELECT conexao_id, keiper_overview_day_v1(criado_em) AS dia,
            status, total, moeda, unidades,

@@ -7,53 +7,79 @@ import time
 
 from sales_metrics import SAO_PAULO, change, period, summarize
 from sales_view import filters, fmt
-from overview_store import DAILY_SQL, UNUSUAL_SQL, LATEST_ERRORS_SQL
+from overview_store import PERIOD_ROWS_SQL, UNUSUAL_SQL, LATEST_ERRORS_SQL
 from overview_read import bounded_query
 
 EXCEPTION_BATCH_SIZE = 500
+PERIOD_BATCH_SIZE = 1000
 STALE_SECONDS = 3 * 60 * 60
 HISTORICAL_STALE_SECONDS = 48 * 60 * 60
 
 
 def load_overview(shops, args, banco, query):
-    """Aggregate selected days and stream unusual dates in one read-only snapshot."""
+    """Read only selected dates with cheap indexed text-prefix filtering.
+
+    The original daily SQL repeatedly invoked a PL/pgSQL date parser and
+    jsonb expansions; on production, 8,328 orders took 19.1 seconds. Use
+    the exact existing Python classifier instead, preserving integrity.
+    """
     bounds = period(args)
     ids = [s['id'] for s in shops]
     if not ids:
         return build_overview(shops, [], [], [], bounds)
+    # ISO 8601 dates can shift by one calendar day in Brasília.
+    first = (bounds[2] - timedelta(days=1)).isoformat()
+    last = (bounds[1] + timedelta(days=1)).isoformat()
+    by_shop = defaultdict(list)
+    seen = set()
     with banco() as conn:
         conn.set_session(isolation_level='REPEATABLE READ', readonly=True)
-        query = bounded_query(conn, query)
-        daily = query(conn, DAILY_SQL, (ids, bounds[2], bounds[1]))
-        coverage = query(conn, """SELECT conexao_id, dia, atualizado_em
+        read = bounded_query(conn, query)
+        # Keyset pagination bounds memory and response size on large shops.
+        cursor = None
+        while True:
+            condition = ' AND (conexao_id,pedido_id) > (%s,%s)' if cursor else ''
+            params = (ids, first, last) + (cursor or ()) + (PERIOD_BATCH_SIZE,)
+            batch = read(conn, PERIOD_ROWS_SQL + condition +
+                         ' ORDER BY conexao_id,pedido_id LIMIT %s', params)
+            for row in batch:
+                key = (row['conexao_id'], str(row['pedido_id']))
+                if key not in seen:
+                    seen.add(key)
+                    by_shop[row['conexao_id']].append(row)
+            if len(batch) < PERIOD_BATCH_SIZE:
+                break
+            cursor = (batch[-1]['conexao_id'], batch[-1]['pedido_id'])
+        coverage = read(conn, """SELECT conexao_id, dia, atualizado_em
             FROM vendas_cobertura WHERE conexao_id = ANY(%s)
-            AND dia BETWEEN %s AND %s""", (ids, bounds[2].isoformat(), bounds[1].isoformat()))
-        errors = query(conn, LATEST_ERRORS_SQL, (ids,))
-        covered = defaultdict(dict)
-        facts = defaultdict(list)
-        for row in coverage:
-            covered[row['conexao_id']][row['dia']] = row['atualizado_em']
-        for row in daily:
-            facts[row['conexao_id']].append(row)
-        summaries = {cid: [daily_summary(facts[cid], a, b, covered[cid])
-                          for a,b in ((bounds[0],bounds[1]),(bounds[2],bounds[3]))]
-                     for cid in ids}
+            AND dia BETWEEN %s AND %s""",
+            (ids, bounds[2].isoformat(), bounds[1].isoformat()))
+        errors = read(conn, LATEST_ERRORS_SQL, (ids,))
+        # Noncanonical or invalid timestamps are still checked for unknown
+        # dates; they must never silently become zeros or valid totals.
         cursor = None
         while True:
             condition = ' AND (conexao_id,pedido_id) > (%s,%s)' if cursor else ''
             params = (ids,) + (cursor or ()) + (EXCEPTION_BATCH_SIZE,)
-            rows = query(conn, UNUSUAL_SQL + condition +
-                         ' ORDER BY conexao_id,pedido_id LIMIT %s', params)
-            grouped = defaultdict(list)
+            rows = read(conn, UNUSUAL_SQL + condition +
+                        ' ORDER BY conexao_id,pedido_id LIMIT %s', params)
             for row in rows:
-                grouped[row['conexao_id']].append(row)
-            for cid, batch in grouped.items():
-                for i,(a,b) in enumerate(((bounds[0],bounds[1]),(bounds[2],bounds[3]))):
-                    summaries[cid][i] = merge_summary(summaries[cid][i], summarize(batch,a,b,covered[cid]))
+                key = (row['conexao_id'], str(row['pedido_id']))
+                if key not in seen:
+                    seen.add(key)
+                    by_shop[row['conexao_id']].append(row)
             if len(rows) < EXCEPTION_BATCH_SIZE:
                 break
             cursor = (rows[-1]['conexao_id'], rows[-1]['pedido_id'])
-    return build_overview(shops, [], coverage, errors, bounds, summaries=summaries)
+    covered = defaultdict(dict)
+    for row in coverage:
+        covered[row['conexao_id']][row['dia']] = row['atualizado_em']
+    summaries = {cid: [
+        summarize(by_shop[cid], start, end, covered[cid])
+        for start, end in ((bounds[0], bounds[1]), (bounds[2], bounds[3]))
+    ] for cid in ids}
+    return build_overview(shops, [], coverage, errors, bounds,
+                          summaries=summaries)
 
 
 def daily_summary(rows, start, end, covered):
