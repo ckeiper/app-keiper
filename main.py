@@ -1565,6 +1565,23 @@ def enfileirar_atualizacao(cid):
     return True
 
 
+def registrar_execucao_inicio(cid):
+    with banco() as conn:
+        cur = executar(conn, """INSERT INTO sincronizacao_execucoes
+                         (conexao_id, inicio_em, status)
+                         VALUES (%s, %s, 'executando') RETURNING id""",
+                       (cid, int(time.time())))
+        return cur.fetchone()[0]
+
+
+def registrar_execucao_fim(execucao_id, status, detalhe=None):
+    with banco() as conn:
+        executar(conn, """UPDATE sincronizacao_execucoes
+                         SET fim_em=%s, status=%s, detalhe=%s
+                         WHERE id=%s""",
+                 (int(time.time()), status, (detalhe or "")[:300], execucao_id))
+
+
 def processar_fila():
     global WORKER_VIVO
     while True:
@@ -1573,9 +1590,24 @@ def processar_fila():
                 WORKER_VIVO = False
                 return
             cid = FILA_ATUALIZACAO[0]
+        execucao_id = None
         try:
+            try:
+                execucao_id = registrar_execucao_inicio(cid)
+            except Exception:
+                pass  # Telemetry failure must not prevent order collection.
             executar_atualizacao(cid)
+            if execucao_id is not None:
+                try:
+                    registrar_execucao_fim(execucao_id, "concluida")
+                except Exception:
+                    pass
         except Exception as exc:
+            if execucao_id is not None:
+                try:
+                    registrar_execucao_fim(execucao_id, "falhou", type(exc).__name__)
+                except Exception:
+                    pass
             try:
                 registrar_erro(cid, "atualizacao", "Falha na atualização: " + type(exc).__name__)
             except Exception:
@@ -4084,6 +4116,22 @@ def job_dados():
 
 
 iniciar_banco()
+
+# Persist execution status so interrupted web workers remain diagnosable.
+with banco() as conn:
+    executar(conn, """CREATE TABLE IF NOT EXISTS sincronizacao_execucoes (
+        id BIGSERIAL PRIMARY KEY,
+        conexao_id INTEGER NOT NULL,
+        inicio_em BIGINT NOT NULL,
+        fim_em BIGINT,
+        status TEXT NOT NULL,
+        detalhe TEXT
+    )""")
+    executar(conn, """UPDATE sincronizacao_execucoes
+        SET status='interrompida', fim_em=%s,
+            detalhe='Processo reiniciado antes da conclusão'
+        WHERE status='executando' AND inicio_em < %s""",
+        (int(time.time()), int(time.time()) - 7200))
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(job_refresh, "interval", minutes=30)
