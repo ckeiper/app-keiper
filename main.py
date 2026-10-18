@@ -1579,11 +1579,21 @@ def enfileirar_atualizacao(cid):
 
 def registrar_execucao_inicio(cid):
     with banco() as conn:
+        # Claim one active execution per store across Gunicorn workers.
+        # A two-hour lease allows recovery after an abrupt worker shutdown.
+        agora = int(time.time())
+        executar(conn, "SELECT pg_advisory_xact_lock(72591, %s)", (cid,))
         cur = executar(conn, """INSERT INTO sincronizacao_execucoes
                          (conexao_id, inicio_em, status)
-                         VALUES (%s, %s, 'executando') RETURNING id""",
-                       (cid, int(time.time())))
-        return cur.fetchone()[0]
+                         SELECT %s, %s, 'executando'
+                         WHERE NOT EXISTS (
+                           SELECT 1 FROM sincronizacao_execucoes
+                           WHERE conexao_id=%s AND status='executando'
+                             AND inicio_em >= %s
+                         ) RETURNING id""",
+                       (cid, agora, cid, agora - 7200))
+        row = cur.fetchone()
+        return row[0] if row else None
 
 
 def registrar_execucao_fim(execucao_id, status, detalhe=None):
@@ -1608,6 +1618,8 @@ def processar_fila():
                 execucao_id = registrar_execucao_inicio(cid)
             except Exception:
                 pass  # Telemetry failure must not prevent order collection.
+            if execucao_id is None and 'registrar_execucao_inicio' in globals():
+                continue  # Another worker already owns this store.
             atualizacao_ok = executar_atualizacao(cid)
             if execucao_id is not None:
                 try:
