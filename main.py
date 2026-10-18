@@ -1580,13 +1580,14 @@ def processar_fila():
                 registrar_erro(cid, "atualizacao", "Falha na atualização: " + type(exc).__name__)
             except Exception:
                 pass  # Keep draining other shops even when persistence is unavailable.
-        with LOCK_ATUALIZACAO:
-            ATUALIZANDO.discard(cid)
-        with LOCK_FILA:
-            try:
-                FILA_ATUALIZACAO.remove(cid)
-            except Exception:
-                pass    
+        finally:
+            with LOCK_ATUALIZACAO:
+                ATUALIZANDO.discard(cid)
+            with LOCK_FILA:
+                try:
+                    FILA_ATUALIZACAO.remove(cid)
+                except ValueError:
+                    pass    
 @app.route("/auditoria-frete/<int:cid>", methods=["GET", "POST"])
 @login_required
 def auditoria_frete(cid):
