@@ -4085,7 +4085,9 @@ iniciar_banco()
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(job_refresh, "interval", minutes=30)
-scheduler.add_job(job_dados, "interval", minutes=60)
+scheduler.add_job(job_dados, "interval", minutes=60,
+                  next_run_time=datetime.datetime.now() + datetime.timedelta(minutes=2),
+                  max_instances=1, coalesce=True)
 scheduler.start()
 
 if __name__ == "__main__":
