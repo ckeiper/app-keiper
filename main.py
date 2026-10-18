@@ -18,6 +18,8 @@ from listing_trends import comparison
 from listing_ranking import ranking_metrics
 from listing_kpis import listing_kpis
 from listing_opportunities import listing_opportunities, opportunity_actions
+from freight_import import (preview_reconciliation_upload, render_reconciliation_preview,
+                            PreviewError, MAX_UPLOAD_BYTES)
 from visual_theme import VISUAL_CSS
 from page_performance import ranking_query_bounds
 from sales_sync import init_sales_schema, sync_orders
@@ -1585,24 +1587,47 @@ def processar_fila():
                 FILA_ATUALIZACAO.remove(cid)
             except Exception:
                 pass    
-@app.route("/auditoria-frete/<int:cid>")
+@app.route("/auditoria-frete/<int:cid>", methods=["GET", "POST"])
 @login_required
 def auditoria_frete(cid):
     if not pode_ver_loja(cid):
         return redirect("/painel")
+    if "freight_preview_csrf" not in session:
+        session["freight_preview_csrf"] = secrets.token_urlsafe(32)
     corpo = (
         "<section class='card'><h2>🚚 Auditoria de Frete</h2>"
-        "<p>A auditoria desta loja começa com a importação da planilha "
-        "<b>Conciliação Bancária do Mercado Livre</b>.</p>"
-        "<div class='aviso'>A importação e a conferência dos campos da planilha "
-        "ainda estão em validação. Nenhuma divergência foi calculada, "
-        "e nenhum alerta foi gerado.</div>"
-        "<p>Após validar o arquivo, serão comparados o frete esperado no anúncio "
-        "e o frete efetivamente debitado na venda, incluindo diferenças a partir "
-        "de R$ 0,01. Alertas e acompanhamento de status ficarão nesta aba.</p>"
-        "</section>"
+        "<p>Envie a planilha de <b>Conciliação Bancária do Mercado Livre</b> "
+        "para conferir o formato antes da auditoria.</p>"
+        "<div class='aviso'>Pré-visualização apenas: nenhuma divergência "
+        "é calculada e o arquivo não é armazenado.</div>"
+        "<form method='post' enctype='multipart/form-data'>"
+        "<input type='hidden' name='csrf_token' value='"
+        + esc(session["freight_preview_csrf"]) + "'>"
+        "<input type='file' name='arquivo' accept='.xlsx,.csv' required>"
+        "<button class='btn' type='submit'>Pré-visualizar planilha</button>"
+        "</form><p>Formatos XLSX e CSV · máximo 2 MB.</p></section>"
     )
-    return pagina("Auditoria de Frete", corpo, cid=cid, secao="auditoria_frete")
+    if request.method == "POST":
+        valid_csrf = secrets.compare_digest(
+            session.get("freight_preview_csrf", ""),
+            request.form.get("csrf_token", "")) and bool(session.get("freight_preview_csrf"))
+        if not valid_csrf:
+            return "Token inválido", 403
+        if request.content_length is None or request.content_length > MAX_UPLOAD_BYTES + 65536:
+            return "Arquivo muito grande", 413
+        arquivo = request.files.get("arquivo")
+        if arquivo is None:
+            return "Selecione um arquivo", 400
+        try:
+            abas = preview_reconciliation_upload(
+                arquivo.filename, arquivo.read(MAX_UPLOAD_BYTES + 1))
+        except PreviewError as exc:
+            return esc(str(exc)), 400
+        corpo += render_reconciliation_preview(abas)
+    response = Response(pagina("Auditoria de Frete", corpo, cid=cid,
+                              secao="auditoria_frete"), mimetype="text/html")
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.route("/painel")
