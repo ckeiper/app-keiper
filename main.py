@@ -1507,6 +1507,11 @@ def diagnostico():
             erros = consultar(conn, "SELECT * FROM erros "
                                     "WHERE conexao_id=%s ORDER BY quando DESC",
                               (session.get("conexao_id"),))
+    with banco() as conn:
+        if session.get("tipo") == "admin":
+            execucoes = consultar(conn, """SELECT s.inicio_em,s.fim_em,s.status,s.detalhe,c.cliente FROM sincronizacao_execucoes s JOIN conexoes c ON c.id=s.conexao_id ORDER BY s.id DESC LIMIT 30""")
+        else:
+            execucoes = consultar(conn, """SELECT s.inicio_em,s.fim_em,s.status,s.detalhe,c.cliente FROM sincronizacao_execucoes s JOIN conexoes c ON c.id=s.conexao_id WHERE s.conexao_id=%s ORDER BY s.id DESC LIMIT 30""", (session.get("conexao_id"),))
     corpo = ("<p style='margin-bottom:10px'><a class='link' href='/painel'>"
              "← Voltar ao painel</a></p>"
              "<h2 style='margin-bottom:14px'>Diagnóstico</h2>")
@@ -1527,6 +1532,13 @@ def diagnostico():
               "<table><thead><tr><th>Conta</th><th>Status</th>"
               "<th>Última atualização</th></tr></thead><tbody>"
               + linhas + "</tbody></table></div>")
+    linhas_sync = ""
+    for e in execucoes:
+        duracao = "—" if e["fim_em"] is None else str(max(0,(e["fim_em"]-e["inicio_em"])//60))+" min"
+        linhas_sync += ("<tr><td>"+esc(str(e["cliente"]))+"</td><td>"+hora_br(e["inicio_em"])+"</td><td>"+duracao+"</td><td>"+esc(str(e["status"]))+"</td><td>"+esc(str(e["detalhe"] or "—"))+"</td></tr>")
+    if not linhas_sync:
+        linhas_sync = "<tr><td colspan='5'>Nenhuma execução registrada</td></tr>"
+    corpo += ("<div class='card'><h2>Histórico de sincronizações</h2><div style='overflow-x:auto'><table><thead><tr><th>Loja</th><th>Início</th><th>Duração</th><th>Resultado</th><th>Detalhe</th></tr></thead><tbody>"+linhas_sync+"</tbody></table></div></div>")
     linhas_e = ""
     nomes = {loja["id"]: loja["cliente"] for loja in lojas}
     for e in erros:
