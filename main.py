@@ -3986,8 +3986,9 @@ def executar_atualizacao(cid):
     stages = [("conta", lambda: puxar_conta(cid, token))]
     if user_id:
         stages.extend([
-            ("anuncios", lambda: puxar_anuncios(cid, token, user_id)),
+            # Atualizar pedidos primeiro: a fila é serial e anúncios podem demorar.
             ("pedidos", lambda: puxar_pedidos(cid, token, user_id)),
+            ("anuncios", lambda: puxar_anuncios(cid, token, user_id)),
             ("perguntas", lambda: puxar_perguntas(cid, token, user_id)),
             ("envios", lambda: puxar_envios(cid, token, user_id)),
             ("promocoes", lambda: puxar_promocoes(cid, token, user_id)),
