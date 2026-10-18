@@ -11,6 +11,7 @@ from overview_store import PERIOD_ROWS_SQL, UNUSUAL_SQL, LATEST_ERRORS_SQL
 from overview_read import bounded_query
 
 EXCEPTION_BATCH_SIZE = 500
+PERIOD_BATCH_SIZE = 1000
 STALE_SECONDS = 3 * 60 * 60
 HISTORICAL_STALE_SECONDS = 48 * 60 * 60
 
@@ -34,17 +35,26 @@ def load_overview(shops, args, banco, query):
     with banco() as conn:
         conn.set_session(isolation_level='REPEATABLE READ', readonly=True)
         read = bounded_query(conn, query)
-        selected = read(conn, PERIOD_ROWS_SQL, (ids, first, last))
+        # Keyset pagination bounds memory and response size on large shops.
+        cursor = None
+        while True:
+            condition = ' AND (conexao_id,pedido_id) > (%s,%s)' if cursor else ''
+            params = (ids, first, last) + (cursor or ()) + (PERIOD_BATCH_SIZE,)
+            batch = read(conn, PERIOD_ROWS_SQL + condition +
+                         ' ORDER BY conexao_id,pedido_id LIMIT %s', params)
+            for row in batch:
+                key = (row['conexao_id'], str(row['pedido_id']))
+                if key not in seen:
+                    seen.add(key)
+                    by_shop[row['conexao_id']].append(row)
+            if len(batch) < PERIOD_BATCH_SIZE:
+                break
+            cursor = (batch[-1]['conexao_id'], batch[-1]['pedido_id'])
         coverage = read(conn, """SELECT conexao_id, dia, atualizado_em
             FROM vendas_cobertura WHERE conexao_id = ANY(%s)
             AND dia BETWEEN %s AND %s""",
             (ids, bounds[2].isoformat(), bounds[1].isoformat()))
         errors = read(conn, LATEST_ERRORS_SQL, (ids,))
-        for row in selected:
-            key = (row['conexao_id'], str(row['pedido_id']))
-            if key not in seen:
-                seen.add(key)
-                by_shop[row['conexao_id']].append(row)
         # Noncanonical or invalid timestamps are still checked for unknown
         # dates; they must never silently become zeros or valid totals.
         cursor = None
