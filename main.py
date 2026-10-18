@@ -282,6 +282,31 @@ a.link:hover { text-decoration:underline; }
 .campanha-item table { margin-top:6px; }
 .barra-topo { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
 .barra-topo h2 { margin:0; }
+/* Navegação lateral persistente no desktop e gaveta lateral no celular. */
+.menu-lateral { max-height:calc(100vh - 32px); overflow-y:auto; }
+.sidebar-toggle, .sidebar-overlay { display:none; }
+@media (max-width:820px) {
+  .layout { display:flex; flex-direction:row; }
+  .layout .conteudo { width:100%; min-width:0; }
+  .layout .menu-lateral {
+    position:fixed; top:0; left:0; bottom:0; z-index:1102;
+    width:min(280px, 82vw) !important; max-height:100dvh;
+    border-radius:0; overflow-y:auto; box-sizing:border-box;
+    transform:translateX(-105%); transition:transform .2s ease;
+  }
+  body.sidebar-open .layout .menu-lateral { transform:translateX(0); }
+  .sidebar-toggle {
+    display:inline-flex; align-items:center; gap:7px; cursor:pointer;
+    border:0; border-radius:8px; padding:9px 12px;
+    background:#3483FA; color:#fff; font-weight:700; font-size:14px;
+  }
+  .sidebar-overlay {
+    position:fixed; inset:0; z-index:1101; background:rgba(0,0,0,.5);
+  }
+  body.sidebar-open .sidebar-overlay { display:block; }
+  body.sidebar-open { overflow:hidden; }
+  .top { flex-wrap:wrap; }
+}
 @media print { .top, .menu-lateral, .btn-acoes { display:none !important; } .layout { display:block; } body { background:#fff; } }
 </style>
 """
@@ -483,9 +508,13 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
     cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>"
     cab += esc(str(cliente)) + "</div>"
     cab += links
+    cab += ("<button type='button' class='sidebar-toggle' aria-label='Abrir menu lateral'"
+            " aria-expanded='false' onclick='alternarMenuLateral()'>☰ Menu</button>")
+    cab += ("<div class='sidebar-overlay' onclick='alternarMenuLateral(false)'"
+            " aria-hidden='true'></div>")
     cab += "<div class='wrap'><div class='layout'>" + menu
     cab += "<div class='conteudo'>" + corpo
-    cab += "</div></div></div>" + SCRIPT + "</body></html>"
+    cab += "</div></div></div>" + SCRIPT + "<script>\nfunction alternarMenuLateral(forcar) {\n  var aberto = typeof forcar === 'boolean'\n    ? forcar : !document.body.classList.contains('sidebar-open');\n  document.body.classList.toggle('sidebar-open', aberto);\n  var botao = document.querySelector('.sidebar-toggle');\n  if (botao) botao.setAttribute('aria-expanded', String(aberto));\n}\ndocument.addEventListener('keydown', function(e) {\n  if (e.key === 'Escape' && document.body.classList.contains('sidebar-open'))\n    alternarMenuLateral(false);\n});\n</script>" + "</body></html>"
     return cab
 
 
