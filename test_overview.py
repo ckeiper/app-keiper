@@ -175,7 +175,9 @@ class OverviewTests(unittest.TestCase):
             if 'ORDER BY conexao_id,pedido_id' in sql:
                 self.assertIn('LIMIT',sql)
             return []
-        load_overview([shop(),shop(2)],{},lambda:nullcontext(conn),query)
+        load_overview([shop(),shop(2)],
+                      {'periodo':'personalizado','inicio':'2026-10-10','fim':'2026-10-11'},
+                      lambda:nullcontext(conn),query)
         self.assertEqual(len(calls),4)
         self.assertIn('LEFT(criado_em, 10) BETWEEN', calls[0][0])
         self.assertIn('vendas_verificado_em IS NOT NULL', calls[0][0])
