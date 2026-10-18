@@ -120,12 +120,12 @@ def sync_orders(cid, token, user_id, banco, query, execute, api_get, log):
 
 
 def select_sync_days(today, now, coverage, older_limit=4):
-    """Keep seven newest days fresh and verify a rolling 58-day window; retain older data."""
+    """Keep seven newest days fresh and backfill only the last 30 calendar days; retain older data."""
     recent = [today - datetime.timedelta(days=i) for i in range(7)]
-    older = [today - datetime.timedelta(days=i) for i in range(7, 58)]
+    older = [today - datetime.timedelta(days=i) for i in range(7, 30)]
     eligible = [d for d in older if now - coverage.get(d.isoformat(), 0) >= 86400]
     eligible.sort(key=lambda d: (
-        0 if d.isoformat() not in coverage and (today - d).days < 60 else 1,
+        0 if d.isoformat() not in coverage and (today - d).days < 30 else 1,
         0 if (today - d).days < 60 else 1,
         coverage.get(d.isoformat(), 0), -d.toordinal()))
     return recent + eligible[:older_limit]
