@@ -1582,6 +1582,7 @@ def registrar_execucao_inicio(cid):
         # Claim one active execution per store across Gunicorn workers.
         # A two-hour lease allows recovery after an abrupt worker shutdown.
         agora = int(time.time())
+        executar(conn, "SELECT pg_advisory_xact_lock(72591, %s)", (cid,))
         cur = executar(conn, """INSERT INTO sincronizacao_execucoes
                          (conexao_id, inicio_em, status)
                          SELECT %s, %s, 'executando'
