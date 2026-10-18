@@ -270,7 +270,8 @@ def overview_layout(shops, body, admin=False):
                  "height:8px;border-radius:50%;margin-right:8px;background:"
                  + color + "'></span>" + escape(str(shop['cliente'])) + "</a>")
     if admin:
-        menu += "<hr><a class='item' href='/usuarios'>Usuários</a>"
+        menu += "<hr><a class='item' href='/crm'>CRM · Leads</a>"
+        menu += "<a class='item' href='/usuarios'>Usuários</a>"
         menu += "<a class='item' href='/diagnostico'>Diagnóstico</a>"
     menu += "</nav>"
     controls = ("<button type='button' class='overview-menu-toggle' "
