@@ -212,6 +212,22 @@ STYLE = """<style>
 .overview-status{font-size:12px;color:#6b7280;display:block;margin-top:5px}
 .overview-actions{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0}
 @media(max-width:700px){.overview-kpis{grid-template-columns:1fr}.overview-hero{padding:18px}}
+/* Each account occupies its own row, including in the mobile drawer.
+   Override the generic horizontal nav styling without affecting other menus. */
+.overview-layout>.menu-lateral{
+  display:flex;flex-direction:column;align-items:stretch;
+  flex-wrap:nowrap;gap:3px;min-width:0;
+}
+.overview-layout>.menu-lateral a.item{
+  display:flex;align-items:center;flex:0 0 auto;width:100%;
+  box-sizing:border-box;min-width:0;white-space:normal;
+  overflow-wrap:anywhere;text-decoration:none;
+}
+.overview-layout>.menu-lateral .voltar{
+  display:block;flex:0 0 auto;width:100%;box-sizing:border-box;
+  white-space:normal;
+}
+.overview-layout>.menu-lateral hr{width:100%;flex:0 0 auto;}
 .overview-menu-toggle,.overview-menu-overlay{display:none}
 @media(max-width:820px){
   .overview-layout{display:block}
