@@ -1,24 +1,30 @@
 import contextlib
+import time
 import unittest
 from unittest.mock import Mock
+
+import psycopg2
 from test_listing_details import main_function
 
 
 class DurableQueueTests(unittest.TestCase):
     def setUp(self):
-        self.ns = main_function.__globals__
-        self.old_banco = self.ns["banco"]
-        self.old_consultar = self.ns["consultar"]
-        self.old_executar = self.ns["executar"]
+        # Load production functions into an isolated namespace without importing
+        # main.py (which starts the scheduler and connects to the database).
         self.conn = Mock()
-        self.ns["banco"] = lambda: contextlib.nullcontext(self.conn)
-        self.ns["consultar"] = Mock()
-        self.ns["executar"] = Mock()
-
-    def tearDown(self):
-        self.ns["banco"] = self.old_banco
-        self.ns["consultar"] = self.old_consultar
-        self.ns["executar"] = self.old_executar
+        self.ns = {
+            "banco": lambda: contextlib.nullcontext(self.conn),
+            "consultar": Mock(),
+            "executar": Mock(),
+            "time": time,
+            "psycopg2": psycopg2,
+        }
+        for name in (
+            "reservar_tarefa_persistente",
+            "recuperar_tarefas_persistentes",
+            "reagendar_tarefa_persistente",
+        ):
+            main_function(name, self.ns)
 
     def test_claim_skips_empty_queue(self):
         self.ns["consultar"].return_value = []
