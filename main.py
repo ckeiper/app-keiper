@@ -4232,10 +4232,14 @@ def reservar_tarefa_persistente(agora=None, duracao_lease=7200):
         if not rows:
             return None
         tarefa = rows[0]
-        executar(conn, """UPDATE sincronizacao_tarefas
-            SET status='executando', tentativas=tentativas+1,
-                iniciada_em=%s, lease_ate=%s
-            WHERE id=%s""", (agora, agora+duracao_lease, tarefa["id"]))
+        try:
+            executar(conn, """UPDATE sincronizacao_tarefas
+                SET status='executando', tentativas=tentativas+1,
+                    iniciada_em=%s, lease_ate=%s
+                WHERE id=%s""", (agora, agora+duracao_lease, tarefa["id"]))
+        except psycopg2.errors.UniqueViolation:
+            conn.rollback()
+            return None  # Another worker claimed a task for this store.
         return tarefa
 
 
