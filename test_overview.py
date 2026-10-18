@@ -114,7 +114,7 @@ class OverviewTests(unittest.TestCase):
         self.assertEqual(data['included'],0)
         self.assertEqual([a['kind'] for a in data['alerts']],['sync'])
 
-    def test_historical_days_allow_rotation_but_enforce_48_hour_limit(self):
+    def test_historical_days_allow_rotation_but_enforce_seven_day_limit(self):
         bounds=(date(2026,10,3),date(2026,10,4),date(2026,10,1),date(2026,10,2))
         for age,expected in [(4*3600,1),(HISTORICAL_STALE_SECONDS,1),(HISTORICAL_STALE_SECONDS+1,0)]:
             cov=[dict(conexao_id=1,dia=f'2026-10-{i:02}',atualizado_em=NOW-age) for i in range(1,5)]
