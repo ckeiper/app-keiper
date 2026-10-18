@@ -4112,8 +4112,21 @@ def executar_atualizacao(cid):
     # puxar_ads already refreshes daily metrics. No second/undefined collector.
     # Disabled visit collection is not reported as a successful refresh.
     stages.append(("historico", lambda: (gravar_historico(cid), True)[1]))
-    ok = run_stages(cid, stages, registrar_erro, resolver_erro, time.time)
-    resolver_erro(cid, "atualizacao", started)
+    falhas = []
+    def coletar_etapa(nome, coleta):
+        resultado = coleta()
+        if resultado is not True:
+            falhas.append(nome)
+        return resultado
+    def registrar_falha(conexao_id, categoria, mensagem):
+        falhas.append(categoria)
+        registrar_erro(conexao_id, categoria, mensagem)
+    etapas = [(nome, lambda nome=nome, coleta=coleta: coletar_etapa(nome, coleta)) for nome, coleta in stages]
+    ok = run_stages(cid, etapas, registrar_falha, resolver_erro, time.time)
+    if ok:
+        resolver_erro(cid, "atualizacao", started)
+    else:
+        registrar_erro(cid, "atualizacao", "Etapas com falha: " + ", ".join(dict.fromkeys(falhas)))
     return ok
 
 
