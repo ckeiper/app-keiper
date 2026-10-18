@@ -81,7 +81,9 @@ class RecoveryIntegrationTests(unittest.TestCase):
             sales.assert_called_once()
         with m.banco() as conn:
             errors={r['categoria']:r for r in m.consultar(conn,'SELECT * FROM erros WHERE conexao_id=%s',(self.cid,))}
-        self.assertIsNotNone(errors['atualizacao']['resolvido_em'])
+        self.assertIsNone(errors['atualizacao']['resolvido_em'])
+        self.assertIn('anuncios', errors['atualizacao']['mensagem'])
+        self.assertIn('ads', errors['atualizacao']['mensagem'])
         self.assertIsNone(errors['ads']['resolvido_em'])
         self.assertIsNone(errors['anuncios']['resolvido_em'])
         self.assertEqual(errors['anuncios']['mensagem'],'Falha na coleta: IndexError')
