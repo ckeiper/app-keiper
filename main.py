@@ -2855,6 +2855,10 @@ def ranking_anuncios(cid):
              if kpis["average_value_per_listing_order"] is not None else "—")
     concentracao = ("%.1f%%" % kpis["top_listing_share_pct"]
                     if kpis["top_listing_share_pct"] is not None else "—")
+    corpo += ("<p class='muted'>Evolução de anúncios com base de vendas anterior: "
+              + str(kpis["rising"]) + " em alta, "
+              + str(kpis["falling"]) + " em queda e "
+              + str(kpis["newly_selling"]) + " com novas vendas.</p>")
     corpo += ("<div class='grid' style='margin-bottom:18px'>"
               "<div class='stat'><div class='num'>" + valor
               + "</div><div class='lab'>Valor bruto dos itens</div></div>"
