@@ -4220,11 +4220,15 @@ def reservar_tarefa_persistente(agora=None, duracao_lease=7200):
     """Atomically claim a ready job across workers using SKIP LOCKED."""
     agora = int(time.time()) if agora is None else int(agora)
     with banco() as conn:
-        rows = consultar(conn, """SELECT id, conexao_id
-            FROM sincronizacao_tarefas
-            WHERE status='pendente' AND disponivel_em <= %s
-            ORDER BY disponivel_em,id
-            FOR UPDATE SKIP LOCKED LIMIT 1""", (agora,))
+        rows = consultar(conn, """SELECT t.id, t.conexao_id
+            FROM sincronizacao_tarefas t
+            WHERE t.status='pendente' AND t.disponivel_em <= %s
+              AND NOT EXISTS (
+                SELECT 1 FROM sincronizacao_tarefas a
+                WHERE a.conexao_id=t.conexao_id AND a.status='executando'
+              )
+            ORDER BY t.disponivel_em,t.id
+            FOR UPDATE OF t SKIP LOCKED LIMIT 1""", (agora,))
         if not rows:
             return None
         tarefa = rows[0]
