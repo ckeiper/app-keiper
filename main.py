@@ -2873,7 +2873,8 @@ def ranking_anuncios(cid):
               + "</div><div class='lab'>Participação do anúncio líder</div></div>"
               "</div>")
     opcoes = {"valor": "Maior valor vendido", "pedidos": "Mais pedidos",
-              "alta": "Maior crescimento", "queda": "Maior queda"}
+              "alta": "Maior crescimento", "queda": "Maior queda",
+              "participacao": "Maior participação"}
     ordem = request.args.get("ordem", "valor")
     if ordem not in opcoes:
         ordem = "valor"
@@ -2886,10 +2887,12 @@ def ranking_anuncios(cid):
         registros.sort(key=lambda x: (
             x[1]["growth_pct"] is None, -(x[1]["growth_pct"] or 0),
             str(x[0]["item_id"])))
-    else:
+    elif ordem == "queda":
         registros.sort(key=lambda x: (
             x[1]["growth_pct"] is None, x[1]["growth_pct"] or 0,
             str(x[0]["item_id"])))
+    else:
+        registros.sort(key=lambda x: (-x[1]["value"], str(x[0]["item_id"])))
     corpo += "<div class='card'><p>Ordenar por: "
     for chave, titulo in opcoes.items():
         corpo += ("<a class='filtro' href='/ranking-anuncios/" + str(cid)
@@ -2900,7 +2903,7 @@ def ranking_anuncios(cid):
               "anúncios com base zero não recebem porcentagem artificial."
               "</p><div style='overflow-x:auto'><table><thead><tr>"
               "<th>Anúncio</th><th>Pedidos</th><th>Unidades</th>"
-              "<th>Valor dos itens</th><th>Ticket médio</th>"
+              "<th>Valor dos itens</th><th>Participação</th><th>Ticket médio</th>"
               "<th>Pedidos anteriores</th><th>Evolução</th>"
               "</tr></thead><tbody>")
     for anuncio, m in registros[:100]:
@@ -2909,14 +2912,26 @@ def ranking_anuncios(cid):
                         else "Sem base percentual")
         else:
             evolucao = "%+.1f%%" % m["growth_pct"]
+        share = ("%.1f%%" % (m["value"] * 100 / kpis["value"])
+                 if kpis["value"] else "—")
+        if m["orders"] and not m["previous_orders"]:
+            destaque = "<span class='alerta ok'>Novas vendas</span>"
+        elif m["growth_pct"] is not None and m["growth_pct"] < 0:
+            destaque = "<span class='alerta atencao'>Em queda</span>"
+        elif m["growth_pct"] is not None and m["growth_pct"] > 0:
+            destaque = "<span class='alerta ok'>Em alta</span>"
+        elif m["value"] == max((r["value"] for _, r in registros), default=0) and m["value"] > 0:
+            destaque = "<span class='badge'>Líder em vendas</span>"
+        else:
+            destaque = ""
         ticket = "R$ %.2f" % m["ticket"] if m["ticket"] is not None else "—"
         corpo += ("<tr><td><b>" + esc(str(anuncio["titulo"] or "Sem título"))
                   + "</b><br><small>" + esc(str(anuncio["item_id"]))
-                  + "</small><br><a href='/diagnostico/" + str(cid) + "/"
+                  + "</small> " + destaque + "<br><a href='/diagnostico/" + str(cid) + "/"
                   + esc(str(anuncio["item_id"])) + "'>Ver diagnóstico</a></td>"
                   "<td>" + str(m["orders"]) + "</td><td>" + str(m["units"])
                   + "</td><td>R$ %.2f" % m["value"]
-                  + "</td><td>" + ticket + "</td><td>"
+                  + "</td><td>" + share + "</td><td>" + ticket + "</td><td>"
                   + str(m["previous_orders"]) + "</td><td>"
                   + esc(evolucao) + "</td></tr>")
     corpo += "</tbody></table></div></div>"
