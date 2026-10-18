@@ -4117,6 +4117,18 @@ def executar_atualizacao_bg(cid):
 
 
 def job_dados():
+    # Mark abandoned execution records even if the process did not restart.
+    # Do not let monitoring errors prevent normal sync scheduling.
+    try:
+        with banco() as conn:
+            agora = int(time.time())
+            executar(conn, """UPDATE sincronizacao_execucoes
+                SET status='interrompida', fim_em=%s,
+                    detalhe='Execucao sem conclusao por mais de 2 horas'
+                WHERE status='executando' AND inicio_em < %s""",
+                (agora, agora - 7200))
+    except Exception:
+        pass
     with banco() as conn:
         conexoes = consultar(conn, "SELECT id FROM conexoes "
                             "WHERE status='ativa' AND cliente <> %s",
