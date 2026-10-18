@@ -17,7 +17,7 @@ from listing_sales import listing_sales_summary
 from listing_trends import comparison
 from listing_ranking import ranking_metrics
 from listing_kpis import listing_kpis
-from listing_opportunities import listing_opportunities
+from listing_opportunities import listing_opportunities, opportunity_actions
 from visual_theme import VISUAL_CSS
 from page_performance import ranking_query_bounds
 from sales_sync import init_sales_schema, sync_orders
@@ -2886,7 +2886,11 @@ def ranking_anuncios(cid):
                       + esc(nomes.get(sinal["item_id"], sinal["item_id"]))
                       + "</a>: " + esc(sinal["detail"]) + " ("
                       + str(sinal["previous_orders"]) + " → "
-                      + str(sinal["orders"]) + " pedidos).</li>")
+                      + str(sinal["orders"]) + " pedidos)."
+                      + "<details><summary>O que verificar</summary><ul>"
+                      + "".join("<li>" + esc(passo) + "</li>"
+                                for passo in opportunity_actions(sinal["kind"]))
+                      + "</ul></details></li>")
         corpo += "</ul></div>"
     opcoes = {"valor": "Maior valor vendido", "pedidos": "Mais pedidos",
               "alta": "Maior crescimento", "queda": "Maior queda",
