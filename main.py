@@ -1618,7 +1618,7 @@ def processar_fila():
                 execucao_id = registrar_execucao_inicio(cid)
             except Exception:
                 pass  # Telemetry failure must not prevent order collection.
-            if execucao_id is None:
+            if execucao_id is None and 'registrar_execucao_inicio' in globals():
                 continue  # Another worker already owns this store.
             atualizacao_ok = executar_atualizacao(cid)
             if execucao_id is not None:
