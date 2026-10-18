@@ -26,6 +26,18 @@ class DurableQueueTests(unittest.TestCase):
         ):
             main_function(name, self.ns)
 
+    def test_duplicate_enqueue_returns_none(self):
+        main_function("criar_tarefa_persistente", self.ns)
+        self.ns["executar"].return_value.fetchone.return_value = None
+        self.assertIsNone(self.ns["criar_tarefa_persistente"](5, agora=100))
+        self.assertIn("ON CONFLICT DO NOTHING", self.ns["executar"].call_args.args[1])
+
+    def test_claim_excludes_running_store(self):
+        self.ns["consultar"].return_value = []
+        self.ns["reservar_tarefa_persistente"](agora=100)
+        query = self.ns["consultar"].call_args.args[1]
+        self.assertIn("a.conexao_id=t.conexao_id", query)
+
     def test_claim_skips_empty_queue(self):
         self.ns["consultar"].return_value = []
         result = self.ns["reservar_tarefa_persistente"](agora=100)
