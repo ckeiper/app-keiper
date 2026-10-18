@@ -13,7 +13,7 @@ from overview_read import bounded_query
 EXCEPTION_BATCH_SIZE = 500
 PERIOD_BATCH_SIZE = 1000
 STALE_SECONDS = 3 * 60 * 60
-HISTORICAL_STALE_SECONDS = 48 * 60 * 60
+HISTORICAL_STALE_SECONDS = 7 * 24 * 60 * 60
 
 
 def load_overview(shops, args, banco, query):
@@ -159,7 +159,7 @@ def build_overview(shops, rows, coverage, errors, bounds, now=None, limited=Fals
         if shop.get('status') != 'ativa':
             reasons.append('Conexão inativa')
         if last is None or stale_days:
-            reasons.append('Sincronização dos períodos desatualizada (3h recentes / 48h históricos)')
+            reasons.append('Sincronização dos períodos desatualizada (3h recentes / 7 dias históricos)')
         if any(e.get('quando') is None or e['quando'] >= (last or 0) for e in by_error[cid]):
             reasons.append('Erro de sincronização sem resolução confirmada')
         eligible = not reasons and current['revenue'] is not None and previous['revenue'] is not None
