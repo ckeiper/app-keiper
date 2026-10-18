@@ -16,6 +16,7 @@ from listing_health import diagnose_listing
 from listing_sales import listing_sales_summary
 from listing_trends import comparison
 from listing_ranking import ranking_metrics
+from listing_kpis import listing_kpis
 from visual_theme import VISUAL_CSS
 from page_performance import ranking_query_bounds
 from sales_sync import init_sales_schema, sync_orders
@@ -2848,6 +2849,25 @@ def ranking_anuncios(cid):
                   "</p></div>")
         return pagina_loja("Ranking de anúncios", cid, lojas[0]["cliente"],
                           "desempenho", corpo)
+    kpis = listing_kpis(resumo["rows"])
+    valor = "R$ %.2f" % kpis["value"]
+    medio = ("R$ %.2f" % kpis["average_value_per_listing_order"]
+             if kpis["average_value_per_listing_order"] is not None else "—")
+    concentracao = ("%.1f%%" % kpis["top_listing_share_pct"]
+                    if kpis["top_listing_share_pct"] is not None else "—")
+    corpo += ("<div class='grid' style='margin-bottom:18px'>"
+              "<div class='stat'><div class='num'>" + valor
+              + "</div><div class='lab'>Valor bruto dos itens</div></div>"
+              "<div class='stat'><div class='num'>" + str(kpis["units"])
+              + "</div><div class='lab'>Unidades vendidas</div></div>"
+              "<div class='stat'><div class='num'>" + str(kpis["selling_listings"])
+              + " / " + str(kpis["listed"])
+              + "</div><div class='lab'>Anúncios com vendas</div></div>"
+              "<div class='stat'><div class='num'>" + medio
+              + "</div><div class='lab'>Valor médio por pedido/anúncio</div></div>"
+              "<div class='stat'><div class='num'>" + concentracao
+              + "</div><div class='lab'>Participação do anúncio líder</div></div>"
+              "</div>")
     opcoes = {"valor": "Maior valor vendido", "pedidos": "Mais pedidos",
               "alta": "Maior crescimento", "queda": "Maior queda"}
     ordem = request.args.get("ordem", "valor")
