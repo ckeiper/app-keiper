@@ -1560,6 +1560,37 @@ LOCK_FILA = threading.Lock()
 WORKER_VIVO = False
 
 
+def processar_tarefa_persistente_uma():
+    """Process one durable job; never called by the legacy scheduler by default."""
+    tarefa = reservar_tarefa_persistente()
+    if tarefa is None:
+        return False
+    cid = tarefa["conexao_id"]
+    tarefa_id = tarefa["id"]
+    execucao_id = None
+    try:
+        execucao_id = registrar_execucao_inicio(cid)
+        if execucao_id is None:
+            # Another process is already synchronizing this store.
+            reagendar_tarefa_persistente(tarefa_id, "Loja ja em execucao")
+            return False
+        sucesso = executar_atualizacao(cid)
+        registrar_execucao_fim(execucao_id, "concluida" if sucesso else "falhou")
+        if sucesso:
+            finalizar_tarefa_persistente(tarefa_id, True)
+        else:
+            reagendar_tarefa_persistente(tarefa_id, "Atualizacao retornou False")
+        return bool(sucesso)
+    except Exception as exc:
+        if execucao_id is not None:
+            try:
+                registrar_execucao_fim(execucao_id, "falhou", type(exc).__name__)
+            except Exception:
+                pass
+        reagendar_tarefa_persistente(tarefa_id, type(exc).__name__)
+        return False
+
+
 def enfileirar_atualizacao(cid):
     global WORKER_VIVO
     with LOCK_FILA:
