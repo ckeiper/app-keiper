@@ -212,6 +212,33 @@ STYLE = """<style>
 .overview-status{font-size:12px;color:#6b7280;display:block;margin-top:5px}
 .overview-actions{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0}
 @media(max-width:700px){.overview-kpis{grid-template-columns:1fr}.overview-hero{padding:18px}}
+.overview-menu-toggle,.overview-menu-overlay{display:none}
+@media(max-width:820px){
+  .overview-layout{display:block}
+  .overview-layout>.menu-lateral{
+    display:block;position:fixed;top:0;bottom:0;left:0;z-index:1102;
+    width:min(280px,82vw)!important;max-height:100dvh;overflow-y:auto;
+    box-sizing:border-box;border-radius:0;transform:translateX(-105%);
+    transition:transform .2s ease
+  }
+  .overview-layout.overview-menu-open>.menu-lateral{transform:translateX(0)}
+  .overview-menu-toggle{display:inline-flex;align-items:center;gap:8px;
+    padding:10px 14px;margin:0 0 14px;border:0;border-radius:9px;
+    background:#3483fa;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+  .overview-layout.overview-menu-open>.overview-menu-overlay{
+    display:block;position:fixed;inset:0;z-index:1101;background:rgba(0,0,0,.52)
+  }
+  .overview-layout>.conteudo{min-width:0}
+  .overview-alert{padding:10px;margin:7px 0;font-size:13px}
+  .overview-table thead{display:none}
+  .overview-table,.overview-table tbody,.overview-table tr,.overview-table td{display:block;width:100%;box-sizing:border-box}
+  .overview-table tr{padding:12px;margin-bottom:12px;border:1px solid #e5eaf0;border-radius:12px;background:#fff}
+  .overview-table td{padding:6px 0;border:0;display:flex;justify-content:space-between;gap:12px;text-align:right}
+  .overview-table td:first-child{display:block;text-align:left;border-bottom:1px solid #edf0f4;padding-bottom:10px;margin-bottom:6px}
+  .overview-table td:not(:first-child):before{content:attr(data-label);color:#64748b;font-weight:600;text-align:left}
+  .overview-table td:last-child{display:block;text-align:left}
+  .overview-table td:last-child:before{display:block;margin-bottom:6px}
+}
 </style>"""
 
 
@@ -230,7 +257,27 @@ def overview_layout(shops, body, admin=False):
         menu += "<hr><a class='item' href='/usuarios'>Usuários</a>"
         menu += "<a class='item' href='/diagnostico'>Diagnóstico</a>"
     menu += "</nav>"
-    return "<div class='layout'>" + menu + "<div class='conteudo'>" + body + "</div></div>"
+    controls = ("<button type='button' class='overview-menu-toggle' "
+                "aria-expanded='false' aria-controls='overview-store-menu' "
+                "onclick='toggleOverviewMenu()'>☰ Lojas e menu</button>"
+                "<div class='overview-menu-overlay' onclick='toggleOverviewMenu(false)' "
+                "aria-hidden='true'></div>")
+    menu = menu.replace("<nav class='menu-lateral'", "<nav id='overview-store-menu' class='menu-lateral'")
+    script = """<script>
+function toggleOverviewMenu(force) {
+  var layout = document.querySelector('.overview-layout');
+  if (!layout) return;
+  var open = typeof force === 'boolean' ? force : !layout.classList.contains('overview-menu-open');
+  layout.classList.toggle('overview-menu-open', open);
+  var btn = layout.querySelector('.overview-menu-toggle');
+  if (btn) btn.setAttribute('aria-expanded', String(open));
+}
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') toggleOverviewMenu(false);
+});
+</script>"""
+    return ("<div class='layout overview-layout'>" + menu + "<div class='conteudo'>"
+            + controls + body + "</div></div>" + script)
 
 
 def render_overview(data, args, admin=False):
@@ -266,10 +313,10 @@ def render_overview(data, args, admin=False):
         value = lambda key: None if r['limited'] else cur[key]
         status = 'Incluída na consolidação' if r['eligible'] else 'Fora da consolidação: ' + '; '.join(r['reasons'])
         out += (f"<tr><td><b id='nome-{s['id']}'>" + escape(s['cliente']) + "</b><span class='overview-status'>"
-                + escape(status) + "</span></td><td>" + fmt(value('revenue'),True)
-                + "</td><td>" + fmt(value('orders'),False) + "</td><td>" + fmt(value('ticket'),True)
-                + "</td><td>" + (variation(cur['revenue'],r['previous']['revenue']) if r['eligible'] else 'Indisponível')
-                + f"</td><td><a class='link' href='/painel/{s['id']}'>Abrir painel</a> "
+                + escape(status) + "</span></td><td data-label='Faturamento'>" + fmt(value('revenue'),True)
+                + "</td><td data-label='Pedidos'>" + fmt(value('orders'),False) + "</td><td data-label='Ticket médio'>" + fmt(value('ticket'),True)
+                + "</td><td data-label='Variação'>" + (variation(cur['revenue'],r['previous']['revenue']) if r['eligible'] else 'Indisponível')
+                + f"</td><td data-label='Ações'><a class='link' href='/painel/{s['id']}'>Abrir painel</a> "
                 + f"<a class='link' href='#' onclick='editarNome({s['id']});return false'>Renomear</a></td></tr>")
     if not data['reports']:
         out += "<tr><td colspan='6'>Nenhuma loja disponível. Conecte uma loja para começar.</td></tr>"
@@ -280,7 +327,7 @@ def render_overview(data, args, admin=False):
             "Somente lojas elegíveis geram alertas de queda. Base anterior zero não gera queda percentual.</p>"
             "<p>Sincronização: conexão inativa, cobertura ausente, campos inválidos, pedidos sem data "
             "localizável, erro de coleta não superado ou dia da seleção com busca há mais "
-            "de 3 horas (últimos 7 dias) ou 48 horas (histórico). Atualizações fora da seleção "
+            "de 3 horas (últimos 7 dias) ou 7 dias (histórico). Atualizações fora da seleção "
             "não validam seus dados; erros exigem sucesso posterior em todos os dias selecionados. "
             "Alertas são ordenados por queda absoluta do faturamento quando conhecida; os demais "
             "não têm impacto estimado. Alertas da mesma loja não devem ser somados.</p>"
