@@ -562,8 +562,13 @@ def iniciar_banco():
             pass
         admin = consultar(conn, "SELECT id FROM usuarios WHERE username=%s", ("admin",))
         if not admin:
-            executar(conn, "INSERT INTO usuarios (username, senha_hash, nome, tipo, criado_em) VALUES (%s,%s,%s,%s,%s)",
-                     ("admin", generate_password_hash("keiper2026"), "Administrador", "admin", int(time.time())))
+            # Existing accounts are untouched. New installations require a secret.
+            bootstrap_password = os.getenv("KEIPER_ADMIN_INITIAL_PASSWORD", "")
+            if len(bootstrap_password) >= 16:
+                executar(conn, "INSERT INTO usuarios (username, senha_hash, nome, tipo, criado_em) VALUES (%s,%s,%s,%s,%s)",
+                         ("admin", generate_password_hash(bootstrap_password), "Administrador", "admin", int(time.time())))
+            else:
+                app.logger.error("Admin bootstrap skipped: configure KEIPER_ADMIN_INITIAL_PASSWORD (16+ chars).")
         executar(conn, """CREATE TABLE IF NOT EXISTS reset_tokens (
             token_hash TEXT PRIMARY KEY,
             usuario_id INTEGER,
