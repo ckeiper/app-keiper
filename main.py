@@ -4171,6 +4171,28 @@ with banco() as conn:
         WHERE status='executando' AND inicio_em < %s""",
         (int(time.time()), int(time.time()) - 7200))
 
+# Future durable queue: schema only. Current worker remains unchanged.
+with banco() as conn:
+    executar(conn, """CREATE TABLE IF NOT EXISTS sincronizacao_tarefas (
+        id BIGSERIAL PRIMARY KEY,
+        conexao_id INTEGER NOT NULL REFERENCES conexoes(id),
+        status TEXT NOT NULL DEFAULT 'pendente'
+            CHECK (status IN ('pendente','executando','concluida','falhou')),
+        tentativas INTEGER NOT NULL DEFAULT 0,
+        disponivel_em BIGINT NOT NULL,
+        criada_em BIGINT NOT NULL,
+        iniciada_em BIGINT,
+        concluida_em BIGINT,
+        lease_ate BIGINT,
+        ultimo_erro TEXT
+    )""")
+    executar(conn, """CREATE INDEX IF NOT EXISTS idx_sync_tarefas_pendentes
+        ON sincronizacao_tarefas (disponivel_em, id)
+        WHERE status='pendente'""")
+    executar(conn, """CREATE INDEX IF NOT EXISTS idx_sync_tarefas_leases
+        ON sincronizacao_tarefas (lease_ate)
+        WHERE status='executando'""")
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(job_refresh, "interval", minutes=30)
 scheduler.add_job(job_dados, "interval", minutes=60,
