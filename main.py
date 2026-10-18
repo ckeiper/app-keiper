@@ -1608,10 +1608,10 @@ def processar_fila():
                 execucao_id = registrar_execucao_inicio(cid)
             except Exception:
                 pass  # Telemetry failure must not prevent order collection.
-            executar_atualizacao(cid)
+            atualizacao_ok = executar_atualizacao(cid)
             if execucao_id is not None:
                 try:
-                    registrar_execucao_fim(execucao_id, "concluida")
+                    registrar_execucao_fim(execucao_id, "concluida" if atualizacao_ok else "falhou", None if atualizacao_ok else "Atualizacao retornou False")
                 except Exception:
                     pass
         except Exception as exc:
