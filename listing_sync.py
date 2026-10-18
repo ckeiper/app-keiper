@@ -15,7 +15,7 @@ def pages(token, path, params, request_get):
             raise ValueError(error)
         if (not isinstance(data, dict) or not isinstance(data.get('results'), list)
                 or any(not isinstance(r, dict) for r in data['results'])):
-            raise ValueError('resposta paginada inválida')
+            raise ValueError('resposta paginada inválida em %s: formato=%s, results=%s' % (path, type(data).__name__, type(data.get('results')).__name__ if isinstance(data, dict) else 'ausente'))
         records = data['results']
         signature = json.dumps(records, sort_keys=True)
         if records and signature in seen:
