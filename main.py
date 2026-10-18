@@ -4245,6 +4245,39 @@ def finalizar_tarefa_persistente(tarefa_id, sucesso, erro=None, agora=None):
              (erro or "")[:300], tarefa_id))
 
 
+def recuperar_tarefas_persistentes(agora=None, max_tentativas=3):
+    """Requeue expired leases with exponential backoff or mark exhausted jobs failed."""
+    agora = int(time.time()) if agora is None else int(agora)
+    with banco() as conn:
+        cur = executar(conn, """UPDATE sincronizacao_tarefas
+            SET status=CASE WHEN tentativas >= %s THEN 'falhou' ELSE 'pendente' END,
+                disponivel_em=CASE WHEN tentativas >= %s THEN disponivel_em
+                    ELSE %s + LEAST(3600, 60 * POWER(2, LEAST(tentativas, 6))::INTEGER) END,
+                lease_ate=NULL,
+                concluida_em=CASE WHEN tentativas >= %s THEN %s ELSE NULL END,
+                ultimo_erro='Lease expirado; worker interrompido'
+            WHERE status='executando' AND lease_ate < %s""",
+            (max_tentativas, max_tentativas, agora, max_tentativas, agora, agora))
+        return cur.rowcount
+
+
+def reagendar_tarefa_persistente(tarefa_id, erro, agora=None, max_tentativas=3):
+    """Retry failed work after backoff, with a hard retry cap."""
+    agora = int(time.time()) if agora is None else int(agora)
+    with banco() as conn:
+        cur = executar(conn, """UPDATE sincronizacao_tarefas
+            SET status=CASE WHEN tentativas >= %s THEN 'falhou' ELSE 'pendente' END,
+                disponivel_em=CASE WHEN tentativas >= %s THEN disponivel_em
+                    ELSE %s + LEAST(3600, 60 * POWER(2, LEAST(tentativas, 6))::INTEGER) END,
+                lease_ate=NULL,
+                concluida_em=CASE WHEN tentativas >= %s THEN %s ELSE NULL END,
+                ultimo_erro=%s
+            WHERE id=%s AND status='executando'""",
+            (max_tentativas, max_tentativas, agora, max_tentativas,
+             agora, str(erro)[:300], tarefa_id))
+        return cur.rowcount
+
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(job_refresh, "interval", minutes=30)
 scheduler.add_job(job_dados, "interval", minutes=60,
