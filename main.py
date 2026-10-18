@@ -4206,6 +4206,45 @@ with banco() as conn:
         ON sincronizacao_tarefas (lease_ate)
         WHERE status='executando'""")
 
+def criar_tarefa_persistente(cid, agora=None):
+    """Enqueue one pending job; duplicate pending jobs are harmless at this stage."""
+    agora = int(time.time()) if agora is None else int(agora)
+    with banco() as conn:
+        cur = executar(conn, """INSERT INTO sincronizacao_tarefas
+            (conexao_id, disponivel_em, criada_em)
+            VALUES (%s,%s,%s) RETURNING id""", (cid, agora, agora))
+        return cur.fetchone()[0]
+
+
+def reservar_tarefa_persistente(agora=None, duracao_lease=7200):
+    """Atomically claim a ready job across workers using SKIP LOCKED."""
+    agora = int(time.time()) if agora is None else int(agora)
+    with banco() as conn:
+        rows = consultar(conn, """SELECT id, conexao_id
+            FROM sincronizacao_tarefas
+            WHERE status='pendente' AND disponivel_em <= %s
+            ORDER BY disponivel_em,id
+            FOR UPDATE SKIP LOCKED LIMIT 1""", (agora,))
+        if not rows:
+            return None
+        tarefa = rows[0]
+        executar(conn, """UPDATE sincronizacao_tarefas
+            SET status='executando', tentativas=tentativas+1,
+                iniciada_em=%s, lease_ate=%s
+            WHERE id=%s""", (agora, agora+duracao_lease, tarefa["id"]))
+        return tarefa
+
+
+def finalizar_tarefa_persistente(tarefa_id, sucesso, erro=None, agora=None):
+    agora = int(time.time()) if agora is None else int(agora)
+    with banco() as conn:
+        executar(conn, """UPDATE sincronizacao_tarefas
+            SET status=%s, concluida_em=%s, lease_ate=NULL,
+                ultimo_erro=%s WHERE id=%s AND status='executando'""",
+            ("concluida" if sucesso else "falhou", agora,
+             (erro or "")[:300], tarefa_id))
+
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(job_refresh, "interval", minutes=30)
 scheduler.add_job(job_dados, "interval", minutes=60,
