@@ -129,3 +129,34 @@ def collect(limit=10, offset=0):
                 conn.rollback()
                 results["falhas"] += 1
         return results
+
+
+def progress():
+    """Read-only coverage snapshot for the Copas active listings."""
+    with psycopg2.connect(os.environ["DATABASE_URL"], connect_timeout=10) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT COUNT(*) FROM anuncios
+                WHERE conexao_id=%s AND status='active' AND item_id ~ '^MLB[0-9]+$'
+            """, (CONNECTION_ID,))
+            total = cur.fetchone()[0]
+            cur.execute("""
+                SELECT COUNT(DISTINCT v.item_id), COUNT(*), COALESCE(SUM(v.visitas),0),
+                       MIN(v.dia), MAX(v.dia)
+                FROM item_visits_daily v
+                JOIN anuncios a ON a.conexao_id=v.conexao_id AND a.item_id=v.item_id
+                WHERE v.conexao_id=%s AND a.status='active'
+                  AND v.dia >= (CURRENT_DATE - INTERVAL '7 days')
+                  AND v.dia < CURRENT_DATE
+            """, (CONNECTION_ID,))
+            covered, rows, visits, first, last = cur.fetchone()
+    return {
+        "loja": "Copas Ind", "anuncios_ativos": total,
+        "anuncios_com_visitas": covered,
+        "anuncios_sem_registros": max(0, total-covered),
+        "registros_diarios": rows, "visitas_registradas": visits,
+        "primeiro_dia": first.isoformat() if first else None,
+        "ultimo_dia": last.isoformat() if last else None,
+        "cobertura_completa": covered == total and total > 0,
+        "aviso": "Ausencia de registros nao comprova falha: a API pode omitir dias sem visitas."
+    }
