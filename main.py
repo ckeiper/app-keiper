@@ -4316,7 +4316,7 @@ def recuperar_tarefas_persistentes(agora=None, max_tentativas=3):
     agora = int(time.time()) if agora is None else int(agora)
     with banco() as conn:
         cur = executar(conn, """UPDATE sincronizacao_tarefas
-            SET status=CASE WHEN tentativas >= %s THEN 'falhou' ELSE 'pendente' END,
+            SET status=CASE WHEN tentativas >= %s OR EXISTS (SELECT 1 FROM sincronizacao_tarefas outra WHERE outra.conexao_id=sincronizacao_tarefas.conexao_id AND outra.status='pendente' AND outra.id<>sincronizacao_tarefas.id) THEN 'falhou' ELSE 'pendente' END,
                 disponivel_em=CASE WHEN tentativas >= %s THEN disponivel_em
                     ELSE %s + LEAST(3600, 60 * POWER(2, LEAST(tentativas, 6))::INTEGER) END,
                 lease_ate=NULL,
@@ -4332,7 +4332,7 @@ def reagendar_tarefa_persistente(tarefa_id, erro, agora=None, max_tentativas=3):
     agora = int(time.time()) if agora is None else int(agora)
     with banco() as conn:
         cur = executar(conn, """UPDATE sincronizacao_tarefas
-            SET status=CASE WHEN tentativas >= %s THEN 'falhou' ELSE 'pendente' END,
+            SET status=CASE WHEN tentativas >= %s OR EXISTS (SELECT 1 FROM sincronizacao_tarefas outra WHERE outra.conexao_id=sincronizacao_tarefas.conexao_id AND outra.status='pendente' AND outra.id<>sincronizacao_tarefas.id) THEN 'falhou' ELSE 'pendente' END,
                 disponivel_em=CASE WHEN tentativas >= %s THEN disponivel_em
                     ELSE %s + LEAST(3600, 60 * POWER(2, LEAST(tentativas, 6))::INTEGER) END,
                 lease_ate=NULL,
