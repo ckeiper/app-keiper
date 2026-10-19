@@ -942,6 +942,18 @@ def diagnostico_visitas_copas():
     return jsonify({"loja": "Copas Ind", "item_id": "MLB5325240286", **resultado})
 
 
+@app.route("/admin/progresso-visitas-copas", methods=["GET"])
+@admin_required
+def progresso_visitas_copas():
+    """Read-only administrative coverage report; never starts a collection."""
+    from copas_visits_store import progress
+    try:
+        return jsonify(progress())
+    except Exception:
+        app.logger.exception("copas_visits_progress_failed")
+        return jsonify({"erro": "Falha ao consultar cobertura de visitas"}), 503
+
+
 @app.route("/admin/coleta-visitas-copas", methods=["GET", "POST"])
 @admin_required
 def coleta_visitas_copas():
