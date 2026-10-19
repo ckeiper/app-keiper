@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from full_monitor import full_metadata, observe, stock_response, sync_full, METADATA_MAX_AGE
-from full_view import daily_comparison, render_full
+from full_view import daily_comparison, render_full, chart
 from sales_metrics import SAO_PAULO
 
 NOW = 100000
@@ -130,6 +130,21 @@ class FullTests(unittest.TestCase):
         self.assertIn('nem preenchemos o intervalo',view)
         self.assertIn('viewBox=',view)
         self.assertNotIn('<script>',view)
+
+    def test_full_line_breaks_at_unknown_and_mixed_days_without_turning_them_into_zero(self):
+        import xml.etree.ElementTree as ET
+        states = ['available','available','empty','unknown','available','mixed','empty']
+        days = [dict(day=f'2026-01-{i+1:02}',state=state,observations=1,units=3)
+                for i,state in enumerate(states)]
+        root = ET.fromstring(chart(days))
+        path = next(e for e in root.iter() if e.attrib.get('data-series') == 'full-availability')
+        # Three distinct runs, not a line crossing the two missing states.
+        self.assertEqual(path.attrib['d'].count('M'),3)
+        self.assertEqual(path.attrib['d'].count('L'),2)
+        self.assertEqual(path.attrib['d'].count(',195'),2)
+        self.assertEqual(path.attrib['d'].count(',55'),3)
+        self.assertIn('Com estoque',chart(days))
+        self.assertIn('Sem estoque',chart(days))
 
 
 if __name__ == '__main__':

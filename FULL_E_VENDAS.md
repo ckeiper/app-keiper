@@ -6,12 +6,15 @@ Abra **Full e vendas** no menu da loja ou no link do anúncio em **Anúncios**.
 Selecione loja, anúncio e período (mesmos presets de Vendas; personalizado até
 180 dias). O relatório usa somente dados já coletados e não chama a API ao abrir.
 As barras mostram unidades pagas e verificadas do anúncio, de qualquer logística.
-Os pontos representam o estoque Full observado nas consultas de cada dia.
+Uma linha sobre as barras representa a disponibilidade Full observada, com eixo
+categórico à direita: com estoque em cima e sem estoque embaixo. Vendas usam o
+eixo de unidades à esquerda; as duas escalas são independentes.
 
 Verde significa quantidade positiva em todas as consultas desse dia; laranja,
-zero em todas; roxo, consultas conhecidas divergentes; cinza, nenhuma consulta
-ou ao menos uma consulta desconhecida. Esses pontos não afirmam disponibilidade
-durante o dia inteiro. Não há interpolação, preenchimento de lacunas, cálculo
+zero em todas. Consultas divergentes ou desconhecidas têm um marcador ? abaixo
+do gráfico e interrompem a linha. A linha liga apenas dias adjacentes com estado
+conhecido; não afirma disponibilidade durante o dia inteiro nem o instante das
+transições. Não há preenchimento de lacunas, cálculo
 de horas com estoque nem atribuição das vendas ao Full. O gráfico não estabelece
 causalidade. A tabela detalha cada consulta, horário de Brasília e inventários.
 

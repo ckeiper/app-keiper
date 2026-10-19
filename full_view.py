@@ -49,17 +49,21 @@ def daily_comparison(item_id, start, end, observations, orders, items, coverage,
 
 
 def chart(days):
-    width, step, left, base = max(760, len(days) * 25 + 80), 25, 55, 205
+    width, left, base = max(850, len(days) * 25 + 200), 55, 205
     maximum = max([d['units'] or 0 for d in days] + [1])
-    step = (width - 80) / max(1, len(days))
+    right = width - 130
+    step = (right - left) / max(1, len(days))
     out = ("<div style='overflow-x:auto'><svg xmlns='http://www.w3.org/2000/svg' "
            "role='img' aria-label='Unidades vendidas e observações de estoque Full por dia' "
            f"viewBox='0 0 {width} 315' style='min-width:{width}px;width:100%'>"
-           "<title>Vendas do anúncio e estoque Full observado, sem interpolação</title>"
+           "<title>Barras de vendas e linha de disponibilidade Full observada, com lacunas</title>"
            "<text x='8' y='18' font-size='13'>Unidades vendidas</text>"
            f"<text x='8' y='40' font-size='12'>Máx. {maximum}</text>"
-           f"<path d='M{left} 45 V{base} H{width-15}' fill='none' stroke='#94a3b8'/>"
-           "<text x='8' y='267' font-size='12'>Full observado</text>")
+           f"<path d='M{left} 45 V{base} H{right} V45' fill='none' stroke='#94a3b8'/>"
+           f"<text x='{right+10}' y='18' font-size='12'>Full observado</text>"
+           f"<text x='{right+10}' y='59' font-size='12'>Com estoque</text>"
+           f"<text x='{right+10}' y='199' font-size='12'>Sem estoque</text>")
+    line, markers, connected = [], [], False
     for i, d in enumerate(days):
         x = left + step * (i + .5)
         label = f"{d['day']}: " + (str(d['units']) + ' unidades' if d['units'] is not None else 'vendas indisponíveis')
@@ -69,10 +73,18 @@ def chart(days):
             out += f"<rect x='{x-step*.3:.2f}' y='{base-height:.2f}' width='{step*.6:.2f}' height='{height:.2f}' fill='#2563eb'><title>{escape(label)}</title></rect>"
         else:
             out += f"<text x='{x:.2f}' y='195' text-anchor='middle' fill='#64748b'>—<title>{escape(label)}</title></text>"
-        out += f"<circle cx='{x:.2f}' cy='243' r='5' fill='{COLORS[d['state']]}'><title>{escape(label)}</title></circle>"
+        if d['state'] in ('available','empty'):
+            y = 55 if d['state'] == 'available' else 195
+            line.append(('L' if connected else 'M') + f'{x:.2f},{y}')
+            connected = True
+            markers.append(f"<circle cx='{x:.2f}' cy='{y}' r='5' fill='{COLORS[d['state']]}' stroke='white'><title>{escape(label)}</title></circle>")
+        else:
+            connected = False
+            markers.append(f"<text x='{x:.2f}' y='227' text-anchor='middle' fill='{COLORS[d['state']]}' font-size='15'>?<title>{escape(label)}</title></text>")
         if len(days) <= 15 or i % max(1, len(days)//12) == 0:
-            out += f"<text x='{x:.2f}' y='290' text-anchor='middle' font-size='11'>{d['day'][8:]}/{d['day'][5:7]}</text>"
-    return out + '</svg></div>'
+            out += f"<text x='{x:.2f}' y='250' text-anchor='middle' font-size='11'>{d['day'][8:]}/{d['day'][5:7]}</text>"
+    out += "<path data-series='full-availability' d='" + ' '.join(line) + "' fill='none' stroke='#15803d' stroke-width='3'/>"
+    return out + ''.join(markers) + '</svg></div>'
 
 
 def render_full(cid, args, listing, observations, orders, items, coverage, first, legacy=False):
@@ -94,10 +106,11 @@ def render_full(cid, args, listing, observations, orders, items, coverage, first
         out += '<p>Ainda não há coletas Full. O histórico começará na próxima sincronização desta loja.</p>'
     out += ("<p>O gráfico compara vendas do anúncio com o estoque Full observado nas consultas de cada dia. "
             "Logística Full e estoque disponível são informações distintas. Não atribuímos as vendas ao Full "
-            "nem preenchemos o intervalo entre consultas. Dias sem consulta ou com falhas são desconhecidos; "
-            "um ponto verde não significa estoque durante o dia inteiro.</p></div>")
+            "nem preenchemos o intervalo entre consultas. A linha liga os estados diários observados e usa "
+            "o eixo à direita; não informa o instante de uma mudança nem garante estoque durante o dia inteiro. "
+            "Dias sem informação confiável interrompem a linha.</p></div>")
     out += chart(days)
-    out += "<div class='card'><p>🔵 Unidades vendidas · 🟢 Com estoque Full · 🟠 Sem estoque Full · 🟣 Consultas divergentes · ⚪ Desconhecido</p>"
+    out += "<div class='card'><p>Barras azuis: unidades vendidas (eixo esquerdo). Linha verde: disponibilidade Full (eixo direito). Pontos verdes: com estoque; laranja: sem estoque. ? indica consulta desconhecida ou divergente, com interrupção da linha.</p>"
     out += "<p>O dia atual fica sem total de vendas fechado. Ausência de vendas verificadas é uma lacuna, não zero. Comparação observacional, sem comprovar causa e efeito.</p>"
     out += '<table><thead><tr><th>Dia</th><th>Unidades vendidas</th><th>Full nas consultas do dia</th><th>Consultas</th></tr></thead><tbody>'
     for d in days:
