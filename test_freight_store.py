@@ -39,15 +39,13 @@ class FreightStoreIntegrationTests(unittest.TestCase):
                 return cur.fetchall()
         def execute(conn, sql):
             with conn.cursor() as cur:
-                cur.execute(sql)
+                cur.execute(sql.replace('CREATE TABLE IF NOT EXISTS frete_importacoes',
+                                       'CREATE TEMP TABLE IF NOT EXISTS frete_importacoes'))
         try:
             # Temporary tables shadow production names even if a URL is misconfigured.
             execute(conn, 'CREATE TEMP TABLE conexoes (id INTEGER PRIMARY KEY)')
             execute(conn, 'INSERT INTO conexoes VALUES (7),(8)')
-            execute(conn, '''CREATE TEMP TABLE frete_importacoes (
-                id BIGSERIAL PRIMARY KEY, conexao_id INTEGER REFERENCES conexoes(id),
-                arquivo_sha256 CHAR(64), importado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-                resumo JSONB, UNIQUE(conexao_id, arquivo_sha256))''')
+            init_freight_schema(conn, execute)
             init_freight_schema(conn, execute)
             summary = dict(rows=1, invalid_date_rows=0, period_start='2026-10-01')
             self.assertTrue(save_report(conn, query, 7, b'synthetic', summary))
