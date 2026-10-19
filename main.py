@@ -923,6 +923,19 @@ def logout():
     return redirect("/login")
 
 
+@app.route("/admin/diagnostico-visitas-copas")
+@admin_required
+def diagnostico_visitas_copas():
+    """Manual, read-only API probe for Copas. Never expose access tokens."""
+    from scripts.copas_visits_render_probe import probe
+    try:
+        resultado = probe()
+    except Exception:
+        app.logger.exception("copas_visits_probe_failed")
+        return jsonify({"erro": "Falha no diagnóstico de visitas da Copas"}), 503
+    return jsonify({"loja": "Copas Ind", "item_id": "MLB5325240286", **resultado})
+
+
 @app.route("/")
 def home():
     if "usuario_id" not in session:
