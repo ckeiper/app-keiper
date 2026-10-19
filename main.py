@@ -24,6 +24,7 @@ from freight_comparison import render_freight_comparison_demo
 from freight_reconciliation import inspect_sales_reconciliation, render_sales_reconciliation
 from freight_store import (init_freight_schema, save_report, report_history, render_history,
                            consolidate_report, consolidated_history, render_consolidated)
+from freight_sales_compare import audit_against_sales, render_sales_comparison
 from visual_theme import VISUAL_CSS
 from crm import init_crm_schema, register_crm, HOME_WIDGET
 from page_performance import ranking_query_bounds
@@ -1343,6 +1344,7 @@ def calcular_vendas(cid, inicio=None):
         frete = 0.0
         sem_custo = False
         sem_itens = not itens_p
+        frete_verificavel = bool(itens_p)
         for it in itens_p:
             qtd = it["quantidade"] or 1
             pu = it["preco_unitario"] or 0
@@ -1353,11 +1355,14 @@ def calcular_vendas(cid, inicio=None):
             f = frete_esperado(pu, it["peso"])
             if f is not None:
                 frete += f * qtd
+            else:
+                frete_verificavel = False
         frete_fonte = "estimado"
         frete_real = frete_por_pedido.get(p["pedido_id"])
         if frete_real is not None:
             frete = frete_real
             frete_fonte = "real"
+            frete_verificavel = True
         imposto = receita * aliquota
         comissao_v = receita * comissao
         mc = receita - custo_prod - imposto - comissao_v - frete
@@ -1372,6 +1377,7 @@ def calcular_vendas(cid, inicio=None):
             "comissao": comissao_v,
             "frete": frete,
             "frete_fonte": frete_fonte,
+            "frete_verificavel": frete_verificavel,
             "mc": mc,
             "mc_pct": mc_pct,
             "sem_itens": sem_itens,
@@ -1818,6 +1824,9 @@ def auditoria_frete(cid):
         try:
             resumo = inspect_sales_reconciliation(arquivo.filename, payload)
             corpo += render_sales_reconciliation(resumo)
+            resumo['sales_comparison'] = audit_against_sales(
+                cid, arquivo.filename, payload, resumo, banco, consultar, calcular_vendas)
+            corpo += render_sales_comparison(resumo['sales_comparison'])
             if request.form.get('acao') in ('importar', 'consolidar'):
                 try:
                     with banco() as conn:

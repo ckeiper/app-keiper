@@ -75,3 +75,25 @@ reverte versões posteriores. Arquivos corrigidos diferentes substituem apenas
 os dias confirmados pelo administrador. Não há deduplicação por operação nem
 armazenamento de linhas de cliente; trata-se de consolidação de indicadores
 diários completos, não de um livro de movimentos individuais.
+
+## Comparação com a página de Vendas
+
+Fonte definida pelo usuário: o frete da página de Vendas do dashboard. A auditoria
+reutiliza `calcular_vendas` com a data inicial do relatório, sem o limite de 100
+pedidos da tabela de detalhe. A mesma fórmula escolhe custo real de envio quando
+disponível e estimativa por preço/peso caso contrário. Estimativas com peso
+ausente em qualquer item ficam indisponíveis na auditoria, em vez de zero.
+
+O vínculo usa igualdade exata entre número da operação e ID de pagamento salvo,
+ou entre número do envio e envio salvo, sempre na mesma loja. Vínculos conflitantes,
+múltiplos movimentos por pedido e pedidos com múltiplos envios não são somados
+nem escolhidos arbitrariamente. Ficam separados para revisão. Não se usa SKU,
+valor ou proximidade de data para inferir um pedido. Apenas movimentos Venda e
+Envio entram como candidatos. A falta de vínculo ou de dados de Vendas aparece
+como lacuna de comparação; não se afirma que um frete é correto nesses casos.
+
+A tela informa quantos pedidos foram comparados, referência real ou estimada,
+quantos estão acima/abaixo/dentro da tolerância de R$ 0,01 e totais somente dos
+pedidos comparados. A comparação retorna e persiste apenas agregados; os
+identificadores ficam em memória durante o processamento. Divergência entre as
+duas fontes não comprova cobrança indevida nem equivale à tarifa contratada.
