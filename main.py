@@ -1,6 +1,7 @@
 import os, time, html, json, datetime, csv, io, threading, smtplib, secrets, hashlib
 from email.mime.text import MIMEText
 from functools import wraps
+from urllib.parse import urlencode
 from flask import Flask, request, redirect, jsonify, Response, session, send_from_directory, g
 import requests
 import psycopg2
@@ -944,7 +945,6 @@ def home():
     return redirect("/painel")
 
 @app.route("/conectar")
-@login_required
 def conectar():
     if not CLIENT_ID or not REDIRECT_URI:
         return pagina("Erro",
@@ -952,38 +952,58 @@ def conectar():
                       "<div class='aviso'>As variáveis ML_CLIENT_ID e "
                       "ML_REDIRECT_URI precisam estar no Render "
                       "(Environment).</div></div>")
-    url = (AUTH_URL + "?response_type=code&client_id=" + CLIENT_ID
-           + "&redirect_uri=" + REDIRECT_URI)
+    state = secrets.token_urlsafe(32)
+    session["ml_oauth"] = {"state": state, "created_at": int(time.time()),
+                           "usuario_id": session.get("usuario_id")}
+    url = AUTH_URL + "?" + urlencode({
+        "response_type": "code", "client_id": CLIENT_ID,
+        "redirect_uri": REDIRECT_URI, "state": state})
     return redirect(url)
 
 
 @app.route("/callback")
 @app.route("/oauth")
-@login_required
 def callback_ml():
+    pending = session.get("ml_oauth") or {}
+    state = request.args.get("state") or ""
+    age = int(time.time()) - pending.get("created_at", 0)
+    if (not state or not secrets.compare_digest(state.encode(), pending.get("state", "").encode())
+            or not 0 <= age <= 900
+            or pending.get("usuario_id") != session.get("usuario_id")):
+        return pagina("Autorização", "<div class='card'><h2>Autorização inválida ou expirada</h2>"
+                      "<p>Inicie novamente a conexão neste navegador.</p>"
+                      "<p><a class='link' href='/conectar'>Conectar loja</a></p></div>"), 400
+    session.pop("ml_oauth", None)
     code = request.args.get("code")
     if not code:
         return pagina("Autorização",
                       "<div class='card'><h2>Autorização não concluída</h2>"
                       "<div class='sub'>O Mercado Livre não devolveu o código. "
                       "Tente conectar de novo.</div></div>")
-    resp = requests.post(TOKEN_URL, data={
-        "grant_type": "authorization_code",
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "code": code,
-        "redirect_uri": REDIRECT_URI,
-    }, timeout=25)
-    dados = resp.json()
-    if "access_token" not in dados:
+    try:
+        resp = requests.post(TOKEN_URL, data={
+            "grant_type": "authorization_code",
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+            "code": code,
+            "redirect_uri": REDIRECT_URI,
+        }, timeout=25)
+        dados = resp.json()
+        if resp.status_code != 200 or not all(dados.get(k) for k in
+                ("access_token", "refresh_token", "expires_in")):
+            raise ValueError("oauth_token_failed")
+        r = requests.get(API + "/users/me",
+                         headers={"Authorization": "Bearer "
+                                  + dados["access_token"]}, timeout=25)
+        eu = r.json() if r.status_code == 200 else {}
+        if not eu.get("id") or str(eu["id"]) != str(dados.get("user_id")):
+            raise ValueError("oauth_identity_failed")
+    except (requests.RequestException, ValueError, TypeError):
         return pagina("Erro",
                       "<div class='card'><h2>Falha ao autorizar</h2>"
-                      "<div class='aviso'>" + esc(str(dados)[:200])
-                      + "</div></div>")
-    r = requests.get(API + "/users/me",
-                     headers={"Authorization": "Bearer "
-                              + dados["access_token"]}, timeout=25)
-    eu = r.json() if r.status_code == 200 else {}
+                      "<div class='aviso'>Não foi possível concluir a conexão com o Mercado Livre. "
+                      "Tente novamente.</div><p><a class='link' href='/conectar'>"
+                      "Conectar loja</a></p></div>"), 502
     with banco() as conn:
         existe = consultar(conn, "SELECT id FROM conexoes WHERE user_id=%s",
                            (eu.get("id"),))
@@ -1005,7 +1025,14 @@ def callback_ml():
                             dados["access_token"], dados["refresh_token"],
                             int(time.time()) + dados["expires_in"]))
             cid = cur.fetchone()[0]
-    return redirect("/painel/" + str(cid))
+    if session.get("usuario_id") and pode_ver_loja(cid):
+        return redirect("/painel/" + str(cid))
+    return pagina("Loja conectada",
+                  "<div class='card'><h2>Loja conectada com sucesso</h2>"
+                  "<p>A autorização do Mercado Livre foi concluída. "
+                  "A Keiper Consultoria poderá finalizar a configuração do seu acesso.</p>"
+                  "<p>Se você já recebeu seu usuário e senha, entre no painel.</p>"
+                  "<p><a class='link' href='/login'>Ir para o login</a></p></div>")
 @app.route("/status")
 @login_required
 def status():
