@@ -20,6 +20,7 @@ from listing_kpis import listing_kpis
 from listing_opportunities import listing_opportunities, opportunity_actions
 from freight_import import (preview_reconciliation_upload, render_reconciliation_preview,
                             PreviewError, MAX_UPLOAD_BYTES, render_reconciliation_column_hints)
+from freight_comparison import render_freight_comparison_demo
 from visual_theme import VISUAL_CSS
 from crm import init_crm_schema, register_crm, HOME_WIDGET
 from page_performance import ranking_query_bounds
@@ -1744,6 +1745,7 @@ def auditoria_frete(cid):
         "<button class='btn' type='submit'>Pré-visualizar planilha</button>"
         "</form><p>Formatos XLSX e CSV · máximo 2 MB.</p></section>"
     )
+    corpo += render_freight_comparison_demo()
     if request.method == "POST":
         valid_csrf = secrets.compare_digest(
             session.get("freight_preview_csrf", ""),
