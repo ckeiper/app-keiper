@@ -203,6 +203,34 @@ def variation(current, previous):
 
 
 STYLE = """<style>
+/* Keiper compact hybrid shell: dark navigation, quiet light workspace. */
+.overview-layout{gap:0;background:#f5f7fb;border-radius:14px;overflow:hidden;min-height:calc(100vh - 130px)}
+.overview-layout>.menu-lateral{background:#111c2e!important;color:#e2e8f0!important;padding:14px 10px!important;border-radius:0!important;box-shadow:none!important}
+.overview-layout>.menu-lateral a.item,.overview-layout>.menu-lateral a.voltar{color:#d5deeb!important;border-radius:7px!important;padding:9px 11px!important;font-size:12.5px!important;line-height:1.35}
+.overview-layout>.menu-lateral a.item:hover,.overview-layout>.menu-lateral a.voltar:hover{background:#253650!important;color:white!important}
+.overview-layout>.conteudo{background:#f5f7fb!important;padding:20px 22px!important;min-width:0}
+.overview-hero{background:transparent!important;color:#162238!important;border-radius:0!important;padding:0!important;margin:0 0 14px!important}
+.overview-hero small{color:#64748b!important;font-size:10px!important;letter-spacing:1px}
+.overview-hero h2{color:#142137!important;font-size:21px!important;line-height:1.25;margin:4px 0 3px!important;letter-spacing:-.5px}
+.overview-hero p{display:none}
+.overview-layout .card{background:#fff;border:1px solid #e7ecf3!important;border-radius:10px!important;padding:15px!important;box-shadow:0 1px 3px rgba(16,31,55,.035)!important;margin-bottom:13px!important}
+.overview-layout .card h2{font-size:15px!important;letter-spacing:-.2px;margin-bottom:10px!important}
+.overview-kpis{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important;margin:13px 0!important}
+.overview-kpis .stat{background:#fff!important;border:1px solid #e7ecf3!important;border-top:1px solid #e7ecf3!important;border-radius:10px!important;padding:13px 14px!important;min-width:0;box-shadow:0 1px 3px rgba(16,31,55,.03)!important}
+.overview-kpis .stat .lab{font-size:11px!important;font-weight:600;color:#64748b!important;line-height:1.3}
+.overview-kpis .stat .num{font-size:22px!important;font-weight:750!important;line-height:1.25!important;letter-spacing:-.6px;margin:7px 0 4px!important;overflow-wrap:anywhere}
+.overview-kpis .stat p{font-size:10.5px!important;color:#64748b!important;line-height:1.4;margin:0!important}
+.overview-table{border-collapse:collapse;font-size:12px!important}
+.overview-table th{background:#f8fafc!important;color:#64748b!important;font-size:10.5px!important;font-weight:650!important;text-transform:uppercase;letter-spacing:.3px}
+.overview-table td,.overview-table th{padding:9px 10px!important;vertical-align:middle!important;border-bottom:1px solid #edf1f6}
+.overview-table td{line-height:1.4}
+.overview-status{font-size:10px!important;margin-top:3px!important;line-height:1.3}
+.overview-alert{border-left:2px solid #d8a34c!important;background:#fffbf2!important;padding:9px 11px!important;margin:6px 0!important;border-radius:6px;font-size:12px}
+.overview-layout .aviso{padding:9px 11px!important;font-size:11px!important;line-height:1.45!important;margin:10px 0!important}
+.overview-actions{gap:7px!important;margin:10px 0!important}
+@media(max-width:1150px){.overview-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:700px){.overview-layout>.conteudo{padding:14px!important}.overview-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}.overview-kpis .stat{padding:10px!important}.overview-kpis .stat .num{font-size:19px!important}.overview-hero h2{font-size:19px!important}}
+
 .overview-hero{background:#122d3b;color:white;border-radius:18px;padding:28px;margin-bottom:20px}
 .overview-hero h2{color:white;margin:4px 0 12px;font-size:30px}.overview-hero p{color:#cbdce3}
 .overview-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0}
@@ -299,8 +327,8 @@ document.addEventListener('keydown', function(event) {
 
 def render_overview(data, args, admin=False, visits_card=None):
     start, end, prev_start, prev_end = data['bounds']
-    out = STYLE + "<section class='overview-hero'><small>KEIPER CONSULTORIA · CENTRAL ADMINISTRATIVA</small>"
-    out += "<h2>Visão Geral 2.0</h2><p>Desempenho das lojas às quais você tem acesso.</p></section>"
+    out = STYLE + "<section class='overview-hero'><small>KEIPER / VISÃO GERAL</small>"
+    out += "<h2>Visão geral</h2><p>Indicadores das lojas.</p></section>"
     out += filters(None, args, action='/painel')
     out += (f"<p>{start:%d/%m/%Y} a {end:%d/%m/%Y} · Anterior: "
             f"{prev_start:%d/%m/%Y} a {prev_end:%d/%m/%Y}</p>"
