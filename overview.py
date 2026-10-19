@@ -297,7 +297,7 @@ document.addEventListener('keydown', function(event) {
             + controls + body + "</div></div>" + script)
 
 
-def render_overview(data, args, admin=False):
+def render_overview(data, args, admin=False, visits_card=None):
     start, end, prev_start, prev_end = data['bounds']
     out = STYLE + "<section class='overview-hero'><small>KEIPER CONSULTORIA · CENTRAL ADMINISTRATIVA</small>"
     out += "<h2>Visão Geral 2.0</h2><p>Desempenho das lojas às quais você tem acesso.</p></section>"
@@ -314,9 +314,19 @@ def render_overview(data, args, admin=False):
         out += ("<div class='stat'><div class='lab'>" + title + "</div><div class='num'>"
                 + fmt(value,money) + "</div><p>Anterior: " + fmt(previous,money)
                 + " · " + variation(value,previous) + "</p></div>")
-    out += ("<div class='stat'><div class='lab'>Visitas · últimos 7 dias</div>"
-            "<div class='num'>Indisponível</div>"
-            "<p>Aguardando sincronização das visitas oficiais. Não são exibidos zeros fictícios.</p></div>")
+    visits = visits_card or {"available": False}
+    if visits.get("available"):
+        visits_text = f"{visits['visits']:,}".replace(",", ".")
+        out += ("<div class='stat'><div class='lab'>Visitas registradas · últimos 7 dias completos</div>"
+                + "<div class='num'>" + visits_text + "</div>"
+                + "<p>Dados parciais: " + str(visits['shops_with_data']) + " de "
+                + str(visits['shops_total']) + " lojas, " + str(visits['days_with_data'])
+                + " de 7 dias com registros. Período: " + visits['start'] + " a "
+                + visits['end'] + ". Não representa o total de lojas sem dados.</p></div>")
+    else:
+        out += ("<div class='stat'><div class='lab'>Visitas · últimos 7 dias</div>"
+                "<div class='num'>Indisponível</div>"
+                "<p>Aguardando sincronização das visitas oficiais.</p></div>")
     out += "</div><section class='card'><h2>Atenção às lojas</h2>"
     if not data['alerts']:
         out += "<p>Nenhum alerta pelos critérios atuais.</p>"
