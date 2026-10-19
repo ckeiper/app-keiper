@@ -1,4 +1,4 @@
-"""Copas-only visits collector. Persist complete UTC calendar days idempotently."""
+"""Copas-only visits collector. Persist the last 7 complete UTC days idempotently."""
 import datetime as dt
 import json
 import os
@@ -44,7 +44,7 @@ def collect(limit=10):
         today = dt.datetime.now(dt.timezone.utc).date()
         for item in items:
             req = urllib.request.Request(
-                f"{API}/items/{item}/visits/time_window?last=30&unit=day",
+                f"{API}/items/{item}/visits/time_window?last=7&unit=day",
                 headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
             )
             try:
@@ -59,7 +59,7 @@ def collect(limit=10):
                     visits = entry["total"]
                     if type(visits) is not int or visits < 0:
                         raise ValueError("Invalid daily visits")
-                    if day < today and day >= today - dt.timedelta(days=30):
+                    if day < today and day >= today - dt.timedelta(days=7):
                         parsed.append((CONNECTION_ID, item, day, visits))
                 with conn.cursor() as cur:
                     for row in parsed:
