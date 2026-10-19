@@ -3621,10 +3621,10 @@ def atualizar_tipo(tipo, cid):
         return pagina("Acesso negado",
                       "<div class='card'><h2>Acesso restrito</h2></div>")
     # Full order history sync can take minutes; never run it in an HTTP worker.
-    if tipo in ("resumo", "vendas"):
+    if tipo in ("resumo", "vendas") or loja_habilitada_fila_persistente(cid):
         enfileirar_atualizacao(cid)
-        return redirect("/painel/" + str(cid) if tipo == "resumo"
-                        else "/vendas/" + str(cid))
+        destino = "/painel/" if tipo == "resumo" else "/" + tipo + "/"
+        return redirect(destino + str(cid))
     with banco() as conn:
         c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         c = c[0] if c else None
@@ -4441,11 +4441,32 @@ with banco() as conn:
         ON sincronizacao_tarefas (conexao_id)
         WHERE status='executando'""")
 
+def recuperar_tarefas_sem_coletor():
+    """Recover interrupted selected stores only while owning their collection lock."""
+    lojas = {int(part.strip()) for part in os.getenv("DURABLE_QUEUE_STORE_IDS", "").split(",")
+             if part.strip().isdigit()}
+    recuperadas = 0
+    for cid in sorted(lojas):
+        with store_sync_lock(banco, cid) as acquired:
+            if not acquired:
+                continue
+            with banco() as conn:
+                tarefas = consultar(conn, """SELECT id FROM sincronizacao_tarefas
+                    WHERE conexao_id=%s AND status='executando'""", (cid,))
+            for tarefa in tarefas:
+                recuperadas += reagendar_tarefa_persistente(
+                    tarefa["id"], "Coletor interrompido; retomada sob trava exclusiva")
+            if tarefas:
+                encerrar_execucoes_abandonadas(cid)
+    return recuperadas
+
+
 def job_fila_persistente():
     """Drain one durable task per tick; disabled unless explicitly enabled."""
     if os.getenv("DURABLE_QUEUE_WORKER_ENABLED", "").lower() != "true":
         return
     try:
+        recuperar_tarefas_sem_coletor()
         processar_tarefa_persistente_uma()
     except Exception:
         # Keep legacy scheduling alive even if the durable queue is unavailable.

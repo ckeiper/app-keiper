@@ -33,6 +33,17 @@ protegida em execução. A chamada interna da coleta reutiliza a trava na mesma
 thread. Isso permite retomar após deploy sem esperar duas horas por telemetria
 abandonada; uma coleta realmente ativa impede a retomada.
 
+Antes de cada tentativa, o consumidor habilitado verifica tarefas selecionadas
+que ainda constam executando. Só recupera uma tarefa, mesmo com lease futuro,
+se conseguir adquirir a trava completa da loja. Uma trava de outro coletor
+impede qualquer alteração. Retentativas mantêm limite e atraso, sem apagar
+histórico. O consumidor desligado não executa essa recuperação.
+
+Atualizações manuais de qualquer tipo da loja selecionada passam pela fila,
+inclusive quando o consumidor está desligado. O HTTP 409 na consulta de
+promoções de um item tem até três leituras com espera limitada; se persistir,
+a coleta continua registrando falha e preservando o último conteúdo confirmado.
+
 Para interromper o piloto, desabilitar o consumidor e impedir novas solicitações
 da loja durante a drenagem. Esperar a tarefa em execução terminar antes de
 remover a seleção da loja e voltar ao legado. Não apagar tarefas pendentes:

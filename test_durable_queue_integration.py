@@ -118,3 +118,30 @@ class DurablePostgresTests(unittest.TestCase):
             self.assertEqual(row['status'],'falhou' if attempt==3 else 'pendente')
             self.assertIsNone(row['lease_ate'])
             self.assertIsNone(claim(agora=now+1))
+
+    def test_future_lease_without_collector_is_recovered_under_lock(self):
+        task=self.ns['criar_tarefa_persistente'](5,agora=100)
+        self.ns['reservar_tarefa_persistente'](agora=int(time.time()),duracao_lease=7200)
+        self.ns.update(store_sync_lock=store_sync_lock)
+        main_function('encerrar_execucoes_abandonadas',self.ns)
+        recover=main_function('recuperar_tarefas_sem_coletor',self.ns)
+        self.assertEqual(recover(),1)
+        with self.connect() as conn:
+            row=self.query(conn,'SELECT * FROM sincronizacao_tarefas WHERE id=%s',(task,))[0]
+        self.assertEqual(row['status'],'pendente')
+        self.assertIsNone(row['lease_ate'])
+        self.assertEqual(row['tentativas'],1)
+
+    def test_recovery_never_changes_task_while_another_collector_owns_lock(self):
+        task=self.ns['criar_tarefa_persistente'](5,agora=100)
+        self.ns['reservar_tarefa_persistente'](agora=int(time.time()),duracao_lease=7200)
+        self.ns.update(store_sync_lock=store_sync_lock)
+        main_function('encerrar_execucoes_abandonadas',self.ns)
+        recover=main_function('recuperar_tarefas_sem_coletor',self.ns)
+        with store_sync_lock(self.connect,5):
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                self.assertEqual(pool.submit(recover).result(),0)
+        with self.connect() as conn:
+            row=self.query(conn,'SELECT * FROM sincronizacao_tarefas WHERE id=%s',(task,))[0]
+        self.assertEqual(row['status'],'executando')
+        self.assertIsNotNone(row['lease_ate'])
