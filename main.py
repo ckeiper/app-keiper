@@ -22,6 +22,8 @@ from freight_import import (preview_reconciliation_upload, render_reconciliation
                             PreviewError, MAX_UPLOAD_BYTES, render_reconciliation_column_hints)
 from freight_comparison import render_freight_comparison_demo
 from freight_reconciliation import inspect_sales_reconciliation, render_sales_reconciliation
+from freight_store import (init_freight_schema, save_report, report_history, render_history,
+                           consolidate_report, consolidated_history, render_consolidated)
 from visual_theme import VISUAL_CSS
 from crm import init_crm_schema, register_crm, HOME_WIDGET
 from page_performance import ranking_query_bounds
@@ -659,6 +661,7 @@ def iniciar_banco():
             PRIMARY KEY (conexao_id, pedido_id, item_id)
         )""")
         init_sales_schema(conn, executar)
+        init_freight_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
             visitas INTEGER, conversao REAL, atualizado_em BIGINT,
@@ -1758,7 +1761,7 @@ def auditoria_frete(cid):
         "<section class='card'><h2>🚚 Auditoria de Frete</h2>"
         "<p>Envie a planilha de <b>Conciliação Bancária do Mercado Livre</b> "
         "para conferir o formato e os lançamentos de frete.</p>"
-        "<div class='aviso'>Conferência sem gravação. O relatório não informa "
+        "<div class='aviso'>A pré-visualização não grava dados. O administrador pode importar os indicadores. O relatório não informa "
         "o frete esperado para determinar cobranças indevidas.</div>"
         "<form method='post' enctype='multipart/form-data'>"
         "<input type='hidden' name='csrf_token' value='"
@@ -1767,8 +1770,21 @@ def auditoria_frete(cid):
         "<button class='btn' type='submit'>Pré-visualizar planilha</button>"
         "</form><p>Formatos XLSX e CSV · máximo 2 MB.</p></section>"
     )
-    corpo += render_freight_comparison_demo()
+    if session.get('tipo') == 'admin':
+        corpo = corpo.replace("</form><p>Formatos", "<button class='btn' type='submit' name='acao' value='importar'>Importar indicadores desta loja</button>"
+            "<fieldset><legend>Consolidar relatório completo por dia</legend>"
+            "<label>Início do período <input type='date' name='periodo_inicio'></label>"
+            "<label>Fim do período <input type='date' name='periodo_fim'></label>"
+            "<label><input type='checkbox' name='completo' value='sim'>Confirmo que o arquivo contém todos os lançamentos do período informado, sem filtros adicionais.</label>"
+            "<p>Até 31 dias por arquivo. Substitui os indicadores dos dias informados, inclusive dias sem movimentos. Não use relatórios parciais.</p>"
+            "<button class='btn' type='submit' name='acao' value='consolidar'>Atualizar consolidação diária</button></fieldset></form><p>Formatos")
+        with banco() as conn:
+            corpo += render_history(report_history(conn, consultar, cid))
+            consolidado_html = render_consolidated(consolidated_history(conn, consultar, cid))
+            corpo += consolidado_html
     if request.method == "POST":
+        if request.form.get('acao') in ('importar', 'consolidar') and session.get('tipo') != 'admin':
+            return 'Acesso restrito ao administrador', 403
         valid_csrf = secrets.compare_digest(
             session.get("freight_preview_csrf", ""),
             request.form.get("csrf_token", "")) and bool(session.get("freight_preview_csrf"))
@@ -1787,8 +1803,23 @@ def auditoria_frete(cid):
         corpo += render_reconciliation_preview(abas)
         corpo += render_reconciliation_column_hints(abas)
         try:
-            corpo += render_sales_reconciliation(
-                inspect_sales_reconciliation(arquivo.filename, payload))
+            resumo = inspect_sales_reconciliation(arquivo.filename, payload)
+            corpo += render_sales_reconciliation(resumo)
+            if request.form.get('acao') in ('importar', 'consolidar'):
+                try:
+                    with banco() as conn:
+                        if request.form.get('acao') == 'consolidar':
+                            novo = consolidate_report(conn, consultar, cid, payload, resumo,
+                                request.form.get('periodo_inicio'), request.form.get('periodo_fim'),
+                                request.form.get('completo') == 'sim')
+                            corpo = corpo.replace(consolidado_html,
+                                render_consolidated(consolidated_history(conn, consultar, cid)))
+                        else:
+                            novo = save_report(conn, consultar, cid, payload, resumo)
+                    corpo = corpo.replace('Nenhum dado foi salvo.', 'Os indicadores agregados deste relatório estão registrados nesta loja.')
+                    corpo += "<div class='aviso'>" + ('Indicadores importados.' if novo else 'Este arquivo já foi importado nesta loja.') + '</div>'
+                except ValueError as exc:
+                    return esc(str(exc)), 400
         except PreviewError as exc:
             corpo += "<div class='aviso'>" + esc(str(exc)) + "</div>"
     response = Response(pagina_loja("Auditoria de Frete", cid, lojas[0]["cliente"],

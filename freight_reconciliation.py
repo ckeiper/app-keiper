@@ -5,11 +5,21 @@ available in this export. Never feed these rows directly to compare_freight_orde
 """
 import io
 import unicodedata
+import datetime
 from decimal import Decimal, InvalidOperation
 
 from freight_import import PreviewError, preview_reconciliation_upload
 
 MAX_LEDGER_ROWS = 25000
+DAILY_COUNTS = ('rows', 'shipping_rows', 'invalid_shipping_rows',
+                'absent_shipping_rows', 'inconsistent_shipping_rows')
+DAILY_AMOUNTS = ('gross_shipping_total', 'shipping_discount_total', 'seller_shipping_total')
+
+
+def empty_day():
+    return {**dict.fromkeys(DAILY_COUNTS, 0), **dict.fromkeys(DAILY_AMOUNTS, '0.00')}
+
+
 FIELDS = {
     'operation_date': 'Data da operação',
     'operation_id': 'Número da operação',
@@ -72,7 +82,11 @@ def inspect_sales_reconciliation(filename, payload):
                                                    max_col=45, values_only=True)))
         result = dict(rows=0, shipping_rows=0, invalid_shipping_rows=0,
                       inconsistent_shipping_rows=0, repeated_operation_rows=0,
-                      missing_operation_rows=0)
+                      missing_operation_rows=0, absent_shipping_rows=0,
+                      invalid_date_rows=0)
+        totals = [Decimal('0.00') for _ in range(3)]
+        dates = set()
+        daily = {}
         seen = set()
         for row in ws.iter_rows(min_row=4, max_row=MAX_LEDGER_ROWS + 4,
                                 max_col=45, values_only=True):
@@ -81,6 +95,17 @@ def inspect_sales_reconciliation(filename, payload):
             result['rows'] += 1
             if result['rows'] > MAX_LEDGER_ROWS:
                 raise PreviewError('Relatório excede o limite de lançamentos.')
+            value = row[columns['operation_date']]
+            bucket = None
+            try:
+                day = (value.date() if isinstance(value, datetime.datetime) else
+                       value if isinstance(value, datetime.date) else
+                       datetime.datetime.strptime(value, '%d/%m/%Y').date())
+                dates.add(day)
+                bucket = daily.setdefault(day.isoformat(), empty_day())
+                bucket['rows'] += 1
+            except (ValueError, TypeError):
+                result['invalid_date_rows'] += 1
             operation = row[columns['operation_id']]
             if not isinstance(operation, str) or not operation.strip() or operation.startswith('='):
                 result['missing_operation_rows'] += 1
@@ -88,16 +113,38 @@ def inspect_sales_reconciliation(filename, payload):
                 result['repeated_operation_rows'] += 1
             else:
                 seen.add(operation)
+            values = [row[columns[key]] for key in
+                      ('gross_shipping', 'shipping_discount', 'seller_shipping')]
+            if all(v is None or v == '' for v in values):
+                result['absent_shipping_rows'] += 1
+                if bucket is not None:
+                    bucket['absent_shipping_rows'] += 1
+                continue
             try:
-                gross, discount, seller = [_amount(row[columns[key]]) for key in
-                    ('gross_shipping', 'shipping_discount', 'seller_shipping')]
+                gross, discount, seller = [_amount(v) for v in values]
             except (ValueError, InvalidOperation):
                 result['invalid_shipping_rows'] += 1
+                if bucket is not None:
+                    bucket['invalid_shipping_rows'] += 1
                 continue
+            totals = [a + b for a, b in zip(totals, (gross, discount, seller))]
+            if bucket is not None:
+                for key, amount in zip(DAILY_AMOUNTS, (gross, discount, seller)):
+                    bucket[key] = str(Decimal(bucket[key]) + amount)
             if any((gross, discount, seller)):
                 result['shipping_rows'] += 1
+                if bucket is not None:
+                    bucket['shipping_rows'] += 1
             if discount > gross or abs(gross - discount - seller) > Decimal('.01'):
                 result['inconsistent_shipping_rows'] += 1
+                if bucket is not None:
+                    bucket['inconsistent_shipping_rows'] += 1
+        result.update(zip(('gross_shipping_total', 'shipping_discount_total',
+                           'seller_shipping_total'), map(str, totals)))
+        result.update(period_start=min(dates).isoformat() if dates else None,
+                      period_end=max(dates).isoformat() if dates else None,
+                      operation_days=len(dates))
+        result['daily'] = dict(sorted(daily.items()))
         return result
     finally:
         wb.close()
@@ -109,12 +156,22 @@ def render_sales_reconciliation(result):
         'repeated_operation_rows': 'Linhas adicionais com a mesma operação',
         'missing_operation_rows': 'Linhas sem identificador textual válido',
         'invalid_shipping_rows': 'Linhas com valor de frete inválido ou ausente',
+        'absent_shipping_rows': 'Linhas sem informação de frete (não convertidas em zero)',
+        'invalid_date_rows': 'Linhas com data de operação inválida ou ausente',
         'inconsistent_shipping_rows': 'Linhas com diferença entre bruto menos desconto e pago pelo vendedor',
     }
+    from freight_comparison import format_brl
+    totals = ''.join('<li>' + label + ': ' + format_brl(result[key]) + '</li>'
+                     for key, label in (
+                         ('gross_shipping_total', 'Frete bruto informado'),
+                         ('shipping_discount_total', 'Desconto informado'),
+                         ('seller_shipping_total', 'Frete pago pelo vendedor informado')))
     return ('<section class="card"><h3>Conferência do relatório por vendas</h3><ul>'
             + ''.join('<li>' + label + ': ' + str(int(result[key])) + '</li>'
                       for key, label in labels.items())
-            + '</ul><p>Conferência aritmética por lançamento, com tolerância de R$ 0,01. '
+            + totals + '</ul><p>Totais somente das linhas com três valores válidos. '
+            'Datas com movimentos não comprovam cobertura completa do período. '
+            'Conferência aritmética por lançamento, com tolerância de R$ 0,01. '
             'Operações repetidas não são descartadas nem somadas como pedidos únicos. '
             'O envio pago pelo comprador e as tarifas totais são campos separados. '
             'O relatório não informa o frete esperado: diferenças não comprovam cobrança indevida. '
