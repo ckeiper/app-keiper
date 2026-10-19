@@ -355,7 +355,21 @@ def render_overview(data, args, admin=False, visits_card=None):
         out += ("<div class='stat'><div class='lab'>Visitas · últimos 7 dias</div>"
                 "<div class='num'>Indisponível</div>"
                 "<p>Aguardando sincronização das visitas oficiais.</p></div>")
-    out += "</div><section class='card'><h2>Atenção às lojas</h2>"
+    if visits.get("available"):
+        import json
+        dates = sorted(visits["daily"])
+        values = [visits["daily"][day] for day in dates]
+        out += ("</div><section class='card'><h2>Visitas por dia · registros disponíveis</h2>"
+                "<p>Somente dias com dados oficiais. Datas ausentes não são zeros.</p>"
+                "<div style='height:260px'><canvas id='visitsDailyOverview'></canvas></div></section>")
+        out += ("<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
+                "<script>new Chart(document.getElementById('visitsDailyOverview'),"
+                "{type:'line',data:{labels:" + json.dumps(dates) + ",datasets:[{label:'Visitas registradas',data:"
+                + json.dumps(values) + ",borderColor:'#3483FA',tension:.25}]},options:{responsive:true,"
+                "maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});</script>")
+    else:
+        out += "</div>"
+    out += "<section class='card'><h2>Atenção às lojas</h2>"
     if not data['alerts']:
         out += "<p>Nenhum alerta pelos critérios atuais.</p>"
     for a in data['alerts']:
@@ -364,7 +378,7 @@ def render_overview(data, args, admin=False, visits_card=None):
                 + escape(a['name']) + "</a> · " + escape(a['text'])
                 + "<span class='overview-status'>" + impact + "</span></div>")
     out += "</section><section class='card'><h2>Desempenho por loja</h2><div style='overflow-x:auto'>"
-    out += "<table class='overview-table'><thead><tr><th>Loja</th><th>Faturamento</th><th>Pedidos</th><th>Ticket médio</th><th>Variação de faturamento</th><th>Painel</th></tr></thead><tbody>"
+    out += "<table class='overview-table'><thead><tr><th>Loja</th><th>Faturamento</th><th>Pedidos</th><th>Ticket médio</th><th>Visitas (7 dias)</th><th>Variação de faturamento</th><th>Painel</th></tr></thead><tbody>"
     for r in data['reports']:
         s, cur = r['shop'], r['current']
         # A capped batch is not a usable subtotal even for an apparently complete shop.
@@ -373,11 +387,12 @@ def render_overview(data, args, admin=False, visits_card=None):
         out += (f"<tr><td><b id='nome-{s['id']}'>" + escape(s['cliente']) + "</b><span class='overview-status'>"
                 + escape(status) + "</span></td><td data-label='Faturamento'>" + fmt(value('revenue'),True)
                 + "</td><td data-label='Pedidos'>" + fmt(value('orders'),False) + "</td><td data-label='Ticket médio'>" + fmt(value('ticket'),True)
+                + "</td><td data-label='Visitas'>" + (str(visits.get('by_shop', {}).get(s['id'], 'Indisponível')) if visits.get('available') else 'Indisponível')
                 + "</td><td data-label='Variação'>" + (variation(cur['revenue'],r['previous']['revenue']) if r['eligible'] else 'Indisponível')
                 + f"</td><td data-label='Ações'><a class='link' href='/painel/{s['id']}'>Abrir painel</a> "
                 + f"<a class='link' href='#' onclick='editarNome({s['id']});return false'>Renomear</a></td></tr>")
     if not data['reports']:
-        out += "<tr><td colspan='6'>Nenhuma loja disponível. Conecte uma loja para começar.</td></tr>"
+        out += "<tr><td colspan='7'>Nenhuma loja disponível. Conecte uma loja para começar.</td></tr>"
     out += ("</tbody></table></div></section><details class='card'><summary>Critérios e limites</summary>"
             "<p>Faturamento: pedidos pagos com pagamento aprovado em BRL, por criação em Brasília. "
             "Hoje está em andamento. Ticket consolidado = faturamento total ÷ pedidos totais.</p>"

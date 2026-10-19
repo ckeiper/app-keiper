@@ -30,7 +30,22 @@ def load_visits_card(banco, shops):
                 total, rows, shops_with_data, days, latest = cur.fetchone()
         if not rows:
             return {"available": False}
+        with banco() as conn:
+            conn.set_session(readonly=True)
+            with conn.cursor() as cur:
+                cur.execute("""SELECT conexao_id, dia, SUM(visitas)
+                    FROM item_visits_daily
+                    WHERE conexao_id = ANY(%s) AND dia >= %s AND dia < %s
+                    GROUP BY conexao_id, dia ORDER BY dia, conexao_id""", (ids, start, today))
+                daily_rows = cur.fetchall()
+        daily = {}
+        by_shop = {}
+        for cid, day, count in daily_rows:
+            key = day.isoformat()
+            daily[key] = daily.get(key, 0) + int(count)
+            by_shop[cid] = by_shop.get(cid, 0) + int(count)
         return {
+            "daily": daily, "by_shop": by_shop,
             "available": True, "visits": int(total),
             "rows": int(rows), "shops_with_data": int(shops_with_data),
             "shops_total": len(ids), "days_with_data": int(days),
