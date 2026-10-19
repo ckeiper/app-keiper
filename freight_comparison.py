@@ -27,3 +27,31 @@ def compare_freight(charged, expected, tolerance="0.01"):
               "abaixo" if difference < -margin else "dentro_tolerancia")
     return {"charged": str(paid), "expected": str(baseline),
             "difference": str(difference), "status": status}
+
+
+def render_freight_comparison_demo():
+    """Static demonstration only; never represents charges from a real store."""
+    from html import escape
+
+    examples = [
+        ("Exemplo A", "18.50", "15.00"),
+        ("Exemplo B", "9.00", "12.00"),
+        ("Exemplo C", "10.01", "10.00"),
+    ]
+    labels = {"acima": "Acima do esperado", "abaixo": "Abaixo do esperado",
+              "dentro_tolerancia": "Dentro da tolerancia"}
+    rows = []
+    for name, charged, expected in examples:
+        result = compare_freight(charged, expected)
+        rows.append("<tr><td>" + escape(name) + "</td><td>R$ "
+                    + result["charged"] + "</td><td>R$ " + result["expected"]
+                    + "</td><td>R$ " + result["difference"] + "</td><td>"
+                    + escape(labels[result["status"]]) + "</td></tr>")
+    return ("<section class='card'><h3>Demonstracao de divergencias de frete</h3>"
+            "<p><strong>Dados ficticios.</strong> Os valores abaixo sao exemplos "
+            "para validar a apresentacao. Nao representam cobrancas de nenhuma loja.</p>"
+            "<div style='overflow-x:auto'><table><thead><tr><th>Exemplo</th>"
+            "<th>Cobrado</th><th>Esperado</th><th>Diferenca</th><th>Situacao</th>"
+            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>"
+            "<p>Tolerancia ilustrativa: R$ 0,01. Nenhuma conciliacao real foi "
+            "executada.</p></section>")
