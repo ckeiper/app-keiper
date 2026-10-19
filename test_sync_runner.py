@@ -113,14 +113,14 @@ class SyncRunnerTests(unittest.TestCase):
     def test_durable_scheduler_is_disabled_by_default(self):
         from unittest.mock import patch
         worker=Mock()
-        namespace=dict(os=SimpleNamespace(getenv=lambda name,default='':default),
+        namespace=dict(recuperar_tarefas_sem_coletor=Mock(),os=SimpleNamespace(getenv=lambda name,default='':default),
                        processar_tarefa_persistente_uma=worker,app=SimpleNamespace(logger=Mock()))
         main_function('job_fila_persistente',namespace)()
         worker.assert_not_called()
 
     def test_durable_scheduler_runs_once_when_enabled(self):
         worker=Mock()
-        namespace=dict(os=SimpleNamespace(getenv=lambda name,default='':'true'),
+        namespace=dict(recuperar_tarefas_sem_coletor=Mock(),os=SimpleNamespace(getenv=lambda name,default='':'true'),
                        processar_tarefa_persistente_uma=worker,app=SimpleNamespace(logger=Mock()))
         main_function('job_fila_persistente',namespace)()
         worker.assert_called_once_with()
@@ -128,7 +128,7 @@ class SyncRunnerTests(unittest.TestCase):
     def test_durable_scheduler_logs_worker_failure_without_raising(self):
         logger=Mock()
         worker=Mock(side_effect=RuntimeError('database unavailable'))
-        namespace=dict(os=SimpleNamespace(getenv=lambda name,default='':'true'),
+        namespace=dict(recuperar_tarefas_sem_coletor=Mock(),os=SimpleNamespace(getenv=lambda name,default='':'true'),
                        processar_tarefa_persistente_uma=worker,app=SimpleNamespace(logger=logger))
         main_function('job_fila_persistente',namespace)()
         logger.exception.assert_called_once_with('Falha no worker da fila persistente')

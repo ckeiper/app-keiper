@@ -119,8 +119,9 @@ def render_weight_column(value, attribute_id):
     return '<br>'.join(rows) or 'Não disponível'
 
 
-def get_json(token, path, params, request_get, sleep=time.sleep):
+def get_json(token, path, params, request_get, sleep=None):
     """At most three requests; honor Retry-After without blocking a worker indefinitely."""
+    sleep = time.sleep if sleep is None else sleep
     for attempt in range(3):
         try:
             response = request_get('https://api.mercadolibre.com' + path,
@@ -129,7 +130,9 @@ def get_json(token, path, params, request_get, sleep=time.sleep):
             code = response.status_code
             if code == 200:
                 return response.json(), None
-            if code == 429 or code >= 500:
+            retry_promotion_conflict = (code == 409 and
+                re.fullmatch(r'/seller-promotions/items/[A-Z]{3}\d+', path) is not None)
+            if retry_promotion_conflict or code == 429 or code >= 500:
                 delay = 2 ** attempt
                 retry = response.headers.get('Retry-After')
                 if retry:

@@ -24,6 +24,7 @@ class DurableQueueTests(unittest.TestCase):
             "executar": Mock(),
             "time": time,
             "os": os,
+            "recuperar_tarefas_sem_coletor": Mock(),
             "psycopg2": psycopg2,
             "iniciar_heartbeat_tarefa": Mock(return_value=Mock()),
         }

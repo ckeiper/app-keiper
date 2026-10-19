@@ -170,6 +170,22 @@ class PromotionTests(unittest.TestCase):
 
 
 class RequestTests(unittest.TestCase):
+    def test_promotion_conflict_recovers_with_bounded_retry(self):
+        get = Mock(side_effect=[response(409), response(data=[])])
+        sleep = Mock()
+        self.assertEqual(details.get_json('secret', '/seller-promotions/items/MLB123', {}, get, sleep), ([], None))
+        self.assertEqual(get.call_count, 2)
+        sleep.assert_called_once_with(1)
+
+    def test_persistent_conflict_is_failure_and_other_endpoints_do_not_retry_it(self):
+        for path, attempts in [('/seller-promotions/items/MLB123', 3), ('/items/MLB123', 1)]:
+            get, sleep = Mock(return_value=response(409)), Mock()
+            data, error = details.get_json('secret', path, {}, get, sleep)
+            self.assertIsNone(data)
+            self.assertIn('HTTP 409', error)
+            self.assertEqual(get.call_count, attempts)
+            self.assertEqual(sleep.call_count, attempts - 1)
+
     def test_error_reason_is_retained_without_credentials(self):
         get = Mock(return_value=response(400, data={'error': 'invalid_item',
                          'message': 'Invalid item id. Bearer secret access_token=other',
@@ -222,6 +238,18 @@ class RequestTests(unittest.TestCase):
 
 
 class SyncTests(unittest.TestCase):
+    def test_pilot_manual_refresh_only_enqueues_even_when_consumer_is_stopped(self):
+        enqueue, token, thread = Mock(), Mock(), Mock()
+        ns = dict(pode_ver_loja=lambda cid:True,loja_habilitada_fila_persistente=lambda cid:True,
+                  enfileirar_atualizacao=enqueue,redirect=lambda path:path,token_atual=token,
+                  threading=SimpleNamespace(Thread=thread))
+        route=main_function('atualizar_tipo',ns)
+        for tipo in ('anuncios','promocoes','desempenho','custos','campanhas'):
+            self.assertEqual(route(tipo,9),'/'+tipo+'/9')
+        self.assertEqual(enqueue.call_count,5)
+        token.assert_not_called()
+        thread.assert_not_called()
+
     def setup_sync(self, count=2):
         self.sql, self.errors = [], []
         self.items = [{'item_id': 'MLB' + str(i), 'promocoes_json': json.dumps({'checked_at': 10, 'promotions': []})}
@@ -256,7 +284,7 @@ class SyncTests(unittest.TestCase):
 
     def test_official_price_is_collected_even_when_campaign_is_unavailable(self):
         self.setup_sync(1)
-        get = Mock(side_effect=[response(409), response(data={'amount': 80, 'regular_amount': 100,
+        get = Mock(side_effect=[response(409), response(409), response(409), response(data={'amount': 80, 'regular_amount': 100,
                                 'currency_id': 'BRL', 'metadata': {'promotion_id': 'P1'}})])
         self.assertFalse(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error))
         snap = json.loads(next(params[0] for sql, params in self.sql if 'UPDATE anuncios' in sql))
@@ -267,7 +295,8 @@ class SyncTests(unittest.TestCase):
         thread = Mock()
         running = set()
         query = Mock(return_value=[{'id': 1, 'user_id': 2}])
-        namespace = dict(banco=self.banco, consultar=query, pode_ver_loja=lambda cid: True,
+        namespace = dict(loja_habilitada_fila_persistente=lambda cid:False,
+                         banco=self.banco, consultar=query, pode_ver_loja=lambda cid: True,
                          token_atual=lambda c: 'fake', LOCK_ATUALIZACAO=threading.Lock(),
                          ATUALIZANDO=running, threading=SimpleNamespace(Thread=thread),
                          atualizar_anuncios_bg=Mock(), redirect=lambda path: path)
@@ -376,7 +405,8 @@ class SyncTests(unittest.TestCase):
                    fotos=1, clips=0, status='active', tags='[]', vendidos=1, peso=2,
                    pesos_json=None, promocoes_json=None)
         query = Mock(side_effect=[[{'cliente': 'Loja'}], [row], []])
-        namespace = dict(banco=self.banco, consultar=query, pode_ver_loja=lambda cid: True,
+        namespace = dict(loja_habilitada_fila_persistente=lambda cid:False,
+                         banco=self.banco, consultar=query, pode_ver_loja=lambda cid: True,
                          listing_page=listing_page, request=SimpleNamespace(args={}),
                          pagina_loja=lambda *args: args[-1], ultima_atualizacao=lambda cid: None,
                          barra_atualizar=lambda *args: '', esc=html.escape, json=json,
