@@ -79,7 +79,9 @@ class SyncRunnerTests(unittest.TestCase):
         retry=Mock()
         collect=Mock(return_value=True)
         end=Mock()
-        namespace=dict(reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
+        namespace=dict(store_sync_lock=lambda connect,cid:contextlib.nullcontext(True),
+                       banco=Mock(),encerrar_execucoes_abandonadas=Mock(),
+                       reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
                        registrar_execucao_inicio=lambda cid:33,
                        iniciar_heartbeat_tarefa=lambda tarefa_id, execucao_id:Mock(),
                        executar_atualizacao=collect,registrar_execucao_fim=end,
@@ -91,13 +93,17 @@ class SyncRunnerTests(unittest.TestCase):
         retry.assert_not_called()
 
     def test_durable_worker_without_job_does_not_collect(self):
-        namespace=dict(reservar_tarefa_persistente=lambda:None)
+        namespace=dict(store_sync_lock=lambda connect,cid:contextlib.nullcontext(True),
+                       banco=Mock(),encerrar_execucoes_abandonadas=Mock(),
+                       reservar_tarefa_persistente=lambda:None)
         self.assertFalse(main_function('processar_tarefa_persistente_uma',namespace)())
 
     def test_durable_worker_busy_store_retries_without_collection(self):
         retry=Mock()
         collect=Mock()
-        namespace=dict(reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
+        namespace=dict(store_sync_lock=lambda connect,cid:contextlib.nullcontext(True),
+                       banco=Mock(),encerrar_execucoes_abandonadas=Mock(),
+                       reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
                        registrar_execucao_inicio=lambda cid:None,
                        executar_atualizacao=collect,reagendar_tarefa_persistente=retry)
         self.assertFalse(main_function('processar_tarefa_persistente_uma',namespace)())
@@ -131,7 +137,9 @@ class SyncRunnerTests(unittest.TestCase):
         finish=Mock()
         retry=Mock()
         end=Mock()
-        namespace=dict(reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
+        namespace=dict(store_sync_lock=lambda connect,cid:contextlib.nullcontext(True),
+                       banco=Mock(),encerrar_execucoes_abandonadas=Mock(),
+                       reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
                        registrar_execucao_inicio=lambda cid:33,
                        iniciar_heartbeat_tarefa=lambda tarefa_id, execucao_id:Mock(),
                        executar_atualizacao=Mock(return_value=False),
@@ -145,7 +153,9 @@ class SyncRunnerTests(unittest.TestCase):
     def test_durable_worker_exception_retries_and_marks_execution_failed(self):
         retry=Mock()
         end=Mock()
-        namespace=dict(reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
+        namespace=dict(store_sync_lock=lambda connect,cid:contextlib.nullcontext(True),
+                       banco=Mock(),encerrar_execucoes_abandonadas=Mock(),
+                       reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
                        registrar_execucao_inicio=lambda cid:33,
                        iniciar_heartbeat_tarefa=lambda tarefa_id, execucao_id:Mock(),
                        executar_atualizacao=Mock(side_effect=ValueError('secret')),

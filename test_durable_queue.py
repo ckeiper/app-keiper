@@ -17,6 +17,8 @@ class DurableQueueTests(unittest.TestCase):
         # main.py (which starts the scheduler and connects to the database).
         self.conn = Mock()
         self.ns = {
+            "store_sync_lock": lambda connect,cid:contextlib.nullcontext(True),
+            "encerrar_execucoes_abandonadas": Mock(),
             "banco": lambda: contextlib.nullcontext(self.conn),
             "consultar": Mock(),
             "executar": Mock(),
@@ -73,6 +75,15 @@ class DurableQueueTests(unittest.TestCase):
                        registrar_execucao_inicio=Mock(side_effect=RuntimeError("database")),
                        executar_atualizacao=Mock(), reagendar_tarefa_persistente=Mock())
         self.assertFalse(self.ns["processar_tarefa_persistente_uma"]())
+        self.ns["executar_atualizacao"].assert_not_called()
+
+    def test_busy_full_collection_lock_never_retires_telemetry_or_collects(self):
+        main_function("processar_tarefa_persistente_uma", self.ns)
+        self.ns.update(reservar_tarefa_persistente=Mock(return_value={"id": 10, "conexao_id": 5}),
+                       store_sync_lock=lambda connect,cid:contextlib.nullcontext(False),
+                       executar_atualizacao=Mock(), reagendar_tarefa_persistente=Mock())
+        self.assertFalse(self.ns["processar_tarefa_persistente_uma"]())
+        self.ns["encerrar_execucoes_abandonadas"].assert_not_called()
         self.ns["executar_atualizacao"].assert_not_called()
 
     def test_worker_empty_queue_does_not_run_sync(self):

@@ -1595,22 +1595,29 @@ def processar_tarefa_persistente_uma():
     tarefa_id = tarefa["id"]
     execucao_id = None
     try:
-        execucao_id = registrar_execucao_inicio(cid)
-        if execucao_id is None:
-            # Another process is already synchronizing this store.
-            reagendar_tarefa_persistente(tarefa_id, "Loja ja em execucao")
-            return False
-        parar_heartbeat = iniciar_heartbeat_tarefa(tarefa_id, execucao_id)
-        try:
-            sucesso = executar_atualizacao(cid)
-        finally:
-            parar_heartbeat.set()
-        registrar_execucao_fim(execucao_id, "concluida" if sucesso else "falhou")
-        if sucesso:
-            finalizar_tarefa_persistente(tarefa_id, True)
-        else:
-            reagendar_tarefa_persistente(tarefa_id, "Atualizacao retornou False")
-        return bool(sucesso)
+        with store_sync_lock(banco, cid) as acquired:
+            if not acquired:
+                reagendar_tarefa_persistente(tarefa_id, "Loja ja em execucao")
+                return False
+            # Only the holder of the full-collection lock may retire abandoned
+            # telemetry. No active collector can hold this same lock now.
+            encerrar_execucoes_abandonadas(cid)
+            execucao_id = registrar_execucao_inicio(cid)
+            if execucao_id is None:
+                # Another process is already synchronizing this store.
+                reagendar_tarefa_persistente(tarefa_id, "Loja ja em execucao")
+                return False
+            parar_heartbeat = iniciar_heartbeat_tarefa(tarefa_id, execucao_id)
+            try:
+                sucesso = executar_atualizacao(cid)
+            finally:
+                parar_heartbeat.set()
+            registrar_execucao_fim(execucao_id, "concluida" if sucesso else "falhou")
+            if sucesso:
+                finalizar_tarefa_persistente(tarefa_id, True)
+            else:
+                reagendar_tarefa_persistente(tarefa_id, "Atualizacao retornou False")
+            return bool(sucesso)
     except Exception as exc:
         if execucao_id is not None:
             try:
@@ -1619,6 +1626,16 @@ def processar_tarefa_persistente_uma():
                 pass
         reagendar_tarefa_persistente(tarefa_id, type(exc).__name__)
         return False
+
+
+def encerrar_execucoes_abandonadas(cid):
+    """Caller must hold store_sync_lock for the complete claim/collect cycle."""
+    with banco() as conn:
+        executar(conn, """UPDATE sincronizacao_execucoes
+            SET status='interrompida', fim_em=%s,
+                detalhe='Retomada sob trava exclusiva; coletor anterior ausente'
+            WHERE conexao_id=%s AND status='executando'""",
+            (int(time.time()), cid))
 
 
 def loja_habilitada_fila_persistente(cid):
