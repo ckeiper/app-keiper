@@ -4397,6 +4397,20 @@ register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagi
 
 iniciar_banco()
 
+# Official item visits: unique item/day records, initialized without backfilling
+# or inventing missing days. Collection is activated separately.
+with banco() as conn:
+    executar(conn, """CREATE TABLE IF NOT EXISTS item_visits_daily (
+        conexao_id INTEGER NOT NULL REFERENCES conexoes(id),
+        item_id TEXT NOT NULL,
+        dia DATE NOT NULL,
+        visitas INTEGER NOT NULL CHECK (visitas >= 0),
+        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (conexao_id, item_id, dia)
+    )""")
+    executar(conn, """CREATE INDEX IF NOT EXISTS idx_item_visits_daily_shop_day
+        ON item_visits_daily (conexao_id, dia)""")
+
 # Persist execution status so interrupted web workers remain diagnosable.
 with banco() as conn:
     executar(conn, """CREATE TABLE IF NOT EXISTS sincronizacao_execucoes (
