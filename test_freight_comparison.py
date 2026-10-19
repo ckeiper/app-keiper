@@ -1,6 +1,7 @@
 import unittest
 
-from freight_comparison import FreightComparisonError, compare_freight
+from freight_comparison import (FreightComparisonError, compare_freight,
+                                format_brl, render_freight_comparison_demo)
 
 
 class FreightComparisonTests(unittest.TestCase):
@@ -40,6 +41,21 @@ class FreightComparisonTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaises(FreightComparisonError):
                     compare_freight("10", "10", value)
+
+    def test_brazilian_currency_formatting(self):
+        self.assertEqual(format_brl("1234.50"), "R$ 1.234,50")
+        self.assertEqual(format_brl("-3.00"), "R$ -3,00")
+
+    def test_demo_has_disclaimer_and_all_statuses(self):
+        html = render_freight_comparison_demo()
+        self.assertIn("Dados ficticios", html)
+        self.assertIn("Nao representam cobrancas de nenhuma loja", html)
+        self.assertIn("Acima do esperado", html)
+        self.assertIn("Abaixo do esperado", html)
+        self.assertIn("Dentro da tolerancia", html)
+        self.assertIn("R$ 18,50", html)
+        self.assertIn("R$ -3,00", html)
+        self.assertEqual(html.count("<tr>"), 4)
 
     def test_invalid_inputs(self):
         for value in (None, True, "-1", "NaN", "Infinity", "abc"):
