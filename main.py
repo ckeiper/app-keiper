@@ -21,6 +21,7 @@ from listing_opportunities import listing_opportunities, opportunity_actions
 from freight_import import (preview_reconciliation_upload, render_reconciliation_preview,
                             PreviewError, MAX_UPLOAD_BYTES)
 from visual_theme import VISUAL_CSS
+from crm import init_crm_schema, register_crm, HOME_WIDGET
 from page_performance import ranking_query_bounds
 from sales_sync import init_sales_schema, sync_orders
 from overview_store import init_overview_schema
@@ -723,6 +724,7 @@ def iniciar_banco():
         )""")
         executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
         init_overview_schema(conn, executar)
+        init_crm_schema(conn, executar)
         # ---------- AUTENTICAÇÃO ----------
 
 def login_required(f):
@@ -1748,6 +1750,8 @@ def painel():
         from sales_view import filters
         corpo = ("<div class='aviso'>" + esc(str(erro))
                  + "</div>" + filters(None, request.args, action="/painel"))
+    if admin:
+        corpo = HOME_WIDGET + corpo
     return pagina("Visão Geral 2.0", overview_layout(lojas, corpo, admin=admin))
 
 
@@ -4211,6 +4215,8 @@ def job_dados():
         # or overlap a collection already queued from the dashboard.
         enfileirar_atualizacao(c["id"])
 
+
+register_crm(app, banco, consultar, executar, pagina)
 
 iniciar_banco()
 
