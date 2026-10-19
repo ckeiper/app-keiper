@@ -41,6 +41,11 @@ def probe():
                 "response_type": type(data).__name__,
                 "keys": sorted(data.keys()) if isinstance(data, dict) else None,
                 "length": len(data) if isinstance(data, list) else None,
+                "total_visits": data.get("total_visits") if isinstance(data, dict) else None,
+                "date_from": data.get("date_from") if isinstance(data, dict) else None,
+                "date_to": data.get("date_to") if isinstance(data, dict) else None,
+                "daily_count": len(data.get("results", [])) if isinstance(data, dict) and isinstance(data.get("results"), list) else None,
+                "daily_sample": data.get("results", [])[:3] if isinstance(data, dict) and isinstance(data.get("results"), list) else None,
             }
     except urllib.error.HTTPError as exc:
         return {"http_status": exc.code, "error": "API request failed; body suppressed"}
