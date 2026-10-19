@@ -111,3 +111,56 @@ def render_reconciliation_preview(sheets):
                      + ' linhas inspecionadas; primeiras '
                      + str(len(sheet["sample"])) + ' exibidas.</p>')
     return ''.join(parts) + '</div>'
+
+
+# Candidate labels are advisory only; never used to calculate or book charges.
+FREIGHT_COLUMN_HINTS = {
+    "pedido": ("numero de venda", "número de venda", "order id", "id da venda", "pedido"),
+    "envio": ("numero de envio", "número de envio", "shipment id", "id do envio"),
+    "frete": ("custo de envio", "tarifa de envio", "shipping fee", "frete"),
+    "valor": ("valor", "amount", "montante"),
+    "tipo": ("tipo de operacao", "tipo de operação", "transaction type", "descricao"),
+}
+
+
+def identify_reconciliation_columns(sheets):
+    """Return possible header positions for review, not financial mappings."""
+    import unicodedata
+
+    def normalize(value):
+        value = unicodedata.normalize("NFKD", str(value).casefold())
+        return " ".join("".join(c for c in value if not unicodedata.combining(c)).split())
+
+    results = []
+    for sheet in sheets:
+        candidates = []
+        for row_number, row in enumerate(sheet.get("sample", [])[:MAX_SAMPLES], 1):
+            for col_number, value in enumerate(row[:MAX_COLUMNS], 1):
+                normalized = normalize(value)
+                if not normalized:
+                    continue
+                for kind, hints in FREIGHT_COLUMN_HINTS.items():
+                    if any(normalize(hint) in normalized for hint in hints):
+                        candidates.append({"row": row_number, "column": col_number,
+                                           "kind": kind, "label": _cell(value)})
+        results.append({"name": _cell(sheet.get("name", "")), "candidates": candidates[:40]})
+    return results
+
+
+def render_reconciliation_column_hints(sheets):
+    findings = identify_reconciliation_columns(sheets)
+    parts = ['<div class="card"><h3>Possíveis colunas para auditoria</h3>',
+             '<p>Identificação preliminar. Confirme os campos com uma planilha real; '
+             'nenhum cálculo ou gravação foi realizado.</p>']
+    for sheet in findings:
+        parts.append('<h4>Aba: ' + escape(sheet["name"]) + '</h4>')
+        if not sheet["candidates"]:
+            parts.append('<p>Nenhuma coluna candidata identificada na amostra.</p>')
+            continue
+        parts.append('<ul>')
+        for item in sheet["candidates"]:
+            parts.append('<li>Linha ' + str(item["row"]) + ', coluna '
+                         + str(item["column"]) + ': ' + escape(item["label"])
+                         + ' (' + escape(item["kind"]) + ')</li>')
+        parts.append('</ul>')
+    return ''.join(parts) + '</div>'
