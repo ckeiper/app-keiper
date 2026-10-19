@@ -86,3 +86,22 @@ def compare_freight_orders(records, tolerance="0.01"):
         result = compare_freight(item.get("charged"), item.get("expected"), margin)
         results.append({"order_id": order_id, **result})
     return results
+
+
+def summarize_freight_orders(records, tolerance="0.01"):
+    """Summarize verified per-order charges; values are strings in BRL units."""
+    rows = compare_freight_orders(records, tolerance)
+    statuses = {"acima": 0, "abaixo": 0, "dentro_tolerancia": 0}
+    excess = Decimal("0.00")
+    savings = Decimal("0.00")
+    for row in rows:
+        status = row["status"]
+        statuses[status] += 1
+        delta = Decimal(row["difference"])
+        if status == "acima":
+            excess += delta
+        elif status == "abaixo":
+            savings += -delta
+    return {"total_orders": len(rows), "counts": statuses,
+            "excess_charges": str(excess.quantize(Decimal("0.01"))),
+            "below_expected": str(savings.quantize(Decimal("0.01")))}
