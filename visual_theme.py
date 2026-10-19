@@ -182,5 +182,42 @@ a:focus-visible,button:focus-visible {
   .card,.stat {box-shadow:none;border-color:#ddd;}
   .wrap {max-width:100%;margin:0;}
 }
+
+/* Hybrid compact system-wide: shared pages and per-store navigation. */
+:root {--kp-bg:#f5f7fb;--kp-ink:#172338;--kp-subtle:#64748b;--kp-line:#e7ecf3;--kp-shadow:0 1px 3px rgba(16,31,55,.035);}
+body {background:#f5f7fb;color:#172338;}
+.top {background:#15243a;min-height:64px;padding:12px clamp(16px,2vw,28px);box-shadow:none;}
+.top h1 {font-size:17px;}
+.wrap {max-width:1600px;margin:18px auto;padding:0 clamp(12px,1.6vw,24px);}
+.layout {gap:0;background:#f5f7fb;border-radius:12px;overflow:visible;align-items:stretch;}
+.layout>.menu-lateral {background:#111c2e;color:#d5deeb;border:0;border-radius:12px 0 0 12px;box-shadow:none;width:220px;top:12px;padding:13px 9px;align-self:flex-start;}
+.layout>.menu-lateral .voltar {color:#cbd5e1;border-color:#314057;padding:9px 11px;font-size:12px;}
+.layout>.menu-lateral a.item {color:#d5deeb;border-radius:7px;padding:9px 11px;font-size:12.5px;line-height:1.35;margin:2px 0;}
+.layout>.menu-lateral a.item:hover {background:#253650;color:#fff;}
+.layout>.menu-lateral a.item.atual {background:#315cdd;color:#fff;box-shadow:none;}
+.layout>.menu-lateral a.item.perigo {color:#f4b4b4;border-color:#314057;}
+.layout>.conteudo {background:#f5f7fb;padding:4px 0 22px 18px;min-width:0;}
+.card,.stat {background:#fff;border:1px solid #e7ecf3;border-radius:10px;box-shadow:0 1px 3px rgba(16,31,55,.035);}
+.card {padding:15px;margin-bottom:13px;}
+.grid {gap:10px;}
+.stat {padding:13px 14px;}
+.stat:before {height:2px;background:#d9e5f8;}
+.stat:hover {transform:none;box-shadow:0 1px 3px rgba(16,31,55,.035);}
+.stat .num {font-size:22px;letter-spacing:-.5px;}
+.stat .lab {font-size:11px;}
+h2 {font-size:17px;letter-spacing:-.3px;}
+table {font-size:12px;border-collapse:collapse;}
+th {font-size:10.5px;padding:9px 10px;letter-spacing:.3px;background:#f8fafc;}
+td {padding:9px 10px;}
+@media(max-width:820px) {
+  .layout {display:flex;flex-direction:column;gap:12px;}
+  .layout>.menu-lateral {width:100%;border-radius:10px;position:static;display:flex;overflow-x:auto;white-space:nowrap;align-self:stretch;}
+  .layout>.menu-lateral .voltar {border:0;border-right:1px solid #314057;margin:0;padding:9px 11px;}
+  .layout>.menu-lateral a.item {flex-shrink:0;margin:0;padding:9px 11px;}
+  .layout>.conteudo {padding:0 0 20px;}
+  .wrap {margin:12px auto;}
+  .card {padding:12px;}
+  .stat {padding:12px;}
+}
 </style>
 """
