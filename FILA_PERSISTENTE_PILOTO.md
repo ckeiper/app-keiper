@@ -26,6 +26,13 @@ trava independe da expiração dos registros de telemetria. Perda da conexão qu
 mantém a trava e interrupção abrupta continuam exigindo acompanhamento: a fila
 usa entrega com possíveis repetições, não promete execução exatamente uma vez.
 
+O consumidor adquire a trava antes de registrar a execução e a mantém até a
+finalização da tarefa. Sob essa trava, marca registros anteriores ainda abertos
+como interrompidos: a ausência de outro dono da trava comprova que não há coleta
+protegida em execução. A chamada interna da coleta reutiliza a trava na mesma
+thread. Isso permite retomar após deploy sem esperar duas horas por telemetria
+abandonada; uma coleta realmente ativa impede a retomada.
+
 Para interromper o piloto, desabilitar o consumidor e impedir novas solicitações
 da loja durante a drenagem. Esperar a tarefa em execução terminar antes de
 remover a seleção da loja e voltar ao legado. Não apagar tarefas pendentes:

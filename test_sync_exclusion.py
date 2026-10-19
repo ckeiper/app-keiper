@@ -1,5 +1,6 @@
 import os
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import Mock
 from sync_exclusion import store_sync_lock
 from test_listing_details import main_function
@@ -45,8 +46,14 @@ class PostgresExclusionTests(unittest.TestCase):
         with store_sync_lock(connect, 2147483600) as first:
             self.assertTrue(first)
             # No lease or telemetry timestamp can release a live session lock.
-            with store_sync_lock(connect, 2147483600) as second:
-                self.assertFalse(second)
+            def competing_session():
+                with store_sync_lock(connect, 2147483600) as second:
+                    return second
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                self.assertFalse(pool.submit(competing_session).result())
+            # The durable worker and its nested collection share ownership.
+            with store_sync_lock(connect, 2147483600) as nested:
+                self.assertTrue(nested)
             with store_sync_lock(connect, 2147483601) as other_store:
                 self.assertTrue(other_store)
         with store_sync_lock(connect, 2147483600) as after_release:

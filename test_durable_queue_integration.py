@@ -5,6 +5,8 @@ import unittest
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
+from unittest.mock import Mock
+from sync_exclusion import store_sync_lock
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -21,6 +23,9 @@ class DurablePostgresTests(unittest.TestCase):
                 cur.execute('CREATE SCHEMA ' + self.schema)
                 cur.execute('SET search_path TO ' + self.schema)
                 cur.execute("CREATE TABLE conexoes(id integer primary key,status text)")
+                cur.execute("""CREATE TABLE sincronizacao_execucoes(
+                    id bigserial primary key,conexao_id integer,status text,
+                    inicio_em bigint,fim_em bigint,heartbeat_em bigint,detalhe text)""")
                 cur.execute("INSERT INTO conexoes VALUES(5,'ativa'),(6,'ativa'),(7,'inativa')")
                 cur.execute("""CREATE TABLE sincronizacao_tarefas(
                     id bigserial primary key,conexao_id integer,status text default 'pendente',
@@ -71,6 +76,33 @@ class DurablePostgresTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=2) as pool:
             results=list(pool.map(lambda _:self.ns['reservar_tarefa_persistente'](agora=100),range(2)))
         self.assertEqual(sum(result is not None for result in results),1)
+
+    def test_worker_recovers_abandoned_telemetry_and_excludes_legacy_collector(self):
+        self.ns['criar_tarefa_persistente'](5,agora=100)
+        with self.connect() as conn:
+            self.execute(conn,"INSERT INTO sincronizacao_execucoes(conexao_id,status,inicio_em) VALUES(5,'executando',100)")
+        for name in ('encerrar_execucoes_abandonadas','registrar_execucao_inicio',
+                     'registrar_execucao_fim','finalizar_tarefa_persistente',
+                     'processar_tarefa_persistente_uma'):
+            main_function(name,self.ns)
+        legacy_collect=Mock()
+        legacy_ns=dict(store_sync_lock=store_sync_lock,banco=self.connect,consultar=legacy_collect)
+        legacy=main_function('executar_atualizacao',legacy_ns)
+        def collect(cid):
+            with store_sync_lock(self.connect,cid) as nested:
+                self.assertTrue(nested)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                self.assertFalse(pool.submit(legacy,cid).result())
+            legacy_collect.assert_not_called()
+            return True
+        self.ns.update(store_sync_lock=store_sync_lock,iniciar_heartbeat_tarefa=Mock(return_value=Mock()),
+                       executar_atualizacao=collect)
+        self.assertTrue(self.ns['processar_tarefa_persistente_uma']())
+        with self.connect() as conn:
+            rows=self.query(conn,'SELECT status FROM sincronizacao_execucoes ORDER BY id')
+            tasks=self.query(conn,'SELECT status FROM sincronizacao_tarefas')
+        self.assertEqual([r['status'] for r in rows],['interrompida','concluida'])
+        self.assertEqual(tasks[0]['status'],'concluida')
 
     def test_retry_backoff_and_cap_on_real_sql(self):
         task=self.ns['criar_tarefa_persistente'](5,agora=100)
