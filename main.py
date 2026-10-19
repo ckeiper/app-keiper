@@ -1728,7 +1728,8 @@ def auditoria_frete(cid):
                 arquivo.filename, arquivo.read(MAX_UPLOAD_BYTES + 1))
         except PreviewError as exc:
             return esc(str(exc)), 400
-        corpo += render_reconciliation_preview(abas)\n        corpo += render_reconciliation_column_hints(abas)
+        corpo += render_reconciliation_preview(abas)
+        corpo += render_reconciliation_column_hints(abas)
     response = Response(pagina("Auditoria de Frete", corpo, cid=cid,
                               secao="auditoria_frete"), mimetype="text/html")
     response.headers["Cache-Control"] = "no-store"
