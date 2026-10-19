@@ -84,7 +84,7 @@ pedidos da tabela de detalhe. A mesma fórmula escolhe custo real de envio quand
 disponível e estimativa por preço/peso caso contrário. Estimativas com peso
 ausente em qualquer item ficam indisponíveis na auditoria, em vez de zero.
 
-O vínculo usa igualdade exata entre número da operação e ID de pagamento salvo,
+O vínculo usa igualdade exata entre número da operação e ID de pedido ou pagamento salvo,
 ou entre número do envio e envio salvo, sempre na mesma loja. Vínculos conflitantes,
 múltiplos movimentos por pedido e pedidos com múltiplos envios não são somados
 nem escolhidos arbitrariamente. Ficam separados para revisão. Não se usa SKU,
