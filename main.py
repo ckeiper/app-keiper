@@ -4301,6 +4301,17 @@ def reservar_tarefa_persistente(agora=None, duracao_lease=7200):
         return tarefa
 
 
+def renovar_lease_tarefa_persistente(tarefa_id, agora=None, duracao_lease=7200):
+    """Extend the lease only while the task remains executing."""
+    agora = int(time.time()) if agora is None else int(agora)
+    with banco() as conn:
+        cur = executar(conn, """UPDATE sincronizacao_tarefas
+            SET lease_ate=GREATEST(lease_ate, %s)
+            WHERE id=%s AND status='executando' AND lease_ate >= %s""",
+            (agora + duracao_lease, tarefa_id, agora))
+        return cur.rowcount == 1
+
+
 def finalizar_tarefa_persistente(tarefa_id, sucesso, erro=None, agora=None):
     agora = int(time.time()) if agora is None else int(agora)
     with banco() as conn:
