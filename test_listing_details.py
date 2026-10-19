@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 import listing_details as details
 from listing_pagination import listing_page
 from listing_sync import sync_promotions, sync_campaign_cache, pages
+from full_monitor import full_metadata
 
 
 def attr(value='1500 g', kind='WEIGHT'):
@@ -362,7 +363,7 @@ class SyncTests(unittest.TestCase):
         namespace = dict(time=time, json=json, banco=self.banco, consultar=self.consultar,
                          executar=self.executar, registrar_erro=self.error, get_json=api,
                          requests=SimpleNamespace(get=Mock()), registered_weights=details.registered_weights,
-                         legacy_weight=details.legacy_weight)
+                         legacy_weight=details.legacy_weight, full_metadata=full_metadata)
         main_function('puxar_anuncios', namespace)(1, 'secret', 2)
         inserts = [params for sql, params in self.sql if 'INSERT INTO anuncios' in sql]
         self.assertEqual(len(inserts), 1)
@@ -393,7 +394,7 @@ class SyncTests(unittest.TestCase):
         namespace = dict(time=time, json=json, banco=self.banco, consultar=self.consultar,
                          executar=self.executar, registrar_erro=self.error, get_json=api,
                          requests=SimpleNamespace(get=Mock()), registered_weights=details.registered_weights,
-                         legacy_weight=details.legacy_weight)
+                         legacy_weight=details.legacy_weight, full_metadata=full_metadata)
         main_function('puxar_anuncios', namespace)(1, 'secret', 2)
         self.assertEqual(sum('INSERT INTO anuncios' in sql for sql, _ in self.sql), 201)
         self.assertEqual(calls[1][1]['scroll_id'], 'a')
@@ -428,4 +429,5 @@ class SyncTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
 

@@ -26,7 +26,7 @@ class SyncRunnerTests(unittest.TestCase):
 
     def test_main_orchestration_uses_existing_ads_collector_once(self):
         collectors={name:Mock(return_value=True) for name in
-                    ('conta','anuncios','pedidos','perguntas','envios','promocoes','ads')}
+                    ('conta','anuncios','full','pedidos','perguntas','envios','promocoes','ads')}
         namespace=dict(banco=lambda:contextlib.nullcontext(None),
                        store_sync_lock=lambda connect,cid:contextlib.nullcontext(True),
                        consultar=Mock(return_value=[dict(id=5,user_id=99)]),
@@ -197,3 +197,4 @@ class SyncRunnerTests(unittest.TestCase):
         self.assertIn("lease_ate=NULL",sql)
         self.assertIn("'falhou' ELSE 'pendente'",sql)
         self.assertEqual(params,(3,3,10000,3,10000,'network error',12))
+

@@ -12,6 +12,8 @@ from listing_details import (registered_weights, legacy_weight, render_weights,
                              render_promotions, active_promotions, read_json, get_json,
                              render_weight_column, effective_promotion)
 from listing_sync import sync_promotions
+from full_monitor import init_full_schema, full_metadata, sync_full
+from full_routes import register_full
 from listing_diagnostics import inspect_listing
 from listing_health import diagnose_listing
 from listing_sales import listing_sales_summary
@@ -498,6 +500,7 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
     itens = [
         ("resumo", "📊 Resumo", "/painel/" + str(cid)),
         ("anuncios", "📦 Anúncios", "/anuncios/" + str(cid)),
+        ("full", "Full e vendas", "/full/" + str(cid)),
         ("desempenho", "📈 Desempenho", "/desempenho/" + str(cid)),
         ("demandas", "🟡 Demandas", "/demandas/" + str(cid)),
         ("promocoes", "🏷️ Promoções", "/promocoes/" + str(cid)),
@@ -663,6 +666,7 @@ def iniciar_banco():
             PRIMARY KEY (conexao_id, pedido_id, item_id)
         )""")
         init_sales_schema(conn, executar)
+        init_full_schema(conn, executar)
         init_freight_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
@@ -2275,7 +2279,7 @@ def excluir(cid):
                       "<div class='card'><h2>Loja não encontrada</h2></div>")
     if request.method == "POST":
         with banco() as conn:
-            for tabela in ("dados_conta", "anuncios", "pedidos", "pedidos_itens",
+            for tabela in ("full_observations", "dados_conta", "anuncios", "pedidos", "pedidos_itens",
                            "metricas", "desempenho_historico", "perguntas",
                            "envios", "promocoes", "promocoes_itens",
                            "ads_campanhas", "ads_metricas", "ads_dia",
@@ -3085,7 +3089,8 @@ def anuncios(cid):
                         "<td><b>" + esc(str(a["titulo"])) + "</b><br>"
                         "<small class='muted'>" + esc(str(a["item_id"])) + "</small><br>"
                         "<a href='/diagnostico/" + str(cid) + "/" + esc(str(a["item_id"]))
-                        + "'>Ver diagnóstico</a></td>"
+                        + "'>Ver diagnóstico</a><br><a href='/full/" + str(cid)
+                        + "?item_id=" + esc(str(a['item_id'])) + "'>Full e vendas</a></td>"
                         "<td>R$ %.2f" % (a["preco"] or 0) + "</td>"
                         "<td>" + promo_html + "</td>"
                         "<td>" + str(a["quantidade"] or 0) + "</td>"
@@ -3953,6 +3958,7 @@ def puxar_anuncios(conexao_id, token, user_id):
         scroll = novo_scroll
     agora = int(time.time())
     linhas = []
+    full_rows = []
     completo = True
     for i in range(0, len(ids), 20):
         lote = ids[i:i + 20]
@@ -3977,6 +3983,8 @@ def puxar_anuncios(conexao_id, token, user_id):
             if not isinstance(det, dict) or not det.get("id"):
                 completo = False
                 continue
+            full_rows.append((json.dumps(full_metadata(det, user_id, int(time.time()))),
+                              conexao_id, det['id']))
             fotos = 0
             pics = det.get("pictures")
             if isinstance(pics, list):
@@ -4017,6 +4025,9 @@ def puxar_anuncios(conexao_id, token, user_id):
                               sku=EXCLUDED.sku, original_price=EXCLUDED.original_price,
                               pesos_json=EXCLUDED.pesos_json""", t)
 
+        for metadata in full_rows:
+            executar(conn, '''UPDATE anuncios SET full_metadata_json=%s::jsonb
+                WHERE conexao_id=%s AND item_id=%s''', metadata)
         velhos = consultar(conn, "SELECT item_id FROM anuncios WHERE conexao_id=%s", (conexao_id,))
         atuais = set(ids)
         for row in velhos:
@@ -4286,6 +4297,10 @@ def puxar_pedidos(conexao_id, token, user_id):
                        executar, api_get, registrar_erro)
 
 
+def puxar_full(conexao_id, token, user_id):
+    return sync_full(conexao_id, token, banco, consultar, executar, requests.get)
+
+
 def executar_atualizacao(cid):
     with store_sync_lock(banco, cid) as acquired:
         if not acquired:
@@ -4306,6 +4321,7 @@ def executar_atualizacao(cid):
                 # Atualizar pedidos primeiro: a fila é serial e anúncios podem demorar.
                 ("pedidos", lambda: puxar_pedidos(cid, token, user_id)),
                 ("anuncios", lambda: puxar_anuncios(cid, token, user_id)),
+                ("full", lambda: puxar_full(cid, token, user_id)),
                 ("perguntas", lambda: puxar_perguntas(cid, token, user_id)),
                 ("envios", lambda: puxar_envios(cid, token, user_id)),
                 ("promocoes", lambda: puxar_promocoes(cid, token, user_id)),
@@ -4375,6 +4391,7 @@ def job_dados():
 
 
 register_crm(app, banco, consultar, executar, pagina)
+register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja, session)
 
 iniciar_banco()
 
@@ -4573,3 +4590,4 @@ scheduler.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+
