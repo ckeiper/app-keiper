@@ -1657,7 +1657,7 @@ def registrar_execucao_inicio(cid):
                          WHERE NOT EXISTS (
                            SELECT 1 FROM sincronizacao_execucoes
                            WHERE conexao_id=%s AND status='executando'
-                             AND inicio_em >= %s
+                             AND COALESCE(heartbeat_em, inicio_em) >= %s
                          ) RETURNING id""",
                        (cid, agora, cid, agora - 7200))
         row = cur.fetchone()
@@ -4239,7 +4239,7 @@ def job_dados():
             executar(conn, """UPDATE sincronizacao_execucoes
                 SET status='interrompida', fim_em=%s,
                     detalhe='Execucao sem conclusao por mais de 2 horas'
-                WHERE status='executando' AND inicio_em < %s""",
+                WHERE status='executando' AND COALESCE(heartbeat_em, inicio_em) < %s""",
                 (agora, agora - 7200))
     except Exception:
         pass
@@ -4271,7 +4271,7 @@ with banco() as conn:
     executar(conn, """UPDATE sincronizacao_execucoes
         SET status='interrompida', fim_em=%s,
             detalhe='Processo reiniciado antes da conclusão'
-        WHERE status='executando' AND inicio_em < %s""",
+        WHERE status='executando' AND COALESCE(heartbeat_em, inicio_em) < %s""",
         (int(time.time()), int(time.time()) - 7200))
 
 # Future durable queue: schema only. Current worker remains unchanged.
