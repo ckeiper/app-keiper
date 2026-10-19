@@ -118,7 +118,7 @@ FREIGHT_COLUMN_HINTS = {
     "pedido": ("numero de venda", "número de venda", "order id", "id da venda", "pedido"),
     "envio": ("numero de envio", "número de envio", "shipment id", "id do envio"),
     "frete": ("custo de envio", "tarifa de envio", "shipping fee", "frete"),
-    "valor": ("valor", "amount", "montante"),
+    "valor": ("valor da transacao", "valor da transação", "transaction amount", "montante"),
     "tipo": ("tipo de operacao", "tipo de operação", "transaction type", "descricao"),
 }
 
