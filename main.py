@@ -942,6 +942,35 @@ def diagnostico_visitas_copas():
     return jsonify({"loja": "Copas Ind", "item_id": "MLB5325240286", **resultado})
 
 
+@app.route("/admin/coleta-visitas-copas", methods=["GET", "POST"])
+@admin_required
+def coleta_visitas_copas():
+    """Admin-confirmed bounded pilot; never run collection on GET."""
+    import hmac
+    if request.method == "GET":
+        nonce = secrets.token_urlsafe(24)
+        session["copas_visits_nonce"] = nonce
+        corpo = ("<div class='card'><h2>Coleta piloto de visitas — Copas Ind</h2>"
+                 "<p>Consulta até 10 anúncios, apenas os últimos sete dias completos. "
+                 "Não altera vendas nem outras lojas.</p>"
+                 "<form method='post' action='/admin/coleta-visitas-copas'>"
+                 "<input type='hidden' name='nonce' value='" + esc(nonce) + "'>"
+                 "<button class='btn-acoes' type='submit'>Executar coleta piloto</button>"
+                 "</form></div>")
+        return pagina("Coleta piloto de visitas", corpo)
+    nonce = session.pop("copas_visits_nonce", "")
+    submitted = request.form.get("nonce", "")
+    if not nonce or not hmac.compare_digest(nonce, submitted):
+        return jsonify({"erro": "Confirmação inválida ou expirada"}), 403
+    from copas_visits_store import collect
+    try:
+        result = collect(limit=10)
+    except Exception:
+        app.logger.exception("copas_visits_collection_failed")
+        return jsonify({"erro": "Falha na coleta piloto"}), 503
+    return jsonify(result)
+
+
 @app.route("/")
 def home():
     if "usuario_id" not in session:
