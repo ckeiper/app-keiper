@@ -28,6 +28,7 @@ from page_performance import ranking_query_bounds
 from sales_sync import init_sales_schema, sync_orders
 from overview_store import init_overview_schema
 from sync_runner import run_stages
+from sync_exclusion import store_sync_lock
 from listing_pagination import listing_page
 from sales_view import render_sales
 from overview import load_overview, render_overview, overview_layout
@@ -1696,14 +1697,10 @@ def processar_fila():
                 return
             cid = FILA_ATUALIZACAO[0]
         execucao_id = None
-        reserva_disponivel = False
         try:
-            try:
-                execucao_id = registrar_execucao_inicio(cid)
-                reserva_disponivel = True
-            except Exception:
-                pass  # Telemetry failure must not prevent order collection.
-            if reserva_disponivel and execucao_id is None:
+            # Fail closed: the shared reservation is part of mutual exclusion.
+            execucao_id = registrar_execucao_inicio(cid)
+            if execucao_id is None:
                 continue  # Another worker already owns this store.
             atualizacao_ok = executar_atualizacao(cid)
             if execucao_id is not None:
@@ -4184,46 +4181,49 @@ def puxar_pedidos(conexao_id, token, user_id):
 
 
 def executar_atualizacao(cid):
-    with banco() as conn:
-        rows = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-    if not rows:
-        return False
-    c = rows[0]
-    token = token_atual(c)
-    if not token:
-        return False
-    started = int(time.time())
-    user_id = c["user_id"]
-    stages = [("conta", lambda: puxar_conta(cid, token))]
-    if user_id:
-        stages.extend([
-            # Atualizar pedidos primeiro: a fila é serial e anúncios podem demorar.
-            ("pedidos", lambda: puxar_pedidos(cid, token, user_id)),
-            ("anuncios", lambda: puxar_anuncios(cid, token, user_id)),
-            ("perguntas", lambda: puxar_perguntas(cid, token, user_id)),
-            ("envios", lambda: puxar_envios(cid, token, user_id)),
-            ("promocoes", lambda: puxar_promocoes(cid, token, user_id)),
-            ("ads", lambda: puxar_ads(cid, token, user_id)),
-        ])
-    # puxar_ads already refreshes daily metrics. No second/undefined collector.
-    # Disabled visit collection is not reported as a successful refresh.
-    stages.append(("historico", lambda: (gravar_historico(cid), True)[1]))
-    falhas = []
-    def coletar_etapa(nome, coleta):
-        resultado = coleta()
-        if resultado is not True:
-            falhas.append(nome)
-        return resultado
-    def registrar_falha(conexao_id, categoria, mensagem):
-        falhas.append(categoria)
-        registrar_erro(conexao_id, categoria, mensagem)
-    etapas = [(nome, lambda nome=nome, coleta=coleta: coletar_etapa(nome, coleta)) for nome, coleta in stages]
-    ok = run_stages(cid, etapas, registrar_falha, resolver_erro, time.time)
-    if ok:
-        resolver_erro(cid, "atualizacao", started)
-    else:
-        registrar_erro(cid, "atualizacao", "Etapas com falha: " + ", ".join(dict.fromkeys(falhas)))
-    return ok
+    with store_sync_lock(banco, cid) as acquired:
+        if not acquired:
+            return False
+        with banco() as conn:
+            rows = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+        if not rows:
+            return False
+        c = rows[0]
+        token = token_atual(c)
+        if not token:
+            return False
+        started = int(time.time())
+        user_id = c["user_id"]
+        stages = [("conta", lambda: puxar_conta(cid, token))]
+        if user_id:
+            stages.extend([
+                # Atualizar pedidos primeiro: a fila é serial e anúncios podem demorar.
+                ("pedidos", lambda: puxar_pedidos(cid, token, user_id)),
+                ("anuncios", lambda: puxar_anuncios(cid, token, user_id)),
+                ("perguntas", lambda: puxar_perguntas(cid, token, user_id)),
+                ("envios", lambda: puxar_envios(cid, token, user_id)),
+                ("promocoes", lambda: puxar_promocoes(cid, token, user_id)),
+                ("ads", lambda: puxar_ads(cid, token, user_id)),
+            ])
+        # puxar_ads already refreshes daily metrics. No second/undefined collector.
+        # Disabled visit collection is not reported as a successful refresh.
+        stages.append(("historico", lambda: (gravar_historico(cid), True)[1]))
+        falhas = []
+        def coletar_etapa(nome, coleta):
+            resultado = coleta()
+            if resultado is not True:
+                falhas.append(nome)
+            return resultado
+        def registrar_falha(conexao_id, categoria, mensagem):
+            falhas.append(categoria)
+            registrar_erro(conexao_id, categoria, mensagem)
+        etapas = [(nome, lambda nome=nome, coleta=coleta: coletar_etapa(nome, coleta)) for nome, coleta in stages]
+        ok = run_stages(cid, etapas, registrar_falha, resolver_erro, time.time)
+        if ok:
+            resolver_erro(cid, "atualizacao", started)
+        else:
+            registrar_erro(cid, "atualizacao", "Etapas com falha: " + ", ".join(dict.fromkeys(falhas)))
+        return ok
 
 
 def executar_atualizacao_bg(cid):
@@ -4325,17 +4325,23 @@ def criar_tarefa_persistente(cid, agora=None):
 
 def reservar_tarefa_persistente(agora=None, duracao_lease=7200):
     """Atomically claim a ready job across workers using SKIP LOCKED."""
+    lojas = [int(part.strip()) for part in os.getenv("DURABLE_QUEUE_STORE_IDS", "").split(",")
+             if part.strip().isdigit()]
+    if not lojas:
+        return None
     agora = int(time.time()) if agora is None else int(agora)
     with banco() as conn:
         rows = consultar(conn, """SELECT t.id, t.conexao_id
             FROM sincronizacao_tarefas t
             WHERE t.status='pendente' AND t.disponivel_em <= %s
+              AND t.conexao_id = ANY(%s)
+              AND EXISTS (SELECT 1 FROM conexoes c WHERE c.id=t.conexao_id AND c.status='ativa')
               AND NOT EXISTS (
                 SELECT 1 FROM sincronizacao_tarefas a
                 WHERE a.conexao_id=t.conexao_id AND a.status='executando'
               )
             ORDER BY t.disponivel_em,t.id
-            FOR UPDATE OF t SKIP LOCKED LIMIT 1""", (agora,))
+            FOR UPDATE OF t SKIP LOCKED LIMIT 1""", (agora, lojas))
         if not rows:
             return None
         tarefa = rows[0]

@@ -28,6 +28,7 @@ class SyncRunnerTests(unittest.TestCase):
         collectors={name:Mock(return_value=True) for name in
                     ('conta','anuncios','pedidos','perguntas','envios','promocoes','ads')}
         namespace=dict(banco=lambda:contextlib.nullcontext(None),
+                       store_sync_lock=lambda connect,cid:contextlib.nullcontext(True),
                        consultar=Mock(return_value=[dict(id=5,user_id=99)]),
                        token_atual=lambda c:'fake',time=SimpleNamespace(time=lambda:100),
                        registrar_erro=Mock(),resolver_erro=Mock(),run_stages=run_stages,
@@ -41,6 +42,8 @@ class SyncRunnerTests(unittest.TestCase):
         collect=Mock(side_effect=[IndexError('simulated'),True])
         namespace=dict(FILA_ATUALIZACAO=queue,LOCK_FILA=threading.Lock(),WORKER_VIVO=True,
                        ATUALIZANDO={5,6},LOCK_ATUALIZACAO=threading.Lock(),
+                       registrar_execucao_inicio=Mock(side_effect=[11,12]),
+                       registrar_execucao_fim=Mock(),
                        executar_atualizacao=collect,registrar_erro=Mock(side_effect=RuntimeError('database unavailable')))
         main_function('processar_fila',namespace)()
         self.assertEqual([c.args[0] for c in collect.call_args_list],[5,6])
