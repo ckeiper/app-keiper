@@ -79,6 +79,23 @@ class DurableQueueTests(unittest.TestCase):
         self.ns["executar_atualizacao"].assert_not_called()
         self.ns["reagendar_tarefa_persistente"].assert_called_once()
 
+    def test_optin_disabled_without_environment(self):
+        main_function("loja_habilitada_fila_persistente", self.ns)
+        import os
+        from unittest.mock import patch
+        self.ns["os"] = os
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(self.ns["loja_habilitada_fila_persistente"](5))
+
+    def test_optin_only_selected_store(self):
+        main_function("loja_habilitada_fila_persistente", self.ns)
+        import os
+        from unittest.mock import patch
+        self.ns["os"] = os
+        with patch.dict(os.environ, {"DURABLE_QUEUE_STORE_IDS": "5, 9"}):
+            self.assertTrue(self.ns["loja_habilitada_fila_persistente"](5))
+            self.assertFalse(self.ns["loja_habilitada_fila_persistente"](6))
+
     def test_claim_skips_empty_queue(self):
         self.ns["consultar"].return_value = []
         result = self.ns["reservar_tarefa_persistente"](agora=100)
