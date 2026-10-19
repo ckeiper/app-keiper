@@ -951,10 +951,10 @@ def coleta_visitas_copas():
         nonce = secrets.token_urlsafe(24)
         session["copas_visits_nonce"] = nonce
         corpo = ("<div class='card'><h2>Coleta piloto de visitas — Copas Ind</h2>"
-                 "<p>Consulta até 10 anúncios, apenas os últimos sete dias completos. "
+                 "<p>Consulta um lote de até 10 anúncios ativos, apenas os últimos sete dias completos. "
                  "Não altera vendas nem outras lojas.</p>"
                  "<form method='post' action='/admin/coleta-visitas-copas'>"
-                 "<input type='hidden' name='nonce' value='" + esc(nonce) + "'>"
+                 "<input type='hidden' name='nonce' value='" + esc(nonce) + "'>"\n                 "<label for='offset'>Início do lote (0, 10, 20...)</label>"\n                 "<input id='offset' name='offset' type='number' min='0' step='10' value='0' required>"
                  "<button class='btn-acoes' type='submit'>Executar coleta piloto</button>"
                  "</form></div>")
         return pagina("Coleta piloto de visitas", corpo)
@@ -964,7 +964,13 @@ def coleta_visitas_copas():
         return jsonify({"erro": "Confirmação inválida ou expirada"}), 403
     from copas_visits_store import collect
     try:
-        result = collect(limit=10)
+        raw_offset = request.form.get("offset", "0")
+        if not raw_offset.isascii() or not raw_offset.isdecimal():
+            return jsonify({"erro": "Lote inválido"}), 400
+        offset = int(raw_offset)
+        if offset > 10000 or offset % 10:
+            return jsonify({"erro": "Lote inválido"}), 400
+        result = collect(limit=10, offset=offset)
     except Exception:
         app.logger.exception("copas_visits_collection_failed")
         return jsonify({"erro": "Falha na coleta piloto"}), 503
