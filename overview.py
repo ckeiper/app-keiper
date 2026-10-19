@@ -314,6 +314,9 @@ def render_overview(data, args, admin=False):
         out += ("<div class='stat'><div class='lab'>" + title + "</div><div class='num'>"
                 + fmt(value,money) + "</div><p>Anterior: " + fmt(previous,money)
                 + " · " + variation(value,previous) + "</p></div>")
+    out += ("<div class='stat'><div class='lab'>Visitas · últimos 7 dias</div>"
+            "<div class='num'>Indisponível</div>"
+            "<p>Aguardando sincronização das visitas oficiais. Não são exibidos zeros fictícios.</p></div>")
     out += "</div><section class='card'><h2>Atenção às lojas</h2>"
     if not data['alerts']:
         out += "<p>Nenhum alerta pelos critérios atuais.</p>"
