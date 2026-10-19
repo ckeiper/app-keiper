@@ -1904,7 +1904,9 @@ def painel():
     admin = session.get("tipo") == "admin"
     try:
         dados = load_overview(lojas, request.args, banco, consultar)
-        corpo = render_overview(dados, request.args, admin=admin)
+        from visits_overview import load_visits_card
+        visitas_card = load_visits_card(banco, lojas)
+        corpo = render_overview(dados, request.args, admin=admin, visits_card=visitas_card)
     except ValueError as erro:
         from sales_view import filters
         corpo = ("<div class='aviso'>" + esc(str(erro))
