@@ -96,6 +96,26 @@ class DurableQueueTests(unittest.TestCase):
             self.assertTrue(self.ns["loja_habilitada_fila_persistente"](5))
             self.assertFalse(self.ns["loja_habilitada_fila_persistente"](6))
 
+    def test_scheduler_worker_disabled_by_default(self):
+        main_function("job_fila_persistente", self.ns)
+        import os
+        from unittest.mock import patch
+        self.ns["os"] = os
+        self.ns["processar_tarefa_persistente_uma"] = Mock()
+        with patch.dict(os.environ, {}, clear=True):
+            self.ns["job_fila_persistente"]()
+        self.ns["processar_tarefa_persistente_uma"].assert_not_called()
+
+    def test_scheduler_worker_enabled_explicitly(self):
+        main_function("job_fila_persistente", self.ns)
+        import os
+        from unittest.mock import patch
+        self.ns["os"] = os
+        self.ns["processar_tarefa_persistente_uma"] = Mock()
+        with patch.dict(os.environ, {"DURABLE_QUEUE_WORKER_ENABLED": "true"}):
+            self.ns["job_fila_persistente"]()
+        self.ns["processar_tarefa_persistente_uma"].assert_called_once_with()
+
     def test_claim_skips_empty_queue(self):
         self.ns["consultar"].return_value = []
         result = self.ns["reservar_tarefa_persistente"](agora=100)
