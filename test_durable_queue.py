@@ -139,6 +139,18 @@ class DurableQueueTests(unittest.TestCase):
         self.assertIn("lease_ate < %s", sql)
         self.assertEqual(params, (3, 3, 500, 3, 500, 500))
 
+    def test_recovery_checks_existing_pending_task(self):
+        self.ns["recuperar_tarefas_persistentes"](agora=500)
+        sql = self.ns["executar"].call_args.args[1]
+        self.assertIn("outra.status='pendente'", sql)
+        self.assertIn("outra.conexao_id=sincronizacao_tarefas.conexao_id", sql)
+
+    def test_retry_checks_existing_pending_task(self):
+        self.ns["reagendar_tarefa_persistente"](7, "erro", agora=500)
+        sql = self.ns["executar"].call_args.args[1]
+        self.assertIn("outra.status='pendente'", sql)
+        self.assertIn("outra.id<>sincronizacao_tarefas.id", sql)
+
     def test_failure_truncates_error(self):
         self.ns["executar"].return_value.rowcount = 1
         result = self.ns["reagendar_tarefa_persistente"](7, "x" * 500, agora=600)
