@@ -11,6 +11,15 @@ from decimal import Decimal, InvalidOperation
 from freight_import import PreviewError, preview_reconciliation_upload
 
 MAX_LEDGER_ROWS = 25000
+DAILY_COUNTS = ('rows', 'shipping_rows', 'invalid_shipping_rows',
+                'absent_shipping_rows', 'inconsistent_shipping_rows')
+DAILY_AMOUNTS = ('gross_shipping_total', 'shipping_discount_total', 'seller_shipping_total')
+
+
+def empty_day():
+    return {**dict.fromkeys(DAILY_COUNTS, 0), **dict.fromkeys(DAILY_AMOUNTS, '0.00')}
+
+
 FIELDS = {
     'operation_date': 'Data da operação',
     'operation_id': 'Número da operação',
@@ -77,6 +86,7 @@ def inspect_sales_reconciliation(filename, payload):
                       invalid_date_rows=0)
         totals = [Decimal('0.00') for _ in range(3)]
         dates = set()
+        daily = {}
         seen = set()
         for row in ws.iter_rows(min_row=4, max_row=MAX_LEDGER_ROWS + 4,
                                 max_col=45, values_only=True):
@@ -86,11 +96,14 @@ def inspect_sales_reconciliation(filename, payload):
             if result['rows'] > MAX_LEDGER_ROWS:
                 raise PreviewError('Relatório excede o limite de lançamentos.')
             value = row[columns['operation_date']]
+            bucket = None
             try:
                 day = (value.date() if isinstance(value, datetime.datetime) else
                        value if isinstance(value, datetime.date) else
                        datetime.datetime.strptime(value, '%d/%m/%Y').date())
                 dates.add(day)
+                bucket = daily.setdefault(day.isoformat(), empty_day())
+                bucket['rows'] += 1
             except (ValueError, TypeError):
                 result['invalid_date_rows'] += 1
             operation = row[columns['operation_id']]
@@ -104,22 +117,34 @@ def inspect_sales_reconciliation(filename, payload):
                       ('gross_shipping', 'shipping_discount', 'seller_shipping')]
             if all(v is None or v == '' for v in values):
                 result['absent_shipping_rows'] += 1
+                if bucket is not None:
+                    bucket['absent_shipping_rows'] += 1
                 continue
             try:
                 gross, discount, seller = [_amount(v) for v in values]
             except (ValueError, InvalidOperation):
                 result['invalid_shipping_rows'] += 1
+                if bucket is not None:
+                    bucket['invalid_shipping_rows'] += 1
                 continue
             totals = [a + b for a, b in zip(totals, (gross, discount, seller))]
+            if bucket is not None:
+                for key, amount in zip(DAILY_AMOUNTS, (gross, discount, seller)):
+                    bucket[key] = str(Decimal(bucket[key]) + amount)
             if any((gross, discount, seller)):
                 result['shipping_rows'] += 1
+                if bucket is not None:
+                    bucket['shipping_rows'] += 1
             if discount > gross or abs(gross - discount - seller) > Decimal('.01'):
                 result['inconsistent_shipping_rows'] += 1
+                if bucket is not None:
+                    bucket['inconsistent_shipping_rows'] += 1
         result.update(zip(('gross_shipping_total', 'shipping_discount_total',
                            'seller_shipping_total'), map(str, totals)))
         result.update(period_start=min(dates).isoformat() if dates else None,
                       period_end=max(dates).isoformat() if dates else None,
                       operation_days=len(dates))
+        result['daily'] = dict(sorted(daily.items()))
         return result
     finally:
         wb.close()

@@ -84,6 +84,9 @@ class SalesReconciliationTests(unittest.TestCase):
         self.assertEqual(result['invalid_date_rows'], 1)
         self.assertEqual(result['seller_shipping_total'], '30.00')
         self.assertEqual(result['gross_shipping_total'], '40.00')
+        self.assertEqual(result['daily']['2026-09-30']['seller_shipping_total'], '15.00')
+        self.assertEqual(result['daily']['2026-10-01']['seller_shipping_total'], '15.00')
+        self.assertNotIn('2026-09-31', result['daily'])
 
 
 if __name__ == '__main__':

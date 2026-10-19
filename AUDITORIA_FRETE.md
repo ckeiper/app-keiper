@@ -51,7 +51,27 @@ datas com movimentos não garantem cobertura completa.
 A coleta de pedidos mantém o histórico inicial dos últimos 30 dias e sua
 atualização incremental existente com reconsulta recente. Uploads de conciliação
 não alteram a cobertura nem o agendamento dessa coleta. Importações diárias de
-arquivos são manuais nesta etapa; não há coleta automática de relatórios nem
-consolidação de movimentos entre arquivos. A tarifa esperada ainda precisa de
+arquivos são manuais nesta etapa; não há coleta automática de relatórios.
+A tarifa esperada ainda precisa de
 fonte independente, com vigência e vínculo de envio verificados. A tabela
 genérica de preço/peso do aplicativo não foi assumida como tarifa contratada.
+
+## Consolidação incremental diária
+
+O administrador informa o período exato do relatório e confirma que o arquivo
+contém todos os lançamentos, sem filtros adicionais. Períodos de até 31 dias
+(inclusive as duas extremidades) permitem a carga histórica e arquivos diários.
+Datas futuras, datas inválidas, ausência de confirmação e movimentos fora do
+período bloqueiam a consolidação antes de qualquer escrita.
+
+Cada dia confirmado substitui sua versão anterior de forma transacional, sob
+trava exclusiva da loja em namespace separado da coleta. Dias sem movimentos
+dentro de um relatório completo confirmado recebem indicador zero; dias sem
+relatório ficam sem cobertura. A tela mostra cobertura dos últimos 30 dias
+até hoje, no fuso de São Paulo, e não converte lacunas em zero. Dias anteriores
+permanecem armazenados. O mesmo arquivo só pode ser consolidado uma vez,
+inclusive após importar apenas seu resumo: repetir um arquivo antigo não
+reverte versões posteriores. Arquivos corrigidos diferentes substituem apenas
+os dias confirmados pelo administrador. Não há deduplicação por operação nem
+armazenamento de linhas de cliente; trata-se de consolidação de indicadores
+diários completos, não de um livro de movimentos individuais.

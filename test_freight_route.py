@@ -30,6 +30,9 @@ class FreightRouteTests(unittest.TestCase):
                    CSS='', VISUAL_CSS='', SCRIPT='', img_logo=lambda size: '',
                    render_freight_comparison_demo=render_freight_comparison_demo)
         env.update(save_report=freight_store.save_report,
+                   consolidate_report=freight_store.consolidate_report,
+                   consolidated_history=freight_store.consolidated_history,
+                   render_consolidated=freight_store.render_consolidated,
                    report_history=freight_store.report_history,
                    render_history=freight_store.render_history)
         for module in (freight_import, freight_reconciliation):
@@ -105,14 +108,28 @@ class FreightRouteTests(unittest.TestCase):
         self.client.get('/auditoria-frete/5')
         with self.client.session_transaction() as state:
             token = state['freight_preview_csrf']
+        for action in ('importar', 'consolidar'):
+            response = self.client.post('/auditoria-frete/5', data={
+                'csrf_token': token, 'acao': action})
+            self.assertEqual(response.status_code, 403)
+
+    def test_admin_cannot_consolidate_without_confirming_complete_period(self):
+        with self.client.session_transaction() as state:
+            state.update(tipo='admin', freight_preview_csrf='synthetic-csrf')
+        from test_freight_reconciliation import SalesReconciliationTests
+        payload = SalesReconciliationTests().workbook([dict(operation_date='01/10/2026')])
+        self.query.side_effect = [[{'cliente': 'Loja sintética'}], [], []]
         response = self.client.post('/auditoria-frete/5', data={
-            'csrf_token': token, 'acao': 'importar'})
-        self.assertEqual(response.status_code, 403)
+            'csrf_token': 'synthetic-csrf', 'acao': 'consolidar',
+            'periodo_inicio':'2026-10-01', 'periodo_fim':'2026-10-01',
+            'arquivo': (io.BytesIO(payload), 'synthetic.xlsx')})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.query.call_count,3)
 
     def test_admin_imports_into_selected_store(self):
         with self.client.session_transaction() as state:
             state['tipo'] = 'admin'
-        self.query.side_effect = [[{'cliente': 'Loja sintética'}], []]
+        self.query.side_effect = [[{'cliente': 'Loja sintética'}], [], []]
         response = self.client.get('/auditoria-frete/5')
         self.assertEqual(response.status_code, 200)
         self.assertIn('Importar indicadores desta loja', response.get_data(as_text=True))
@@ -121,7 +138,7 @@ class FreightRouteTests(unittest.TestCase):
         from test_freight_reconciliation import SalesReconciliationTests
         payload = SalesReconciliationTests().workbook([dict(operation_date='01/10/2026')])
         self.query.reset_mock()
-        self.query.side_effect = [[{'cliente': 'Loja sintética'}], [], [{'id': 1}]]
+        self.query.side_effect = [[{'cliente': 'Loja sintética'}], [], [], [{'id': 1}]]
         response = self.client.post('/auditoria-frete/5', data={
             'csrf_token': token, 'acao': 'importar',
             'arquivo': (io.BytesIO(payload), 'synthetic.xlsx')})
