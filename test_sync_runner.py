@@ -122,3 +122,29 @@ class SyncRunnerTests(unittest.TestCase):
                        processar_tarefa_persistente_uma=worker,app=SimpleNamespace(logger=logger))
         main_function('job_fila_persistente',namespace)()
         logger.exception.assert_called_once_with('Falha no worker da fila persistente')
+
+    def test_durable_worker_failed_collection_is_retried(self):
+        finish=Mock()
+        retry=Mock()
+        end=Mock()
+        namespace=dict(reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
+                       registrar_execucao_inicio=lambda cid:33,
+                       executar_atualizacao=Mock(return_value=False),
+                       registrar_execucao_fim=end,
+                       finalizar_tarefa_persistente=finish,reagendar_tarefa_persistente=retry)
+        self.assertFalse(main_function('processar_tarefa_persistente_uma',namespace)())
+        end.assert_called_once_with(33,'falhou')
+        retry.assert_called_once_with(12,'Atualizacao retornou False')
+        finish.assert_not_called()
+
+    def test_durable_worker_exception_retries_and_marks_execution_failed(self):
+        retry=Mock()
+        end=Mock()
+        namespace=dict(reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
+                       registrar_execucao_inicio=lambda cid:33,
+                       executar_atualizacao=Mock(side_effect=ValueError('secret')),
+                       registrar_execucao_fim=end,
+                       reagendar_tarefa_persistente=retry)
+        self.assertFalse(main_function('processar_tarefa_persistente_uma',namespace)())
+        end.assert_called_once_with(33,'falhou','ValueError')
+        retry.assert_called_once_with(12,'ValueError')
