@@ -18,6 +18,7 @@ class DurableQueueTests(unittest.TestCase):
             "executar": Mock(),
             "time": time,
             "psycopg2": psycopg2,
+            "iniciar_heartbeat_tarefa": Mock(return_value=Mock()),
         }
         for name in (
             "reservar_tarefa_persistente",
