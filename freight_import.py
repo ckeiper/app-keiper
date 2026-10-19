@@ -40,22 +40,28 @@ def _preview_rows(rows):
             "rows_scanned": len(sample)}
 
 
+def validate_xlsx_payload(payload):
+    """Validate the ZIP envelope without decoding workbook XML."""
+    if not payload or len(payload) > MAX_UPLOAD_BYTES:
+        raise PreviewError("Arquivo vazio ou maior que 2 MB.")
+    if not zipfile.is_zipfile(io.BytesIO(payload)):
+        raise PreviewError("O arquivo XLSX não é um Excel válido.")
+    with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+        entries = zf.infolist()
+        if (len(entries) > 250 or
+                sum(entry.file_size for entry in entries) > 20 * 1024 * 1024):
+            raise PreviewError("Planilha muito grande para a pré-visualização.")
+        if any(entry.flag_bits & 1 for entry in entries):
+            raise PreviewError("Planilha criptografada não é aceita.")
+
+
 def preview_reconciliation_upload(filename, payload):
     """Return only a bounded, escaped-at-render-time preview; no storage."""
     if not payload or len(payload) > MAX_UPLOAD_BYTES:
         raise PreviewError("Arquivo vazio ou maior que 2 MB.")
     name = (filename or "").lower()
     if name.endswith(".xlsx"):
-        if not zipfile.is_zipfile(io.BytesIO(payload)):
-            raise PreviewError("O arquivo XLSX não é um Excel válido.")
-        # Prevent very small compressed ZIPs from expanding into huge files.
-        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
-            entries = zf.infolist()
-            if (len(entries) > 250 or
-                    sum(entry.file_size for entry in entries) > 20 * 1024 * 1024):
-                raise PreviewError("Planilha muito grande para a pré-visualização.")
-            if any(entry.flag_bits & 1 for entry in entries):
-                raise PreviewError("Planilha criptografada não é aceita.")
+        validate_xlsx_payload(payload)
         try:
             from openpyxl import load_workbook
             wb = load_workbook(io.BytesIO(payload), read_only=True,

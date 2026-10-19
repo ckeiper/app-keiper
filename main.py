@@ -1816,16 +1816,25 @@ def auditoria_frete(cid):
             return "Selecione um arquivo", 400
         try:
             payload = arquivo.read(MAX_UPLOAD_BYTES + 1)
-            abas = preview_reconciliation_upload(arquivo.filename, payload)
+            bundle = None
+            if (arquivo.filename or '').lower().endswith('.xlsx'):
+                try:
+                    bundle = inspect_sales_reconciliation(arquivo.filename, payload, bundle=True)
+                except PreviewError:
+                    pass
+            abas = bundle[1] if bundle is not None else preview_reconciliation_upload(arquivo.filename, payload)
         except PreviewError as exc:
             return esc(str(exc)), 400
         corpo += render_reconciliation_preview(abas)
         corpo += render_reconciliation_column_hints(abas)
         try:
-            resumo = inspect_sales_reconciliation(arquivo.filename, payload)
+            if bundle is None:
+                raise PreviewError('Formato não reconhecido para conferência e comparação por vendas.')
+            resumo, _, linhas_comparacao, colunas_comparacao = bundle
             corpo += render_sales_reconciliation(resumo)
             resumo['sales_comparison'] = audit_against_sales(
-                cid, arquivo.filename, payload, resumo, banco, consultar, calcular_vendas)
+                cid, arquivo.filename, payload, resumo, banco, consultar, calcular_vendas,
+                parsed_rows=linhas_comparacao, parsed_columns=colunas_comparacao)
             corpo += render_sales_comparison(resumo['sales_comparison'])
             if request.form.get('acao') in ('importar', 'consolidar'):
                 try:

@@ -97,3 +97,13 @@ quantos estão acima/abaixo/dentro da tolerância de R$ 0,01 e totais somente do
 pedidos comparados. A comparação retorna e persiste apenas agregados; os
 identificadores ficam em memória durante o processamento. Divergência entre as
 duas fontes não comprova cobrança indevida nem equivale à tarifa contratada.
+
+## Leitura única do XLSX
+
+A rota reconhecida valida o envelope ZIP e abre o workbook uma única vez.
+A mesma leitura produz a prévia, os indicadores e seis campos transitórios
+por linha para a comparação. Esses campos não entram no resumo persistido.
+O comparador reutiliza os campos já lidos em vez de abrir o Excel novamente.
+Formatos desconhecidos continuam com prévia limitada e sem importação.
+Testes da rota e do fluxo completo verificam uma única abertura do workbook.
+Isso corrige o timeout observado no upload real no worker HTTP do Render.
