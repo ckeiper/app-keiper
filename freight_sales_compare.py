@@ -28,7 +28,9 @@ def compare_sales_rows(rows, columns, references, payment_links, shipment_links)
         result['candidate_rows'] += 1
         operation = row[columns['operation_id']]
         shipment = row[columns['shipment_id']]
-        candidates = links.get(('operation', str(operation)), set()) | links.get(('shipment', str(shipment)), set())
+        candidates = (links.get(('operation', str(operation)), set())
+                      | links.get(('shipment', str(shipment)), set())
+                      | ({str(operation)} if str(operation) in references else set()))
         if not candidates:
             result['unmatched_rows'] += 1
             continue
@@ -117,7 +119,7 @@ def render_sales_comparison(result):
             + '</ul><p>Frete da planilha nos pedidos comparados: '+format_brl(result['charged_total'])
             + ' · Frete de Vendas nesses mesmos pedidos: '+format_brl(result['sales_total'])
             + ' · Diferenças positivas: '+format_brl(result['above_total'])
-            + '</p><p>Vínculo exato por pagamento ou envio, dentro desta loja. '
+            + '</p><p>Vínculo exato por pedido, pagamento ou envio, dentro desta loja. '
             'Somente um lançamento por pedido é comparado; múltiplos movimentos exigem revisão. '
             'Vendas usa custo real do envio quando disponível; caso contrário, estimativa por preço/peso. '
             'Estimativas sem todos os pesos ficam indisponíveis. Tolerância R$ 0,01. '

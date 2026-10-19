@@ -33,6 +33,14 @@ class SalesFreightComparisonTests(unittest.TestCase):
         self.assertEqual(result['within'],1)
         self.assertEqual(result['real_orders'],1)
 
+    def test_exact_order_id_and_conflicting_payment_are_checked_together(self):
+        result=self.compare([dict(operation_id='order')],payments=[])
+        self.assertEqual(result['compared_orders'],1)
+        result=self.compare([dict(operation_id='order')],
+                            payments=[dict(operation_id='order',pedido_id='other')])
+        self.assertEqual(result['compared_orders'],0)
+        self.assertEqual(result['ambiguous_rows'],1)
+
     def test_conflicting_links_and_multiple_movements_are_never_summed(self):
         result=self.compare([{},{}])
         self.assertEqual(result['ambiguous_orders'],1)
