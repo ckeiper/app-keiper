@@ -26,6 +26,7 @@ from freight_comparison import render_freight_comparison_demo
 from freight_reconciliation import inspect_sales_reconciliation, render_sales_reconciliation
 from freight_store import (init_freight_schema, save_report, report_history, render_history,
                            consolidate_report, consolidated_history, render_consolidated)
+from freight_sales_compare import audit_against_sales, render_sales_comparison
 from visual_theme import VISUAL_CSS
 from crm import init_crm_schema, register_crm, HOME_WIDGET
 from page_performance import ranking_query_bounds
@@ -927,6 +928,19 @@ def logout():
     return redirect("/login")
 
 
+@app.route("/admin/diagnostico-visitas-copas")
+@admin_required
+def diagnostico_visitas_copas():
+    """Manual, read-only API probe for Copas. Never expose access tokens."""
+    from scripts.copas_visits_render_probe import probe
+    try:
+        resultado = probe()
+    except Exception:
+        app.logger.exception("copas_visits_probe_failed")
+        return jsonify({"erro": "Falha no diagnóstico de visitas da Copas"}), 503
+    return jsonify({"loja": "Copas Ind", "item_id": "MLB5325240286", **resultado})
+
+
 @app.route("/")
 def home():
     if "usuario_id" not in session:
@@ -1334,6 +1348,7 @@ def calcular_vendas(cid, inicio=None):
         frete = 0.0
         sem_custo = False
         sem_itens = not itens_p
+        frete_verificavel = bool(itens_p)
         for it in itens_p:
             qtd = it["quantidade"] or 1
             pu = it["preco_unitario"] or 0
@@ -1344,11 +1359,14 @@ def calcular_vendas(cid, inicio=None):
             f = frete_esperado(pu, it["peso"])
             if f is not None:
                 frete += f * qtd
+            else:
+                frete_verificavel = False
         frete_fonte = "estimado"
         frete_real = frete_por_pedido.get(p["pedido_id"])
         if frete_real is not None:
             frete = frete_real
             frete_fonte = "real"
+            frete_verificavel = True
         imposto = receita * aliquota
         comissao_v = receita * comissao
         mc = receita - custo_prod - imposto - comissao_v - frete
@@ -1363,6 +1381,7 @@ def calcular_vendas(cid, inicio=None):
             "comissao": comissao_v,
             "frete": frete,
             "frete_fonte": frete_fonte,
+            "frete_verificavel": frete_verificavel,
             "mc": mc,
             "mc_pct": mc_pct,
             "sem_itens": sem_itens,
@@ -1801,14 +1820,26 @@ def auditoria_frete(cid):
             return "Selecione um arquivo", 400
         try:
             payload = arquivo.read(MAX_UPLOAD_BYTES + 1)
-            abas = preview_reconciliation_upload(arquivo.filename, payload)
+            bundle = None
+            if (arquivo.filename or '').lower().endswith('.xlsx'):
+                try:
+                    bundle = inspect_sales_reconciliation(arquivo.filename, payload, bundle=True)
+                except PreviewError:
+                    pass
+            abas = bundle[1] if bundle is not None else preview_reconciliation_upload(arquivo.filename, payload)
         except PreviewError as exc:
             return esc(str(exc)), 400
         corpo += render_reconciliation_preview(abas)
         corpo += render_reconciliation_column_hints(abas)
         try:
-            resumo = inspect_sales_reconciliation(arquivo.filename, payload)
+            if bundle is None:
+                raise PreviewError('Formato não reconhecido para conferência e comparação por vendas.')
+            resumo, _, linhas_comparacao, colunas_comparacao = bundle
             corpo += render_sales_reconciliation(resumo)
+            resumo['sales_comparison'] = audit_against_sales(
+                cid, arquivo.filename, payload, resumo, banco, consultar, calcular_vendas,
+                parsed_rows=linhas_comparacao, parsed_columns=colunas_comparacao)
+            corpo += render_sales_comparison(resumo['sales_comparison'])
             if request.form.get('acao') in ('importar', 'consolidar'):
                 try:
                     with banco() as conn:

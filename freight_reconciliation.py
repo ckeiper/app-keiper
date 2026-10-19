@@ -8,7 +8,7 @@ import unicodedata
 import datetime
 from decimal import Decimal, InvalidOperation
 
-from freight_import import PreviewError, preview_reconciliation_upload
+from freight_import import PreviewError, validate_xlsx_payload, _preview_rows
 
 MAX_LEDGER_ROWS = 25000
 DAILY_COUNTS = ('rows', 'shipping_rows', 'invalid_shipping_rows',
@@ -65,13 +65,16 @@ def _amount(value):
     return amount
 
 
-def inspect_sales_reconciliation(filename, payload):
+def inspect_sales_reconciliation(filename, payload, bundle=False):
     """Return aggregate structural checks only; never persist or return raw rows."""
-    preview_reconciliation_upload(filename, payload)  # shared ZIP/size safeguards
     if not (filename or '').lower().endswith('.xlsx'):
         raise PreviewError('A conferência de lançamentos requer o relatório XLSX por vendas.')
+    validate_xlsx_payload(payload)
     from openpyxl import load_workbook
-    wb = load_workbook(io.BytesIO(payload), read_only=True, data_only=False, keep_links=False)
+    try:
+        wb = load_workbook(io.BytesIO(payload), read_only=True, data_only=False, keep_links=False)
+    except Exception as exc:
+        raise PreviewError('Não foi possível ler o arquivo XLSX.') from exc
     try:
         if wb.sheetnames != ['DAILY_CONCILIATION']:
             raise PreviewError('Formato não reconhecido: esperada a aba DAILY_CONCILIATION.')
@@ -80,6 +83,11 @@ def inspect_sales_reconciliation(filename, payload):
             raise PreviewError('Relatório excede o limite de linhas ou colunas.')
         columns = schema_columns(next(ws.iter_rows(min_row=3, max_row=3,
                                                    max_col=45, values_only=True)))
+        preview = ([{'name': ws.title, **_preview_rows(ws.iter_rows(
+            min_row=1,max_row=20,max_col=45,values_only=True))}] if bundle else None)
+        comparison_keys = ('operation_type','operation_id','shipment_id',
+                           'gross_shipping','shipping_discount','seller_shipping')
+        comparison_rows = []
         result = dict(rows=0, shipping_rows=0, invalid_shipping_rows=0,
                       inconsistent_shipping_rows=0, repeated_operation_rows=0,
                       missing_operation_rows=0, absent_shipping_rows=0,
@@ -95,6 +103,8 @@ def inspect_sales_reconciliation(filename, payload):
             result['rows'] += 1
             if result['rows'] > MAX_LEDGER_ROWS:
                 raise PreviewError('Relatório excede o limite de lançamentos.')
+            if bundle:
+                comparison_rows.append(tuple(row[columns[key]] for key in comparison_keys))
             value = row[columns['operation_date']]
             bucket = None
             try:
@@ -145,6 +155,8 @@ def inspect_sales_reconciliation(filename, payload):
                       period_end=max(dates).isoformat() if dates else None,
                       operation_days=len(dates))
         result['daily'] = dict(sorted(daily.items()))
+        if bundle:
+            return result, preview, comparison_rows, {key:i for i,key in enumerate(comparison_keys)}
         return result
     finally:
         wb.close()
