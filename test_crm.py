@@ -61,6 +61,9 @@ class CRMUnitTests(unittest.TestCase):
         for data in ({}, {'nome':'Ana','email':'ruim'}, {'nome':'Ana','data_followup':'2026-02-30'}, {'nome':'Ana','etapa':'invalido'}):
             with self.assertRaises(ValueError): crm.validate(data)
         self.assertEqual(crm.whatsapp('(19) 99999-1234'),'https://wa.me/5519999991234')
+        self.assertEqual(crm.contact_phone('+55 (19) 99999-1234'),'19999991234')
+        self.assertEqual(crm.contact_phone('(19) 3333-1234'),'1933331234')
+        self.assertEqual(crm.whatsapp('+55 (19) 99999-1234'),'https://wa.me/5519999991234')
 
 
 @unittest.skipUnless(os.getenv('KEIPER_TEST_DATABASE_URL'), 'isolated PostgreSQL URL not configured')
@@ -162,6 +165,40 @@ class CRMIntegrationTests(unittest.TestCase):
         r=self.post(review,nome='Antigo',versao='1')
         self.assertIn('cadastro mudou',r.text)
         self.assertEqual(self.get_lead(lead_id)['nome'],'Alterado')
+
+    def test_link_matching_phone_preserves_draft_edits_and_requires_review(self):
+        lead_id=self.create(celular='+55 (19) 98888-7766',empresa='Empresa preservada',etapa='Em negociação')
+        r=self.post('/crm/importar',texto='WhatsApp: (19) 98888-7766\nObjetivo: Crescer na Shopee')
+        review=r.location
+        self.assertIn('Usar este cadastro',self.client.get(review).text)
+        r=self.post(review+'/vincular',lead_id=str(lead_id),celular='(19) 98888-7766',
+                    objetivos='Objetivo revisado',resumo='Síntese editada')
+        self.assertEqual(r.status_code,302)
+        self.assertEqual(self.get_lead(lead_id)['versao'],1)
+        view=self.client.get(review).text
+        self.assertIn('Empresa preservada',view)
+        self.assertIn('Objetivo revisado',view)
+        self.assertIn('Síntese editada',view)
+        self.assertIn('selected>Em negociação',view)
+        self.assertEqual(self.post(review+'/vincular',lead_id=str(lead_id)).status_code,409)
+        r=self.post(review,nome='Lead existente',empresa='Empresa preservada',
+                    objetivos='Objetivo revisado',resumo='Síntese editada',etapa='Em negociação')
+        self.assertEqual(r.location,f'/crm/{lead_id}')
+        self.assertEqual(self.get_lead(lead_id)['versao'],2)
+        with self.bank() as conn:
+            rows=self.query(conn,"SELECT * FROM crm_historico WHERE lead_id=%s AND tipo='Reunião importada'",(lead_id,))
+        self.assertEqual(len(rows),1)
+        self.assertIn('WhatsApp: (19)',rows[0]['transcricao'])
+
+    def test_link_draft_rejects_invalid_owner_and_missing_csrf(self):
+        lead_id=self.create(email='link@example.com')
+        review=self.post('/crm/importar',texto='E-mail: link@example.com').location
+        self.assertEqual(self.client.post(review+'/vincular',data={'lead_id':lead_id}).status_code,400)
+        self.assertEqual(self.post(review+'/vincular',lead_id='invalid').status_code,400)
+        other=self.app.test_client()
+        with other.session_transaction() as s:
+            s.update(usuario_id=-98766,tipo='admin',crm_csrf='other-csrf')
+        self.assertEqual(other.post(review+'/vincular',data={'lead_id':lead_id,'csrf_token':'other-csrf'}).status_code,404)
 
     def test_filters_summary_closed_and_missing_dates(self):
         a=self.create(data_followup='2020-01-01',empresa='Filtro exclusivo')

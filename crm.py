@@ -247,8 +247,16 @@ SUMMARY = """<section class="card" aria-label="Acompanhamento de leads"><div sty
 HOME_WIDGET = """<div id="crm-home-summary"><section class="card"><h3>Acompanhamento de leads</h3><p><a href="/crm">Abrir CRM</a> · <a href="/crm/importar">Importar transcrição</a></p></section></div><script>fetch('/crm/resumo',{credentials:'same-origin'}).then(function(r){if(!r.ok)throw Error();return r.text();}).then(function(s){document.getElementById('crm-home-summary').innerHTML=s;}).catch(function(){});</script>"""
 
 
-def whatsapp(value):
+def contact_phone(value):
+    """Normalize Brazilian country code without changing international numbers."""
     number = re.sub(r'\D', '', value or '')
+    if len(number) in (12, 13) and number.startswith('55'):
+        number = number[2:]
+    return number
+
+
+def whatsapp(value):
+    number = contact_phone(value)
     if len(number) in (10, 11):
         number = '55' + number
     return 'https://wa.me/' + number if 12 <= len(number) <= 15 else ''
@@ -470,17 +478,50 @@ def register_crm(app, bank, query, execute, page):
                     error = str(exc)
             duplicates = []
             if not lead:
-                email, phone = data.get('email',''), re.sub(r'\D','',data.get('celular',''))
+                email, phone = data.get('email',''), contact_phone(data.get('celular',''))
                 if email or phone:
                     duplicates = query(conn,"""SELECT id,nome FROM crm_leads WHERE
                         (%s <> '' AND LOWER(dados->>'email')=LOWER(%s)) OR
-                        (%s <> '' AND REGEXP_REPLACE(dados->>'celular','[^0-9]','','g')=%s) LIMIT 5""",(email,email,phone,phone))
-        intro = """<div class="notice">{{ draft.aviso }}{% if draft.sugestao %}<p><strong>Sugestão da IA (não agendada):</strong> {{ draft.sugestao }}</p>{% endif %}<p>Campos sem informação permanecem em branco. Para um lead existente, os dados anteriores são preservados.</p></div>{% if duplicates %}<div class="notice">Possível lead já cadastrado: {% for d in duplicates %}<a href="/crm/{{ d.id }}">{{ d.nome }}</a> {% endfor %}. Para adicionar ao histórico dele, abra o cadastro e importe a reunião por lá.</div>{% endif %}<details class="card"><summary>Conferir transcrição original</summary><pre>{{ draft.transcricao }}</pre></details>"""
+                        (%s <> '' AND REGEXP_REPLACE(
+                            REGEXP_REPLACE(dados->>'celular','[^0-9]','','g'),
+                            %s,%s)=%s) ORDER BY id LIMIT 5""",
+                        (email,email,phone,r'^55([0-9]{10,11})$',r'\1',phone))
+        intro = """<div class="notice">{{ draft.aviso }}{% if draft.sugestao %}<p><strong>Sugestão da IA (não agendada):</strong> {{ draft.sugestao }}</p>{% endif %}<p>Campos sem informação permanecem em branco. Para um lead existente, os dados anteriores são preservados.</p></div>{% if lead %}<div class="notice">Esta reunião será adicionada ao histórico de <a href="/crm/{{ lead.id }}">{{ lead.nome }}</a>. Confira os campos antes de confirmar.</div>{% endif %}{% if duplicates %}<div class="notice"><strong>Possível lead já cadastrado</strong><p>Vincule a este cadastro para manter as reuniões no mesmo histórico. Você poderá revisar os dados em seguida, sem reenviar o arquivo.</p>{% for d in duplicates %}<div class="leadrow"><a href="/crm/{{ d.id }}">{{ d.nome }}</a><button type="submit" class="btn-acoes cinza" form="crm-review-form" formaction="/crm/revisar/{{ draft.id }}/vincular" name="lead_id" value="{{ d.id }}" formnovalidate>Usar este cadastro</button></div>{% endfor %}</div>{% endif %}<details class="card"><summary>Conferir transcrição original</summary><pre>{{ draft.transcricao }}</pre></details>"""
         # Put the summary inside the same review form, so edits submit atomically.
         form = FORM.replace('<div class="card grid">', '<div class="card"><label for="resumo">Síntese da reunião (revise ou complete)</label><textarea id="resumo" name="resumo" maxlength="8000">{{ summary }}</textarea></div><div class="card grid">',1)
+        form = form.replace('<form method="post">', '<form id="crm-review-form" method="post">', 1)
         return render(intro+form+'</main>',draft=draft,data=data,error=error,duplicates=duplicates,
+                      lead=lead,
                       summary=request.form.get('resumo',draft['resumo']),version=draft['versao'] or 0,
                       save_label='Confirmar cadastro e salvar reunião')
+
+    @app.route('/crm/revisar/<draft_id>/vincular', methods=['POST'])
+    @admin
+    def crm_link_draft(draft_id):
+        lead_id = request.form.get('lead_id', type=int)
+        if not lead_id:
+            abort(400, 'Selecione um cadastro válido.')
+        with bank() as conn:
+            rows = query(conn, """SELECT * FROM crm_rascunhos
+                WHERE id=%s AND usuario_id=%s
+                AND criado_em > NOW()-INTERVAL '2 days' FOR UPDATE""",
+                (draft_id,session['usuario_id']))
+            if not rows:
+                abort(404)
+            draft = rows[0]
+            if draft['lead_id'] is not None:
+                abort(409, 'Esta reunião já está vinculada. Reabra a revisão.')
+            lead = get_lead(conn,lead_id,True)
+            # Preserve review edits but do not write to the selected lead yet.
+            data = {k:str(request.form.get(k,'')).strip() for k in FIELDS}
+            for key,value in data.items():
+                if len(value) > (5000 if key in LONG else 300):
+                    abort(400, 'Texto muito longo em ' + FIELDS[key])
+            execute(conn, """UPDATE crm_rascunhos SET lead_id=%s,versao=%s,
+                dados=%s::jsonb,resumo=%s WHERE id=%s""",
+                (lead_id,lead['versao'],json.dumps(data,ensure_ascii=False),
+                 request.form.get('resumo',draft['resumo'])[:8000],draft_id))
+        return redirect('/crm/revisar/' + draft_id)
 
     @app.route('/crm/configuracao', methods=['GET','POST'])
     @admin
