@@ -1664,6 +1664,16 @@ def registrar_execucao_inicio(cid):
         return row[0] if row else None
 
 
+def renovar_heartbeat_execucao(execucao_id, agora=None):
+    """Record liveness without modifying the original start timestamp."""
+    agora = int(time.time()) if agora is None else int(agora)
+    with banco() as conn:
+        cur = executar(conn, """UPDATE sincronizacao_execucoes
+            SET heartbeat_em=%s WHERE id=%s AND status='executando'""",
+            (agora, execucao_id))
+        return cur.rowcount == 1
+
+
 def registrar_execucao_fim(execucao_id, status, detalhe=None):
     with banco() as conn:
         executar(conn, """UPDATE sincronizacao_execucoes
@@ -4257,6 +4267,7 @@ with banco() as conn:
         status TEXT NOT NULL,
         detalhe TEXT
     )""")
+    executar(conn, "ALTER TABLE sincronizacao_execucoes ADD COLUMN IF NOT EXISTS heartbeat_em BIGINT")
     executar(conn, """UPDATE sincronizacao_execucoes
         SET status='interrompida', fim_em=%s,
             detalhe='Processo reiniciado antes da conclusão'
