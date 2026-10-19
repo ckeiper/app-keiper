@@ -21,6 +21,7 @@ from listing_opportunities import listing_opportunities, opportunity_actions
 from freight_import import (preview_reconciliation_upload, render_reconciliation_preview,
                             PreviewError, MAX_UPLOAD_BYTES, render_reconciliation_column_hints)
 from freight_comparison import render_freight_comparison_demo
+from freight_reconciliation import inspect_sales_reconciliation, render_sales_reconciliation
 from visual_theme import VISUAL_CSS
 from crm import init_crm_schema, register_crm, HOME_WIDGET
 from page_performance import ranking_query_bounds
@@ -1738,9 +1739,9 @@ def auditoria_frete(cid):
     corpo = (
         "<section class='card'><h2>🚚 Auditoria de Frete</h2>"
         "<p>Envie a planilha de <b>Conciliação Bancária do Mercado Livre</b> "
-        "para conferir o formato antes da auditoria.</p>"
-        "<div class='aviso'>Pré-visualização apenas: nenhuma divergência "
-        "é calculada e o arquivo não é armazenado.</div>"
+        "para conferir o formato e os lançamentos de frete.</p>"
+        "<div class='aviso'>Conferência sem gravação. O relatório não informa "
+        "o frete esperado para determinar cobranças indevidas.</div>"
         "<form method='post' enctype='multipart/form-data'>"
         "<input type='hidden' name='csrf_token' value='"
         + esc(session["freight_preview_csrf"]) + "'>"
@@ -1761,12 +1762,17 @@ def auditoria_frete(cid):
         if arquivo is None:
             return "Selecione um arquivo", 400
         try:
-            abas = preview_reconciliation_upload(
-                arquivo.filename, arquivo.read(MAX_UPLOAD_BYTES + 1))
+            payload = arquivo.read(MAX_UPLOAD_BYTES + 1)
+            abas = preview_reconciliation_upload(arquivo.filename, payload)
         except PreviewError as exc:
             return esc(str(exc)), 400
         corpo += render_reconciliation_preview(abas)
         corpo += render_reconciliation_column_hints(abas)
+        try:
+            corpo += render_sales_reconciliation(
+                inspect_sales_reconciliation(arquivo.filename, payload))
+        except PreviewError as exc:
+            corpo += "<div class='aviso'>" + esc(str(exc)) + "</div>"
     response = Response(pagina("Auditoria de Frete", corpo, cid=cid,
                               secao="auditoria_frete"), mimetype="text/html")
     response.headers["Cache-Control"] = "no-store"
