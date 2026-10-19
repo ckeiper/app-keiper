@@ -15,6 +15,7 @@ from openpyxl import Workbook
 import freight_import
 import freight_reconciliation
 import freight_store
+import freight_sales_compare
 from freight_comparison import render_freight_comparison_demo
 from test_listing_details import main_function
 
@@ -33,6 +34,9 @@ class FreightRouteTests(unittest.TestCase):
                    consolidate_report=freight_store.consolidate_report,
                    consolidated_history=freight_store.consolidated_history,
                    render_consolidated=freight_store.render_consolidated,
+                   audit_against_sales=Mock(return_value=freight_sales_compare.compare_sales_rows([],{}, {},[],[])),
+                   render_sales_comparison=freight_sales_compare.render_sales_comparison,
+                   calcular_vendas=Mock(),
                    report_history=freight_store.report_history,
                    render_history=freight_store.render_history)
         for module in (freight_import, freight_reconciliation):
