@@ -29,6 +29,14 @@ def compare_freight(charged, expected, tolerance="0.01"):
             "difference": str(difference), "status": status}
 
 
+def format_brl(value):
+    """Format an already validated decimal amount for Brazilian display."""
+    amount = Decimal(str(value))
+    sign = "-" if amount < 0 else ""
+    formatted = format(abs(amount), ",.2f").replace(",", "X").replace(".", ",").replace("X", ".")
+    return "R$ " + sign + formatted
+
+
 def render_freight_comparison_demo():
     """Static demonstration only; never represents charges from a real store."""
     from html import escape
@@ -43,9 +51,10 @@ def render_freight_comparison_demo():
     rows = []
     for name, charged, expected in examples:
         result = compare_freight(charged, expected)
-        rows.append("<tr><td>" + escape(name) + "</td><td>R$ "
-                    + result["charged"] + "</td><td>R$ " + result["expected"]
-                    + "</td><td>R$ " + result["difference"] + "</td><td>"
+        rows.append("<tr><td>" + escape(name) + "</td><td>"
+                    + format_brl(result["charged"]) + "</td><td>"
+                    + format_brl(result["expected"]) + "</td><td>"
+                    + format_brl(result["difference"]) + "</td><td>"
                     + escape(labels[result["status"]]) + "</td></tr>")
     return ("<section class='card'><h3>Demonstracao de divergencias de frete</h3>"
             "<p><strong>Dados ficticios.</strong> Os valores abaixo sao exemplos "
