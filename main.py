@@ -1562,6 +1562,24 @@ LOCK_FILA = threading.Lock()
 WORKER_VIVO = False
 
 
+def iniciar_heartbeat_tarefa(tarefa_id, intervalo=300):
+    """Refresh a running task lease until its worker signals completion."""
+    parar = threading.Event()
+
+    def renovar():
+        while not parar.wait(intervalo):
+            try:
+                if not renovar_lease_tarefa_persistente(tarefa_id):
+                    app.logger.error("Lease da tarefa %s nao pode ser renovado", tarefa_id)
+                    break
+            except Exception:
+                app.logger.exception("Erro ao renovar lease da tarefa %s", tarefa_id)
+
+    thread = threading.Thread(target=renovar, daemon=True)
+    thread.start()
+    return parar
+
+
 def processar_tarefa_persistente_uma():
     """Process one durable job; never called by the legacy scheduler by default."""
     tarefa = reservar_tarefa_persistente()
@@ -1576,7 +1594,11 @@ def processar_tarefa_persistente_uma():
             # Another process is already synchronizing this store.
             reagendar_tarefa_persistente(tarefa_id, "Loja ja em execucao")
             return False
-        sucesso = executar_atualizacao(cid)
+        parar_heartbeat = iniciar_heartbeat_tarefa(tarefa_id)
+        try:
+            sucesso = executar_atualizacao(cid)
+        finally:
+            parar_heartbeat.set()
         registrar_execucao_fim(execucao_id, "concluida" if sucesso else "falhou")
         if sucesso:
             finalizar_tarefa_persistente(tarefa_id, True)
