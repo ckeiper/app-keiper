@@ -148,3 +148,36 @@ class SyncRunnerTests(unittest.TestCase):
         self.assertFalse(main_function('processar_tarefa_persistente_uma',namespace)())
         end.assert_called_once_with(33,'falhou','ValueError')
         retry.assert_called_once_with(12,'ValueError')
+
+    def test_expired_durable_lease_is_recovered_with_retry_cap(self):
+        statements=[]
+        cursor=SimpleNamespace(rowcount=2)
+        def execute(conn,sql,params):
+            statements.append((sql,params))
+            return cursor
+        namespace=dict(banco=lambda:contextlib.nullcontext(None),executar=execute,
+                       time=SimpleNamespace(time=lambda:10000))
+        recovered=main_function('recuperar_tarefas_persistentes',namespace)(agora=10000,max_tentativas=3)
+        self.assertEqual(recovered,2)
+        sql,params=statements[0]
+        self.assertIn("status='executando' AND lease_ate < %s",sql)
+        self.assertIn("tentativas >= %s",sql)
+        self.assertIn("'falhou' ELSE 'pendente'",sql)
+        self.assertIn("lease_ate=NULL",sql)
+        self.assertEqual(params,(3,3,10000,3,10000,10000))
+
+    def test_durable_retry_caps_attempts_and_clears_lease(self):
+        statements=[]
+        cursor=SimpleNamespace(rowcount=1)
+        def execute(conn,sql,params):
+            statements.append((sql,params))
+            return cursor
+        namespace=dict(banco=lambda:contextlib.nullcontext(None),executar=execute,
+                       time=SimpleNamespace(time=lambda:10000))
+        count=main_function('reagendar_tarefa_persistente',namespace)(12,'network error',agora=10000,max_tentativas=3)
+        self.assertEqual(count,1)
+        sql,params=statements[0]
+        self.assertIn("WHERE id=%s AND status='executando'",sql)
+        self.assertIn("lease_ate=NULL",sql)
+        self.assertIn("'falhou' ELSE 'pendente'",sql)
+        self.assertEqual(params,(3,3,10000,3,10000,'network error',12))
