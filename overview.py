@@ -327,7 +327,21 @@ def render_overview(data, args, admin=False, visits_card=None):
         out += ("<div class='stat'><div class='lab'>Visitas · últimos 7 dias</div>"
                 "<div class='num'>Indisponível</div>"
                 "<p>Aguardando sincronização das visitas oficiais.</p></div>")
-    out += "</div><section class='card'><h2>Atenção às lojas</h2>"
+    if visits.get("available"):
+        import json
+        dates = sorted(visits["daily"])
+        values = [visits["daily"][day] for day in dates]
+        out += ("</div><section class='card'><h2>Visitas por dia · registros disponíveis</h2>"
+                "<p>Somente dias com dados oficiais. Datas ausentes não são zeros.</p>"
+                "<div style='height:260px'><canvas id='visitsDailyOverview'></canvas></div></section>")
+        out += ("<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
+                "<script>new Chart(document.getElementById('visitsDailyOverview'),"
+                "{type:'line',data:{labels:" + json.dumps(dates) + ",datasets:[{label:'Visitas registradas',data:"
+                + json.dumps(values) + ",borderColor:'#3483FA',tension:.25}]},options:{responsive:true,"
+                "maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});</script>")
+    else:
+        out += "</div>"
+    out += "<section class='card'><h2>Atenção às lojas</h2>"
     if not data['alerts']:
         out += "<p>Nenhum alerta pelos critérios atuais.</p>"
     for a in data['alerts']:
