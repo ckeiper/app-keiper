@@ -954,7 +954,9 @@ def coleta_visitas_copas():
                  "<p>Consulta um lote de até 10 anúncios ativos, apenas os últimos sete dias completos. "
                  "Não altera vendas nem outras lojas.</p>"
                  "<form method='post' action='/admin/coleta-visitas-copas'>"
-                 "<input type='hidden' name='nonce' value='" + esc(nonce) + "'>"\n                 "<label for='offset'>Início do lote (0, 10, 20...)</label>"\n                 "<input id='offset' name='offset' type='number' min='0' step='10' value='0' required>"
+                 "<input type='hidden' name='nonce' value='" + esc(nonce) + "'>"
+                 "<label for='offset'>Início do lote (0, 10, 20...)</label>"
+                 "<input id='offset' name='offset' type='number' min='0' step='10' value='0' required>"
                  "<button class='btn-acoes' type='submit'>Executar coleta piloto</button>"
                  "</form></div>")
         return pagina("Coleta piloto de visitas", corpo)
