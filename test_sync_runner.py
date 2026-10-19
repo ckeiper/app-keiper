@@ -70,3 +70,32 @@ class SyncRunnerTests(unittest.TestCase):
         self.assertEqual(queue,[6])
         self.assertEqual(active,{5,6})
         thread.assert_called_once()
+
+    def test_durable_worker_success_finalizes_job(self):
+        finish=Mock()
+        retry=Mock()
+        collect=Mock(return_value=True)
+        end=Mock()
+        namespace=dict(reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
+                       registrar_execucao_inicio=lambda cid:33,
+                       executar_atualizacao=collect,registrar_execucao_fim=end,
+                       finalizar_tarefa_persistente=finish,reagendar_tarefa_persistente=retry)
+        self.assertTrue(main_function('processar_tarefa_persistente_uma',namespace)())
+        collect.assert_called_once_with(5)
+        end.assert_called_once_with(33,'concluida')
+        finish.assert_called_once_with(12,True)
+        retry.assert_not_called()
+
+    def test_durable_worker_without_job_does_not_collect(self):
+        namespace=dict(reservar_tarefa_persistente=lambda:None)
+        self.assertFalse(main_function('processar_tarefa_persistente_uma',namespace)())
+
+    def test_durable_worker_busy_store_retries_without_collection(self):
+        retry=Mock()
+        collect=Mock()
+        namespace=dict(reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
+                       registrar_execucao_inicio=lambda cid:None,
+                       executar_atualizacao=collect,reagendar_tarefa_persistente=retry)
+        self.assertFalse(main_function('processar_tarefa_persistente_uma',namespace)())
+        collect.assert_not_called()
+        retry.assert_called_once_with(12,'Loja ja em execucao')
