@@ -64,3 +64,25 @@ def render_freight_comparison_demo():
             "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>"
             "<p>Tolerancia ilustrativa: R$ 0,01. Nenhuma conciliacao real foi "
             "executada.</p></section>")
+
+
+def compare_freight_orders(records, tolerance="0.01"):
+    """Compare previously verified per-order charges, without reading uploads."""
+    if not isinstance(records, (list, tuple)):
+        raise FreightComparisonError("Lista de pedidos invalida")
+    margin = money(tolerance)
+    seen = set()
+    results = []
+    for item in records:
+        if not isinstance(item, dict):
+            raise FreightComparisonError("Pedido invalido")
+        order_id = item.get("order_id")
+        if not isinstance(order_id, str) or not order_id.strip():
+            raise FreightComparisonError("Identificador de pedido invalido")
+        order_id = order_id.strip()
+        if order_id in seen:
+            raise FreightComparisonError("Pedido duplicado")
+        seen.add(order_id)
+        result = compare_freight(item.get("charged"), item.get("expected"), margin)
+        results.append({"order_id": order_id, **result})
+    return results
