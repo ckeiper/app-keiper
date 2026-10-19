@@ -32,7 +32,10 @@ class StoreConnectTests(unittest.TestCase):
                         secrets=secrets, time=time, urlencode=urlencode,
                         requests=self.http, CLIENT_ID="123", CLIENT_SECRET="secret",
                         REDIRECT_URI="https://example.org/oauth?x=1&y=2",
-                        AUTH_URL="https://auth.mercadolibre.com.br/authorization",
+                        AUTH_URL=next(ast.literal_eval(n.value) for n in tree.body
+                                      if isinstance(n, ast.Assign) and any(
+                                          isinstance(t, ast.Name) and t.id == "AUTH_URL"
+                                          for t in n.targets)),
                         TOKEN_URL="https://api.mercadolibre.com/oauth/token",
                         API="https://api.mercadolibre.com",
                         pagina=lambda title, body: body,
@@ -45,6 +48,7 @@ class StoreConnectTests(unittest.TestCase):
     def start(self):
         response = self.client.get("/conectar")
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(urlparse(response.location).netloc, "auth.mercadolivre.com.br")
         args = parse_qs(urlparse(response.location).query)
         self.assertEqual(args["redirect_uri"], [self.env["REDIRECT_URI"]])
         return args["state"][0]

@@ -48,7 +48,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 SECRET_KEY = os.getenv("SECRET_KEY", "troque-esta-chave")
 
 API = "https://api.mercadolibre.com"
-AUTH_URL = "https://auth.mercadolibre.com.br/authorization"
+AUTH_URL = "https://auth.mercadolivre.com.br/authorization"
 TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
