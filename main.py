@@ -1734,6 +1734,10 @@ def processar_fila():
 def auditoria_frete(cid):
     if not pode_ver_loja(cid):
         return redirect("/painel")
+    with banco() as conn:
+        lojas = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
+    if not lojas:
+        return "Loja não encontrada", 404
     if "freight_preview_csrf" not in session:
         session["freight_preview_csrf"] = secrets.token_urlsafe(32)
     corpo = (
@@ -1773,8 +1777,8 @@ def auditoria_frete(cid):
                 inspect_sales_reconciliation(arquivo.filename, payload))
         except PreviewError as exc:
             corpo += "<div class='aviso'>" + esc(str(exc)) + "</div>"
-    response = Response(pagina("Auditoria de Frete", corpo, cid=cid,
-                              secao="auditoria_frete"), mimetype="text/html")
+    response = Response(pagina_loja("Auditoria de Frete", cid, lojas[0]["cliente"],
+                                   "auditoria_frete", corpo), mimetype="text/html")
     response.headers["Cache-Control"] = "no-store"
     return response
 
