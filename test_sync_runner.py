@@ -78,7 +78,7 @@ class SyncRunnerTests(unittest.TestCase):
         end=Mock()
         namespace=dict(reservar_tarefa_persistente=lambda:dict(id=12,conexao_id=5),
                        registrar_execucao_inicio=lambda cid:33,
-                       iniciar_heartbeat_tarefa=lambda tarefa_id:Mock(),
+                       iniciar_heartbeat_tarefa=lambda tarefa_id, execucao_id:Mock(),
                        executar_atualizacao=collect,registrar_execucao_fim=end,
                        finalizar_tarefa_persistente=finish,reagendar_tarefa_persistente=retry)
         self.assertTrue(main_function('processar_tarefa_persistente_uma',namespace)())
