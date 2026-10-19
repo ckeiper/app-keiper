@@ -73,7 +73,8 @@ def compare_sales_rows(rows, columns, references, payment_links, shipment_links)
     return result
 
 
-def audit_against_sales(cid, filename, payload, summary, banco, query, calculate):
+def audit_against_sales(cid, filename, payload, summary, banco, query, calculate,
+                        parsed_rows=None, parsed_columns=None):
     if not summary.get('period_start'):
         return compare_sales_rows([],{}, {},[],[])
     _, sales = calculate(cid, inicio=summary['period_start'])
@@ -95,6 +96,8 @@ def audit_against_sales(cid, filename, payload, summary, banco, query, calculate
     for order_id, identifiers in per_order.items():
         if len(identifiers) > 1 and order_id in refs:
             refs[order_id]['frete_verificavel'] = False
+    if parsed_rows is not None and parsed_columns is not None:
+        return compare_sales_rows(parsed_rows,parsed_columns,refs,payments,shipments)
     from openpyxl import load_workbook
     wb = load_workbook(io.BytesIO(payload),read_only=True,data_only=False,keep_links=False)
     try:

@@ -1,7 +1,7 @@
 import unittest
 from freight_reconciliation import FIELDS, schema_columns
 from freight_sales_compare import compare_sales_rows, audit_against_sales
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 import contextlib
 
 
@@ -84,3 +84,21 @@ class SalesFreightComparisonTests(unittest.TestCase):
             calculate=main_function('calcular_vendas',env)
             _, rows=calculate(5,inicio='2026-10-01')
             self.assertEqual(rows[0]['frete_verificavel'],verified)
+
+    def test_shared_bundle_does_not_reopen_xlsx_for_sales_comparison(self):
+        from openpyxl import load_workbook
+        from freight_reconciliation import inspect_sales_reconciliation
+        from test_freight_reconciliation import SalesReconciliationTests
+        payload=SalesReconciliationTests().workbook([dict(operation_date='01/10/2026',
+                                                        operation_type='Venda')])
+        calculate=Mock(return_value=(None,[dict(pedido_id='synthetic-operation',frete=15,
+                                                frete_fonte='real',frete_verificavel=True)]))
+        with patch('openpyxl.load_workbook',wraps=load_workbook) as reader:
+            summary,preview,rows,columns=inspect_sales_reconciliation('synthetic.xlsx',payload,bundle=True)
+            result=audit_against_sales(5,'synthetic.xlsx',payload,summary,
+                lambda:contextlib.nullcontext(None),Mock(return_value=[]),calculate,
+                parsed_rows=rows,parsed_columns=columns)
+        self.assertEqual(reader.call_count,1)
+        self.assertEqual(result['within'],1)
+        self.assertEqual(len(preview),1)
+        self.assertNotIn('synthetic-operation',str(summary))

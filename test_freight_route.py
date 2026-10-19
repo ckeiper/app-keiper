@@ -8,7 +8,7 @@ import io
 import secrets
 import unittest
 from functools import wraps
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from flask import Flask, request, redirect, Response, session
 from openpyxl import Workbook
@@ -80,8 +80,11 @@ class FreightRouteTests(unittest.TestCase):
         data = io.BytesIO()
         wb.save(data)
         data.seek(0)
-        response = self.client.post('/auditoria-frete/5', data={
-            'csrf_token': token, 'arquivo': (data, 'synthetic.xlsx')})
+        from openpyxl import load_workbook
+        with patch('openpyxl.load_workbook',wraps=load_workbook) as reader:
+            response = self.client.post('/auditoria-frete/5', data={
+                'csrf_token': token, 'arquivo': (data, 'synthetic.xlsx')})
+        self.assertEqual(reader.call_count,1)
         self.assertEqual(response.status_code, 200)
         self.assertIn('Lançamentos lidos: 1', response.get_data(as_text=True))
         self.assertEqual(response.headers['Cache-Control'], 'no-store')
