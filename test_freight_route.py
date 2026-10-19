@@ -14,6 +14,7 @@ from flask import Flask, request, redirect, Response, session
 from openpyxl import Workbook
 import freight_import
 import freight_reconciliation
+import freight_store
 from freight_comparison import render_freight_comparison_demo
 from test_listing_details import main_function
 
@@ -28,6 +29,9 @@ class FreightRouteTests(unittest.TestCase):
                    banco=lambda: contextlib.nullcontext(None), consultar=self.query,
                    CSS='', VISUAL_CSS='', SCRIPT='', img_logo=lambda size: '',
                    render_freight_comparison_demo=render_freight_comparison_demo)
+        env.update(save_report=freight_store.save_report,
+                   report_history=freight_store.report_history,
+                   render_history=freight_store.render_history)
         for module in (freight_import, freight_reconciliation):
             env.update({name: getattr(module, name) for name in (
                 'PreviewError', 'MAX_UPLOAD_BYTES', 'preview_reconciliation_upload',
@@ -96,6 +100,34 @@ class FreightRouteTests(unittest.TestCase):
         response = self.client.post('/auditoria-frete/5', data={
             'csrf_token': token, 'arquivo': (io.BytesIO(b'invalid'), 'test.xlsx')})
         self.assertEqual(response.status_code, 400)
+
+    def test_client_cannot_import_even_with_valid_csrf(self):
+        self.client.get('/auditoria-frete/5')
+        with self.client.session_transaction() as state:
+            token = state['freight_preview_csrf']
+        response = self.client.post('/auditoria-frete/5', data={
+            'csrf_token': token, 'acao': 'importar'})
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_imports_into_selected_store(self):
+        with self.client.session_transaction() as state:
+            state['tipo'] = 'admin'
+        self.query.side_effect = [[{'cliente': 'Loja sintética'}], []]
+        response = self.client.get('/auditoria-frete/5')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Importar indicadores desta loja', response.get_data(as_text=True))
+        with self.client.session_transaction() as state:
+            token = state['freight_preview_csrf']
+        from test_freight_reconciliation import SalesReconciliationTests
+        payload = SalesReconciliationTests().workbook([dict(operation_date='01/10/2026')])
+        self.query.reset_mock()
+        self.query.side_effect = [[{'cliente': 'Loja sintética'}], [], [{'id': 1}]]
+        response = self.client.post('/auditoria-frete/5', data={
+            'csrf_token': token, 'acao': 'importar',
+            'arquivo': (io.BytesIO(payload), 'synthetic.xlsx')})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Indicadores importados.', response.get_data(as_text=True))
+        self.assertEqual(self.query.call_args.args[2][0], 5)
 
 
 if __name__ == '__main__':

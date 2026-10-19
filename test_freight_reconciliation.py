@@ -64,6 +64,27 @@ class SalesReconciliationTests(unittest.TestCase):
             with self.assertRaises(PreviewError):
                 self.inspect([{}, {}])
 
+    def test_absent_shipping_is_separate_from_partial_values_and_zero(self):
+        result = self.inspect([
+            dict(gross_shipping='', shipping_discount='', seller_shipping=''),
+            dict(gross_shipping=None, shipping_discount=None, seller_shipping=None),
+            dict(gross_shipping=20, shipping_discount='', seller_shipping=15),
+            dict(gross_shipping=0, shipping_discount=0, seller_shipping=0)])
+        self.assertEqual(result['absent_shipping_rows'], 2)
+        self.assertEqual(result['invalid_shipping_rows'], 1)
+        self.assertEqual(result['shipping_rows'], 0)
+        self.assertEqual(result['seller_shipping_total'], '0.00')
+
+    def test_dates_are_parsed_chronologically_and_totals_exclude_invalid(self):
+        result = self.inspect([dict(operation_date='30/09/2026'),
+                               dict(operation_date='01/10/2026'),
+                               dict(operation_date='31/09/2026', seller_shipping=None)])
+        self.assertEqual(result['period_start'], '2026-09-30')
+        self.assertEqual(result['period_end'], '2026-10-01')
+        self.assertEqual(result['invalid_date_rows'], 1)
+        self.assertEqual(result['seller_shipping_total'], '30.00')
+        self.assertEqual(result['gross_shipping_total'], '40.00')
+
 
 if __name__ == '__main__':
     unittest.main()

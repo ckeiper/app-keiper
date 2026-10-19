@@ -21,8 +21,7 @@ não fornece o frete esperado. Não somar tarifas totais ao frete: elas podem
 conter a própria tarifa de envio. Não deduplicar por número da operação:
 há movimentos distintos associados à mesma operação e tipos além de vendas.
 
-O processamento é temporário, sem acesso ao banco, logs de conteúdo ou gravação
-do upload. Apenas contagens são retornadas pela conferência. Valores ausentes,
+Na prévia, o processamento é temporário, sem gravação do upload. Valores ausentes,
 negativos, fórmulas e representações monetárias não numéricas são sinalizados,
 sem conversão para zero. Arquivos desconhecidos continuam apenas na prévia.
 Limites de upload/ZIP existentes e limite de 25 mil lançamentos são aplicados.
@@ -31,3 +30,28 @@ regras verificadas para movimentos, estornos e agrupamento por envio.
 
 Testes usam exclusivamente planilhas sintéticas geradas em memória. Não anexar
 relatórios de clientes, identificadores reais ou detalhes de pagamento ao Git.
+
+## Importação de indicadores por loja
+
+O administrador pode importar o resumo de um relatório XLSX na loja selecionada.
+A tabela `frete_importacoes` guarda somente indicadores agregados, datas dos
+movimentos, instante da importação e SHA-256. O arquivo, nomes de produtos,
+pedidos, pagamentos e identificadores do cliente não são persistidos.
+O SHA-256 é único por loja; reenviar os mesmos bytes é uma operação sem efeito.
+Relatórios diferentes permanecem separados, inclusive se seus períodos se
+sobrepõem: não somar históricos como se fossem movimentos novos.
+
+Campos de frete simultaneamente vazios são contados como informação ausente,
+separadamente de valores parciais ou inválidos. Não equivalem a frete zero.
+Totais abrangem somente lançamentos com os três campos monetários válidos;
+não representam pedidos únicos. Datas inválidas impedem a importação do resumo.
+Os limites do período são as datas efetivas de operação, não o nome do arquivo;
+datas com movimentos não garantem cobertura completa.
+
+A coleta de pedidos mantém o histórico inicial dos últimos 30 dias e sua
+atualização incremental existente com reconsulta recente. Uploads de conciliação
+não alteram a cobertura nem o agendamento dessa coleta. Importações diárias de
+arquivos são manuais nesta etapa; não há coleta automática de relatórios nem
+consolidação de movimentos entre arquivos. A tarifa esperada ainda precisa de
+fonte independente, com vigência e vínculo de envio verificados. A tabela
+genérica de preço/peso do aplicativo não foi assumida como tarifa contratada.
