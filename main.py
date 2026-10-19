@@ -4358,8 +4358,21 @@ with banco() as conn:
         ON sincronizacao_tarefas (conexao_id)
         WHERE status='executando'""")
 
+def job_fila_persistente():
+    """Drain one durable task per tick; disabled unless explicitly enabled."""
+    if os.getenv("DURABLE_QUEUE_WORKER_ENABLED", "").lower() != "true":
+        return
+    try:
+        processar_tarefa_persistente_uma()
+    except Exception:
+        # Keep legacy scheduling alive even if the durable queue is unavailable.
+        app.logger.exception("Falha no worker da fila persistente")
+
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(job_refresh, "interval", minutes=30)
+scheduler.add_job(job_fila_persistente, "interval", minutes=1,
+                  max_instances=1, coalesce=True)
 scheduler.add_job(job_dados, "interval", minutes=60,
                   next_run_time=datetime.datetime.now() + datetime.timedelta(minutes=2),
                   max_instances=1, coalesce=True)
