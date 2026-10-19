@@ -19,7 +19,7 @@ from listing_ranking import ranking_metrics
 from listing_kpis import listing_kpis
 from listing_opportunities import listing_opportunities, opportunity_actions
 from freight_import import (preview_reconciliation_upload, render_reconciliation_preview,
-                            PreviewError, MAX_UPLOAD_BYTES)
+                            PreviewError, MAX_UPLOAD_BYTES, render_reconciliation_column_hints)
 from visual_theme import VISUAL_CSS
 from crm import init_crm_schema, register_crm, HOME_WIDGET
 from page_performance import ranking_query_bounds
@@ -1728,7 +1728,7 @@ def auditoria_frete(cid):
                 arquivo.filename, arquivo.read(MAX_UPLOAD_BYTES + 1))
         except PreviewError as exc:
             return esc(str(exc)), 400
-        corpo += render_reconciliation_preview(abas)
+        corpo += render_reconciliation_preview(abas)\n        corpo += render_reconciliation_column_hints(abas)
     response = Response(pagina("Auditoria de Frete", corpo, cid=cid,
                               secao="auditoria_frete"), mimetype="text/html")
     response.headers["Cache-Control"] = "no-store"
