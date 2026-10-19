@@ -61,7 +61,8 @@ class SyncRunnerTests(unittest.TestCase):
         thread=Mock()
         namespace=dict(FILA_ATUALIZACAO=queue,LOCK_FILA=threading.Lock(),WORKER_VIVO=False,
                        ATUALIZANDO=active,LOCK_ATUALIZACAO=threading.Lock(),
-                       threading=SimpleNamespace(Thread=thread),processar_fila=Mock())
+                       threading=SimpleNamespace(Thread=thread),processar_fila=Mock(),
+                       loja_habilitada_fila_persistente=lambda cid:False)
         enqueue=main_function('enfileirar_atualizacao',namespace)
         self.assertFalse(enqueue(5))
         self.assertTrue(enqueue(6))

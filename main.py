@@ -1604,6 +1604,10 @@ def loja_habilitada_fila_persistente(cid):
 
 def enfileirar_atualizacao(cid):
     global WORKER_VIVO
+    if loja_habilitada_fila_persistente(cid):
+        # Persist the request, but do not start a second worker in this call.
+        # The durable scheduler will be enabled separately after validation.
+        return criar_tarefa_persistente(cid) is not None
     with LOCK_FILA:
         if cid in FILA_ATUALIZACAO:
             return False
