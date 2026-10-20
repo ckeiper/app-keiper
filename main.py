@@ -4659,6 +4659,13 @@ def job_visitas_todas_contas():
             if not cur.fetchone()[0]:
                 return
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS item_visits_checked (
+                    conexao_id INTEGER NOT NULL, item_id TEXT NOT NULL,
+                    consultado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (conexao_id, item_id)
+                )
+            """)
+            cur.execute("""
                 SELECT c.id FROM conexoes c
                 JOIN anuncios a ON a.conexao_id=c.id AND a.status='active'
                 LEFT JOIN item_visits_checked v ON v.conexao_id=a.conexao_id AND v.item_id=a.item_id
