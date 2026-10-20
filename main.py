@@ -4715,8 +4715,7 @@ def job_visitas_todas_contas():
                 GROUP BY c.id
                 ORDER BY
                     CASE WHEN COUNT(*) FILTER (WHERE v.consultado_em IS NULL) > 0 THEN 0 ELSE 1 END,
-                    COUNT(*) FILTER (WHERE v.consultado_em IS NULL) DESC,
-                    MIN(v.consultado_em) ASC NULLS FIRST,
+                    MAX(v.consultado_em) ASC NULLS FIRST,
                     c.id
                 LIMIT 1
             """)
