@@ -2538,6 +2538,83 @@ def painel_ads(cid):
     cpc = gasto / cliques if cliques > 0 else None
     def brl(valor):
         return "R$ " + format(float(valor), ",.2f").replace(",", "X").replace(".", ",").replace("X", ".")
+    # TACOS requires verified total shop sales for the *same* selected period.
+    # Reuse the sales overview classifier and coverage rules; never substitute
+    # attributed Ads revenue (which would be ACOS, not TACOS).
+    faturamento_loja = None
+    motivo_tacos = None
+    try:
+        from overview import load_overview
+        argumentos_vendas = {
+            "periodo": "personalizado",
+            "inicio": inicio_iso,
+            "fim": fim_iso,
+        }
+        loja_vendas = [{"id": cid, "cliente": lojas[0]["cliente"], "status": "ativa"}]
+        dados_vendas = load_overview(loja_vendas, argumentos_vendas, banco, consultar)
+        resumo_vendas = dados_vendas["reports"][0]
+        atual = resumo_vendas["current"]
+        dias_venda = (fim - inicio).days + 1
+        # A previous-period sync is not required to evaluate the selected
+        # current period, but completeness, integrity and freshness are.
+        if (not atual["complete"] or atual["invalid"] or atual["unallocated_dates"]
+                or atual["revenue"] is None):
+            motivo_tacos = "Histórico de vendas incompleto ou com inconsistências no período."
+        else:
+            faturamento_loja = float(atual["revenue"])
+    except (ValueError, KeyError, TypeError, IndexError, OSError) as exc:
+        app.logger.warning("ads_tacos_sales_unavailable loja=%s tipo=%s", cid, type(exc).__name__)
+        motivo_tacos = "Não foi possível validar o faturamento total da loja."
+    tacos_geral = gasto / faturamento_loja * 100 if faturamento_loja and faturamento_loja > 0 else None
+    linhas_tacos = sorted(
+        ((camp["nome"], float(camp["gasto_periodo"] or 0),
+          float(camp["fat_periodo"] or 0)) for camp in alert_rows),
+        key=lambda linha: (-linha[1], linha[0]))
+    try:
+        pagina_tacos = max(1, int(request.args.get("pagina_campanhas", "1")))
+    except (TypeError, ValueError):
+        pagina_tacos = 1
+    tamanho_tacos = 20
+    paginas_tacos = max(1, (len(linhas_tacos) + tamanho_tacos - 1) // tamanho_tacos)
+    pagina_tacos = min(pagina_tacos, paginas_tacos)
+    def url_tacos(numero):
+        params = request.args.to_dict(flat=True)
+        params["pagina_campanhas"] = numero
+        return "/ads/" + str(cid) + "?" + urlencode(params)
+    linhas_tacos_pagina = linhas_tacos[
+        (pagina_tacos - 1) * tamanho_tacos:pagina_tacos * tamanho_tacos]
+    tacos_campanhas_html = ("<section class='card'><h3>TACOS por campanha</h3>"
+        "<p class='muted'>Participação do investimento de cada campanha no faturamento total "
+        "da loja no mesmo período. Não confundir com ACOS da campanha.</p>")
+    if faturamento_loja and faturamento_loja > 0:
+        tacos_campanhas_html += ("<p>Faturamento total validado: <strong>"
+                                 + brl(faturamento_loja) + "</strong></p>")
+    else:
+        tacos_campanhas_html += ("<div class='aviso'>TACOS indisponível: "
+            + esc(motivo_tacos or "Não há faturamento total positivo validado.")
+            + "</div>")
+    tacos_campanhas_html += ("<div style='overflow-x:auto'><table><thead><tr>"
+        "<th>Campanha</th><th>Investimento</th><th>Faturamento atribuído</th>"
+        "<th>TACOS da campanha</th></tr></thead><tbody>")
+    for nome, investimento, atribuida in linhas_tacos_pagina:
+        tacos_valor = (investimento / faturamento_loja * 100
+                       if faturamento_loja and faturamento_loja > 0 else None)
+        tacos_campanhas_html += (
+            "<tr><td>" + esc(str(nome)) + "</td><td>" + brl(investimento)
+            + "</td><td>" + brl(atribuida) + "</td><td>"
+            + ("%.2f%%" % tacos_valor if tacos_valor is not None else "—")
+            + "</td></tr>")
+    if not linhas_tacos:
+        tacos_campanhas_html += ("<tr><td colspan='4'>Sem campanhas com dados no período.</td></tr>")
+    tacos_campanhas_html += ("</tbody></table></div><nav aria-label='Paginação de campanhas'>"
+        + "Página " + str(pagina_tacos) + " de " + str(paginas_tacos))
+    if pagina_tacos > 1:
+        tacos_campanhas_html += (" · <a href='" + esc(url_tacos(pagina_tacos - 1), quote=True)
+            + "'>Anterior</a>")
+    if pagina_tacos < paginas_tacos:
+        tacos_campanhas_html += (" · <a href='" + esc(url_tacos(pagina_tacos + 1), quote=True)
+            + "'>Próxima</a>")
+    tacos_campanhas_html += "</nav></section>"
     def card(t, val, nota=""):
         return ("<div class='stat'><div class='num'>" + esc(str(val))
                 + "</div><div class='lab'>" + esc(t) + "</div>"
@@ -2549,11 +2626,13 @@ def painel_ads(cid):
              + card("Vendas atribuídas a Ads", brl(receita))
              + card("ROAS", "%.2fx" % roas if roas is not None else "—")
              + card("ACOS", "%.2f%%" % acos if acos is not None else "—")
+             + card("TACOS geral", "%.2f%%" % tacos_geral if tacos_geral is not None else "—", "Ads ÷ faturamento total da loja")
              + card("Impressões", f"{impressoes:,}".replace(",", "."))
              + card("Cliques", f"{cliques:,}".replace(",", "."))
              + card("CTR", "%.2f%%" % ctr if ctr is not None else "—")
              + card("CPC médio", brl(cpc) if cpc is not None else "—")
              + "</div>")
+    corpo += tacos_campanhas_html
     cobertura = (fim - inicio).days + 1
     if len(dias_ads) < cobertura:
         corpo += ("<div class='aviso'>Cobertura parcial: " + str(len(dias_ads)) + " de "
