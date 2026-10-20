@@ -2520,6 +2520,82 @@ def painel_ads(cid):
         """, (inicio_iso,fim_iso,inicio_iso,fim_iso,hoje.isoformat(),
               hoje.isoformat(),ontem,ontem,ontem,
               cid,min(inicio_iso,ontem),max(fim_iso,hoje.isoformat())))
+    # Compare equal-length, completed windows. Exclude today from both windows
+    # to avoid classifying an unfinished day as a performance drop.
+    fim_completo = min(fim, hoje - datetime.timedelta(days=1))
+    dias_completos = (fim_completo - inicio).days + 1
+    comparacao_ok = 0 < dias_completos <= 90
+    desempenho_comparado = {}
+    if comparacao_ok:
+        anterior_fim = inicio - datetime.timedelta(days=1)
+        anterior_inicio = anterior_fim - datetime.timedelta(days=dias_completos - 1)
+        with banco() as conn:
+            desempenho_rows = consultar(conn, """
+                SELECT campanha_id,
+                    COALESCE(SUM(gasto) FILTER (WHERE data BETWEEN %s AND %s),0) AS gasto_atual,
+                    COALESCE(SUM(faturamento) FILTER (WHERE data BETWEEN %s AND %s),0) AS receita_atual,
+                    COALESCE(SUM(gasto) FILTER (WHERE data BETWEEN %s AND %s),0) AS gasto_anterior,
+                    COALESCE(SUM(faturamento) FILTER (WHERE data BETWEEN %s AND %s),0) AS receita_anterior,
+                    COUNT(DISTINCT data) FILTER (WHERE data BETWEEN %s AND %s) AS dias_atual,
+                    COUNT(DISTINCT data) FILTER (WHERE data BETWEEN %s AND %s) AS dias_anterior
+                FROM ads_campanha_dia
+                WHERE conexao_id=%s AND data BETWEEN %s AND %s
+                GROUP BY campanha_id
+            """, (inicio.isoformat(),fim_completo.isoformat(),
+                  inicio.isoformat(),fim_completo.isoformat(),
+                  anterior_inicio.isoformat(),anterior_fim.isoformat(),
+                  anterior_inicio.isoformat(),anterior_fim.isoformat(),
+                  inicio.isoformat(),fim_completo.isoformat(),
+                  anterior_inicio.isoformat(),anterior_fim.isoformat(),
+                  cid,anterior_inicio.isoformat(),fim_completo.isoformat()))
+        desempenho_comparado = {str(linha["campanha_id"]):linha for linha in desempenho_rows}
+    oportunidades = []
+    perdas = []
+    sem_retorno = []
+    for camp in alert_rows:
+        nome = esc(str(camp["nome"]))
+        gasto = float(camp["gasto_periodo"] or 0)
+        receita = float(camp["fat_periodo"] or 0)
+        meta = float(camp["roas_objetivo"] or 0)
+        ativa = str(camp["status"] or "").lower() in ("active", "running")
+        if ativa and gasto > 0 and receita <= 0:
+            sem_retorno.append((gasto,nome,"R$ %.2f investidos sem faturamento atribuído no período" % gasto))
+        if ativa and gasto > 0 and meta > 0 and receita/gasto >= 1.3*meta:
+            oportunidades.append((receita/gasto/meta,nome,
+                "ROAS %.2fx · meta %.2fx · R$ %.2f investidos" % (receita/gasto,meta,gasto)))
+        anterior = desempenho_comparado.get(str(camp["campanha_id"]))
+        if anterior and int(anterior["dias_atual"] or 0) >= dias_completos and int(anterior["dias_anterior"] or 0) >= dias_completos:
+            ga,ra = float(anterior["gasto_atual"] or 0),float(anterior["receita_atual"] or 0)
+            gp,rp = float(anterior["gasto_anterior"] or 0),float(anterior["receita_anterior"] or 0)
+            if ativa and ga > 0 and gp > 0 and rp > 0:
+                roas_a,roas_p = ra/ga,rp/gp
+                if roas_a <= roas_p*0.7:
+                    perdas.append((roas_p-roas_a,nome,
+                        "ROAS %.2fx → %.2fx (queda de %.0f%%)" %
+                        (roas_p,roas_a,(1-roas_a/roas_p)*100)))
+    oportunidades.sort(key=lambda linha:-linha[0])
+    perdas.sort(key=lambda linha:-linha[0])
+    sem_retorno.sort(key=lambda linha:-linha[0])
+    def lista_oportunidades(titulo, descricao, itens, vazio):
+        return ("<section class='card'><h3>" + titulo + " (" + str(len(itens)) + ")</h3>"
+            "<p class='muted'>" + descricao + "</p>"
+            + ("<ol>" + "".join("<li><strong>" + nome
+                + "</strong><div class='muted'>" + detalhe + "</div></li>"
+                for _,nome,detalhe in itens[:10]) + "</ol>"
+                if itens else "<p>" + vazio + "</p>")
+            + ("<p class='muted'>Exibindo as 10 primeiras campanhas.</p>" if len(itens)>10 else "")
+            + "</section>")
+    inteligencia_html = ("<h2>Oportunidades e atenção</h2>"
+        + lista_oportunidades("Gasto sem retorno atribuído",
+            "Campanhas ativas com investimento e sem faturamento atribuído no período selecionado. "
+            "Investigue a janela de atribuição antes de tomar decisões.",
+            sem_retorno,"Nenhuma campanha encontrada nesta condição.")
+        + lista_oportunidades("Candidatas a avaliar escala",
+            "ROAS pelo menos 30% acima da meta. Aumentar orçamento não garante manter o retorno.",
+            oportunidades,"Nenhuma campanha com meta válida atende ao critério.")
+        + lista_oportunidades("Queda relevante de ROAS",
+            "ROAS caiu 30% ou mais em janelas completas de igual duração; exige dados diários em ambas.",
+            perdas, "Sem quedas confirmadas com cobertura diária suficiente."))
     alertas_orcamento, alertas_risco, alertas_roas, alertas_sem_venda = [], [], [], []
     campanhas_configuradas = sum(1 for camp in alert_rows if camp["status"] is not None)
     for camp in alert_rows:
@@ -2568,6 +2644,7 @@ def painel_ads(cid):
         + quadro_alertas("Sem vendas de Ads ontem",
             "Campanhas com investimento ontem e nenhuma venda atribuída.",
             alertas_sem_venda,"Nenhuma campanha nesta condição."))
+    alertas_html += inteligencia_html
     titulo = "Publicidade · Product Ads"
     filtro = ("<section class='card'><h2>Filtros de publicidade</h2>"
              "<form method='get' action='/ads/" + str(cid) + "' "
