@@ -1950,7 +1950,7 @@ def auditoria_frete(cid):
     </script>
     """
     if session.get('tipo') == 'admin':
-        corpo = corpo.replace("</form><p>Formatos, "<button class='btn' type='submit' name='acao' value='importar'>Importar indicadores desta loja</button>"
+        corpo = corpo.replace("</form><div id=\'frete-progresso\'", "<button class='btn' type='submit' name='acao' value='importar'>Importar indicadores desta loja</button>"
             "<fieldset><legend>Consolidar relatório completo por dia</legend>"
             "<label>Início do período <input type='date' name='periodo_inicio'></label>"
             "<label>Fim do período <input type='date' name='periodo_fim'></label>"
