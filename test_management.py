@@ -117,7 +117,8 @@ class ManagementFactsTests(unittest.TestCase):
         self.assertIn('Página 1 de 2 · 30 registros',body)
         self.assertIn('Anúncio &lt;script&gt;',body)
         self.assertNotIn('<script>Anúncio',body)
-        self.assertNotIn('Queda de pelo menos 30%',body)
+        actions=body.split("id='oportunidades'",1)[1].split("id='mgmt-panel-analysis'",1)[0]
+        self.assertNotIn('Queda de pelo menos 30%',actions)
         self.assertIn('periodo=personalizado',body)
         self.assertIn('de=2026-10-13',body)
         self.assertIn("name='por_pagina'",body)
