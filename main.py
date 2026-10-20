@@ -2627,15 +2627,45 @@ def painel_ads(cid):
         app.logger.warning("ads_tacos_sales_unavailable loja=%s tipo=%s", cid, type(exc).__name__)
         motivo_tacos = "Não foi possível validar o faturamento total da loja."
     tacos_geral = gasto / faturamento_loja * 100 if faturamento_loja and faturamento_loja > 0 else None
-    linhas_tacos = sorted(
-        ((camp["nome"], float(camp["gasto_periodo"] or 0),
-          float(camp["fat_periodo"] or 0)) for camp in alert_rows),
-        key=lambda linha: (-linha[1], linha[0]))
+    # Filter and page campaign comparisons without changing the sales baseline.
+    filtro_nome = (request.args.get("campanha", "") or "").strip()[:80]
+    situacao = request.args.get("situacao", "todas")
+    if situacao not in ("todas", "com_gasto", "sem_vendas", "com_vendas"):
+        situacao = "todas"
+    ordem_camp = request.args.get("ordem_campanha", "gasto")
+    if ordem_camp not in ("gasto", "faturamento", "roas", "acos", "tacos"):
+        ordem_camp = "gasto"
+    linhas_tacos = []
+    for camp in alert_rows:
+        nome = str(camp["nome"])
+        investimento = float(camp["gasto_periodo"] or 0)
+        atribuida = float(camp["fat_periodo"] or 0)
+        if filtro_nome and filtro_nome.casefold() not in nome.casefold():
+            continue
+        if situacao == "com_gasto" and investimento <= 0:
+            continue
+        if situacao == "sem_vendas" and not (investimento > 0 and atribuida <= 0):
+            continue
+        if situacao == "com_vendas" and atribuida <= 0:
+            continue
+        roas_camp = atribuida / investimento if investimento > 0 else None
+        acos_camp = investimento / atribuida * 100 if atribuida > 0 else None
+        tacos_camp = investimento / faturamento_loja * 100 if faturamento_loja and faturamento_loja > 0 else None
+        linhas_tacos.append((nome, investimento, atribuida, roas_camp, acos_camp, tacos_camp))
+    ordem_indices = {"gasto":1, "faturamento":2, "roas":3, "acos":4, "tacos":5}
+    indice = ordem_indices[ordem_camp]
+    linhas_tacos.sort(key=lambda item: (item[indice] is None,
+        -(item[indice] or 0), item[0].casefold()))
     try:
         pagina_tacos = max(1, int(request.args.get("pagina_campanhas", "1")))
     except (TypeError, ValueError):
         pagina_tacos = 1
-    tamanho_tacos = 20
+    try:
+        tamanho_tacos = int(request.args.get("por_pagina_campanhas", 20))
+    except (TypeError, ValueError):
+        tamanho_tacos = 20
+    if tamanho_tacos not in (10, 20, 50):
+        tamanho_tacos = 20
     paginas_tacos = max(1, (len(linhas_tacos) + tamanho_tacos - 1) // tamanho_tacos)
     pagina_tacos = min(pagina_tacos, paginas_tacos)
     def url_tacos(numero):
@@ -2644,38 +2674,66 @@ def painel_ads(cid):
         return "/ads/" + str(cid) + "?" + urlencode(params)
     linhas_tacos_pagina = linhas_tacos[
         (pagina_tacos - 1) * tamanho_tacos:pagina_tacos * tamanho_tacos]
-    tacos_campanhas_html = ("<section class='card'><h3>TACOS por campanha</h3>"
-        "<p class='muted'>Participação do investimento de cada campanha no faturamento total "
-        "da loja no mesmo período. Não confundir com ACOS da campanha.</p>")
+    tacos_campanhas_html = (
+        "<section class='card'><h3>Desempenho por campanha</h3>"
+        "<p class='muted'>Compare investimento, retorno e participação no faturamento total da loja.</p>"
+        "<form method='get' action='/ads/" + str(cid) + "' "
+        "style='display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:14px 0'>"
+        + "".join("<input type='hidden' name='" + esc(k,quote=True) + "' value='"
+                  + esc(str(request.args.get(k, "")),quote=True) + "'>"
+                  for k in ("dias","de","ate") if request.args.get(k))
+        + "<label>Buscar campanha <input name='campanha' placeholder='Nome da campanha' value='"
+        + esc(filtro_nome,quote=True) + "'></label>"
+        + "<label>Situação <select name='situacao'>"
+        + "".join("<option value='" + valor + "'" + (" selected" if situacao == valor else "")
+            + ">" + rotulo + "</option>" for valor,rotulo in (
+                ("todas","Todas"),("com_gasto","Com investimento"),
+                ("sem_vendas","Com gasto e sem vendas"),("com_vendas","Com vendas")))
+        + "</select></label>"
+        + "<label>Ordenar por <select name='ordem_campanha'>"
+        + "".join("<option value='" + valor + "'" + (" selected" if ordem_camp == valor else "")
+            + ">" + rotulo + "</option>" for valor,rotulo in (
+                ("gasto","Maior investimento"),("faturamento","Maior faturamento Ads"),
+                ("roas","Maior ROAS"),("acos","Maior ACOS"),("tacos","Maior TACOS")))
+        + "</select></label>"
+        + "<label>Por página <select name='por_pagina_campanhas'>"
+        + "".join("<option value='" + str(n) + "'" + (" selected" if tamanho_tacos == n else "")
+            + ">" + str(n) + "</option>" for n in (10,20,50))
+        + "</select></label><button class='btn' type='submit'>Aplicar</button></form>")
     if faturamento_loja and faturamento_loja > 0:
-        tacos_campanhas_html += ("<p>Faturamento total validado: <strong>"
+        tacos_campanhas_html += ("<p>Faturamento total validado da loja: <strong>"
                                  + brl(faturamento_loja) + "</strong></p>")
     else:
         tacos_campanhas_html += ("<div class='aviso'>TACOS indisponível: "
             + esc(motivo_tacos or "Não há faturamento total positivo validado.")
             + "</div>")
-    tacos_campanhas_html += ("<div style='overflow-x:auto'><table><thead><tr>"
-        "<th>Campanha</th><th>Investimento</th><th>Faturamento atribuído</th>"
-        "<th>TACOS da campanha</th></tr></thead><tbody>")
-    for nome, investimento, atribuida in linhas_tacos_pagina:
-        tacos_valor = (investimento / faturamento_loja * 100
-                       if faturamento_loja and faturamento_loja > 0 else None)
+    tacos_campanhas_html += (
+        "<div style='overflow-x:auto'><table><thead><tr>"
+        "<th>Campanha</th><th>Investimento</th><th>Faturamento Ads</th>"
+        "<th>ROAS</th><th>ACOS</th><th>TACOS</th></tr></thead><tbody>")
+    for nome, investimento, atribuida, roas_camp, acos_camp, tacos_valor in linhas_tacos_pagina:
         tacos_campanhas_html += (
-            "<tr><td>" + esc(str(nome)) + "</td><td>" + brl(investimento)
+            "<tr><td>" + esc(nome) + "</td><td>" + brl(investimento)
             + "</td><td>" + brl(atribuida) + "</td><td>"
-            + ("%.2f%%" % tacos_valor if tacos_valor is not None else "—")
+            + ("%.2fx" % roas_camp if roas_camp is not None else "—")
+            + "</td><td>" + ("%.2f%%" % acos_camp if acos_camp is not None else "—")
+            + "</td><td>" + ("%.2f%%" % tacos_valor if tacos_valor is not None else "—")
             + "</td></tr>")
     if not linhas_tacos:
-        tacos_campanhas_html += ("<tr><td colspan='4'>Sem campanhas com dados no período.</td></tr>")
+        tacos_campanhas_html += "<tr><td colspan='6'>Nenhuma campanha atende aos filtros.</td></tr>"
     tacos_campanhas_html += ("</tbody></table></div><nav aria-label='Paginação de campanhas'>"
-        + "Página " + str(pagina_tacos) + " de " + str(paginas_tacos))
+        + "Exibindo " + str(len(linhas_tacos_pagina)) + " de " + str(len(linhas_tacos))
+        + " campanhas · Página " + str(pagina_tacos) + " de " + str(paginas_tacos))
     if pagina_tacos > 1:
-        tacos_campanhas_html += (" · <a href='" + esc(url_tacos(pagina_tacos - 1), quote=True)
+        tacos_campanhas_html += (" · <a href='" + esc(url_tacos(pagina_tacos - 1),quote=True)
             + "'>Anterior</a>")
     if pagina_tacos < paginas_tacos:
-        tacos_campanhas_html += (" · <a href='" + esc(url_tacos(pagina_tacos + 1), quote=True)
+        tacos_campanhas_html += (" · <a href='" + esc(url_tacos(pagina_tacos + 1),quote=True)
             + "'>Próxima</a>")
-    tacos_campanhas_html += "</nav></section>"
+    tacos_campanhas_html += (
+        "</nav><p class='muted'>ROAS = faturamento atribuído ÷ investimento; "
+        "ACOS = investimento ÷ faturamento atribuído; "
+        "TACOS = investimento da campanha ÷ faturamento total da loja.</p></section>")
     def card(t, val, nota=""):
         return ("<div class='stat'><div class='num'>" + esc(str(val))
                 + "</div><div class='lab'>" + esc(t) + "</div>"
