@@ -22,7 +22,7 @@ const {chromium}=require('playwright');
     await page.locator('select[name=status]').selectOption('active');
     await page.locator('select[name=estoque]').selectOption('baixo');
     await page.locator('select[name=por_pagina]').selectOption('10');
-    await Promise.all([page.waitForURL('**status=active**'),page.getByRole('button',{name:'Aplicar filtros'}).click()]);
+    await Promise.all([page.waitForURL(url=>url.searchParams.get('status')==='active'),page.getByRole('button',{name:'Aplicar filtros'}).click()]);
     assert.equal(await page.locator('select[name=status]').inputValue(),'active');
     assert.equal(await page.locator('select[name=estoque]').inputValue(),'baixo');
     assert.ok(await page.locator('.catalog-table tbody tr').count()<=10);
