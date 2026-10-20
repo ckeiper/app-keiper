@@ -14,6 +14,8 @@ from listing_details import (registered_weights, legacy_weight, render_weights,
 from listing_sync import sync_promotions
 from full_monitor import init_full_schema, full_metadata, sync_full
 from full_routes import register_full
+from competitor_monitor import init_competitor_schema, collect_due
+from competitor_routes import register_competitors, tabs as listing_tabs
 from listing_diagnostics import inspect_listing
 from listing_health import diagnose_listing
 from listing_sales import listing_sales_summary
@@ -668,6 +670,7 @@ def iniciar_banco():
         )""")
         init_sales_schema(conn, executar)
         init_full_schema(conn, executar)
+        init_competitor_schema(conn, executar)
         init_freight_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
@@ -3396,7 +3399,7 @@ def anuncios(cid):
     itens_promocao = {a["item_id"] for a in anuncios
                       if (active_promotions(read_json(a.get("promocoes_json"), {}))
                           or effective_promotion(read_json(a.get("promocoes_json"), {})))}
-    corpo = "<h2 style='margin-bottom:10px'>Anúncios</h2>" \
+    corpo = listing_tabs(cid, "anuncios") + "<h2 style='margin-bottom:10px'>Anúncios</h2>" \
         + barra_atualizar(cid, ultima, "anuncios")
     if not anuncios:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
@@ -4828,6 +4831,7 @@ def job_dados():
 
 register_crm(app, banco, consultar, executar, pagina)
 register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja, session)
+register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
 
 iniciar_banco()
 
@@ -5097,7 +5101,16 @@ def job_sincronizacao_lojas_novas():
         app.logger.exception("new_store_initial_sync_failed")
 
 
+def job_concorrencia():
+    try:
+        collect_due(banco, consultar, executar, requests.get)
+    except Exception:
+        app.logger.exception("competitor_collection_failed")
+
+
 scheduler = BackgroundScheduler()
+scheduler.add_job(job_concorrencia, "interval", minutes=1,
+                  max_instances=1, coalesce=True)
 scheduler.add_job(job_sincronizacao_lojas_novas, "interval", minutes=5,
                   max_instances=1, coalesce=True)
 scheduler.add_job(job_visitas_todas_contas, "interval", minutes=1,
