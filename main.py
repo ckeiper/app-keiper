@@ -2435,6 +2435,57 @@ def painel_ads(cid):
             FROM ads_dia WHERE conexao_id=%s AND data BETWEEN %s AND %s
             ORDER BY data DESC
         """, (cid, inicio_iso, fim_iso))
+    ontem = (hoje - datetime.timedelta(days=1)).isoformat()
+    with banco() as conn:
+        alert_rows = consultar(conn, """
+            SELECT d.campanha_id,
+                COALESCE(NULLIF(c.nome,''), 'Campanha ' || d.campanha_id) AS nome,
+                c.status, c.orcamento, c.roas_objetivo,
+                COALESCE(SUM(d.gasto) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS gasto_periodo,
+                COALESCE(SUM(d.faturamento) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS fat_periodo,
+                COALESCE(SUM(d.gasto) FILTER (WHERE d.data=%s),0) AS gasto_hoje,
+                COALESCE(SUM(d.gasto) FILTER (WHERE d.data=%s),0) AS gasto_ontem,
+                COALESCE(SUM(d.faturamento) FILTER (WHERE d.data=%s),0) AS fat_ontem,
+                COUNT(*) FILTER (WHERE d.data=%s) AS tem_ontem
+            FROM ads_campanha_dia d
+            LEFT JOIN ads_campanhas c ON c.conexao_id=d.conexao_id AND c.campanha_id=d.campanha_id
+            WHERE d.conexao_id=%s AND d.data BETWEEN %s AND %s
+            GROUP BY d.campanha_id,c.nome,c.status,c.orcamento,c.roas_objetivo
+        """, (inicio_iso,fim_iso,inicio_iso,fim_iso,hoje.isoformat(),
+              ontem,ontem,ontem,cid,min(inicio_iso,ontem),max(fim_iso,hoje.isoformat())))
+    alertas_orcamento, alertas_roas, alertas_sem_venda = [], [], []
+    for camp in alert_rows:
+        nome = esc(str(camp["nome"]))
+        ativa = str(camp["status"] or "").lower() in ("active","running")
+        budget = float(camp["orcamento"] or 0)
+        gasto_hoje = float(camp["gasto_hoje"] or 0)
+        if ativa and budget > 0 and gasto_hoje >= budget:
+            alertas_orcamento.append((nome,"R$ %.2f de R$ %.2f (%.0f%%)" %
+                                    (gasto_hoje,budget,gasto_hoje/budget*100)))
+        gasto = float(camp["gasto_periodo"] or 0)
+        fat = float(camp["fat_periodo"] or 0)
+        alvo = float(camp["roas_objetivo"] or 0)
+        if ativa and alvo > 0 and gasto > 0 and fat/gasto >= 1.3*alvo:
+            alertas_roas.append((nome,"ROAS %.2fx · objetivo %.2fx" % (fat/gasto,alvo)))
+        if camp["tem_ontem"] and float(camp["gasto_ontem"] or 0) > 0 and float(camp["fat_ontem"] or 0) == 0:
+            alertas_sem_venda.append((nome,"R$ %.2f investidos ontem · nenhuma venda atribuída" %
+                                     float(camp["gasto_ontem"] or 0)))
+    def quadro_alertas(titulo,descricao,itens,vazio):
+        return ("<section class='card'><h3>"+titulo+" ("+str(len(itens))+")</h3>"
+                "<p class='muted'>"+descricao+"</p>"
+                + ("<ol>"+"".join("<li><b>"+nome+"</b><div class='muted'>"+detalhe+"</div></li>"
+                                  for nome,detalhe in itens[:20])+"</ol>" if itens else "<p>"+vazio+"</p>")
+                + ("<p class='muted'>Primeiros 20 resultados.</p>" if len(itens)>20 else "")+"</section>")
+    alertas_html = ("<h2>Alertas de gestão de Ads</h2>"
+        + quadro_alertas("Orçamento diário esgotado",
+            "Campanhas ativas cujo gasto de hoje atingiu o orçamento diário.",
+            alertas_orcamento,"Sem campanhas identificadas ou orçamento ainda não importado.")
+        + quadro_alertas("ROAS pelo menos 30% acima do objetivo",
+            "Considera o ROAS do período selecionado e a meta cadastrada.",
+            alertas_roas,"Sem campanhas identificadas ou objetivo ainda não importado.")
+        + quadro_alertas("Sem vendas de Ads ontem",
+            "Campanhas com investimento ontem e nenhuma venda atribuída.",
+            alertas_sem_venda,"Nenhuma campanha nesta condição."))
     titulo = "Publicidade · Product Ads"
     filtro = ("<section class='card'><h2>Filtros de publicidade</h2>"
              "<form method='get' action='/ads/" + str(cid) + "' "
@@ -2448,7 +2499,7 @@ def painel_ads(cid):
              "</form><p class='muted'>Período exibido: " + inicio.strftime("%d/%m/%Y")
              + " a " + fim.strftime("%d/%m/%Y") + "</p></section>")
     if not dias_ads:
-        corpo = ("<h2>" + titulo + "</h2>" + filtro
+        corpo = ("<h2>" + titulo + "</h2>" + filtro + alertas_html
                  + "<section class='card'><h3>Sem dados de publicidade para este período</h3>"
                  "<p>Confira se Product Ads está ativo, se a sincronização da loja terminou "
                  "e se existe investimento no intervalo selecionado.</p>"
