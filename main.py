@@ -2554,15 +2554,15 @@ def painel_ads(cid):
     sem_retorno = []
     for camp in alert_rows:
         nome = esc(str(camp["nome"]))
-        gasto = float(camp["gasto_periodo"] or 0)
+        gasto_camp = float(camp["gasto_periodo"] or 0)
         receita = float(camp["fat_periodo"] or 0)
         meta = float(camp["roas_objetivo"] or 0)
         ativa = str(camp["status"] or "").lower() in ("active", "running")
-        if ativa and gasto > 0 and receita <= 0:
-            sem_retorno.append((gasto,nome,"R$ %.2f investidos sem faturamento atribuído no período" % gasto))
-        if ativa and gasto > 0 and meta > 0 and receita/gasto >= 1.3*meta:
-            oportunidades.append((receita/gasto/meta,nome,
-                "ROAS %.2fx · meta %.2fx · R$ %.2f investidos" % (receita/gasto,meta,gasto)))
+        if ativa and gasto_camp > 0 and receita <= 0:
+            sem_retorno.append((gasto_camp,nome,"R$ %.2f investidos sem faturamento atribuído no período" % gasto_camp))
+        if ativa and gasto_camp > 0 and meta > 0 and receita/gasto_camp >= 1.3*meta:
+            oportunidades.append((receita/gasto_camp/meta,nome,
+                "ROAS %.2fx · meta %.2fx · R$ %.2f investidos" % (receita/gasto_camp,meta,gasto_camp)))
         anterior = desempenho_comparado.get(str(camp["campanha_id"]))
         if anterior and int(anterior["dias_atual"] or 0) >= dias_completos and int(anterior["dias_anterior"] or 0) >= dias_completos:
             ga,ra = float(anterior["gasto_atual"] or 0),float(anterior["receita_atual"] or 0)
