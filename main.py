@@ -3817,23 +3817,8 @@ def desempenho(cid):
               + json.dumps(fat_serie)
               + ",borderColor:'#3483FA',tension:0.3}]},"
               "options:{responsive:true,maintainAspectRatio:false}});</script>")
-    corpo += ("<div class='card'><h2>Desempenho por anúncio</h2>"
-              "<div class='muted'>Pedidos pagos registrados no período; "
-              "visitas e conversão aguardam uma fonte validada. "
-              "Para vendas auditadas e cobertura da sincronização, consulte "
-              "<a class='link' href='/vendas/" + str(cid) + "'>Vendas</a>.</div>"
-              "<div style='overflow-x:auto'><table><thead><tr>"
-              "<th>Anúncio</th><th>Status</th><th>Preço</th>"
-              "<th>Visitas</th><th>Pedidos registrados</th><th>Conversão</th>"
-              "</tr></thead><tbody>")
-    for r in linhas:
-        corpo += ("<tr><td><b>" + esc(str(r["titulo"] or "Sem título"))
-                  + "</b><br><small class='muted'>" + esc(str(r["item_id"]))
-                  + "</small></td><td>" + esc(str(r["status"] or "-"))
-                  + "</td><td>R$ %.2f" % (r["preco"] or 0)
-                  + "</td><td>Indisponível</td><td>" + str(r["pedidos"] or 0)
-                  + "</td><td>Indisponível</td></tr>")
-    corpo += "</tbody></table></div></div>"
+    from performance_cards import render_performance_cards
+    corpo += render_performance_cards(cid, linhas, request.args, dias=dias, de=de, ate=ate)
     return pagina_loja("Desempenho", cid, c["cliente"], "desempenho", corpo)
 
 
