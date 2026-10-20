@@ -4689,7 +4689,9 @@ def job_visitas_todas_contas():
 
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(job_visitas_todas_contas, "interval", minutes=2,\n                  max_instances=1, coalesce=True)\nscheduler.add_job(job_refresh, "interval", minutes=30)
+scheduler.add_job(job_visitas_todas_contas, "interval", minutes=2,
+                  max_instances=1, coalesce=True)
+scheduler.add_job(job_refresh, "interval", minutes=30)
 scheduler.add_job(job_fila_persistente, "interval", minutes=1,
                   max_instances=1, coalesce=True)
 scheduler.add_job(job_dados, "interval", minutes=60,
