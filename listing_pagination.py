@@ -33,3 +33,48 @@ def listing_page(rows, args, cid):
             nav += f"<span aria-disabled='true' class='muted'>{label}</span>"
     nav += '</nav>'
     return rows[start:end], controls + nav, nav if pages > 1 else ''
+
+
+def paginate_table(rows, args, path, *, preserved=()):
+    """Reusable bounded table output and navigation, preserving filter values."""
+    from html import escape
+    from urllib.parse import urlencode
+    try:
+        size = int(args.get("por_pagina", 20))
+    except (TypeError, ValueError):
+        size = 20
+    if size not in SIZES:
+        size = 20
+    total = len(rows)
+    pages = max(1, (total + size - 1) // size)
+    try:
+        page = int(args.get("pagina", 1))
+    except (TypeError, ValueError):
+        page = 1
+    page = max(1, min(page, pages))
+    start = (page - 1) * size
+    def page_url(n):
+        values = {key: str(args.get(key, "")) for key in preserved if args.get(key)}
+        values.update({"por_pagina": size, "pagina": n})
+        return escape(path + "?" + urlencode(values), quote=True)
+    options = "".join(
+        "<option value='" + str(n) + "'" + (" selected" if n == size else "") + ">"
+        + str(n) + "</option>" for n in SIZES)
+    hidden = "".join(
+        "<input type='hidden' name='" + escape(key, quote=True) + "' value='"
+        + escape(str(args.get(key, "")), quote=True) + "'>"
+        for key in preserved if args.get(key))
+    top = ("<form method='get' action='" + escape(path, quote=True)
+           + "' class='table-page-size' style='display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0'>"
+           + hidden + "<label>Registros por página <select name='por_pagina'>"
+           + options + "</select></label><button class='btn' type='submit'>Aplicar</button></form>")
+    nav = ("<nav aria-label='Paginação' style='display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:12px 0'>"
+           + "<span>Exibindo " + str(start + 1 if total else 0) + "–"
+           + str(min(total, start + size)) + " de " + str(total)
+           + " · Página " + str(page) + " de " + str(pages) + "</span>")
+    if page > 1:
+        nav += "<a class='link' href='" + page_url(page - 1) + "'>← Anterior</a>"
+    if page < pages:
+        nav += "<a class='link' href='" + page_url(page + 1) + "'>Próxima →</a>"
+    nav += "</nav>"
+    return rows[start:start + size], top + nav, nav if pages > 1 else ""
