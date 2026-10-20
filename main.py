@@ -2523,7 +2523,7 @@ def painel_ads(cid):
                 + "</div><div class='lab'>" + esc(t) + "</div>"
                 + ("<small class='muted'>" + esc(nota) + "</small>" if nota else "")
                 + "</div>")
-    corpo = ("<h2>" + titulo + "</h2>" + filtro
+    corpo = ("<h2>" + titulo + "</h2>" + filtro + alertas_html
              + "<div class='grid' style='margin:16px 0'>"
              + card("Investimento", brl(gasto))
              + card("Vendas atribuídas a Ads", brl(receita))
