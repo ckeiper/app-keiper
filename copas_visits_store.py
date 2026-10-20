@@ -40,7 +40,15 @@ def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
                 cur.execute("""
                     SELECT a.item_id FROM anuncios a
                     LEFT JOIN item_visits_checked c ON c.conexao_id=a.conexao_id AND c.item_id=a.item_id
-                    WHERE a.conexao_id=%s AND a.status='active' AND a.item_id ~ '^MLB[0-9]+
+                    WHERE a.conexao_id=%s AND a.status='active' AND a.item_id ~ '^MLB[0-9]+$'
+                    ORDER BY c.consultado_em ASC NULLS FIRST, a.item_id LIMIT %s
+                """, (connection_id, limit))
+            else:
+                cur.execute(
+                    "SELECT item_id FROM anuncios WHERE conexao_id=%s AND status='active' "
+                    "AND item_id ~ '^MLB[0-9]+$' ORDER BY item_id LIMIT %s OFFSET %s",
+                    (connection_id, limit, offset),
+                )
             items = [row[0] for row in cur.fetchall()]
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS item_visits_daily (
