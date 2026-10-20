@@ -14,6 +14,8 @@ from listing_details import (registered_weights, legacy_weight, render_weights,
 from listing_sync import sync_promotions
 from full_monitor import init_full_schema, full_metadata, sync_full
 from full_routes import register_full
+from competitor_monitor import init_competitor_schema, collect_due
+from competitor_routes import register_competitors, tabs as listing_tabs
 from listing_diagnostics import inspect_listing
 from listing_health import diagnose_listing
 from listing_sales import listing_sales_summary
@@ -504,6 +506,7 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
         ("desempenho", "📈 Desempenho", "/desempenho/" + str(cid)),
         ("demandas", "🟡 Demandas", "/demandas/" + str(cid)),
         ("promocoes", "🏷️ Promoções", "/promocoes/" + str(cid)),
+        ("ads", "📣 Ads", "/ads/" + str(cid)),
         ("campanhas", "📢 Campanhas", "/campanhas/" + str(cid)),
         ("custos", "💰 Custos", "/custos/" + str(cid)),
         ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
@@ -667,6 +670,7 @@ def iniciar_banco():
         )""")
         init_sales_schema(conn, executar)
         init_full_schema(conn, executar)
+        init_competitor_schema(conn, executar)
         init_freight_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
@@ -1920,7 +1924,9 @@ def auditoria_frete(cid):
     .frete-progresso{margin:18px 0 0;padding:16px;border-radius:12px;background:#eaf1ff;
         color:#173b66;display:flex;gap:14px;align-items:center}
     .frete-progresso[hidden]{display:none}
+    .frete-progresso>span:last-child{min-width:0;overflow-wrap:anywhere}
     .frete-progresso small{display:block;margin-top:5px;color:#45617f}
+    #frete-upload-form[aria-busy=true] button{opacity:.65;cursor:wait}
     .frete-spinner{width:24px;height:24px;border:3px solid #bcd0e6;
         border-top-color:#2563eb;border-radius:50%;animation:frete-girar .8s linear infinite;flex-shrink:0}
     @keyframes frete-girar{to{transform:rotate(360deg)}}
@@ -1937,14 +1943,28 @@ def auditoria_frete(cid):
       var form=document.getElementById('frete-upload-form');
       var status=document.getElementById('frete-progresso');
       if(!form||!status)return;
-      form.addEventListener('submit',function(){
+      form.addEventListener('submit',function(event){
+        if(form.getAttribute('aria-busy')==='true'){
+          event.preventDefault();return;
+        }
         if(!form.checkValidity())return;
+        form.setAttribute('aria-busy','true');
+        form.querySelectorAll('button[type=submit]').forEach(function(button){
+          button.setAttribute('aria-disabled','true');
+        });
         status.hidden=false;
         var file=form.querySelector('input[type=file]');
         var name=file&&file.files.length?file.files[0].name:'arquivo';
         var msg=status.querySelector('b');
         if(msg)msg.textContent='Enviando e analisando: '+name;
         status.scrollIntoView({block:'nearest',behavior:'smooth'});
+      });
+      window.addEventListener('pageshow',function(){
+        form.removeAttribute('aria-busy');
+        form.querySelectorAll('button[type=submit]').forEach(function(button){
+          button.removeAttribute('aria-disabled');
+        });
+        status.hidden=true;
       });
     });
     </script>
@@ -2441,6 +2461,304 @@ def excluir(cid):
              "← Cancelar</a></p>"
              "</div>")
     return pagina("Excluir loja", corpo)
+
+
+@app.route("/ads/<int:cid>")
+@login_required
+def painel_ads(cid):
+    """Read-only ads overview using stored daily API metrics only."""
+    if not pode_ver_loja(cid):
+        return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
+    from urllib.parse import urlencode
+    hoje = datetime.date.today()
+    dias = request.args.get("dias", "30")
+    if dias not in ("7", "30", "90"):
+        dias = "30"
+    inicio = hoje - datetime.timedelta(days=int(dias) - 1)
+    fim = hoje
+    de, ate = request.args.get("de", ""), request.args.get("ate", "")
+    if de or ate:
+        try:
+            inicio = datetime.date.fromisoformat(de)
+            fim = datetime.date.fromisoformat(ate)
+            if fim < inicio or fim > hoje or (fim - inicio).days > 89:
+                raise ValueError()
+        except ValueError:
+            return pagina("Ads", "<div class='card'>Período inválido: selecione até 90 dias, sem datas futuras.</div>"), 400
+    inicio_iso, fim_iso = inicio.isoformat(), fim.isoformat()
+    with banco() as conn:
+        lojas = consultar(conn, "SELECT id, cliente FROM conexoes WHERE id=%s", (cid,))
+        if not lojas:
+            return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
+        dias_ads = consultar(conn, """
+            SELECT data, gasto, faturamento, impressoes, cliques, atualizado_em
+            FROM ads_dia WHERE conexao_id=%s AND data BETWEEN %s AND %s
+            ORDER BY data DESC
+        """, (cid, inicio_iso, fim_iso))
+    # Local business day and observation freshness matter for budget pacing.
+    from zoneinfo import ZoneInfo
+    agora_local = datetime.datetime.now(ZoneInfo("America/Sao_Paulo"))
+    ontem = (hoje - datetime.timedelta(days=1)).isoformat()
+    with banco() as conn:
+        alert_rows = consultar(conn, """
+            SELECT d.campanha_id,
+                COALESCE(NULLIF(c.nome,''), 'Campanha ' || d.campanha_id) AS nome,
+                c.status, c.orcamento, c.roas_objetivo,
+                COALESCE(SUM(d.gasto) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS gasto_periodo,
+                COALESCE(SUM(d.faturamento) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS fat_periodo,
+                COALESCE(SUM(d.gasto) FILTER (WHERE d.data=%s),0) AS gasto_hoje,
+                MAX(d.atualizado_em) FILTER (WHERE d.data=%s) AS hoje_atualizado,
+                COALESCE(SUM(d.gasto) FILTER (WHERE d.data=%s),0) AS gasto_ontem,
+                COALESCE(SUM(d.faturamento) FILTER (WHERE d.data=%s),0) AS fat_ontem,
+                COUNT(*) FILTER (WHERE d.data=%s) AS tem_ontem
+            FROM ads_campanha_dia d
+            LEFT JOIN ads_campanhas c ON c.conexao_id=d.conexao_id AND c.campanha_id=d.campanha_id
+            WHERE d.conexao_id=%s AND d.data BETWEEN %s AND %s
+            GROUP BY d.campanha_id,c.nome,c.status,c.orcamento,c.roas_objetivo
+        """, (inicio_iso,fim_iso,inicio_iso,fim_iso,hoje.isoformat(),
+              hoje.isoformat(),ontem,ontem,ontem,
+              cid,min(inicio_iso,ontem),max(fim_iso,hoje.isoformat())))
+    alertas_orcamento, alertas_risco, alertas_roas, alertas_sem_venda = [], [], [], []
+    campanhas_configuradas = sum(1 for camp in alert_rows if camp["status"] is not None)
+    for camp in alert_rows:
+        nome = esc(str(camp["nome"]))
+        ativa = str(camp["status"] or "").lower() in ("active","running")
+        budget = float(camp["orcamento"] or 0)
+        gasto_hoje = float(camp["gasto_hoje"] or 0)
+        updated = camp["hoje_atualizado"]
+        dados_recentes = (updated is not None and
+                         0 <= time.time() - float(updated) <= 2 * 3600)
+        if ativa and budget > 0 and dados_recentes:
+            consumo = gasto_hoje / budget
+            info = "R$ %.2f de R$ %.2f (%.0f%%)" % (gasto_hoje,budget,consumo*100)
+            if consumo >= 1:
+                alertas_orcamento.append((nome,info))
+            elif consumo >= 0.8 and agora_local.hour < 18:
+                alertas_risco.append((nome,info+" · atenção antes das 18h"))
+        gasto = float(camp["gasto_periodo"] or 0)
+        fat = float(camp["fat_periodo"] or 0)
+        alvo = float(camp["roas_objetivo"] or 0)
+        if ativa and alvo > 0 and gasto > 0 and fat/gasto >= 1.3*alvo:
+            alertas_roas.append((nome,"ROAS %.2fx · objetivo %.2fx" % (fat/gasto,alvo)))
+        if camp["tem_ontem"] and float(camp["gasto_ontem"] or 0) > 0 and float(camp["fat_ontem"] or 0) == 0:
+            alertas_sem_venda.append((nome,"R$ %.2f investidos ontem · nenhuma venda atribuída" %
+                                     float(camp["gasto_ontem"] or 0)))
+    def quadro_alertas(titulo,descricao,itens,vazio):
+        return ("<section class='card'><h3>"+titulo+" ("+str(len(itens))+")</h3>"
+                "<p class='muted'>"+descricao+"</p>"
+                + ("<ol>"+"".join("<li><b>"+nome+"</b><div class='muted'>"+detalhe+"</div></li>"
+                                  for nome,detalhe in itens[:20])+"</ol>" if itens else "<p>"+vazio+"</p>")
+                + ("<p class='muted'>Primeiros 20 resultados.</p>" if len(itens)>20 else "")+"</section>")
+    alertas_html = ("<h2>Alertas de gestão de Ads</h2>"
+        + ("<div class='aviso'>Configuração de campanhas ainda não sincronizada nesta loja. "
+           "Alertas de orçamento e ROAS objetivo ficam pendentes.</div>"
+           if not campanhas_configuradas else "")
+        + quadro_alertas("Orçamento diário esgotado",
+            "Campanhas ativas cujo gasto observado hoje atingiu o orçamento diário; leitura recente (até 2h).",
+            alertas_orcamento,"Nenhuma campanha com limite atingido e dados recentes.")
+        + quadro_alertas("Risco de orçamento esgotar cedo",
+            "Mais de 80% do orçamento consumido antes das 18h, com leitura recente. "
+            "É um sinal de atenção, não uma previsão de horário.",
+            alertas_risco,"Nenhuma campanha nesta condição com dados recentes.")
+        + quadro_alertas("ROAS pelo menos 30% acima do objetivo",
+            "Considera o ROAS do período selecionado e a meta cadastrada.",
+            alertas_roas,"Nenhuma campanha identificada ou objetivo ainda não importado.")
+        + quadro_alertas("Sem vendas de Ads ontem",
+            "Campanhas com investimento ontem e nenhuma venda atribuída.",
+            alertas_sem_venda,"Nenhuma campanha nesta condição."))
+    titulo = "Publicidade · Product Ads"
+    filtro = ("<section class='card'><h2>Filtros de publicidade</h2>"
+             "<form method='get' action='/ads/" + str(cid) + "' "
+             "style='display:flex;gap:10px;align-items:end;flex-wrap:wrap'>"
+             "<label>Período <select name='dias'>"
+             + "".join("<option value='" + n + "'" + (" selected" if dias == n else "")
+                       + ">" + n + " dias</option>" for n in ("7","30","90"))
+             + "</select></label><label>De <input type='date' name='de' value='"
+             + esc(de) + "'></label><label>Até <input type='date' name='ate' value='"
+             + esc(ate) + "'></label><button class='btn' type='submit'>Aplicar filtros</button>"
+             "</form><p class='muted'>Período exibido: " + inicio.strftime("%d/%m/%Y")
+             + " a " + fim.strftime("%d/%m/%Y") + "</p></section>")
+    if not dias_ads:
+        corpo = ("<h2>" + titulo + "</h2>" + filtro + alertas_html
+                 + "<section class='card'><h3>Sem dados de publicidade para este período</h3>"
+                 "<p>Confira se Product Ads está ativo, se a sincronização da loja terminou "
+                 "e se existe investimento no intervalo selecionado.</p>"
+                 "<p><a class='link' href='/campanhas/" + str(cid)
+                 + "'>Ver campanhas e atualizar dados</a></p></section>")
+        return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo)
+    def soma(campo):
+        return sum(float(row[campo] or 0) for row in dias_ads)
+    gasto = soma("gasto")
+    receita = soma("faturamento")
+    impressoes = int(soma("impressoes"))
+    cliques = int(soma("cliques"))
+    roas = receita / gasto if gasto > 0 else None
+    acos = gasto / receita * 100 if receita > 0 else None
+    ctr = cliques / impressoes * 100 if impressoes > 0 else None
+    cpc = gasto / cliques if cliques > 0 else None
+    def brl(valor):
+        return "R$ " + format(float(valor), ",.2f").replace(",", "X").replace(".", ",").replace("X", ".")
+    # TACOS requires verified total shop sales for the *same* selected period.
+    # Reuse the sales overview classifier and coverage rules; never substitute
+    # attributed Ads revenue (which would be ACOS, not TACOS).
+    faturamento_loja = None
+    motivo_tacos = None
+    try:
+        from overview import load_overview
+        argumentos_vendas = {
+            "periodo": "personalizado",
+            "inicio": inicio_iso,
+            "fim": fim_iso,
+        }
+        loja_vendas = [{"id": cid, "cliente": lojas[0]["cliente"], "status": "ativa"}]
+        dados_vendas = load_overview(loja_vendas, argumentos_vendas, banco, consultar)
+        resumo_vendas = dados_vendas["reports"][0]
+        atual = resumo_vendas["current"]
+        dias_venda = (fim - inicio).days + 1
+        # A previous-period sync is not required to evaluate the selected
+        # current period, but completeness, integrity and freshness are.
+        if (not atual["complete"] or atual["invalid"] or atual["unallocated_dates"]
+                or atual["revenue"] is None):
+            motivo_tacos = "Histórico de vendas incompleto ou com inconsistências no período."
+        else:
+            faturamento_loja = float(atual["revenue"])
+    except (ValueError, KeyError, TypeError, IndexError, OSError) as exc:
+        app.logger.warning("ads_tacos_sales_unavailable loja=%s tipo=%s", cid, type(exc).__name__)
+        motivo_tacos = "Não foi possível validar o faturamento total da loja."
+    tacos_geral = gasto / faturamento_loja * 100 if faturamento_loja and faturamento_loja > 0 else None
+    linhas_tacos = sorted(
+        ((camp["nome"], float(camp["gasto_periodo"] or 0),
+          float(camp["fat_periodo"] or 0)) for camp in alert_rows),
+        key=lambda linha: (-linha[1], linha[0]))
+    try:
+        pagina_tacos = max(1, int(request.args.get("pagina_campanhas", "1")))
+    except (TypeError, ValueError):
+        pagina_tacos = 1
+    tamanho_tacos = 20
+    paginas_tacos = max(1, (len(linhas_tacos) + tamanho_tacos - 1) // tamanho_tacos)
+    pagina_tacos = min(pagina_tacos, paginas_tacos)
+    def url_tacos(numero):
+        params = request.args.to_dict(flat=True)
+        params["pagina_campanhas"] = numero
+        return "/ads/" + str(cid) + "?" + urlencode(params)
+    linhas_tacos_pagina = linhas_tacos[
+        (pagina_tacos - 1) * tamanho_tacos:pagina_tacos * tamanho_tacos]
+    tacos_campanhas_html = ("<section class='card'><h3>TACOS por campanha</h3>"
+        "<p class='muted'>Participação do investimento de cada campanha no faturamento total "
+        "da loja no mesmo período. Não confundir com ACOS da campanha.</p>")
+    if faturamento_loja and faturamento_loja > 0:
+        tacos_campanhas_html += ("<p>Faturamento total validado: <strong>"
+                                 + brl(faturamento_loja) + "</strong></p>")
+    else:
+        tacos_campanhas_html += ("<div class='aviso'>TACOS indisponível: "
+            + esc(motivo_tacos or "Não há faturamento total positivo validado.")
+            + "</div>")
+    tacos_campanhas_html += ("<div style='overflow-x:auto'><table><thead><tr>"
+        "<th>Campanha</th><th>Investimento</th><th>Faturamento atribuído</th>"
+        "<th>TACOS da campanha</th></tr></thead><tbody>")
+    for nome, investimento, atribuida in linhas_tacos_pagina:
+        tacos_valor = (investimento / faturamento_loja * 100
+                       if faturamento_loja and faturamento_loja > 0 else None)
+        tacos_campanhas_html += (
+            "<tr><td>" + esc(str(nome)) + "</td><td>" + brl(investimento)
+            + "</td><td>" + brl(atribuida) + "</td><td>"
+            + ("%.2f%%" % tacos_valor if tacos_valor is not None else "—")
+            + "</td></tr>")
+    if not linhas_tacos:
+        tacos_campanhas_html += ("<tr><td colspan='4'>Sem campanhas com dados no período.</td></tr>")
+    tacos_campanhas_html += ("</tbody></table></div><nav aria-label='Paginação de campanhas'>"
+        + "Página " + str(pagina_tacos) + " de " + str(paginas_tacos))
+    if pagina_tacos > 1:
+        tacos_campanhas_html += (" · <a href='" + esc(url_tacos(pagina_tacos - 1), quote=True)
+            + "'>Anterior</a>")
+    if pagina_tacos < paginas_tacos:
+        tacos_campanhas_html += (" · <a href='" + esc(url_tacos(pagina_tacos + 1), quote=True)
+            + "'>Próxima</a>")
+    tacos_campanhas_html += "</nav></section>"
+    def card(t, val, nota=""):
+        return ("<div class='stat'><div class='num'>" + esc(str(val))
+                + "</div><div class='lab'>" + esc(t) + "</div>"
+                + ("<small class='muted'>" + esc(nota) + "</small>" if nota else "")
+                + "</div>")
+    corpo = ("<h2>" + titulo + "</h2>" + filtro + alertas_html
+             + "<div class='grid' style='margin:16px 0'>"
+             + card("Investimento", brl(gasto))
+             + card("Vendas atribuídas a Ads", brl(receita))
+             + card("ROAS", "%.2fx" % roas if roas is not None else "—")
+             + card("ACOS", "%.2f%%" % acos if acos is not None else "—")
+             + card("TACOS geral", "%.2f%%" % tacos_geral if tacos_geral is not None else "—", "Ads ÷ faturamento total da loja")
+             + card("Impressões", f"{impressoes:,}".replace(",", "."))
+             + card("Cliques", f"{cliques:,}".replace(",", "."))
+             + card("CTR", "%.2f%%" % ctr if ctr is not None else "—")
+             + card("CPC médio", brl(cpc) if cpc is not None else "—")
+             + "</div>")
+    corpo += tacos_campanhas_html
+    cobertura = (fim - inicio).days + 1
+    if len(dias_ads) < cobertura:
+        corpo += ("<div class='aviso'>Cobertura parcial: " + str(len(dias_ads)) + " de "
+                  + str(cobertura) + " dias com registros de Ads. "
+                  "Os totais abaixo representam somente os dias registrados.</div>")
+    corpo += ("<section class='card'><h3>Evolução diária</h3><p class='muted'>"
+              "Investimento e vendas atribuídas a Ads em cada data registrada.</p>"
+              "<div class='grafico-box'><canvas id='ads-historico'></canvas></div>"
+              "<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
+              "<script>new Chart(document.getElementById('ads-historico'),{type:'line',data:{labels:"
+              + json.dumps([r["data"] for r in reversed(dias_ads)])
+              + ",datasets:[{label:'Investimento (R$)',data:"
+              + json.dumps([float(r["gasto"] or 0) for r in reversed(dias_ads)])
+              + ",borderColor:'#2563eb',tension:.25},{label:'Vendas atribuídas (R$)',data:"
+              + json.dumps([float(r["faturamento"] or 0) for r in reversed(dias_ads)])
+              + ",borderColor:'#0f766e',tension:.25}]},"
+              "options:{responsive:true,maintainAspectRatio:false}});</script></section>")
+    try:
+        por_pagina = int(request.args.get("por_pagina", 20))
+    except (ValueError, TypeError):
+        por_pagina = 20
+    if por_pagina not in (10,20,50):
+        por_pagina = 20
+    try:
+        pag = max(1, int(request.args.get("pagina", 1)))
+    except (ValueError, TypeError):
+        pag = 1
+    total = len(dias_ads)
+    paginas = max(1, (total + por_pagina - 1) // por_pagina)
+    pag = min(pag, paginas)
+    def link(numero):
+        return "/ads/" + str(cid) + "?" + urlencode({
+            "dias": dias, "de": de, "ate": ate,
+            "por_pagina": por_pagina, "pagina": numero})
+    bloco = dias_ads[(pag - 1) * por_pagina: pag * por_pagina]
+    corpo += ("<section class='card'><h3>Detalhamento diário</h3>"
+              "<form method='get' action='/ads/" + str(cid) + "'>"
+              + "".join("<input type='hidden' name='" + k + "' value='" + esc(str(v)) + "'>"
+                        for k, v in (("dias",dias),("de",de),("ate",ate)))
+              + "<label>Linhas por página <select name='por_pagina'>"
+              + "".join("<option value='" + str(n) + "'" + (" selected" if n == por_pagina else "")
+                        + ">" + str(n) + "</option>" for n in (10,20,50))
+              + "</select></label> <button class='btn' type='submit'>Aplicar</button></form>"
+              "<div style='overflow-x:auto'><table><thead><tr><th>Dia</th>"
+              "<th>Investimento</th><th>Faturamento Ads</th><th>ROAS</th>"
+              "<th>Impressões</th><th>Cliques</th></tr></thead><tbody>")
+    for row in bloco:
+        g = float(row["gasto"] or 0)
+        f = float(row["faturamento"] or 0)
+        corpo += ("<tr><td>" + esc(row["data"]) + "</td><td>" + brl(g)
+                  + "</td><td>" + brl(f) + "</td><td>"
+                  + ("%.2fx" % (f/g) if g > 0 else "—") + "</td><td>"
+                  + str(int(row["impressoes"] or 0)) + "</td><td>"
+                  + str(int(row["cliques"] or 0)) + "</td></tr>")
+    corpo += "</tbody></table></div><nav aria-label='Paginação de Ads'>"
+    corpo += "Página " + str(pag) + " de " + str(paginas) + " · " + str(total) + " dias"
+    if pag > 1:
+        corpo += " · <a href='" + esc(link(pag - 1)) + "'>Anterior</a>"
+    if pag < paginas:
+        corpo += " · <a href='" + esc(link(pag + 1)) + "'>Próxima</a>"
+    corpo += ("</nav><p class='muted'>Indicadores de Product Ads importados da API. "
+              "Vendas atribuídas não representam o faturamento total da loja. "
+              "ROAS = vendas atribuídas ÷ investimento; ACOS = investimento ÷ vendas atribuídas.</p>"
+              "<p><a class='link' href='/campanhas/" + str(cid)
+              + "'>Ver campanhas detalhadas →</a></p></section>")
+    return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo)
 
 
 @app.route("/campanhas/<int:cid>")
@@ -3138,7 +3456,7 @@ def anuncios(cid):
     itens_promocao = {a["item_id"] for a in anuncios
                       if (active_promotions(read_json(a.get("promocoes_json"), {}))
                           or effective_promotion(read_json(a.get("promocoes_json"), {})))}
-    corpo = "<h2 style='margin-bottom:10px'>Anúncios</h2>" \
+    corpo = listing_tabs(cid, "anuncios") + "<h2 style='margin-bottom:10px'>Anúncios</h2>" \
         + barra_atualizar(cid, ultima, "anuncios")
     if not anuncios:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
@@ -4359,6 +4677,50 @@ def puxar_ads(conexao_id, token, user_id):
                 break
         return (dia, tot_g, tot_f, tot_i, tot_c, linhas)
 
+    # Current campaign configuration (budget and target ROAS) is separate
+    # from the daily performance snapshot. Keep last known config if API fails.
+    try:
+        campanhas_atuais = []
+        deslocamento = 0
+        while True:
+            resposta = requests.get(url, headers=cab,
+                                    params={"limit": 50, "offset": deslocamento},
+                                    timeout=30)
+            if resposta.status_code != 200:
+                raise ValueError("HTTP " + str(resposta.status_code))
+            lote = resposta.json()
+            registros = lote.get("results") or []
+            campanhas_atuais.extend(registros)
+            deslocamento += len(registros)
+            total = (lote.get("paging") or {}).get("total") or 0
+            if not registros or deslocamento >= total or len(registros) < 50:
+                break
+        with banco() as conn:
+            for campanha in campanhas_atuais:
+                camp_id = campanha.get("id")
+                if camp_id is None:
+                    continue
+                budget = campanha.get("daily_budget")
+                if budget is None:
+                    budget = campanha.get("budget")
+                target = campanha.get("roas_target")
+                executar(conn, """
+                    INSERT INTO ads_campanhas (
+                        conexao_id, campanha_id, nome, status, tipo,
+                        data_inicio, data_fim, orcamento, roas_objetivo, atualizado_em
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (conexao_id,campanha_id) DO UPDATE SET
+                        nome=EXCLUDED.nome, status=EXCLUDED.status,
+                        tipo=EXCLUDED.tipo, orcamento=EXCLUDED.orcamento,
+                        roas_objetivo=COALESCE(EXCLUDED.roas_objetivo,ads_campanhas.roas_objetivo),
+                        atualizado_em=EXCLUDED.atualizado_em
+                """, (conexao_id, str(camp_id), campanha.get("name"),
+                      campanha.get("status"), campanha.get("strategy"),
+                      campanha.get("date_created"), None, budget, target,
+                      int(time.time())))
+    except (requests.RequestException, ValueError, TypeError) as exc:
+        registrar_erro(conexao_id, "ads_config", "Campanhas: " + str(exc)[:140])
+
     # 2) Hoje (igual a antes)
     res_hoje = buscar_dia(hoje)
     if res_hoje is None:
@@ -4374,7 +4736,7 @@ def puxar_ads(conexao_id, token, user_id):
                         VALUES (%s,%s,%s,%s,%s,%s)
                         ON CONFLICT (conexao_id, campanha_id, data)
                         DO UPDATE SET gasto=EXCLUDED.gasto,
-                          faturamento=EXCLUDED.faturamento""",
+                          faturamento=EXCLUDED.faturamento, atualizado_em=EXCLUDED.atualizado_em""",
                      (conexao_id, camp_id, hoje, g, f, agora))
         executar(conn,
                  """INSERT INTO ads_dia
@@ -4385,7 +4747,7 @@ def puxar_ads(conexao_id, token, user_id):
                     DO UPDATE SET gasto=EXCLUDED.gasto,
                       faturamento=EXCLUDED.faturamento,
                       impressoes=EXCLUDED.impressoes,
-                      cliques=EXCLUDED.cliques""",
+                      cliques=EXCLUDED.cliques, atualizado_em=EXCLUDED.atualizado_em""",
                  (conexao_id, hoje, tot_g, tot_f, tot_i, tot_c, agora))
 
     # 3) Backfill: enquanto a tabela tiver menos de 60 dias gravados,
@@ -4411,7 +4773,7 @@ def puxar_ads(conexao_id, token, user_id):
                                 VALUES (%s,%s,%s,%s,%s,%s)
                                 ON CONFLICT (conexao_id, campanha_id, data)
                                 DO UPDATE SET gasto=EXCLUDED.gasto,
-                                  faturamento=EXCLUDED.faturamento""",
+                                  faturamento=EXCLUDED.faturamento, atualizado_em=EXCLUDED.atualizado_em""",
                              (conexao_id, camp_id, dia_b, g, f, agora))
                 executar(conn,
                          """INSERT INTO ads_dia
@@ -4422,7 +4784,7 @@ def puxar_ads(conexao_id, token, user_id):
                             DO UPDATE SET gasto=EXCLUDED.gasto,
                               faturamento=EXCLUDED.faturamento,
                               impressoes=EXCLUDED.impressoes,
-                              cliques=EXCLUDED.cliques""",
+                              cliques=EXCLUDED.cliques, atualizado_em=EXCLUDED.atualizado_em""",
                          (conexao_id, dia_b, g2, f2, i2, c2, agora))
     return True
 
@@ -4526,6 +4888,7 @@ def job_dados():
 
 register_crm(app, banco, consultar, executar, pagina)
 register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja, session)
+register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
 
 iniciar_banco()
 
@@ -4795,7 +5158,16 @@ def job_sincronizacao_lojas_novas():
         app.logger.exception("new_store_initial_sync_failed")
 
 
+def job_concorrencia():
+    try:
+        collect_due(banco, consultar, executar, requests.get)
+    except Exception:
+        app.logger.exception("competitor_collection_failed")
+
+
 scheduler = BackgroundScheduler()
+scheduler.add_job(job_concorrencia, "interval", minutes=1,
+                  max_instances=1, coalesce=True)
 scheduler.add_job(job_sincronizacao_lojas_novas, "interval", minutes=5,
                   max_instances=1, coalesce=True)
 scheduler.add_job(job_visitas_todas_contas, "interval", minutes=1,
