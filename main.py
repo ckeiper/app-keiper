@@ -4467,6 +4467,50 @@ def puxar_ads(conexao_id, token, user_id):
                 break
         return (dia, tot_g, tot_f, tot_i, tot_c, linhas)
 
+    # Current campaign configuration (budget and target ROAS) is separate
+    # from the daily performance snapshot. Keep last known config if API fails.
+    try:
+        campanhas_atuais = []
+        deslocamento = 0
+        while True:
+            resposta = requests.get(url, headers=cab,
+                                    params={"limit": 50, "offset": deslocamento},
+                                    timeout=30)
+            if resposta.status_code != 200:
+                raise ValueError("HTTP " + str(resposta.status_code))
+            lote = resposta.json()
+            registros = lote.get("results") or []
+            campanhas_atuais.extend(registros)
+            deslocamento += len(registros)
+            total = (lote.get("paging") or {}).get("total") or 0
+            if not registros or deslocamento >= total or len(registros) < 50:
+                break
+        with banco() as conn:
+            for campanha in campanhas_atuais:
+                camp_id = campanha.get("id")
+                if camp_id is None:
+                    continue
+                budget = campanha.get("daily_budget")
+                if budget is None:
+                    budget = campanha.get("budget")
+                target = campanha.get("roas_target")
+                executar(conn, """
+                    INSERT INTO ads_campanhas (
+                        conexao_id, campanha_id, nome, status, tipo,
+                        data_inicio, data_fim, orcamento, roas_objetivo, atualizado_em
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (conexao_id,campanha_id) DO UPDATE SET
+                        nome=EXCLUDED.nome, status=EXCLUDED.status,
+                        tipo=EXCLUDED.tipo, orcamento=EXCLUDED.orcamento,
+                        roas_objetivo=COALESCE(EXCLUDED.roas_objetivo,ads_campanhas.roas_objetivo),
+                        atualizado_em=EXCLUDED.atualizado_em
+                """, (conexao_id, str(camp_id), campanha.get("name"),
+                      campanha.get("status"), campanha.get("strategy"),
+                      campanha.get("date_created"), None, budget, target,
+                      int(time.time())))
+    except (requests.RequestException, ValueError, TypeError) as exc:
+        registrar_erro(conexao_id, "ads_config", "Campanhas: " + str(exc)[:140])
+
     # 2) Hoje (igual a antes)
     res_hoje = buscar_dia(hoje)
     if res_hoje is None:
