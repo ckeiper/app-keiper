@@ -1956,7 +1956,7 @@ def auditoria_frete(cid):
             "<label>Fim do período <input type='date' name='periodo_fim'></label>"
             "<label><input type='checkbox' name='completo' value='sim'>Confirmo que o arquivo contém todos os lançamentos do período informado, sem filtros adicionais.</label>"
             "<p>Até 31 dias por arquivo. Substitui os indicadores dos dias informados, inclusive dias sem movimentos. Não use relatórios parciais.</p>"
-            "<button class='btn' type='submit' name='acao' value='consolidar'>Atualizar consolidação diária</button></fieldset></form><p>Formatos")
+            "<button class='btn' type='submit' name='acao' value='consolidar'>Atualizar consolidação diária</button></fieldset></form><div id=\'frete-progresso\'")
         with banco() as conn:
             corpo += render_history(report_history(conn, consultar, cid))
             consolidado_html = render_consolidated(consolidated_history(conn, consultar, cid))
