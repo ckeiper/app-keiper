@@ -5,7 +5,7 @@ from management_data import load_management
 from management_view import render_management
 
 
-def register_management(app,login_required,can_view,bank,query,page,shop_page):
+def register_management(app,login_required,can_view,bank,query,page,shop_page,is_updating=None):
     @app.route('/painel/<int:cid>')
     @login_required
     def store_management(cid):
@@ -15,6 +15,9 @@ def register_management(app,login_required,can_view,bank,query,page,shop_page):
             report=load_management(cid,request.args,bank,query)
             if report is None:
                 return page('Loja não encontrada','<div class="card">Loja não encontrada</div>'),404
+            report['updating']=bool(is_updating and is_updating(cid))
+            if report['shop']['status']!='ativa':
+                report['warnings'].append('Conexão inativa: as informações são a última leitura disponível. Revalide a autorização da loja.')
             body=render_management(cid,report,request.args)
             response=make_response(shop_page('Gestão da loja',cid,report['shop']['cliente'],'resumo',body))
         except ValueError as exc:

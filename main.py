@@ -4890,7 +4890,8 @@ def job_dados():
 register_crm(app, banco, consultar, executar, pagina)
 register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja, session)
 register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
-register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja)
+register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
+                    is_updating=lambda cid: cid in ATUALIZANDO)
 
 iniciar_banco()
 

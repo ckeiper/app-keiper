@@ -81,7 +81,9 @@ def render_management(cid,report,args):
     sales_url=f'/vendas/{cid}?'+urlencode({'periodo':'personalizado','inicio':start.isoformat(),'fim':end.isoformat()})
     ads_url=f'/ads/{cid}?'+urlencode({'de':start.isoformat(),'ate':end.isoformat()})
     body=STYLE+"<header class='mgmt-header'><div><h2>Gestão da loja</h2><p>Vendas, publicidade e prioridades para decidir a próxima ação.</p></div>"
-    body+=f"<a class='btn-acoes cinza' href='/painel/{cid}/operacao'>Operação do dia →</a></header>"
+    body+=f"<div class='mgmt-links'><a class='btn-acoes' href='/atualizar/resumo/{cid}'>Atualizar dados</a><a class='btn-acoes cinza' href='/painel/{cid}/operacao'>Operação do dia →</a></div></header>"
+    if report.get('updating'):
+        body+="<div class='aviso' role='status'>Sincronização em andamento. Os indicadores mostram a última leitura disponível; recarregue esta página após a conclusão.</div>"
     body+=("<form class='card mgmt-filter' method='get'><label>Período "+select('dias',{str(n):str(n)+' dias completos' for n in (7,15,30,60,90)},args.get('dias','7'))+'</label>'
            +"<label>Início<input type='date' name='inicio' value='"+escape(args.get('inicio',''),quote=True)+"'></label>"
            +"<label>Fim<input type='date' name='fim' value='"+escape(args.get('fim',''),quote=True)+"'></label>"
