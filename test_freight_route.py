@@ -86,7 +86,7 @@ class FreightRouteTests(unittest.TestCase):
                 'csrf_token': token, 'arquivo': (data, 'synthetic.xlsx')})
         self.assertEqual(reader.call_count,1)
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Lançamentos lidos: 1', response.get_data(as_text=True))
+        self.assertIn('<span>Lançamentos analisados</span><strong>1</strong>', response.get_data(as_text=True))
         self.assertEqual(response.headers['Cache-Control'], 'no-store')
 
     def test_unauthorized_access_does_not_read_store(self):
