@@ -29,6 +29,13 @@ def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
             if not record or record[1] != "ativa" or not record[2]:
                 raise RuntimeError("Connection unavailable")
             token = record[2]
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS item_visits_checked (
+                    conexao_id INTEGER NOT NULL, item_id TEXT NOT NULL,
+                    consultado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (conexao_id, item_id)
+                )
+            """)
             if rotate:
                 cur.execute("""
                     SELECT a.item_id FROM anuncios a
@@ -41,13 +48,6 @@ def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
                     dia DATE NOT NULL, visitas INTEGER NOT NULL CHECK (visitas >= 0),
                     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     PRIMARY KEY (conexao_id, item_id, dia)
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS item_visits_checked (
-                    conexao_id INTEGER NOT NULL, item_id TEXT NOT NULL,
-                    consultado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    PRIMARY KEY (conexao_id, item_id)
                 )
             """)
         conn.commit()
