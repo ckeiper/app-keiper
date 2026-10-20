@@ -80,7 +80,7 @@ body:has(.mgmt-dashboard) .wrap{max-width:1680px;margin:22px auto}
 .mgmt-chart-header h2{margin:0}.mgmt-chart-legend{display:flex;gap:14px;font-size:10px;color:#8b96ab}
 .mgmt-chart-legend span:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#7a6ae0;margin-right:5px}
 .mgmt-chart-legend span+span:before{background:#61c2b0}
-.mgmt-chart svg{display:block;width:100%;height:auto;max-height:235px;margin-top:22px}
+.mgmt-chart-body{display:flex;gap:12px;margin:25px 0 15px}.mgmt-chart-y{display:flex;flex-direction:column;justify-content:space-between;height:170px;font-size:10px;color:#9ba6b8;padding-bottom:12px;text-align:right;min-width:64px}.mgmt-chart-plot{flex:1;min-width:0}.mgmt-chart svg{display:block;width:100%;height:160px;overflow:visible}.mgmt-chart-x{display:flex;justify-content:space-between;font-size:10px;color:#9ba6b8;margin-top:10px}
 .mgmt-chart-axis{font-size:9px;fill:#9ba6b8;font-family:inherit}
 .mgmt-chart-empty{min-height:110px;display:grid;place-items:center;border:1px dashed #e3e7f1;border-radius:12px;margin-top:18px;color:#9ca6b9;font-size:12px}
 .mgmt-priorities{margin-top:22px}.mgmt-section-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 14px}
@@ -161,30 +161,32 @@ def daily_chart(report):
     if not valid:
         return out+"<div class='mgmt-chart-empty'>O gráfico aparece quando há dias de vendas verificados.</div></section>"
     ceiling=max(valid) or 1
-    left,top,width,height=64,12,700,150
-    out+="<svg viewBox='0 0 790 190' role='img' aria-label='Faturamento diário dos períodos comparados; lacunas são dias sem dados'>"
+    width,height=700,150
+    out+="<div class='mgmt-chart-body'><div class='mgmt-chart-y'>"
+    for level in (1,.5,0):
+        out+="<span>"+escape(fmt(ceiling*level,True))+"</span>"
+    out+="</div><div class='mgmt-chart-plot'><svg viewBox='0 0 700 150' preserveAspectRatio='none' role='img' aria-label='Faturamento diário dos períodos comparados; lacunas são dias sem dados'>"
     for level in (0,.5,1):
-        y=top+height*(1-level)
-        out+="<line x1='64' x2='764' y1='"+str(y)+"' y2='"+str(y)+"' stroke='#edf0f7'/>"
-        out+="<text x='54' y='"+str(y+3)+"' text-anchor='end' class='mgmt-chart-axis'>"+escape(fmt(ceiling*level,True))+"</text>"
+        y=height*(1-level)
+        out+="<line x1='0' x2='700' y1='"+str(y)+"' y2='"+str(y)+"' stroke='#edf0f7' vector-effect='non-scaling-stroke'/>"
     for values,color in zip(series,('#7b6be1','#62c3b0')):
         segment=[]
         for index,value in enumerate(values):
             if value is None:
                 if segment:
-                    out+="<path d='"+" ".join(segment)+"' fill='none' stroke='"+color+"' stroke-width='2.6' stroke-linejoin='round' stroke-linecap='round'/>"
+                    out+="<path d='"+" ".join(segment)+"' fill='none' stroke='"+color+"' stroke-width='2.6' stroke-linejoin='round' stroke-linecap='round' vector-effect='non-scaling-stroke'/>"
                     segment=[]
                 continue
-            x=left+(index/max(1,len(values)-1))*width
-            y=top+height*(1-float(value)/ceiling)
+            x=(index/max(1,len(values)-1))*width
+            y=height*(1-float(value)/ceiling)
             segment.append(('M' if not segment else 'L')+f'{x:.2f},{y:.2f}')
             out+="<circle cx='"+f'{x:.2f}'+"' cy='"+f'{y:.2f}'+"' r='2' fill='"+color+"'><title>"+escape(fmt(value,True))+"</title></circle>"
         if segment:
-            out+="<path d='"+" ".join(segment)+"' fill='none' stroke='"+color+"' stroke-width='2.6' stroke-linejoin='round' stroke-linecap='round'/>"
-    for index,label in ((0,current['days'][0]),(len(current['days'])-1,current['days'][-1])):
-        x=left+index/max(1,len(current['days'])-1)*width
-        out+="<text x='"+str(x)+"' y='184' text-anchor='middle' class='mgmt-chart-axis'>"+escape(label[8:10]+'/'+label[5:7])+"</text>"
-    out+="</svg><details><summary>Ver valores e datas comparados</summary><div class='mgmt-scroll'><table class='mgmt-table'><thead><tr><th>Data atual</th><th>Faturamento</th><th>Data anterior</th><th>Faturamento anterior</th></tr></thead><tbody>"
+            out+="<path d='"+" ".join(segment)+"' fill='none' stroke='"+color+"' stroke-width='2.6' stroke-linejoin='round' stroke-linecap='round' vector-effect='non-scaling-stroke'/>"
+    out+="</svg><div class='mgmt-chart-x'>"
+    for day in (current['days'][0],current['days'][-1]):
+        out+="<span>"+escape(day[8:10]+'/'+day[5:7])+"</span>"
+    out+="</div></div></div><details><summary>Ver valores e datas comparados</summary><div class='mgmt-scroll'><table class='mgmt-table'><thead><tr><th>Data atual</th><th>Faturamento</th><th>Data anterior</th><th>Faturamento anterior</th></tr></thead><tbody>"
     for index,day in enumerate(current['days']):
         out+='<tr><td>'+escape(day)+'</td><td>'+escape(fmt(current['daily'][index],True))+'</td><td>'+escape(previous['days'][index])+'</td><td>'+escape(fmt(previous['daily'][index],True))+'</td></tr>'
     return out+'</tbody></table></div></details></section>'
