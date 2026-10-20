@@ -144,7 +144,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
             except (ValueError,OverflowError,OSError): date='Não confirmada'
             body+='<small>Leitura: '+date+'</small></td></tr>'
         body+='</tbody></table></div>'
-    body+="<nav class='catalog-pager' aria-label='Paginação dos anúncios'><span>"+f'Página {page} de {pages} · {len(filtered)} resultados'+'</span>'
+    body+="<nav class='catalog-pager' aria-label='Paginação dos anúncios'><span>"+f'Mostrando {(page-1)*size+1 if filtered else 0}–{min(page*size,len(filtered))} de {len(filtered)} anúncios · Página {page} de {pages}'+'</span>'
     for label,target in [('← Anterior',page-1),('Próxima →',page+1)]:
         if 1<=target<=pages:
             params={k:str(args[k]) for k in ('busca','status','estoque','promocao','logistica','foco','ordem') if args.get(k)}
