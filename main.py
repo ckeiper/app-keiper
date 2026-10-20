@@ -2560,10 +2560,6 @@ def painel_ads(cid):
         if (not atual["complete"] or atual["invalid"] or atual["unallocated_dates"]
                 or atual["revenue"] is None):
             motivo_tacos = "Histórico de vendas incompleto ou com inconsistências no período."
-        elif resumo_vendas["last_sync"] is None or any(
-                "Sincronização dos períodos desatualizada" in x
-                for x in resumo_vendas["reasons"]):
-            motivo_tacos = "A sincronização de vendas precisa ser atualizada."
         else:
             faturamento_loja = float(atual["revenue"])
     except (ValueError, KeyError, TypeError, IndexError, OSError) as exc:
