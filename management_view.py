@@ -86,6 +86,7 @@ def render_management(cid,report,args):
         body+=card(label,fmt(current[key],is_money),compare(current[key],previous[key],is_money))
     body+='</div></section>'
     body+='<p class="muted">Cancelamentos registrados: '+fmt(current['cancellations'],False)+' · anterior: '+fmt(previous['cancellations'],False)+'. Não são subtraídos novamente das vendas pagas.</p>'
+    body+=daily_chart(report)
     ad,before=report['ads'],report['ads_previous']
     body+="<section class='mgmt-ads-strip' aria-label='Indicadores de publicidade'><div class='mgmt-kpis'>"
     body+=card('Investimento em Ads',fmt(ad['spend'],True),compare(ad['spend'],before['spend'],True))
@@ -97,7 +98,7 @@ def render_management(cid,report,args):
     if ad['coverage']<ad['expected']:
         body+=f"<p class='muted'>Ads: {ad['coverage']} de {ad['expected']} dias com registros. Totais incompletos ficam indisponíveis.</p>"
     body+="<nav class='mgmt-links' aria-label='Análises detalhadas'>"+''.join("<a class='btn-acoes cinza' href='"+escape(url,quote=True)+"'>"+label+'</a>' for url,label in [(sales_url,'Analisar vendas'),(ads_url,'Ads e alertas de campanhas'),(f'/anuncios/{cid}/concorrencia','Concorrência'),(f'/custos/{cid}','Custos e margens'),(f'/full/{cid}','Full e vendas')])+'</nav>'
-    body+=daily_chart(report)+priorities(cid,report,args)
+    body+=priorities(cid,report,args)
     body+="<div class='mgmt-overview-bottom'><section class='card mgmt-catalog'><h2>Saúde do catálogo</h2><div class='mgmt-kpis'>"
     body+=card('Anúncios com vendas',fmt(report['selling'],False),f"Entre {report['listing_count']} anúncios cadastrados")
     body+=card('Sem vendas no período',fmt(report['no_sales'],False),'Ausência de vendas não comprova falta de demanda')

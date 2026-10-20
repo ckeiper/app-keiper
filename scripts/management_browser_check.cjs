@@ -19,6 +19,8 @@ const {chromium}=require('playwright');
     assert.equal(await page.locator('#mgmt-panel-analysis').isVisible(),false);
     assert.equal(await page.locator('.mgmt-preview-card').count(),3);
     assert.ok(await page.locator('.mgmt-chart svg').isVisible());
+    const chartBox=await page.locator('.mgmt-chart').boundingBox();
+    assert.ok(chartBox.y<800,'Revenue chart should be prominent in the first desktop screen');
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
     await page.screenshot({path:'visual-qa/desktop.png',fullPage:true});
     await page.locator('#mgmt-tab-actions').click();
