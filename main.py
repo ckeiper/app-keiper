@@ -4519,7 +4519,7 @@ def puxar_anuncios(conexao_id, token, user_id):
                            json.dumps(tags, ensure_ascii=False),
                            peso, det.get("seller_custom_field"), original_price,
                            json.dumps(pesos, ensure_ascii=False),
-                           det.get("secure_thumbnail") or (pics[0].get("secure_url") if pics and isinstance(pics[0], dict) else None) or det.get("thumbnail")))
+                           det.get("secure_thumbnail") or (pics[0].get("secure_url") if isinstance(pics, list) and pics and isinstance(pics[0], dict) else None) or det.get("thumbnail")))
     with banco() as conn:
         for t in linhas:
             executar(conn, """INSERT INTO anuncios
