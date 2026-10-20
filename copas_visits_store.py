@@ -15,9 +15,34 @@ def _parse_day(value):
     return dt.date.fromisoformat(value[:10])
 
 
+def _fetch_visits(item, token, today):
+    """Fetch outside the database transaction; bounded network parallelism."""
+    req = urllib.request.Request(
+        f"{API}/items/{item}/visits/time_window?last=7&unit=day",
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=12) as response:
+            payload = json.load(response)
+        if not isinstance(payload, dict) or payload.get("item_id") != item or not isinstance(payload.get("results"), list):
+            raise ValueError("Unexpected API response")
+        parsed = []
+        for entry in payload["results"]:
+            day = _parse_day(entry["date"])
+            visits = entry["total"]
+            if type(visits) is not int or visits < 0:
+                raise ValueError("Invalid daily visits")
+            if today - dt.timedelta(days=7) <= day < today:
+                parsed.append((day, visits))
+        return item, parsed, None
+    except (urllib.error.HTTPError, urllib.error.URLError, ValueError, KeyError, TypeError, TimeoutError) as exc:
+        return item, [], str(exc)[:120]
+
+
 def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
-    if not isinstance(limit, int) or not 1 <= limit <= 10:
-        raise ValueError("limit must be 1..10")
+    """Fetch up to 40 items using four network threads, then save serially."""
+    if not isinstance(limit, int) or not 1 <= limit <= 40:
+        raise ValueError("limit must be 1..40")
     if not isinstance(offset, int) or offset < 0:
         raise ValueError("offset must be nonnegative")
     if not isinstance(connection_id, int) or connection_id < 1:
@@ -59,47 +84,38 @@ def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
                 )
             """)
         conn.commit()
-        results = {"loja": record[0], "conexao_id": connection_id, "offset": offset, "proximo_offset": offset + len(items),
-                   "itens_solicitados": len(items), "itens_atualizados": 0,
-                   "dias_gravados": 0, "falhas": 0}
+        results = {"loja": record[0], "conexao_id": connection_id, "offset": offset,
+                   "proximo_offset": offset + len(items), "itens_solicitados": len(items),
+                   "itens_atualizados": 0, "dias_gravados": 0, "falhas": 0}
         today = dt.datetime.now(dt.timezone.utc).date()
-        for item in items:
-            req = urllib.request.Request(
-                f"{API}/items/{item}/visits/time_window?last=7&unit=day",
-                headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
-            )
-            try:
-                with urllib.request.urlopen(req, timeout=20) as response:
-                    payload = json.load(response)
-                if not isinstance(payload, dict) or payload.get("item_id") != item or not isinstance(payload.get("results"), list):
-                    raise ValueError("Unexpected API response")
-                parsed = []
-                for entry in payload["results"]:
-                    day = _parse_day(entry["date"])
-                    visits = entry["total"]
-                    if type(visits) is not int or visits < 0:
-                        raise ValueError("Invalid daily visits")
-                    if today - dt.timedelta(days=7) <= day < today:
-                        parsed.append((connection_id, item, day, visits))
-                with conn.cursor() as cur:
-                    for row in parsed:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(_fetch_visits, item, token, today) for item in items]
+            for future in as_completed(futures):
+                item, parsed, error = future.result()
+                if error is not None:
+                    results["falhas"] += 1
+                    continue
+                try:
+                    with conn.cursor() as cur:
+                        for day, visits in parsed:
+                            cur.execute("""
+                                INSERT INTO item_visits_daily (conexao_id, item_id, dia, visitas)
+                                VALUES (%s, %s, %s, %s)
+                                ON CONFLICT (conexao_id, item_id, dia) DO UPDATE
+                                SET visitas=EXCLUDED.visitas, atualizado_em=NOW()
+                            """, (connection_id, item, day, visits))
                         cur.execute("""
-                            INSERT INTO item_visits_daily (conexao_id, item_id, dia, visitas)
-                            VALUES (%s, %s, %s, %s)
-                            ON CONFLICT (conexao_id, item_id, dia) DO UPDATE
-                            SET visitas=EXCLUDED.visitas, atualizado_em=NOW()
-                        """, row)
-                    cur.execute("""
-                        INSERT INTO item_visits_checked (conexao_id, item_id)
-                        VALUES (%s, %s)
-                        ON CONFLICT (conexao_id, item_id) DO UPDATE SET consultado_em=NOW()
-                    """, (connection_id, item))
-                conn.commit()
-                results["itens_atualizados"] += 1
-                results["dias_gravados"] += len(parsed)
-            except (urllib.error.HTTPError, urllib.error.URLError, ValueError, KeyError, TypeError, TimeoutError):
-                conn.rollback()
-                results["falhas"] += 1
+                            INSERT INTO item_visits_checked (conexao_id, item_id)
+                            VALUES (%s, %s)
+                            ON CONFLICT (conexao_id, item_id) DO UPDATE SET consultado_em=NOW()
+                        """, (connection_id, item))
+                    conn.commit()
+                    results["itens_atualizados"] += 1
+                    results["dias_gravados"] += len(parsed)
+                except psycopg2.Error:
+                    conn.rollback()
+                    results["falhas"] += 1
         return results
 
 

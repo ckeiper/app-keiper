@@ -4713,16 +4713,13 @@ def job_visitas_todas_contas():
                 LEFT JOIN item_visits_checked v ON v.conexao_id=a.conexao_id AND v.item_id=a.item_id
                 WHERE c.status='ativa' AND c.access_token IS NOT NULL
                 GROUP BY c.id
-                ORDER BY
-                    CASE WHEN COUNT(*) FILTER (WHERE v.consultado_em IS NULL) > 0 THEN 0 ELSE 1 END,
-                    COUNT(*) FILTER (WHERE v.consultado_em IS NULL) DESC,
-                    MIN(v.consultado_em) ASC NULLS FIRST,
-                    c.id
+                HAVING COUNT(*) FILTER (WHERE v.consultado_em IS NULL) > 0
+                ORDER BY MAX(v.consultado_em) ASC NULLS FIRST, c.id
                 LIMIT 1
             """)
             record = cur.fetchone()
             if record:
-                app.logger.info("visits_batch_result %s", collect(limit=10, connection_id=record[0], rotate=True))
+                app.logger.info("visits_batch_result %s", collect(limit=40, connection_id=record[0], rotate=True))
     except Exception:
         app.logger.exception("visits_all_accounts_batch_failed")
     finally:
@@ -4736,7 +4733,7 @@ def job_visitas_todas_contas():
 
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(job_visitas_todas_contas, "interval", minutes=2,
+scheduler.add_job(job_visitas_todas_contas, "interval", minutes=1,
                   max_instances=1, coalesce=True)
 scheduler.add_job(job_refresh, "interval", minutes=30)
 scheduler.add_job(job_fila_persistente, "interval", minutes=1,
