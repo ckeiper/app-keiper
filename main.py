@@ -4732,7 +4732,31 @@ def job_visitas_todas_contas():
             lock_conn.close()
 
 
+def job_sincronizacao_lojas_novas():
+    """Queue newly connected stores without local items, avoiding repeated jobs."""
+    try:
+        with banco() as conn:
+            lojas = consultar(conn, """
+                SELECT c.id FROM conexoes c
+                WHERE c.status='ativa' AND c.access_token IS NOT NULL
+                  AND c.user_id IS NOT NULL
+                  AND NOT EXISTS (SELECT 1 FROM anuncios a WHERE a.conexao_id=c.id)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM sincronizacao_execucoes e
+                      WHERE e.conexao_id=c.id AND e.status='executando'
+                  )
+                ORDER BY c.id
+                LIMIT 3
+            """)
+        for loja in lojas:
+            enfileirar_atualizacao(loja["id"])
+    except Exception:
+        app.logger.exception("new_store_initial_sync_failed")
+
+
 scheduler = BackgroundScheduler()
+scheduler.add_job(job_sincronizacao_lojas_novas, "interval", minutes=5,
+                  max_instances=1, coalesce=True)
 scheduler.add_job(job_visitas_todas_contas, "interval", minutes=1,
                   max_instances=1, coalesce=True)
 scheduler.add_job(job_refresh, "interval", minutes=30)
