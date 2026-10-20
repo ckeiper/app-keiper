@@ -13,7 +13,7 @@ PRIORITIES={'':'Todas as prioridades','alta':'Alta','media':'Média','oportunida
 VIEWS={'todos':'Todos os anúncios','campeoes':'Mais vendidos em valor','alta':'Em alta em pedidos',
        'queda':'Em queda em pedidos','sem_vendas':'Sem vendas no período','estoque':'Estoque até 7 dias',
        'sem_custo':'Vendidos sem custo cadastrado'}
-from management_design import STYLE, SCRIPT as DESIGN_SCRIPT, metric_card, active_tab, panel, tabs, daily_chart, priorities
+from management_design import STYLE, SCRIPT as DESIGN_SCRIPT, metric_card, active_tab, panel, tabs, daily_chart, priorities, product, product_details
 
 
 
@@ -119,7 +119,7 @@ def render_management(cid,report,args):
         body+="<section class='card mgmt-leaders'><h2>Campeões de vendas em valor</h2><ol>"
         for row in report['champions']:
             listing,m=row['listing'],row['metrics']
-            body+=f"<li><a href='/diagnostico/{cid}/{escape(listing['item_id'],quote=True)}'>"+escape(listing.get('titulo') or listing['item_id'])+'</a> · '+fmt(m['value'],True)+f" · {m['orders']} pedidos</li>"
+            body+="<li>"+product(row,cid)+fmt(m["value"],True)+f" · {m['orders']} pedidos</li>"
         body+='</ol></section>'
     body+='</div></div>'+panel('actions',selected)
     signals=report['signals']
@@ -170,7 +170,7 @@ def render_management(cid,report,args):
            +"<div class='mgmt-scroll'><table class='mgmt-table'><thead><tr><th>Anúncio</th><th>Pedidos atual / anterior</th><th>Valor dos itens atual / anterior</th><th>Unidades</th><th>Visitas / pedidos por 100 visitas</th><th>Estoque / cobertura</th></tr></thead><tbody>")
     for row in page_rows:
         listing,m=row['listing'],row['metrics']
-        body+=(f"<tr><td><a href='/diagnostico/{cid}/{escape(listing['item_id'],quote=True)}'>"+escape(listing.get('titulo') or listing['item_id'])+'</a><small>'
+        body+=("<tr><td>"+product(row,cid)+'<small>'
                +escape(listing['item_id'])+' · '+escape(listing.get('status') or 'status não confirmado')+'</small></td><td>'
                +(str(m['orders'])+' / '+str(m['previous_orders'])+'<small>'+number(m['growth_pct'],1,'%')+'</small>' if m else 'Indisponível')
                +'</td><td>'+(fmt(m['value'],True)+'<small>Antes: '+fmt(m['previous_value'],True)+'</small>' if m else 'Indisponível')
@@ -196,4 +196,4 @@ def render_management(cid,report,args):
       document.getElementById('mgmt-loading').hidden=true;
       document.querySelectorAll('form.mgmt-filter').forEach(function(form){form.removeAttribute('aria-busy');});
     });</script>"""
-    return body+DESIGN_SCRIPT+'</div>'
+    return body+product_details(cid,dict(report,rows=list({r["listing"]["item_id"]:r for r in report["champions"]+page_rows}.values())))+DESIGN_SCRIPT+'</div>'

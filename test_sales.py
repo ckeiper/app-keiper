@@ -24,6 +24,17 @@ class MetricsTests(unittest.TestCase):
         return summarize(rows, date(2026, 10, 10), date(2026, 10, 11),
                          {'2026-10-10', '2026-10-11'} if covered is None else covered)
 
+    def test_daily_chart_metrics_preserve_unknown_days_and_units(self):
+        report=self.summarize([row(),row('2',total='80',unidades=None)])
+        self.assertEqual(report['daily_orders'],[2,0])
+        self.assertEqual(report['daily_units'],[None,0])
+        self.assertEqual(report['daily_ticket'],[100.0,None])
+        partial=self.summarize([row()],{'2026-10-10'})
+        self.assertEqual(partial['daily_orders'],[1,None])
+        self.assertEqual(partial['daily_units'],[3,None])
+        invalid=self.summarize([row(moeda='USD')])
+        self.assertEqual(invalid['daily_orders'],[None,0])
+
     def test_presets_and_previous_window(self):
         for n in (7, 15, 30, 60, 90):
             start, end, before, before_end = period({'periodo': str(n)}, date(2026, 10, 15))

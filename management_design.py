@@ -108,6 +108,7 @@ body:has(.mgmt-dashboard) .wrap{max-width:1680px;margin:22px auto}
 @media(max-width:820px){.layout:has(.mgmt-dashboard){gap:14px}.layout:has(.mgmt-dashboard)>.menu-lateral{width:100%;position:static;border-radius:12px}.layout:has(.mgmt-dashboard)>.menu-lateral a.item{display:inline-flex;flex-shrink:0}.mgmt-header h2{font-size:23px}.mgmt-dashboard .card{padding:17px}.mgmt-chart-header{align-items:start;flex-direction:column}.mgmt-tabs{gap:18px}}
 @media(max-width:500px){body:has(.mgmt-dashboard) .wrap{padding:0 12px;margin:12px auto}.mgmt-kpis{gap:9px}.mgmt-dashboard .stat{padding:14px 11px}.mgmt-dashboard .stat .num{font-size:21px}.mgmt-dashboard .stat .lab{font-size:10px}.mgmt-metric-icon{width:24px;height:24px;right:10px;top:10px}.mgmt-filter label{flex:1;min-width:125px}.mgmt-header .mgmt-links{width:100%}.mgmt-section-title h2{font-size:14px}}
 @media(prefers-reduced-motion:reduce){.mgmt-dashboard *{scroll-behavior:auto!important;transition:none!important}}
+.mgmt-chart-switch{display:flex;gap:6px;flex-wrap:wrap;margin-top:22px}.mgmt-chart-switch button{border:1px solid #dedff1;border-radius:8px;padding:9px 14px;background:white;color:#77809b;cursor:pointer;font:inherit;font-size:11px}.mgmt-chart-switch button[aria-pressed=true]{background:#6265dc;color:white;border-color:#6265dc}.mgmt-interactive-chart [hidden]{display:none!important}.mgmt-interactive-chart .mgmt-chart{margin-top:10px}.mgmt-product{display:flex;gap:12px;align-items:center}.mgmt-product img,.mgmt-product-placeholder{width:44px;height:44px;object-fit:contain;background:#f1f3fa;border-radius:10px;flex-shrink:0}.mgmt-product-placeholder{display:grid;place-items:center;color:#9b9fc0;font-size:10px}.mgmt-detail-trigger{cursor:pointer;text-align:left;background:none;border:0;color:#6265dc;font:inherit;padding:0}.mgmt-drawer{position:fixed;inset:0 0 0 auto;margin:0;width:min(440px,100vw);max-width:100vw;max-height:100dvh;height:100dvh;box-sizing:border-box;border:0;padding:28px;color:#26334c;box-shadow:-20px 0 80px #111a3230}.mgmt-drawer::backdrop{background:#111a3266}.mgmt-drawer h2{margin:28px 0 15px}.mgmt-drawer dl{display:grid;grid-template-columns:1fr 1fr;gap:14px}.mgmt-drawer dt{color:#7c879e;font-size:12px}.mgmt-drawer dd{margin:0;font-weight:650}.mgmt-drawer-close{float:right;border:0;border-radius:8px;background:#eef0fa;padding:10px;cursor:pointer}.mgmt-drawer .mgmt-product img{width:72px;height:72px}
 </style>"""
 
 ICON = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 18V8m5 10V4m5 14v-7m5 7V6M3 21h18'/></svg>"
@@ -152,11 +153,11 @@ def tabs(cid,args,count,selected):
     return out+'</nav>'
 
 
-def daily_chart(report):
+def _daily_chart(report, key="daily", label="Faturamento", money=True):
     current,previous=report['current'],report['previous']
-    series=[current['daily'],previous['daily']]
+    series=[current.get(key,[None]*len(current['days'])),previous.get(key,[None]*len(previous['days']))]
     valid=[float(value) for values in series for value in values if value is not None]
-    out=("<section class='card mgmt-chart'><div class='mgmt-chart-header'><h2>Evolução do faturamento</h2>"
+    out=("<section class='card mgmt-chart'><div class='mgmt-chart-header'><h2>Evolução de "+escape(label.lower())+"</h2>"
          "<div class='mgmt-chart-legend'><span>Período atual</span><span>Período anterior</span></div></div>")
     if not valid:
         return out+"<div class='mgmt-chart-empty'>O gráfico aparece quando há dias de vendas verificados.</div></section>"
@@ -164,8 +165,8 @@ def daily_chart(report):
     width,height=700,150
     out+="<div class='mgmt-chart-body'><div class='mgmt-chart-y'>"
     for level in (1,.5,0):
-        out+="<span>"+escape(fmt(ceiling*level,True))+"</span>"
-    out+="</div><div class='mgmt-chart-plot'><svg viewBox='0 0 700 150' preserveAspectRatio='none' role='img' aria-label='Faturamento diário dos períodos comparados; lacunas são dias sem dados'>"
+        out+="<span>"+escape(fmt(ceiling*level,money))+"</span>"
+    out+="</div><div class='mgmt-chart-plot'><svg viewBox='0 0 700 150' preserveAspectRatio='none' role='img' aria-label='Valores diários dos períodos comparados; lacunas são dias sem dados'>"
     for level in (0,.5,1):
         y=height*(1-level)
         out+="<line x1='0' x2='700' y1='"+str(y)+"' y2='"+str(y)+"' stroke='#edf0f7' vector-effect='non-scaling-stroke'/>"
@@ -180,21 +181,32 @@ def daily_chart(report):
             x=(index/max(1,len(values)-1))*width
             y=height*(1-float(value)/ceiling)
             segment.append(('M' if not segment else 'L')+f'{x:.2f},{y:.2f}')
-            out+="<circle cx='"+f'{x:.2f}'+"' cy='"+f'{y:.2f}'+"' r='2' fill='"+color+"'><title>"+escape(fmt(value,True))+"</title></circle>"
+            out+="<circle cx='"+f'{x:.2f}'+"' cy='"+f'{y:.2f}'+"' r='2' fill='"+color+"'><title>"+escape(fmt(value,money))+"</title></circle>"
         if segment:
             out+="<path d='"+" ".join(segment)+"' fill='none' stroke='"+color+"' stroke-width='2.6' stroke-linejoin='round' stroke-linecap='round' vector-effect='non-scaling-stroke'/>"
     out+="</svg><div class='mgmt-chart-x'>"
     for day in (current['days'][0],current['days'][-1]):
         out+="<span>"+escape(day[8:10]+'/'+day[5:7])+"</span>"
-    out+="</div></div></div><details><summary>Ver valores e datas comparados</summary><div class='mgmt-scroll'><table class='mgmt-table'><thead><tr><th>Data atual</th><th>Faturamento</th><th>Data anterior</th><th>Faturamento anterior</th></tr></thead><tbody>"
+    out+="</div></div></div><details><summary>Ver valores e datas comparados</summary><div class='mgmt-scroll'><table class='mgmt-table'><thead><tr><th>Data atual</th><th>Valor atual</th><th>Data anterior</th><th>Valor anterior</th></tr></thead><tbody>"
     for index,day in enumerate(current['days']):
-        out+='<tr><td>'+escape(day)+'</td><td>'+escape(fmt(current['daily'][index],True))+'</td><td>'+escape(previous['days'][index])+'</td><td>'+escape(fmt(previous['daily'][index],True))+'</td></tr>'
+        out+='<tr><td>'+escape(day)+'</td><td>'+escape(fmt(series[0][index],money))+'</td><td>'+escape(previous['days'][index])+'</td><td>'+escape(fmt(series[1][index],money))+'</td></tr>'
     return out+'</tbody></table></div></details></section>'
+
+
+def daily_chart(report):
+    choices=[('daily','Faturamento',True),('daily_orders','Pedidos',False),('daily_units','Unidades',False),('daily_ticket','Ticket médio',True)]
+    out="<div class='mgmt-interactive-chart'><div class='mgmt-chart-switch' role='group' aria-label='Indicador do gráfico'>"
+    for index,(key,label,money) in enumerate(choices):
+        out+="<button type='button' data-chart-choice='"+key+"' aria-pressed='"+('true' if index==0 else 'false')+"'>"+label+"</button>"
+    out+='</div>'
+    for index,(key,label,money) in enumerate(choices):
+        out+="<div data-chart-panel='"+key+"'"+(' hidden' if index else '')+">"+_daily_chart(report,key,label,money)+"</div>"
+    return out+'</div>'
 
 
 def priorities(cid,report,args):
     params=dict(args);params['aba']='actions'
-    out=("<section class='mgmt-priorities'><div class='mgmt-section-title'><h2>Seu próximo passo</h2><a href='"
+    out=("<section class='mgmt-priorities'><div class='mgmt-section-title'><h2>Onde agir hoje</h2><a href='"
          +escape('/painel/'+str(cid)+'?'+urlencode(params),quote=True)+"'>Ver todas as oportunidades →</a></div><div class='mgmt-preview-grid'>")
     seen=set()
     chosen=[]
@@ -208,7 +220,7 @@ def priorities(cid,report,args):
         priority={'alta':'Prioridade alta','media':'Atenção','oportunidade':'Oportunidade','dados':'Validar dados'}[signal['priority']]
         out+=("<article class='mgmt-preview-card "+('mgmt-preview-high' if signal['priority']=='alta' else '')+"'>"
               "<span class='mgmt-preview-label'>"+priority+"</span><h3>"+escape(signal['title'])+"</h3>"
-              "<p>"+escape(signal['evidence'])+"</p><a href='"+escape(url,quote=True)+"'>Investigar anúncio →</a>"
+              "<p>"+escape(signal['evidence'])+"</p><a href='"+escape(url,quote=True)+"'>"+escape(signal['action'])+" →</a>"
               "<span class='mgmt-preview-title' title='"+escape(signal['label'],quote=True)+"'>"+escape(signal['label'])+"</span></article>")
     if not chosen:
         out+="<article class='mgmt-preview-card'><h3>Nenhuma prioridade confirmada</h3><p>Confira a cobertura dos dados e explore a análise por anúncio.</p></article>"
@@ -217,6 +229,16 @@ def priorities(cid,report,args):
 
 SCRIPT = """<script>
 (function(){
+  document.querySelectorAll('[data-chart-choice]').forEach(function(button){button.addEventListener('click',function(){
+    document.querySelectorAll('[data-chart-choice]').forEach(function(b){b.setAttribute('aria-pressed',String(b===button));});
+    document.querySelectorAll('[data-chart-panel]').forEach(function(p){p.hidden=p.dataset.chartPanel!==button.dataset.chartChoice;});
+  });});
+  document.querySelectorAll('[data-product-open]').forEach(function(link){link.addEventListener('click',function(event){
+    if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+    var drawer=document.getElementById(link.dataset.productOpen);if(!drawer||!drawer.showModal)return;
+    event.preventDefault();drawer.showModal();
+  });});
+  document.querySelectorAll('.mgmt-drawer').forEach(function(drawer){drawer.querySelector('.mgmt-drawer-close').addEventListener('click',function(){drawer.close();});});
   var links=Array.from(document.querySelectorAll('[data-mgmt-tab]'));
   var panels=Array.from(document.querySelectorAll('[data-mgmt-panel]'));
   if(!links.length)return;
@@ -256,3 +278,33 @@ SCRIPT = """<script>
   });
 })();
 </script>"""
+
+
+def product(row,cid,detail=False):
+    from urllib.parse import urlsplit
+    listing=row['listing']; item=str(listing['item_id'])
+    url=listing.get('thumbnail') or ''
+    try:
+        parsed=urlsplit(url)
+    except ValueError:
+        parsed=urlsplit('')
+    allowed=parsed.scheme=='https' and parsed.hostname and (parsed.hostname=='mlstatic.com' or parsed.hostname.endswith('.mlstatic.com')) and not parsed.username and not parsed.password
+    image=("<img loading='lazy' referrerpolicy='no-referrer' src='"+escape(url,quote=True)+"' alt=''>" if allowed else "<span class='mgmt-product-placeholder' aria-hidden='true'>ML</span>")
+    title=escape(listing.get('titulo') or item)
+    if detail:
+        return "<div class='mgmt-product'>"+image+"<strong>"+title+"</strong></div>"
+    return ("<div class='mgmt-product'>"+image+"<div><a href='/diagnostico/"+str(cid)+"/"+escape(item,quote=True)+"' data-product-open='mgmt-detail-"+escape(item,quote=True)+"'>"+title+"</a></div></div>")
+
+
+def product_details(cid,report):
+    out=''
+    from management_view import number
+    for row in report['rows']:
+        listing=row['listing']; m=row['metrics']; item=str(listing['item_id'])
+        out+="<dialog class='mgmt-drawer' id='mgmt-detail-"+escape(item,quote=True)+"' aria-label='Detalhes do anúncio'><button class='mgmt-drawer-close' type='button'>Fechar ×</button>"+product(row,cid,True)
+        out+='<p>'+escape(item)+' · '+escape(listing.get('status') or 'Status não confirmado')+'</p><h2>Desempenho no período</h2><dl>'
+        facts=[('Valor dos itens',fmt(m['value'],True) if m else 'Indisponível'),('Pedidos',str(m['orders']) if m else 'Indisponível'),('Variação de pedidos',number(m['growth_pct'],1,'%') if m else 'Indisponível'),('Visitas',fmt(row['visits'],False)),('Estoque',fmt(row['stock'],False)),('Cobertura estimada',number(row['stock_days'],1,' dias'))]
+        for label,value in facts:
+            out+='<dt>'+escape(label)+'</dt><dd>'+escape(value)+'</dd>'
+        out+="</dl><p>Valores do período selecionado. Estoque é a última leitura disponível; cobertura é uma estimativa.</p><a class='btn-acoes' href='/diagnostico/"+str(cid)+"/"+escape(item,quote=True)+"'>Abrir diagnóstico completo →</a></dialog>"
+    return out

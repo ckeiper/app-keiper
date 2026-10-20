@@ -1,6 +1,6 @@
 """Verify navigation state, exact chart gaps and escaping without a browser."""
 import unittest
-from management_design import active_tab,panel,daily_chart,metric_card
+from management_design import active_tab,panel,daily_chart,metric_card,product
 
 
 class ManagementDesignTests(unittest.TestCase):
@@ -31,3 +31,13 @@ class ManagementDesignTests(unittest.TestCase):
         self.assertIn('mgmt-stat-empty',card)
         self.assertNotIn('<script>',card)
         self.assertIn('R$ 0,00',metric_card('Faturamento de pedidos pagos','R$ 0,00','Valor confirmado'))
+
+
+class ProductTests(unittest.TestCase):
+    def test_only_trusted_https_images_are_rendered(self):
+        for url in ('javascript:alert(1)','https://evil.test/x','https://mlstatic.com.evil.test/x','http://mlstatic.com/x','https://['):
+            self.assertNotIn('<img',product({'listing':{'item_id':'MLB1','thumbnail':url}},1))
+        html=product({'listing':{'item_id':'MLB1','titulo':'<script>','thumbnail':'https://http2.mlstatic.com/a.jpg'}},1)
+        self.assertIn('<img',html)
+        self.assertIn('&lt;script&gt;',html)
+        self.assertIn('/diagnostico/1/MLB1',html)
