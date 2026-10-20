@@ -942,6 +942,48 @@ def diagnostico_visitas_copas():
     return jsonify({"loja": "Copas Ind", "item_id": "MLB5325240286", **resultado})
 
 
+@app.route("/admin/progresso-visitas", methods=["GET"])
+@admin_required
+def progresso_visitas_todas():
+    """Admin-only read-only progress by account; incomplete visits are not store totals."""
+    import html
+    from copas_visits_store import progress
+    try:
+        with banco() as conn:
+            cur = executar(conn, """
+                SELECT c.id, c.cliente FROM conexoes c
+                WHERE c.status='ativa' AND EXISTS (
+                    SELECT 1 FROM anuncios a WHERE a.conexao_id=c.id AND a.status='active'
+                ) ORDER BY c.id
+            """)
+            lojas = cur.fetchall()
+        linhas = []
+        for conexao_id, nome in lojas:
+            dados = progress(connection_id=conexao_id)
+            ativos = dados["anuncios_ativos"]
+            consultados = dados["anuncios_consultados"]
+            percentual = round(100 * consultados / ativos, 1) if ativos else 0
+            data = dados["ultima_consulta"] or "Ainda não consultado"
+            linhas.append(
+                "<tr><td>" + html.escape(str(nome)) + "</td><td>" + str(consultados)
+                + " / " + str(ativos) + "</td><td>" + str(percentual)
+                + "%</td><td>" + str(dados["visitas_registradas"])
+                + "</td><td>" + html.escape(str(data)) + "</td></tr>"
+            )
+        corpo = (
+            "<div class='card'><h2>Coleta de visitas por loja</h2>"
+            "<p>Os números de visitas são parciais até que todos os anúncios tenham sido consultados. "
+            "A coleta automática avança em lotes de até 10 anúncios.</p>"
+            "<div style='overflow-x:auto'><table><thead><tr><th>Loja</th><th>Consultados</th>"
+            "<th>Cobertura</th><th>Visitas (7 dias, parcial)</th><th>Última consulta (UTC)</th>"
+            "</tr></thead><tbody>" + "".join(linhas) + "</tbody></table></div></div>"
+        )
+        return pagina("Progresso de visitas", corpo)
+    except Exception:
+        app.logger.exception("visits_all_accounts_progress_failed")
+        return jsonify({"erro": "Falha ao consultar progresso das visitas"}), 503
+
+
 @app.route("/admin/progresso-visitas-copas", methods=["GET"])
 @admin_required
 def progresso_visitas_copas():
