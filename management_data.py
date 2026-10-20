@@ -70,6 +70,8 @@ def build_management(listings, orders, items, coverage, visits, ads, pending,
         if pending or sales_limited or report['unallocated_dates']:
             for key in ('revenue','orders','units','ticket','unit_price','cancellations'):
                 report[key] = None
+            for key in ('daily','daily_orders','daily_units','daily_ticket'):
+                report[key] = [None]*len(report['days'])
     ranking = ranking_metrics(orders,items,set(covered),[a['item_id'] for a in listings],
                               end=end,days=days,pending=pending or sales_limited)
     if current['unallocated_dates'] or previous['unallocated_dates']:
@@ -194,7 +196,7 @@ def load_management(cid,args,bank,query):
         shops=read(conn,'SELECT id,cliente,status FROM conexoes WHERE id=%s',(cid,))
         if not shops:
             return None
-        listings=read(conn,'''SELECT item_id,titulo,status,quantidade,preco,custo,fotos,clips,tags,atualizado_em
+        listings=read(conn,'''SELECT item_id,titulo,status,quantidade,preco,custo,fotos,clips,tags,atualizado_em,thumbnail
             FROM anuncios WHERE conexao_id=%s ORDER BY item_id LIMIT %s''',(cid,MAX_LISTINGS+1))
         if len(listings)>MAX_LISTINGS:
             raise ValueError('A loja excede 10 mil anúncios nesta análise. Nenhum catálogo parcial foi exibido.')

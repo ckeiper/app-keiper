@@ -369,7 +369,7 @@ class SyncTests(unittest.TestCase):
         inserts = [params for sql, params in self.sql if 'INSERT INTO anuncios' in sql]
         self.assertEqual(len(inserts), 1)
         self.assertEqual(inserts[0][11], 2)
-        self.assertEqual(len(inserts[0]), 15)
+        self.assertEqual(len(inserts[0]), 16)
         self.assertEqual(api.call_args_list[1].args[2]['include_attributes'], 'all')
 
     def test_incomplete_search_never_deletes(self):

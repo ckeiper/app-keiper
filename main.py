@@ -656,6 +656,7 @@ def iniciar_banco():
             executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS original_price REAL")
         except Exception:
             pass
+        executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS thumbnail TEXT")
         executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pesos_json TEXT")
         executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS promocoes_json TEXT")
         executar(conn, """CREATE TABLE IF NOT EXISTS pedidos (
@@ -4517,14 +4518,15 @@ def puxar_anuncios(conexao_id, token, user_id):
                            agora, fotos, clips,
                            json.dumps(tags, ensure_ascii=False),
                            peso, det.get("seller_custom_field"), original_price,
-                           json.dumps(pesos, ensure_ascii=False)))
+                           json.dumps(pesos, ensure_ascii=False),
+                           det.get("secure_thumbnail") or (pics[0].get("secure_url") if isinstance(pics, list) and pics and isinstance(pics[0], dict) else None) or det.get("thumbnail")))
     with banco() as conn:
         for t in linhas:
             executar(conn, """INSERT INTO anuncios
                             (conexao_id, item_id, titulo, preco, quantidade,
                              status, vendidos, atualizado_em, fotos, clips,
-                             tags, peso, sku, original_price, pesos_json)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                             tags, peso, sku, original_price, pesos_json, thumbnail)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, item_id) DO UPDATE SET
                               titulo=EXCLUDED.titulo, preco=EXCLUDED.preco,
                               quantidade=EXCLUDED.quantidade,
@@ -4534,7 +4536,7 @@ def puxar_anuncios(conexao_id, token, user_id):
                               fotos=EXCLUDED.fotos, clips=EXCLUDED.clips,
                               tags=EXCLUDED.tags, peso=EXCLUDED.peso,
                               sku=EXCLUDED.sku, original_price=EXCLUDED.original_price,
-                              pesos_json=EXCLUDED.pesos_json""", t)
+                              pesos_json=EXCLUDED.pesos_json, thumbnail=EXCLUDED.thumbnail""", t)
 
         for metadata in full_rows:
             executar(conn, '''UPDATE anuncios SET full_metadata_json=%s::jsonb
