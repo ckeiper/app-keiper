@@ -91,6 +91,10 @@ def daily_summary(rows, start, end, covered):
         result[key] = sum((r[key] for r in selected.values()), Decimal(0) if key == 'revenue' else 0)
     result['daily'] = [None if d not in covered or selected.get(d,{}).get('invalid',0)
                        else float(selected.get(d,{}).get('revenue',0)) for d in result['days']]
+    for key in ('orders','units'):
+        result['daily_'+key] = [None if d not in covered or selected.get(d,{}).get('invalid',0) or (key=='units' and selected.get(d,{}).get('unknown_units',0))
+                               else selected.get(d,{}).get(key,0) for d in result['days']]
+    result['daily_ticket'] = [a/b if a is not None and b else None for a,b in zip(result['daily'],result['daily_orders'])]
     if not result['complete'] or result['invalid']:
         for key in ('revenue','orders','units'):
             result[key] = None
@@ -116,6 +120,9 @@ def merge_summary(left, right):
         result[key] = left[key] + right[key]
     result['daily'] = [a+b if a is not None and b is not None else None
                        for a,b in zip(left['daily'],right['daily'])]
+    for key in ('daily_orders','daily_units'):
+        result[key] = [a+b if a is not None and b is not None else None for a,b in zip(left[key],right[key])]
+    result['daily_ticket'] = [a/b if a is not None and b else None for a,b in zip(result['daily'],result['daily_orders'])]
     return recalculate(result)
 
 
