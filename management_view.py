@@ -13,23 +13,8 @@ PRIORITIES={'':'Todas as prioridades','alta':'Alta','media':'Média','oportunida
 VIEWS={'todos':'Todos os anúncios','campeoes':'Mais vendidos em valor','alta':'Em alta em pedidos',
        'queda':'Em queda em pedidos','sem_vendas':'Sem vendas no período','estoque':'Estoque até 7 dias',
        'sem_custo':'Vendidos sem custo cadastrado'}
-STYLE="""<style>
-.mgmt-header{display:flex;justify-content:space-between;align-items:start;gap:16px;flex-wrap:wrap}
-.mgmt-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
-.mgmt-kpis .stat{min-width:0;padding:16px}.mgmt-kpis .num{font-size:23px;overflow-wrap:anywhere}
-.mgmt-kpis small,.mgmt-table small{display:block;font-size:12px;color:#64748b;margin-top:5px}
-.mgmt-filter{display:flex;gap:12px;align-items:end;flex-wrap:wrap}.mgmt-filter label{display:grid;gap:5px;font-size:12px}
-.mgmt-filter input,.mgmt-filter select{max-width:100%;box-sizing:border-box}
-.mgmt-links{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
-.mgmt-table{width:100%;min-width:850px}.mgmt-table td{vertical-align:top;white-space:normal}
-.mgmt-table td:first-child{max-width:320px}.mgmt-scroll{overflow-x:auto}
-.mgmt-pill{display:inline-block;padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;background:#e9eef9;color:#334155}
-.mgmt-high{background:#fff0eb;color:#9a3412}.mgmt-medium{background:#fff9df;color:#854d0e}
-.mgmt-pager{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px}
-.mgmt-small-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-@media(max-width:1050px){.mgmt-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:650px){.mgmt-small-grid{grid-template-columns:1fr}.mgmt-kpis .stat{padding:12px}.mgmt-kpis .num{font-size:19px}.mgmt-filter label{flex:1;min-width:130px}}
-</style>"""
+from management_design import STYLE, SCRIPT as DESIGN_SCRIPT, metric_card, active_tab, panel, tabs, daily_chart, priorities
+
 
 
 def number(value,digits=1,suffix=''):
@@ -43,7 +28,7 @@ def compare(current, previous, money=False):
 
 
 def card(label,value,note):
-    return "<div class='stat'><div class='lab'>"+escape(label)+"</div><div class='num'>"+escape(value)+"</div><small>"+escape(note)+"</small></div>"
+    return metric_card(label,value,note)
 
 
 def select(name,options,value):
@@ -76,23 +61,25 @@ def pagination(rows,args,key,path):
 def render_management(cid,report,args):
     start,end,previous_start,previous_end=report['bounds']
     path=f'/painel/{cid}'
+    selected=active_tab(args)
     period_params={'dias':args.get('dias','7')}
     period_params.update({key:args[key] for key in ('inicio','fim') if args.get(key)})
     sales_url=f'/vendas/{cid}?'+urlencode({'periodo':'personalizado','inicio':start.isoformat(),'fim':end.isoformat()})
     ads_url=f'/ads/{cid}?'+urlencode({'de':start.isoformat(),'ate':end.isoformat()})
-    body=STYLE+"<header class='mgmt-header'><div><h2>Gestão da loja</h2><p>Vendas, publicidade e prioridades para decidir a próxima ação.</p></div>"
+    body=STYLE+"<div class='mgmt-dashboard'><header class='mgmt-header'><div><span class='mgmt-eyebrow'>Visão de performance</span><h2>"+escape(report['shop']['cliente'])+"</h2><p>Acompanhe os resultados. Escolha o próximo passo.</p></div>"
     body+=f"<div class='mgmt-links'><a class='btn-acoes' href='/atualizar/resumo/{cid}'>Atualizar dados</a><a class='btn-acoes cinza' href='/painel/{cid}/operacao'>Operação do dia →</a></div></header>"
     if report.get('updating'):
         body+="<div class='aviso' role='status'>Sincronização em andamento. Os indicadores mostram a última leitura disponível; recarregue esta página após a conclusão.</div>"
-    body+=("<form class='card mgmt-filter' method='get'><label>Período "+select('dias',{str(n):str(n)+' dias completos' for n in (7,15,30,60,90)},args.get('dias','7'))+'</label>'
-           +"<label>Início<input type='date' name='inicio' value='"+escape(args.get('inicio',''),quote=True)+"'></label>"
+    body+=("<form class='card mgmt-filter mgmt-period' method='get'><label>Período "+select('dias',{str(n):str(n)+' dias completos' for n in (7,15,30,60,90)},args.get('dias','7'))+'</label>'
+           +"<details class='mgmt-period-dates'"+(' open' if args.get('inicio') or args.get('fim') else '')+"><summary>Período personalizado</summary><label>Início<input type='date' name='inicio' value='"+escape(args.get('inicio',''),quote=True)+"'></label>"
            +"<label>Fim<input type='date' name='fim' value='"+escape(args.get('fim',''),quote=True)+"'></label>"
-           +"<button class='btn-acoes'>Aplicar período</button><a href='"+path+"'>Últimos 7 dias completos</a></form>"
+           +"</details><button class='btn-acoes'>Aplicar período</button><a href='"+path+"'>Últimos 7 dias completos</a></form>"
            +'<p class="muted">'+start.strftime('%d/%m/%Y')+' a '+end.strftime('%d/%m/%Y')+' · comparado a '
            +previous_start.strftime('%d/%m/%Y')+' a '+previous_end.strftime('%d/%m/%Y')
-           +'. Datas em Brasília. As datas preenchidas prevalecem sobre o seletor de dias.</p>')
+           +'. Horário de Brasília.</p>')
     if report['warnings']:
-        body+="<div class='aviso'><b>Disponibilidade dos indicadores</b><ul>"+''.join('<li>'+escape(x)+'</li>' for x in report['warnings'])+'</ul></div>'
+        body+="<details class='mgmt-notice'><summary>Alguns indicadores aguardam dados · "+str(len(report['warnings']))+" observações</summary><ul>"+''.join('<li>'+escape(x)+'</li>' for x in report['warnings'])+'</ul></details>'
+    body+=tabs(cid,args,len(report['signals']),selected)+panel('overview',selected)
     current,previous=report['current'],report['previous']
     body+="<section aria-label='Indicadores de vendas'><div class='mgmt-kpis'>"
     for key,label,is_money in [('revenue','Faturamento de pedidos pagos',True),('orders','Pedidos pagos',False),('units','Unidades vendidas',False),('ticket','Ticket médio por pedido',True)]:
@@ -100,7 +87,7 @@ def render_management(cid,report,args):
     body+='</div></section>'
     body+='<p class="muted">Cancelamentos registrados: '+fmt(current['cancellations'],False)+' · anterior: '+fmt(previous['cancellations'],False)+'. Não são subtraídos novamente das vendas pagas.</p>'
     ad,before=report['ads'],report['ads_previous']
-    body+="<section aria-label='Indicadores de publicidade'><div class='mgmt-kpis'>"
+    body+="<section class='mgmt-ads-strip' aria-label='Indicadores de publicidade'><div class='mgmt-kpis'>"
     body+=card('Investimento em Ads',fmt(ad['spend'],True),compare(ad['spend'],before['spend'],True))
     body+=card('ROAS entregue',number(ad['roas'],2,'x'),'Receita atribuída ao Ads ÷ investimento')
     body+=card('ACOS',number(ad['acos'],1,'%'),'Investimento ÷ receita atribuída ao Ads')
@@ -110,7 +97,8 @@ def render_management(cid,report,args):
     if ad['coverage']<ad['expected']:
         body+=f"<p class='muted'>Ads: {ad['coverage']} de {ad['expected']} dias com registros. Totais incompletos ficam indisponíveis.</p>"
     body+="<nav class='mgmt-links' aria-label='Análises detalhadas'>"+''.join("<a class='btn-acoes cinza' href='"+escape(url,quote=True)+"'>"+label+'</a>' for url,label in [(sales_url,'Analisar vendas'),(ads_url,'Ads e alertas de campanhas'),(f'/anuncios/{cid}/concorrencia','Concorrência'),(f'/custos/{cid}','Custos e margens'),(f'/full/{cid}','Full e vendas')])+'</nav>'
-    body+="<section class='card'><h2>Catálogo, tráfego e rentabilidade</h2><div class='mgmt-kpis'>"
+    body+=daily_chart(report)+priorities(cid,report,args)
+    body+="<div class='mgmt-overview-bottom'><section class='card mgmt-catalog'><h2>Saúde do catálogo</h2><div class='mgmt-kpis'>"
     body+=card('Anúncios com vendas',fmt(report['selling'],False),f"Entre {report['listing_count']} anúncios cadastrados")
     body+=card('Sem vendas no período',fmt(report['no_sales'],False),'Ausência de vendas não comprova falta de demanda')
     visit_value=(fmt(report['visits'],False) if any(r['visits_days'] for r in report['rows']) else 'Aguardando coleta')
@@ -127,11 +115,12 @@ def render_management(cid,report,args):
     body+='Custos atuais não comprovam lucro histórico; taxas, frete e Ads precisam entrar na análise de margem. '
     body+='Preço competitivo, posição no catálogo e causa das quedas exigem investigação; não são inferidos destes números.</p></details></section>'
     if report['champions']:
-        body+="<section class='card'><h2>Campeões de vendas em valor</h2><ol>"
+        body+="<section class='card mgmt-leaders'><h2>Campeões de vendas em valor</h2><ol>"
         for row in report['champions']:
             listing,m=row['listing'],row['metrics']
             body+=f"<li><a href='/diagnostico/{cid}/{escape(listing['item_id'],quote=True)}'>"+escape(listing.get('titulo') or listing['item_id'])+'</a> · '+fmt(m['value'],True)+f" · {m['orders']} pedidos</li>"
         body+='</ol></section>'
+    body+='</div></div>'+panel('actions',selected)
     signals=report['signals']
     q=args.get('busca','').strip().casefold()[:200]
     area=args.get('area','')
@@ -158,6 +147,7 @@ def render_management(cid,report,args):
         text='Nenhum sinal para estes filtros.' if signals else 'Nenhum sinal confirmado com os dados disponíveis; confira a cobertura acima.'
         body+="<tr><td colspan='5'>"+text+'</td></tr>'
     body+='</tbody></table></div>'+pager+'</section>'
+    body+='</div>'+panel('analysis',selected)
     view=args.get('visao','todos')
     rows=list(report['rows'])
     if q:
@@ -192,6 +182,7 @@ def render_management(cid,report,args):
     body+='</tbody></table></div>'+pager+'</section>'
     body+='<p class="muted">Status e estoque: leitura mais antiga dos anúncios em '
     body+=(datetime.fromtimestamp(report['last_catalogue'],SAO_PAULO).strftime('%d/%m/%Y %H:%M') if report['last_catalogue'] else 'data não confirmada')+'.</p>'
+    body+='</div>'
     body+="""<div id='mgmt-loading' role='status' aria-live='polite' hidden>Atualizando a análise da loja…</div>
     <style>#mgmt-loading:not([hidden]){position:fixed;bottom:20px;right:20px;max-width:calc(100vw - 60px);padding:16px;background:#173b66;color:white;border-radius:10px;z-index:20}</style>
     <script>document.querySelectorAll('form.mgmt-filter').forEach(function(form){
@@ -204,4 +195,4 @@ def render_management(cid,report,args):
       document.getElementById('mgmt-loading').hidden=true;
       document.querySelectorAll('form.mgmt-filter').forEach(function(form){form.removeAttribute('aria-busy');});
     });</script>"""
-    return body
+    return body+DESIGN_SCRIPT+'</div>'
