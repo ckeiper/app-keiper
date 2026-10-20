@@ -40,6 +40,7 @@ from sync_exclusion import store_sync_lock
 from listing_pagination import listing_page
 from sales_view import render_sales
 from overview import load_overview, render_overview, overview_layout
+from management_routes import register_management
 try:
     import openpyxl
 except Exception:
@@ -3927,7 +3928,7 @@ def var_html(hoje, ontem, fmt="R$"):
                 + " (" + br(pct, 1) + "%)</div>")
     return "<div class='var estavel'>— 0%</div>"
 
-@app.route("/painel/<int:cid>")
+@app.route("/painel/<int:cid>/operacao")
 @login_required
 def painel_detalhe(cid):
     if not pode_ver_loja(cid):
@@ -4889,6 +4890,8 @@ def job_dados():
 register_crm(app, banco, consultar, executar, pagina)
 register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja, session)
 register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
+register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
+                    is_updating=lambda cid: cid in ATUALIZANDO)
 
 iniciar_banco()
 
