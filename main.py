@@ -1908,21 +1908,75 @@ def auditoria_frete(cid):
         "para conferir o formato e os lançamentos de frete.</p>"
         "<div class='aviso'>A pré-visualização não grava dados. O administrador pode importar os indicadores. O relatório não informa "
         "o frete esperado para determinar cobranças indevidas.</div>"
-        "<form method='post' enctype='multipart/form-data'>"
+        "<form id='frete-upload-form' method='post' enctype='multipart/form-data'>"
         "<input type='hidden' name='csrf_token' value='"
         + esc(session["freight_preview_csrf"]) + "'>"
         "<input type='file' name='arquivo' accept='.xlsx,.csv' required>"
         "<button class='btn' type='submit'>Pré-visualizar planilha</button>"
-        "</form><p>Formatos XLSX e CSV · máximo 2 MB.</p></section>"
+        "</form><div id='frete-progresso' class='frete-progresso' role='status' aria-live='polite' hidden>"
+        "<span class='frete-spinner' aria-hidden='true'></span>"
+        "<span><b>Enviando e processando o arquivo…</b><small>Isso pode levar alguns instantes. "
+        "Mantenha esta página aberta até aparecer o resultado.</small></span></div>"
+        "<p>Formatos XLSX e CSV · máximo 2 MB.</p></section>"
     )
+    corpo += """
+    <style>
+    .frete-progresso{margin:18px 0 0;padding:16px;border-radius:12px;background:#eaf1ff;
+        color:#173b66;display:flex;gap:14px;align-items:center}
+    .frete-progresso[hidden]{display:none}
+    .frete-progresso>span:last-child{min-width:0;overflow-wrap:anywhere}
+    .frete-progresso small{display:block;margin-top:5px;color:#45617f}
+    #frete-upload-form[aria-busy=true] button{opacity:.65;cursor:wait}
+    .frete-spinner{width:24px;height:24px;border:3px solid #bcd0e6;
+        border-top-color:#2563eb;border-radius:50%;animation:frete-girar .8s linear infinite;flex-shrink:0}
+    @keyframes frete-girar{to{transform:rotate(360deg)}}
+    .frete-metricas{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin:15px 0}
+    .frete-metrica{border:1px solid #e3e9f0;border-radius:12px;padding:15px;background:#f8fafc;display:flex;flex-direction:column;gap:7px}
+    .frete-metrica span{font-size:13px;color:#64748b}
+    .frete-metrica strong{font-size:21px;color:#142338;overflow-wrap:anywhere}
+    .frete-detalhes{margin-top:14px;border-top:1px solid #e2e8f0;padding-top:14px}
+    .frete-detalhes summary{cursor:pointer;font-weight:600;color:#20528d}
+    .frete-resultado{margin-top:16px}
+    </style>
+    <script>
+    document.addEventListener('DOMContentLoaded',function(){
+      var form=document.getElementById('frete-upload-form');
+      var status=document.getElementById('frete-progresso');
+      if(!form||!status)return;
+      form.addEventListener('submit',function(event){
+        if(form.getAttribute('aria-busy')==='true'){
+          event.preventDefault();return;
+        }
+        if(!form.checkValidity())return;
+        form.setAttribute('aria-busy','true');
+        form.querySelectorAll('button[type=submit]').forEach(function(button){
+          button.setAttribute('aria-disabled','true');
+        });
+        status.hidden=false;
+        var file=form.querySelector('input[type=file]');
+        var name=file&&file.files.length?file.files[0].name:'arquivo';
+        var msg=status.querySelector('b');
+        if(msg)msg.textContent='Enviando e analisando: '+name;
+        status.scrollIntoView({block:'nearest',behavior:'smooth'});
+      });
+      window.addEventListener('pageshow',function(){
+        form.removeAttribute('aria-busy');
+        form.querySelectorAll('button[type=submit]').forEach(function(button){
+          button.removeAttribute('aria-disabled');
+        });
+        status.hidden=true;
+      });
+    });
+    </script>
+    """
     if session.get('tipo') == 'admin':
-        corpo = corpo.replace("</form><p>Formatos", "<button class='btn' type='submit' name='acao' value='importar'>Importar indicadores desta loja</button>"
+        corpo = corpo.replace("</form><div id=\'frete-progresso\'", "<button class='btn' type='submit' name='acao' value='importar'>Importar indicadores desta loja</button>"
             "<fieldset><legend>Consolidar relatório completo por dia</legend>"
             "<label>Início do período <input type='date' name='periodo_inicio'></label>"
             "<label>Fim do período <input type='date' name='periodo_fim'></label>"
             "<label><input type='checkbox' name='completo' value='sim'>Confirmo que o arquivo contém todos os lançamentos do período informado, sem filtros adicionais.</label>"
             "<p>Até 31 dias por arquivo. Substitui os indicadores dos dias informados, inclusive dias sem movimentos. Não use relatórios parciais.</p>"
-            "<button class='btn' type='submit' name='acao' value='consolidar'>Atualizar consolidação diária</button></fieldset></form><p>Formatos")
+            "<button class='btn' type='submit' name='acao' value='consolidar'>Atualizar consolidação diária</button></fieldset></form><div id=\'frete-progresso\'")
         with banco() as conn:
             corpo += render_history(report_history(conn, consultar, cid))
             consolidado_html = render_consolidated(consolidated_history(conn, consultar, cid))
@@ -1951,8 +2005,9 @@ def auditoria_frete(cid):
             abas = bundle[1] if bundle is not None else preview_reconciliation_upload(arquivo.filename, payload)
         except PreviewError as exc:
             return esc(str(exc)), 400
-        corpo += render_reconciliation_preview(abas)
-        corpo += render_reconciliation_column_hints(abas)
+        detalhes_planilha = ("<details class='card frete-detalhes'><summary>Ver pré-visualização e campos identificados</summary>"
+            + render_reconciliation_preview(abas)
+            + render_reconciliation_column_hints(abas) + "</details>")
         try:
             if bundle is None:
                 raise PreviewError('Formato não reconhecido para conferência e comparação por vendas.')
@@ -1962,6 +2017,7 @@ def auditoria_frete(cid):
                 cid, arquivo.filename, payload, resumo, banco, consultar, calcular_vendas,
                 parsed_rows=linhas_comparacao, parsed_columns=colunas_comparacao)
             corpo += render_sales_comparison(resumo['sales_comparison'])
+            corpo += detalhes_planilha
             if request.form.get('acao') in ('importar', 'consolidar'):
                 try:
                     with banco() as conn:
@@ -1979,6 +2035,7 @@ def auditoria_frete(cid):
                     return esc(str(exc)), 400
         except PreviewError as exc:
             corpo += "<div class='aviso'>" + esc(str(exc)) + "</div>"
+            corpo += detalhes_planilha
     response = Response(pagina_loja("Auditoria de Frete", cid, lojas[0]["cliente"],
                                    "auditoria_frete", corpo), mimetype="text/html")
     response.headers["Cache-Control"] = "no-store"

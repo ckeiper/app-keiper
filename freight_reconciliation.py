@@ -163,28 +163,37 @@ def inspect_sales_reconciliation(filename, payload, bundle=False):
 
 
 def render_sales_reconciliation(result):
-    labels = {
-        'rows': 'Lançamentos lidos', 'shipping_rows': 'Lançamentos com frete',
-        'repeated_operation_rows': 'Linhas adicionais com a mesma operação',
-        'missing_operation_rows': 'Linhas sem identificador textual válido',
-        'invalid_shipping_rows': 'Linhas com valor de frete inválido ou ausente',
-        'absent_shipping_rows': 'Linhas sem informação de frete (não convertidas em zero)',
-        'invalid_date_rows': 'Linhas com data de operação inválida ou ausente',
-        'inconsistent_shipping_rows': 'Linhas com diferença entre bruto menos desconto e pago pelo vendedor',
-    }
+    """Decision-oriented summary, with technical diagnostics available on demand."""
     from freight_comparison import format_brl
-    totals = ''.join('<li>' + label + ': ' + format_brl(result[key]) + '</li>'
-                     for key, label in (
-                         ('gross_shipping_total', 'Frete bruto informado'),
-                         ('shipping_discount_total', 'Desconto informado'),
-                         ('seller_shipping_total', 'Frete pago pelo vendedor informado')))
-    return ('<section class="card"><h3>Conferência do relatório por vendas</h3><ul>'
-            + ''.join('<li>' + label + ': ' + str(int(result[key])) + '</li>'
-                      for key, label in labels.items())
-            + totals + '</ul><p>Totais somente das linhas com três valores válidos. '
-            'Datas com movimentos não comprovam cobertura completa do período. '
-            'Conferência aritmética por lançamento, com tolerância de R$ 0,01. '
-            'Operações repetidas não são descartadas nem somadas como pedidos únicos. '
-            'O envio pago pelo comprador e as tarifas totais são campos separados. '
-            'O relatório não informa o frete esperado: diferenças não comprovam cobrança indevida. '
-            'Nenhum dado foi salvo.</p></section>')
+    def metric(label, value):
+        return ('<div class="frete-metrica"><span>' + label + '</span>'
+                '<strong>' + str(value) + '</strong></div>')
+    counts = (
+        ('Lançamentos analisados', result['rows']),
+        ('Com frete', result['shipping_rows']),
+        ('Frete inválido', result['invalid_shipping_rows']),
+        ('Datas inválidas', result['invalid_date_rows']),
+    )
+    details = (
+        ('Operações repetidas', 'repeated_operation_rows'),
+        ('Sem identificador', 'missing_operation_rows'),
+        ('Sem informação de frete', 'absent_shipping_rows'),
+        ('Diferença aritmética', 'inconsistent_shipping_rows'),
+    )
+    return (
+        '<section class="card frete-resultado"><h3>Resumo do arquivo</h3>'
+        '<p>Confira o volume processado e os valores informados no relatório.</p>'
+        '<div class="frete-metricas">'
+        + ''.join(metric(label, int(value)) for label, value in counts)
+        + '</div><div class="frete-metricas">'
+        + metric('Frete bruto informado', format_brl(result['gross_shipping_total']))
+        + metric('Desconto informado', format_brl(result['shipping_discount_total']))
+        + metric('Frete pago pelo vendedor', format_brl(result['seller_shipping_total']))
+        + '</div><details class="frete-detalhes"><summary>Qualidade e consistência dos lançamentos</summary><ul>'
+        + ''.join('<li>' + label + ': <b>' + str(int(result[key])) + '</b></li>'
+                  for label, key in details)
+        + '</ul><p>Totais consideram linhas com três valores válidos. Repetições não são '
+          'descartadas automaticamente. Diferenças aritméticas usam tolerância de R$ 0,01. '
+          'O arquivo não informa o frete esperado e não comprova cobranças indevidas.</p>'
+        '</details></section>'
+    )
