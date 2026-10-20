@@ -4676,7 +4676,7 @@ def puxar_ads(conexao_id, token, user_id):
                         VALUES (%s,%s,%s,%s,%s,%s)
                         ON CONFLICT (conexao_id, campanha_id, data)
                         DO UPDATE SET gasto=EXCLUDED.gasto,
-                          faturamento=EXCLUDED.faturamento""",
+                          faturamento=EXCLUDED.faturamento, atualizado_em=EXCLUDED.atualizado_em""",
                      (conexao_id, camp_id, hoje, g, f, agora))
         executar(conn,
                  """INSERT INTO ads_dia
@@ -4687,7 +4687,7 @@ def puxar_ads(conexao_id, token, user_id):
                     DO UPDATE SET gasto=EXCLUDED.gasto,
                       faturamento=EXCLUDED.faturamento,
                       impressoes=EXCLUDED.impressoes,
-                      cliques=EXCLUDED.cliques""",
+                      cliques=EXCLUDED.cliques, atualizado_em=EXCLUDED.atualizado_em""",
                  (conexao_id, hoje, tot_g, tot_f, tot_i, tot_c, agora))
 
     # 3) Backfill: enquanto a tabela tiver menos de 60 dias gravados,
@@ -4713,7 +4713,7 @@ def puxar_ads(conexao_id, token, user_id):
                                 VALUES (%s,%s,%s,%s,%s,%s)
                                 ON CONFLICT (conexao_id, campanha_id, data)
                                 DO UPDATE SET gasto=EXCLUDED.gasto,
-                                  faturamento=EXCLUDED.faturamento""",
+                                  faturamento=EXCLUDED.faturamento, atualizado_em=EXCLUDED.atualizado_em""",
                              (conexao_id, camp_id, dia_b, g, f, agora))
                 executar(conn,
                          """INSERT INTO ads_dia
@@ -4724,7 +4724,7 @@ def puxar_ads(conexao_id, token, user_id):
                             DO UPDATE SET gasto=EXCLUDED.gasto,
                               faturamento=EXCLUDED.faturamento,
                               impressoes=EXCLUDED.impressoes,
-                              cliques=EXCLUDED.cliques""",
+                              cliques=EXCLUDED.cliques, atualizado_em=EXCLUDED.atualizado_em""",
                          (conexao_id, dia_b, g2, f2, i2, c2, agora))
     return True
 
