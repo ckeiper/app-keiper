@@ -4644,7 +4644,53 @@ def job_fila_persistente():
         app.logger.exception("Falha no worker da fila persistente")
 
 
+def job_visitas_todas_contas():
+    """One small rotating batch per run, protected against parallel workers."""
+    if os.getenv("VISITS_AUTO_ENABLED", "0") != "1":
+        return
+    import psycopg2
+    from copas_visits_store import collect
+    lock_conn = None
+    try:
+        lock_conn = psycopg2.connect(os.environ["DATABASE_URL"], connect_timeout=10)
+        lock_conn.autocommit = True
+        with lock_conn.cursor() as cur:
+            cur.execute("SELECT pg_try_advisory_lock(%s)", (880142,))
+            if not cur.fetchone()[0]:
+                return
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS item_visits_checked (
+                    conexao_id INTEGER NOT NULL, item_id TEXT NOT NULL,
+                    consultado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (conexao_id, item_id)
+                )
+            """)
+            cur.execute("""
+                SELECT c.id FROM conexoes c
+                JOIN anuncios a ON a.conexao_id=c.id AND a.status='active'
+                LEFT JOIN item_visits_checked v ON v.conexao_id=a.conexao_id AND v.item_id=a.item_id
+                WHERE c.status='ativa' AND c.access_token IS NOT NULL
+                GROUP BY c.id ORDER BY MIN(v.consultado_em) ASC NULLS FIRST, c.id
+                LIMIT 1
+            """)
+            record = cur.fetchone()
+            if record:
+                app.logger.info("visits_batch_result %s", collect(limit=10, connection_id=record[0], rotate=True))
+    except Exception:
+        app.logger.exception("visits_all_accounts_batch_failed")
+    finally:
+        if lock_conn is not None:
+            try:
+                with lock_conn.cursor() as cur:
+                    cur.execute("SELECT pg_advisory_unlock(%s)", (880142,))
+            except Exception:
+                pass
+            lock_conn.close()
+
+
 scheduler = BackgroundScheduler()
+scheduler.add_job(job_visitas_todas_contas, "interval", minutes=2,
+                  max_instances=1, coalesce=True)
 scheduler.add_job(job_refresh, "interval", minutes=30)
 scheduler.add_job(job_fila_persistente, "interval", minutes=1,
                   max_instances=1, coalesce=True)

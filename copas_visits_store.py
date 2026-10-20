@@ -15,23 +15,40 @@ def _parse_day(value):
     return dt.date.fromisoformat(value[:10])
 
 
-def collect(limit=10, offset=0):
+def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
     if not isinstance(limit, int) or not 1 <= limit <= 10:
         raise ValueError("limit must be 1..10")
     if not isinstance(offset, int) or offset < 0:
         raise ValueError("offset must be nonnegative")
+    if not isinstance(connection_id, int) or connection_id < 1:
+        raise ValueError("invalid connection_id")
     with psycopg2.connect(os.environ["DATABASE_URL"], connect_timeout=10) as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT cliente, status, access_token FROM conexoes WHERE id=%s", (CONNECTION_ID,))
+            cur.execute("SELECT cliente, status, access_token FROM conexoes WHERE id=%s", (connection_id,))
             record = cur.fetchone()
-            if not record or record[0] != "Copas Ind" or record[1] != "ativa" or not record[2]:
-                raise RuntimeError("Copas connection unavailable")
+            if not record or record[1] != "ativa" or not record[2]:
+                raise RuntimeError("Connection unavailable")
             token = record[2]
-            cur.execute(
-                "SELECT item_id FROM anuncios WHERE conexao_id=%s AND status='active' "
-                "AND item_id ~ '^MLB[0-9]+$' ORDER BY item_id LIMIT %s OFFSET %s",
-                (CONNECTION_ID, limit, offset),
-            )
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS item_visits_checked (
+                    conexao_id INTEGER NOT NULL, item_id TEXT NOT NULL,
+                    consultado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (conexao_id, item_id)
+                )
+            """)
+            if rotate:
+                cur.execute("""
+                    SELECT a.item_id FROM anuncios a
+                    LEFT JOIN item_visits_checked c ON c.conexao_id=a.conexao_id AND c.item_id=a.item_id
+                    WHERE a.conexao_id=%s AND a.status='active' AND a.item_id ~ '^MLB[0-9]+$'
+                    ORDER BY c.consultado_em ASC NULLS FIRST, a.item_id LIMIT %s
+                """, (connection_id, limit))
+            else:
+                cur.execute(
+                    "SELECT item_id FROM anuncios WHERE conexao_id=%s AND status='active' "
+                    "AND item_id ~ '^MLB[0-9]+$' ORDER BY item_id LIMIT %s OFFSET %s",
+                    (connection_id, limit, offset),
+                )
             items = [row[0] for row in cur.fetchall()]
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS item_visits_daily (
@@ -41,15 +58,8 @@ def collect(limit=10, offset=0):
                     PRIMARY KEY (conexao_id, item_id, dia)
                 )
             """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS item_visits_checked (
-                    conexao_id INTEGER NOT NULL, item_id TEXT NOT NULL,
-                    consultado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    PRIMARY KEY (conexao_id, item_id)
-                )
-            """)
         conn.commit()
-        results = {"loja": "Copas Ind", "offset": offset, "proximo_offset": offset + len(items),
+        results = {"loja": record[0], "conexao_id": connection_id, "offset": offset, "proximo_offset": offset + len(items),
                    "itens_solicitados": len(items), "itens_atualizados": 0,
                    "dias_gravados": 0, "falhas": 0}
         today = dt.datetime.now(dt.timezone.utc).date()
@@ -70,7 +80,7 @@ def collect(limit=10, offset=0):
                     if type(visits) is not int or visits < 0:
                         raise ValueError("Invalid daily visits")
                     if today - dt.timedelta(days=7) <= day < today:
-                        parsed.append((CONNECTION_ID, item, day, visits))
+                        parsed.append((connection_id, item, day, visits))
                 with conn.cursor() as cur:
                     for row in parsed:
                         cur.execute("""
@@ -83,7 +93,7 @@ def collect(limit=10, offset=0):
                         INSERT INTO item_visits_checked (conexao_id, item_id)
                         VALUES (%s, %s)
                         ON CONFLICT (conexao_id, item_id) DO UPDATE SET consultado_em=NOW()
-                    """, (CONNECTION_ID, item))
+                    """, (connection_id, item))
                 conn.commit()
                 results["itens_atualizados"] += 1
                 results["dias_gravados"] += len(parsed)
@@ -93,14 +103,16 @@ def collect(limit=10, offset=0):
         return results
 
 
-def progress():
+def progress(connection_id=CONNECTION_ID):
     """Read-only coverage snapshot; distinguishes checked items from items with visits."""
+    if not isinstance(connection_id, int) or connection_id < 1:
+        raise ValueError("invalid connection_id")
     with psycopg2.connect(os.environ["DATABASE_URL"], connect_timeout=10) as conn:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT COUNT(*) FROM anuncios
                 WHERE conexao_id=%s AND status='active' AND item_id ~ '^MLB[0-9]+$'
-            """, (CONNECTION_ID,))
+            """, (connection_id,))
             total = cur.fetchone()[0]
             cur.execute("""
                 SELECT COUNT(DISTINCT v.item_id), COUNT(*), COALESCE(SUM(v.visitas),0),
@@ -110,17 +122,17 @@ def progress():
                 WHERE v.conexao_id=%s AND a.status='active'
                   AND v.dia >= (CURRENT_DATE - INTERVAL '7 days')
                   AND v.dia < CURRENT_DATE
-            """, (CONNECTION_ID,))
+            """, (connection_id,))
             covered, rows, visits, first, last = cur.fetchone()
             cur.execute("""
                 SELECT COUNT(*), MAX(c.consultado_em)
                 FROM item_visits_checked c
                 JOIN anuncios a ON a.conexao_id=c.conexao_id AND a.item_id=c.item_id
                 WHERE c.conexao_id=%s AND a.status='active'
-            """, (CONNECTION_ID,))
+            """, (connection_id,))
             checked, latest = cur.fetchone()
     return {
-        "loja": "Copas Ind", "anuncios_ativos": total,
+        "conexao_id": connection_id, "anuncios_ativos": total,
         "anuncios_consultados": checked, "anuncios_pendentes": max(0, total-checked),
         "anuncios_com_visitas": covered,
         "anuncios_sem_registros": max(0, total-covered),
