@@ -2435,6 +2435,9 @@ def painel_ads(cid):
             FROM ads_dia WHERE conexao_id=%s AND data BETWEEN %s AND %s
             ORDER BY data DESC
         """, (cid, inicio_iso, fim_iso))
+    # Local business day and observation freshness matter for budget pacing.
+    from zoneinfo import ZoneInfo
+    agora_local = datetime.datetime.now(ZoneInfo("America/Sao_Paulo"))
     ontem = (hoje - datetime.timedelta(days=1)).isoformat()
     with banco() as conn:
         alert_rows = consultar(conn, """
@@ -2444,6 +2447,7 @@ def painel_ads(cid):
                 COALESCE(SUM(d.gasto) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS gasto_periodo,
                 COALESCE(SUM(d.faturamento) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS fat_periodo,
                 COALESCE(SUM(d.gasto) FILTER (WHERE d.data=%s),0) AS gasto_hoje,
+                MAX(d.atualizado_em) FILTER (WHERE d.data=%s) AS hoje_atualizado,
                 COALESCE(SUM(d.gasto) FILTER (WHERE d.data=%s),0) AS gasto_ontem,
                 COALESCE(SUM(d.faturamento) FILTER (WHERE d.data=%s),0) AS fat_ontem,
                 COUNT(*) FILTER (WHERE d.data=%s) AS tem_ontem
@@ -2452,16 +2456,25 @@ def painel_ads(cid):
             WHERE d.conexao_id=%s AND d.data BETWEEN %s AND %s
             GROUP BY d.campanha_id,c.nome,c.status,c.orcamento,c.roas_objetivo
         """, (inicio_iso,fim_iso,inicio_iso,fim_iso,hoje.isoformat(),
-              ontem,ontem,ontem,cid,min(inicio_iso,ontem),max(fim_iso,hoje.isoformat())))
-    alertas_orcamento, alertas_roas, alertas_sem_venda = [], [], []
+              hoje.isoformat(),ontem,ontem,ontem,
+              cid,min(inicio_iso,ontem),max(fim_iso,hoje.isoformat())))
+    alertas_orcamento, alertas_risco, alertas_roas, alertas_sem_venda = [], [], [], []
+    campanhas_configuradas = sum(1 for camp in alert_rows if camp["status"] is not None)
     for camp in alert_rows:
         nome = esc(str(camp["nome"]))
         ativa = str(camp["status"] or "").lower() in ("active","running")
         budget = float(camp["orcamento"] or 0)
         gasto_hoje = float(camp["gasto_hoje"] or 0)
-        if ativa and budget > 0 and gasto_hoje >= budget:
-            alertas_orcamento.append((nome,"R$ %.2f de R$ %.2f (%.0f%%)" %
-                                    (gasto_hoje,budget,gasto_hoje/budget*100)))
+        updated = camp["hoje_atualizado"]
+        dados_recentes = (updated is not None and
+                         0 <= time.time() - float(updated) <= 2 * 3600)
+        if ativa and budget > 0 and dados_recentes:
+            consumo = gasto_hoje / budget
+            info = "R$ %.2f de R$ %.2f (%.0f%%)" % (gasto_hoje,budget,consumo*100)
+            if consumo >= 1:
+                alertas_orcamento.append((nome,info))
+            elif consumo >= 0.8 and agora_local.hour < 18:
+                alertas_risco.append((nome,info+" · atenção antes das 18h"))
         gasto = float(camp["gasto_periodo"] or 0)
         fat = float(camp["fat_periodo"] or 0)
         alvo = float(camp["roas_objetivo"] or 0)
@@ -2477,12 +2490,19 @@ def painel_ads(cid):
                                   for nome,detalhe in itens[:20])+"</ol>" if itens else "<p>"+vazio+"</p>")
                 + ("<p class='muted'>Primeiros 20 resultados.</p>" if len(itens)>20 else "")+"</section>")
     alertas_html = ("<h2>Alertas de gestão de Ads</h2>"
+        + ("<div class='aviso'>Configuração de campanhas ainda não sincronizada nesta loja. "
+           "Alertas de orçamento e ROAS objetivo ficam pendentes.</div>"
+           if not campanhas_configuradas else "")
         + quadro_alertas("Orçamento diário esgotado",
-            "Campanhas ativas cujo gasto de hoje atingiu o orçamento diário.",
-            alertas_orcamento,"Sem campanhas identificadas ou orçamento ainda não importado.")
+            "Campanhas ativas cujo gasto observado hoje atingiu o orçamento diário; leitura recente (até 2h).",
+            alertas_orcamento,"Nenhuma campanha com limite atingido e dados recentes.")
+        + quadro_alertas("Risco de orçamento esgotar cedo",
+            "Mais de 80% do orçamento consumido antes das 18h, com leitura recente. "
+            "É um sinal de atenção, não uma previsão de horário.",
+            alertas_risco,"Nenhuma campanha nesta condição com dados recentes.")
         + quadro_alertas("ROAS pelo menos 30% acima do objetivo",
             "Considera o ROAS do período selecionado e a meta cadastrada.",
-            alertas_roas,"Sem campanhas identificadas ou objetivo ainda não importado.")
+            alertas_roas,"Nenhuma campanha identificada ou objetivo ainda não importado.")
         + quadro_alertas("Sem vendas de Ads ontem",
             "Campanhas com investimento ontem e nenhuma venda atribuída.",
             alertas_sem_venda,"Nenhuma campanha nesta condição."))
