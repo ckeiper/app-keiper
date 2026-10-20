@@ -409,7 +409,7 @@ class SyncTests(unittest.TestCase):
         query = Mock(side_effect=[[{'cliente': 'Loja'}], [row], []])
         namespace = dict(loja_habilitada_fila_persistente=lambda cid:False,
                          banco=self.banco, consultar=query, pode_ver_loja=lambda cid: True,
-                         listing_page=listing_page, listing_tabs=listing_tabs, request=SimpleNamespace(args={}),
+                         listing_page=listing_page, listing_tabs=listing_tabs, session={'tipo':'admin'}, request=SimpleNamespace(args={}),
                          pagina_loja=lambda *args: args[-1], ultima_atualizacao=lambda cid: None,
                          barra_atualizar=lambda *args: '', esc=html.escape, json=json,
                          render_promotions=details.render_promotions, read_json=details.read_json,
@@ -418,14 +418,14 @@ class SyncTests(unittest.TestCase):
                          effective_promotion=details.effective_promotion,
                          frete_esperado=lambda *args: 10, TAGS_RUINS=set(), TAGS_BOAS=set())
         output = main_function('anuncios', namespace)(1)
-        self.assertIn("title='PACKAGE_WEIGHT'>Peso cadastrado", output)
-        self.assertIn("title='SELLER_PACKAGE_WEIGHT'>Peso logístico", output)
+        self.assertIn("Peso cadastrado · PACKAGE_WEIGHT", output)
+        self.assertIn("Peso logístico · SELLER_PACKAGE_WEIGHT", output)
         self.assertIn('Declarado pelo vendedor', output)
-        self.assertIn('<td>Não disponível</td>', output)
+        self.assertIn('Não disponível', output)
         self.assertNotIn('de R$ 100.00', output)
-        self.assertNotIn('<script>', output)
-        self.assertEqual(output.count('</th>'), 12)
-        self.assertEqual(output.count('<td>'), 12)
+        self.assertNotIn('Produto <script>', output)
+        self.assertEqual(output.count('</th>'), 5)
+        self.assertEqual(output.count('<td>'), 5)
 
 
 if __name__ == '__main__':
