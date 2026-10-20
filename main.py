@@ -504,6 +504,7 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
         ("desempenho", "📈 Desempenho", "/desempenho/" + str(cid)),
         ("demandas", "🟡 Demandas", "/demandas/" + str(cid)),
         ("promocoes", "🏷️ Promoções", "/promocoes/" + str(cid)),
+        ("ads", "📣 Ads", "/ads/" + str(cid)),
         ("campanhas", "📢 Campanhas", "/campanhas/" + str(cid)),
         ("custos", "💰 Custos", "/custos/" + str(cid)),
         ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
@@ -2400,6 +2401,154 @@ def excluir(cid):
              "← Cancelar</a></p>"
              "</div>")
     return pagina("Excluir loja", corpo)
+
+
+@app.route("/ads/<int:cid>")
+@login_required
+def painel_ads(cid):
+    """Read-only ads overview using stored daily API metrics only."""
+    if not pode_ver_loja(cid):
+        return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
+    from urllib.parse import urlencode
+    hoje = datetime.date.today()
+    dias = request.args.get("dias", "30")
+    if dias not in ("7", "30", "90"):
+        dias = "30"
+    inicio = hoje - datetime.timedelta(days=int(dias) - 1)
+    fim = hoje
+    de, ate = request.args.get("de", ""), request.args.get("ate", "")
+    if de or ate:
+        try:
+            inicio = datetime.date.fromisoformat(de)
+            fim = datetime.date.fromisoformat(ate)
+            if fim < inicio or fim > hoje or (fim - inicio).days > 89:
+                raise ValueError()
+        except ValueError:
+            return pagina("Ads", "<div class='card'>Período inválido: selecione até 90 dias, sem datas futuras.</div>"), 400
+    inicio_iso, fim_iso = inicio.isoformat(), fim.isoformat()
+    with banco() as conn:
+        lojas = consultar(conn, "SELECT id, cliente FROM conexoes WHERE id=%s", (cid,))
+        if not lojas:
+            return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
+        dias_ads = consultar(conn, """
+            SELECT data, gasto, faturamento, impressoes, cliques, atualizado_em
+            FROM ads_dia WHERE conexao_id=%s AND data BETWEEN %s AND %s
+            ORDER BY data DESC
+        """, (cid, inicio_iso, fim_iso))
+    titulo = "Publicidade · Product Ads"
+    filtro = ("<section class='card'><h2>Filtros de publicidade</h2>"
+             "<form method='get' action='/ads/" + str(cid) + "' "
+             "style='display:flex;gap:10px;align-items:end;flex-wrap:wrap'>"
+             "<label>Período <select name='dias'>"
+             + "".join("<option value='" + n + "'" + (" selected" if dias == n else "")
+                       + ">" + n + " dias</option>" for n in ("7","30","90"))
+             + "</select></label><label>De <input type='date' name='de' value='"
+             + esc(de) + "'></label><label>Até <input type='date' name='ate' value='"
+             + esc(ate) + "'></label><button class='btn' type='submit'>Aplicar filtros</button>"
+             "</form><p class='muted'>Período exibido: " + inicio.strftime("%d/%m/%Y")
+             + " a " + fim.strftime("%d/%m/%Y") + "</p></section>")
+    if not dias_ads:
+        corpo = ("<h2>" + titulo + "</h2>" + filtro
+                 + "<section class='card'><h3>Sem dados de publicidade para este período</h3>"
+                 "<p>Confira se Product Ads está ativo, se a sincronização da loja terminou "
+                 "e se existe investimento no intervalo selecionado.</p>"
+                 "<p><a class='link' href='/campanhas/" + str(cid)
+                 + "'>Ver campanhas e atualizar dados</a></p></section>")
+        return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo)
+    def soma(campo):
+        return sum(float(row[campo] or 0) for row in dias_ads)
+    gasto = soma("gasto")
+    receita = soma("faturamento")
+    impressoes = int(soma("impressoes"))
+    cliques = int(soma("cliques"))
+    roas = receita / gasto if gasto > 0 else None
+    acos = gasto / receita * 100 if receita > 0 else None
+    ctr = cliques / impressoes * 100 if impressoes > 0 else None
+    cpc = gasto / cliques if cliques > 0 else None
+    def brl(valor):
+        return "R$ " + format(float(valor), ",.2f").replace(",", "X").replace(".", ",").replace("X", ".")
+    def card(t, val, nota=""):
+        return ("<div class='stat'><div class='num'>" + esc(str(val))
+                + "</div><div class='lab'>" + esc(t) + "</div>"
+                + ("<small class='muted'>" + esc(nota) + "</small>" if nota else "")
+                + "</div>")
+    corpo = ("<h2>" + titulo + "</h2>" + filtro
+             + "<div class='grid' style='margin:16px 0'>"
+             + card("Investimento", brl(gasto))
+             + card("Vendas atribuídas a Ads", brl(receita))
+             + card("ROAS", "%.2fx" % roas if roas is not None else "—")
+             + card("ACOS", "%.2f%%" % acos if acos is not None else "—")
+             + card("Impressões", f"{impressoes:,}".replace(",", "."))
+             + card("Cliques", f"{cliques:,}".replace(",", "."))
+             + card("CTR", "%.2f%%" % ctr if ctr is not None else "—")
+             + card("CPC médio", brl(cpc) if cpc is not None else "—")
+             + "</div>")
+    cobertura = (fim - inicio).days + 1
+    if len(dias_ads) < cobertura:
+        corpo += ("<div class='aviso'>Cobertura parcial: " + str(len(dias_ads)) + " de "
+                  + str(cobertura) + " dias com registros de Ads. "
+                  "Os totais abaixo representam somente os dias registrados.</div>")
+    corpo += ("<section class='card'><h3>Evolução diária</h3><p class='muted'>"
+              "Investimento e vendas atribuídas a Ads em cada data registrada.</p>"
+              "<div class='grafico-box'><canvas id='ads-historico'></canvas></div>"
+              "<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
+              "<script>new Chart(document.getElementById('ads-historico'),{type:'line',data:{labels:"
+              + json.dumps([r["data"] for r in reversed(dias_ads)])
+              + ",datasets:[{label:'Investimento (R$)',data:"
+              + json.dumps([float(r["gasto"] or 0) for r in reversed(dias_ads)])
+              + ",borderColor:'#2563eb',tension:.25},{label:'Vendas atribuídas (R$)',data:"
+              + json.dumps([float(r["faturamento"] or 0) for r in reversed(dias_ads)])
+              + ",borderColor:'#0f766e',tension:.25}]},"
+              "options:{responsive:true,maintainAspectRatio:false}});</script></section>")
+    try:
+        por_pagina = int(request.args.get("por_pagina", 20))
+    except (ValueError, TypeError):
+        por_pagina = 20
+    if por_pagina not in (10,20,50):
+        por_pagina = 20
+    try:
+        pag = max(1, int(request.args.get("pagina", 1)))
+    except (ValueError, TypeError):
+        pag = 1
+    total = len(dias_ads)
+    paginas = max(1, (total + por_pagina - 1) // por_pagina)
+    pag = min(pag, paginas)
+    def link(numero):
+        return "/ads/" + str(cid) + "?" + urlencode({
+            "dias": dias, "de": de, "ate": ate,
+            "por_pagina": por_pagina, "pagina": numero})
+    bloco = dias_ads[(pag - 1) * por_pagina: pag * por_pagina]
+    corpo += ("<section class='card'><h3>Detalhamento diário</h3>"
+              "<form method='get' action='/ads/" + str(cid) + "'>"
+              + "".join("<input type='hidden' name='" + k + "' value='" + esc(str(v)) + "'>"
+                        for k, v in (("dias",dias),("de",de),("ate",ate)))
+              + "<label>Linhas por página <select name='por_pagina'>"
+              + "".join("<option value='" + str(n) + "'" + (" selected" if n == por_pagina else "")
+                        + ">" + str(n) + "</option>" for n in (10,20,50))
+              + "</select></label> <button class='btn' type='submit'>Aplicar</button></form>"
+              "<div style='overflow-x:auto'><table><thead><tr><th>Dia</th>"
+              "<th>Investimento</th><th>Faturamento Ads</th><th>ROAS</th>"
+              "<th>Impressões</th><th>Cliques</th></tr></thead><tbody>")
+    for row in bloco:
+        g = float(row["gasto"] or 0)
+        f = float(row["faturamento"] or 0)
+        corpo += ("<tr><td>" + esc(row["data"]) + "</td><td>" + brl(g)
+                  + "</td><td>" + brl(f) + "</td><td>"
+                  + ("%.2fx" % (f/g) if g > 0 else "—") + "</td><td>"
+                  + str(int(row["impressoes"] or 0)) + "</td><td>"
+                  + str(int(row["cliques"] or 0)) + "</td></tr>")
+    corpo += "</tbody></table></div><nav aria-label='Paginação de Ads'>"
+    corpo += "Página " + str(pag) + " de " + str(paginas) + " · " + str(total) + " dias"
+    if pag > 1:
+        corpo += " · <a href='" + esc(link(pag - 1)) + "'>Anterior</a>"
+    if pag < paginas:
+        corpo += " · <a href='" + esc(link(pag + 1)) + "'>Próxima</a>"
+    corpo += ("</nav><p class='muted'>Indicadores de Product Ads importados da API. "
+              "Vendas atribuídas não representam o faturamento total da loja. "
+              "ROAS = vendas atribuídas ÷ investimento; ACOS = investimento ÷ vendas atribuídas.</p>"
+              "<p><a class='link' href='/campanhas/" + str(cid)
+              + "'>Ver campanhas detalhadas →</a></p></section>")
+    return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo)
 
 
 @app.route("/campanhas/<int:cid>")
