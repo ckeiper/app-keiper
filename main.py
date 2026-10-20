@@ -4712,7 +4712,12 @@ def job_visitas_todas_contas():
                 JOIN anuncios a ON a.conexao_id=c.id AND a.status='active'
                 LEFT JOIN item_visits_checked v ON v.conexao_id=a.conexao_id AND v.item_id=a.item_id
                 WHERE c.status='ativa' AND c.access_token IS NOT NULL
-                GROUP BY c.id ORDER BY MIN(v.consultado_em) ASC NULLS FIRST, c.id
+                GROUP BY c.id
+                ORDER BY
+                    CASE WHEN COUNT(*) FILTER (WHERE v.consultado_em IS NULL) > 0 THEN 0 ELSE 1 END,
+                    COUNT(*) FILTER (WHERE v.consultado_em IS NULL) DESC,
+                    MIN(v.consultado_em) ASC NULLS FIRST,
+                    c.id
                 LIMIT 1
             """)
             record = cur.fetchone()
