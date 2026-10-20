@@ -110,20 +110,37 @@ def audit_against_sales(cid, filename, payload, summary, banco, query, calculate
 
 
 def render_sales_comparison(result):
-    labels = [('compared_orders','Pedidos comparados'),('real_orders','Referência real em Vendas'),
-              ('estimated_orders','Referência estimada em Vendas'),('above','Planilha acima de Vendas'),
-              ('below','Planilha abaixo de Vendas'),('within','Dentro da tolerância'),
-              ('unmatched_rows','Lançamentos sem vínculo na base de Vendas'),
-              ('ambiguous_orders','Pedidos com múltiplos lançamentos ou vínculo ambíguo'),
-              ('unavailable_orders','Pedidos sem frete verificável em Vendas'),
-              ('invalid_orders','Pedidos com valores de frete inválidos')]
-    return ('<section class="card"><h3>Planilha × frete da página de Vendas</h3><ul>'
-            + ''.join('<li>'+label+': '+str(int(result[key]))+'</li>' for key,label in labels)
-            + '</ul><p>Frete da planilha nos pedidos comparados: '+format_brl(result['charged_total'])
-            + ' · Frete de Vendas nesses mesmos pedidos: '+format_brl(result['sales_total'])
-            + ' · Diferenças positivas: '+format_brl(result['above_total'])
-            + '</p><p>Vínculo exato por pedido, pagamento ou envio, dentro desta loja. '
-            'Somente um lançamento por pedido é comparado; múltiplos movimentos exigem revisão. '
-            'Vendas usa custo real do envio quando disponível; caso contrário, estimativa por preço/peso. '
-            'Estimativas sem todos os pesos ficam indisponíveis. Tolerância R$ 0,01. '
-            'Diferenças entre as fontes não comprovam cobrança indevida.</p></section>')
+    """Highlight investigation priorities rather than presenting ten unranked counts."""
+    def tile(label, number):
+        return ('<div class="frete-metrica"><span>' + label + '</span><strong>'
+                + str(int(number)) + '</strong></div>')
+    attention = int(result['above']) + int(result['below'])
+    return (
+        '<section class="card frete-resultado"><h3>Comparação com Vendas</h3>'
+        '<p>As divergências indicam pedidos para investigar, não cobranças indevidas comprovadas.</p>'
+        '<div class="frete-metricas">'
+        + tile('Pedidos comparados', result['compared_orders'])
+        + tile('Com diferença', attention)
+        + tile('Dentro da tolerância', result['within'])
+        + tile('Sem vínculo na base', result['unmatched_rows'])
+        + '</div><div class="frete-metricas">'
+        + '<div class="frete-metrica"><span>Frete na planilha</span><strong>'
+        + format_brl(result['charged_total']) + '</strong></div>'
+        + '<div class="frete-metrica"><span>Frete em Vendas</span><strong>'
+        + format_brl(result['sales_total']) + '</strong></div>'
+        + '<div class="frete-metrica"><span>Diferenças positivas</span><strong>'
+        + format_brl(result['above_total']) + '</strong></div>'
+        + '</div><details class="frete-detalhes"><summary>Ver critérios e pendências da comparação</summary><ul>'
+        + ''.join('<li>' + label + ': <b>' + str(int(result[key])) + '</b></li>'
+          for label, key in (
+              ('Referência real', 'real_orders'),
+              ('Referência estimada', 'estimated_orders'),
+              ('Planilha acima de Vendas', 'above'),
+              ('Planilha abaixo de Vendas', 'below'),
+              ('Múltiplos lançamentos ou vínculo ambíguo', 'ambiguous_orders'),
+              ('Sem frete verificável em Vendas', 'unavailable_orders'),
+              ('Valores de frete inválidos', 'invalid_orders')))
+        + '</ul><p>Vínculo por pedido, pagamento ou envio, dentro da mesma loja. '
+          'Custos de Vendas podem ser reais ou estimados. Tolerância de R$ 0,01. '
+          'Diferenças não comprovam cobrança indevida.</p></details></section>'
+    )
