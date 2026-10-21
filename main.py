@@ -8,6 +8,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from apscheduler.schedulers.background import BackgroundScheduler
 from werkzeug.security import generate_password_hash, check_password_hash
+from web_security import session_key, install_security, init_security_schema, auth_attempt_allowed
 from listing_details import (registered_weights, legacy_weight, render_weights,
                              render_promotions, active_promotions, read_json, get_json,
                              render_weight_column, effective_promotion)
@@ -50,7 +51,7 @@ CLIENT_ID = os.getenv("ML_CLIENT_ID")
 CLIENT_SECRET = os.getenv("ML_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("ML_REDIRECT_URI")
 DATABASE_URL = os.getenv("DATABASE_URL")
-SECRET_KEY = os.getenv("SECRET_KEY", "troque-esta-chave")
+SECRET_KEY = session_key()
 
 API = "https://api.mercadolibre.com"
 AUTH_URL = "https://auth.mercadolivre.com.br/authorization"
@@ -61,6 +62,8 @@ LOGO_PATH = os.path.join(BASE_DIR, "logo_Keiper_Consultoria.png")
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+install_security(app)
+DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(32))
 
 @app.before_request
 def registrar_inicio_requisicao():
@@ -461,7 +464,9 @@ function gerarSenha(){
   if (!campo) { return; }
   var chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%';
   var s = '';
-  for (var i = 0; i < 10; i++) { s += chars.charAt(Math.floor(Math.random() * chars.length)); }
+  var bytes = new Uint32Array(16);
+  crypto.getRandomValues(bytes);
+  for (var i = 0; i < bytes.length; i++) { s += chars.charAt(bytes[i] % chars.length); }
   campo.value = s;
 }
 </script>
@@ -592,6 +597,7 @@ def executar(conn, sql, params=None):
 
 def iniciar_banco():
     with banco() as conn:
+        init_security_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS conexoes (
             id SERIAL PRIMARY KEY,
             cliente TEXT NOT NULL,
@@ -827,10 +833,17 @@ def login():
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         senha = request.form.get("senha") or ""
+        if len(username) > 200 or len(senha) > 256:
+            return "Credenciais inválidas.", 400
+        if not auth_attempt_allowed(banco, executar, "login", username):
+            return "Muitas tentativas. Aguarde 15 minutos e tente novamente.", 429, {"Retry-After": "900"}
         with banco() as conn:
             u = consultar(conn, "SELECT * FROM usuarios WHERE username=%s", (username,))
         u = u[0] if u else None
-        if u and check_password_hash(u["senha_hash"], senha):
+        valid_password = check_password_hash(u["senha_hash"] if u else DUMMY_PASSWORD_HASH, senha)
+        if u and valid_password:
+            session.clear()
+            session.permanent = True
             session["usuario_id"] = u["id"]
             session["username"] = u["username"]
             session["nome"] = u["nome"]
@@ -863,6 +876,8 @@ def form_login():
 def recuperar():
     if request.method == "POST":
         ident = (request.form.get("ident") or "").strip()
+        if not auth_attempt_allowed(banco, executar, "reset", ident):
+            return "Muitas solicitações. Aguarde 15 minutos.", 429, {"Retry-After": "900"}
         if not smtp_configurado():
             corpo = ("<div class='card' style='max-width:460px;margin:60px auto;text-align:center'>"
                      "<h2>Recuperar senha</h2>"
@@ -877,7 +892,7 @@ def recuperar():
         u = u[0] if u else None
         if u and u["email"]:
             token = criar_token_reset(u["id"])
-            link = request.url_root.rstrip("/") + "/redefinir/" + token
+            link = "https://app.keiperconsultoria.com.br/redefinir/" + token
             texto = ("Olá " + (u["nome"] or u["username"]) + ",\n\n"
                      "Recebemos um pedido de redefinição de senha do painel "
                      "Keiper Consultoria.\n"
@@ -918,13 +933,20 @@ def redefinir(token):
     erro = ""
     if request.method == "POST":
         senha = request.form.get("senha") or ""
-        if len(senha) < 6:
-            erro = "A senha precisa ter pelo menos 6 caracteres."
+        if not 12 <= len(senha) <= 256:
+            erro = "A senha precisa ter de 12 a 256 caracteres."
         else:
             with banco() as conn:
+                # Lock the account before consuming the token: simultaneous resets
+                # for this user cannot both pass, including two different tokens.
+                consultar(conn, "SELECT id FROM usuarios WHERE id=%s FOR UPDATE", (r["usuario_id"],))
+                consumed = consultar(conn, "DELETE FROM reset_tokens WHERE token_hash=%s AND expira_em >= %s RETURNING usuario_id",
+                                     (th, int(time.time())))
+                if not consumed:
+                    return "Link inválido ou já utilizado.", 400
                 executar(conn, "UPDATE usuarios SET senha_hash=%s WHERE id=%s",
                          (generate_password_hash(senha), r["usuario_id"]))
-                executar(conn, "DELETE FROM reset_tokens WHERE token_hash=%s", (th,))
+                executar(conn, "DELETE FROM reset_tokens WHERE usuario_id=%s", (r["usuario_id"],))
             corpo = ("<div class='card' style='max-width:460px;margin:60px auto;text-align:center'>"
                      "<h2>Senha alterada com sucesso!</h2>"
                      "<div class='sucesso'>Agora você pode entrar com a nova senha.</div>"
@@ -935,7 +957,7 @@ def redefinir(token):
              + ("<div class='aviso'>" + esc(erro) + "</div>" if erro else "")
              + "<form method='post' action='/redefinir/" + esc(token) + "'>"
              "<input type='password' name='senha' required "
-             "placeholder='Nova senha (mín. 6 caracteres)' class='input'>"
+             "placeholder='Nova senha (mín. 12 caracteres)' class='input'>"
              "<button class='btn-salvar' style='width:100%'>Salvar senha</button></form></div>")
     return pagina("Redefinir senha", corpo)
 
@@ -2431,8 +2453,10 @@ def usuarios_criar():
     email = (request.form.get("email") or "").strip()
     tipo = request.form.get("tipo") or "cliente"
     conexao_id = request.form.get("conexao_id") or None
-    if not username or not senha:
-        return redirect("/usuarios?msg=Preencha usuário e senha")
+    if not username or not 12 <= len(senha) <= 256:
+        return redirect("/usuarios?msg=Informe usuário e senha de 12 a 256 caracteres")
+    if tipo not in ("admin", "cliente"):
+        return "Tipo de usuário inválido", 400
     try:
         conexao_id = int(conexao_id) if conexao_id else None
     except Exception:
@@ -2462,6 +2486,8 @@ def usuarios_editar(uid):
         tipo = request.form.get("tipo") or "cliente"
         conexao_id = request.form.get("conexao_id") or None
         nova_senha = request.form.get("senha") or ""
+        if (nova_senha and not 12 <= len(nova_senha) <= 256) or tipo not in ("admin", "cliente"):
+            return "Informe uma senha de 12 a 256 caracteres e um tipo válido.", 400
         try:
             conexao_id = int(conexao_id) if conexao_id else None
         except Exception:
@@ -2510,7 +2536,7 @@ def usuarios_editar(uid):
     return pagina("Editar usuário", corpo)
 
 
-@app.route("/usuarios/excluir/<int:uid>")
+@app.route("/usuarios/excluir/<int:uid>", methods=["GET", "POST"])
 @admin_required
 def usuarios_excluir(uid):
     with banco() as conn:
@@ -2518,8 +2544,14 @@ def usuarios_excluir(uid):
         u = u[0] if u else None
     if u and u["username"] == "admin":
         return redirect("/usuarios?msg=Não é possível excluir o usuário admin")
+    if u and request.method == "GET":
+        return pagina("Excluir usuário", "<div class='card'><h2>Excluir usuário "
+                      + esc(str(u["username"])) + "?</h2><form method='post'>"
+                      "<button class='btn-danger'>Confirmar exclusão</button></form>"
+                      "<p><a href='/usuarios'>Cancelar</a></p></div>")
     if u:
         with banco() as conn:
+            executar(conn, "DELETE FROM reset_tokens WHERE usuario_id=%s", (uid,))
             executar(conn, "DELETE FROM usuarios WHERE id=%s", (uid,))
     return redirect("/usuarios?msg=Usuário excluído")
 
