@@ -3620,6 +3620,15 @@ def diagnostico_saude_anuncio(cid, item_id):
             item_id,pedidos_verificados,itens_pedidos,
             [r["dia"] for r in cobertura],full_rows,
             has_pending=bool(pendentes and pendentes[0]["n"]))
+    from sales_decline import render as render_decline
+    from sales_metrics import reporting_today
+    fim_investigacao = reporting_today() - datetime.timedelta(days=1)
+    ids_investigacao = sorted({str(i["item_id"]) for i in itens_pedidos if i.get("item_id")} | {str(item_id)})
+    investigacao = ranking_metrics(
+        pedidos_verificados, itens_pedidos, [r["dia"] for r in cobertura],
+        ids_investigacao, end=fim_investigacao, days=7,
+        pending=bool(pendentes and pendentes[0]["n"]))
+    corpo += render_decline(investigacao, [item], cid, {}, fim_investigacao, days=7, item_id=item_id, observations=full_rows)
     corpo += priorities(resultados)
     return pagina_loja("Diagnóstico do anúncio", cid, lojas[0]["cliente"], "anuncios", corpo)
 
@@ -3657,7 +3666,9 @@ def ranking_anuncios(cid):
     dias = request.args.get("dias", "30")
     if dias not in ("7", "30"):
         dias = "30"
-    inicio_sql, fim_sql, inicio_cobertura, fim_cobertura = ranking_query_bounds(int(dias))
+    from sales_metrics import reporting_today
+    fim_analise = reporting_today() - datetime.timedelta(days=1)
+    inicio_sql, fim_sql, inicio_cobertura, fim_cobertura = ranking_query_bounds(int(dias), today=fim_analise)
     with banco() as conn:
         lojas = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         if not lojas:
@@ -3695,10 +3706,10 @@ def ranking_anuncios(cid):
         """, (cid,))
     resumo = ranking_metrics(
         pedidos, itens, [r["dia"] for r in cobertura],
-        [a["item_id"] for a in anuncios_loja],
-        days=int(dias), pending=bool(pendentes and pendentes[0]["n"]))
+        sorted({str(a["item_id"]) for a in anuncios_loja} | {str(i["item_id"]) for i in itens if i.get("item_id")}),
+        end=fim_analise, days=int(dias), pending=bool(pendentes and pendentes[0]["n"]))
     corpo = ("<h2>Ranking de vendas por anúncio</h2>"
-             "<p class='muted'>Últimos " + dias + " dias comparados aos " + dias + " anteriores. "
+             "<p class='muted'>Últimos " + dias + " dias encerrados comparados aos " + dias + " anteriores. "
              "Somente pedidos pagos e aprovados com dados verificados. "
              "Valor bruto dos itens, não valor líquido recebido. "
              "Visitas e conversão não estão disponíveis.</p>")
@@ -3714,6 +3725,8 @@ def ranking_anuncios(cid):
                   "</p></div>")
         return pagina_loja("Ranking de anúncios", cid, lojas[0]["cliente"],
                           "desempenho", corpo)
+    from sales_decline import render as render_decline
+    corpo += render_decline(resumo, anuncios_loja, cid, request.args, fim_analise, days=int(dias))
     kpis = listing_kpis(resumo["rows"])
     valor = "R$ %.2f" % kpis["value"]
     medio = ("R$ %.2f" % kpis["average_value_per_listing_order"]
