@@ -29,12 +29,13 @@ def test_directory_alphabetical_order():
     assert page.index("href='/painel/1'") < page.index("href='/painel/2'")
 
 
-def test_home_cards_show_separate_trend_summary_without_unverified_percentage():
+def test_home_cards_keep_trend_only_on_accessible_arrow():
     page = render_client_home([{'id':3, 'cliente':'Copas Ind', 'status':'ativa'}], admin=True)
-    assert 'kh-card-bottom' in page
-    assert 'FATURAMENTO · ÚLTIMOS 7 DIAS' in page
-    assert 'kh-metric-value' in page
-    assert 'Sinal de queda' in page and 'Sinal de crescimento' in page
-    assert 'kh-card-go' in page
-    assert 'Tendência indisponível' in page
+    assert 'kh-card-bottom' not in page
+    assert 'FATURAMENTO · ÚLTIMOS 7 DIAS' not in page
+    assert 'kh-metric-value' not in page
+    assert 'Sinal de crescimento' not in page and 'Sinal de queda' not in page
+    assert "role='img'" in page
+    assert "span.setAttribute('aria-label',span.title)" in page
+    assert 'nos últimos 7 dias, comparados aos 7 anteriores' in page
     assert 'localStorage' not in page
