@@ -8,6 +8,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from apscheduler.schedulers.background import BackgroundScheduler
 from werkzeug.security import generate_password_hash, check_password_hash
+from account_mfa import init_mfa_schema, register_mfa, issue_challenge
 from ml_token_crypto import seal_token, reveal_token, migrate_tokens, validate_token_config, enabled as token_encryption_enabled
 from session_security import init_session_schema, install_session_guard
 from web_security import session_key, install_security, init_security_schema, auth_attempt_allowed
@@ -69,6 +70,7 @@ install_session_guard(app, lambda uid: carregar_usuario_sessao(uid))
 install_security(app)
 app.logger.warning("ml_token_encryption_configuration enabled=%s key_present=%s",
                    token_encryption_enabled(), bool(os.getenv("ML_TOKEN_ENCRYPTION_KEY")))
+app.logger.warning("mfa_configuration key_present=%s", bool(os.getenv("MFA_ENCRYPTION_KEY")))
 DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(32))
 
 @app.before_request
@@ -502,6 +504,8 @@ def pagina(titulo, corpo):
     topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
     links = ""
+    if session.get("tipo") == "admin":
+        links += "<a class='btn' href='/seguranca'>Segurança</a>"
     links += "<a class='btn' href='/conectar'>+ Conectar loja</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -641,6 +645,7 @@ def iniciar_banco():
         except Exception:
             pass
         init_session_schema(conn, executar)
+        init_mfa_schema(conn, executar)
         admin = consultar(conn, "SELECT id FROM usuarios WHERE username=%s", ("admin",))
         if not admin:
             # Existing accounts are untouched. New installations require a secret.
@@ -877,6 +882,10 @@ def login():
         u = u[0] if u else None
         valid_password = check_password_hash(u["senha_hash"] if u else DUMMY_PASSWORD_HASH, senha)
         if u and valid_password:
+            if u.get("mfa_enabled"):
+                if not issue_challenge(u, banco, consultar, executar):
+                    return redirect("/login")
+                return redirect("/login/verificar")
             session.clear()
             session.permanent = True
             session["usuario_id"] = u["id"]
@@ -5152,6 +5161,7 @@ def job_dados():
 
 
 register_crm(app, banco, consultar, executar, pagina)
+register_mfa(app, banco, consultar, executar, pagina, auth_attempt_allowed)
 register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja, session)
 register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
 from intervention_routes import register_interventions
