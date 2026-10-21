@@ -43,6 +43,11 @@ def init_overview_schema(conn, execute):
     execute(conn, '''CREATE INDEX IF NOT EXISTS idx_overview_orders_day
         ON pedidos (conexao_id, keiper_overview_day_v1(criado_em))
         WHERE vendas_verificado_em IS NOT NULL AND keiper_overview_day_v1(criado_em) IS NOT NULL''')
+    # The overview filters by the raw date prefix before Python's exact
+    # timezone classifier. Index that exact expression, only verified rows.
+    execute(conn, '''CREATE INDEX IF NOT EXISTS idx_overview_orders_prefix
+        ON pedidos (conexao_id, LEFT(criado_em,10), pedido_id)
+        WHERE vendas_verificado_em IS NOT NULL''')
     execute(conn, '''CREATE INDEX IF NOT EXISTS idx_overview_orders_unusual
         ON pedidos (conexao_id, pedido_id)
         WHERE vendas_verificado_em IS NOT NULL AND keiper_overview_day_v1(criado_em) IS NULL''')
