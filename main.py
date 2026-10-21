@@ -1909,16 +1909,20 @@ def processar_fila():
             cid = FILA_ATUALIZACAO[0]
         execucao_id = None
         try:
-            # Fail closed: the shared reservation is part of mutual exclusion.
-            execucao_id = registrar_execucao_inicio(cid)
-            if execucao_id is None:
-                continue  # Another worker already owns this store.
-            atualizacao_ok = executar_atualizacao(cid)
-            if execucao_id is not None:
-                try:
-                    registrar_execucao_fim(execucao_id, "concluida" if atualizacao_ok else "falhou", None if atualizacao_ok else "Atualizacao retornou False")
-                except Exception:
-                    pass
+            with store_sync_lock(banco, cid) as acquired:
+                if not acquired:
+                    continue  # A live collector owns this store.
+                # A free collection lock proves previous telemetry is abandoned.
+                encerrar_execucoes_abandonadas(cid)
+                execucao_id = registrar_execucao_inicio(cid)
+                if execucao_id is None:
+                    continue  # Shared execution claim is required even under the lock.
+                atualizacao_ok = executar_atualizacao(cid)
+                if execucao_id is not None:
+                    try:
+                        registrar_execucao_fim(execucao_id, "concluida" if atualizacao_ok else "falhou", None if atualizacao_ok else "Atualizacao retornou False")
+                    except Exception:
+                        pass
         except Exception as exc:
             if execucao_id is not None:
                 try:
