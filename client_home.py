@@ -5,7 +5,7 @@ from html import escape
 def render_client_home(shops, admin=False):
     """Render only already authorized shops; no order, visit or Ads reads."""
     cards = []
-    for shop in shops:
+    for shop in sorted(shops, key=lambda s: str(s.get("cliente") or "").casefold()):
         cid = int(shop["id"])
         name = escape(str(shop.get("cliente") or "Loja sem nome"))
         status = str(shop.get("status") or "").lower()
@@ -20,8 +20,6 @@ def render_client_home(shops, admin=False):
             "<span aria-hidden='true'>●</span> " + label + "</span></span>"
             "</a><button type='button' class='kh-more' aria-label='Opções de " + name + "' aria-expanded='false'>⋯</button>"
             "<div class='kh-menu' hidden><button type='button' data-act='rename'>Renomear</button>"
-            "<button type='button' data-act='up'>Mover para cima</button>"
-            "<button type='button' data-act='down'>Mover para baixo</button>"
             "<a href='/excluir/" + str(cid) + "' class='kh-danger'>Excluir loja…</a></div></article>"
         )
     actions = ""  # The global page header already contains Conectar loja.
@@ -89,9 +87,6 @@ grid.addEventListener('click',async e=>{
  const btn=e.target.closest('[data-act]');if(!btn)return;
  const card=btn.closest('.kh-store'),id=card.dataset.id,act=btn.dataset.act;
  closeMenus();
- if(act==='up'&&card.previousElementSibling)grid.insertBefore(card,card.previousElementSibling);
- if(act==='down'&&card.nextElementSibling)grid.insertBefore(card.nextElementSibling,card);
- if(act==='up'||act==='down'){saveOrder();refresh();return;}
  if(act==='rename'){
   const label=card.querySelector('.kh-store-name');
   const old=label.textContent.trim();
