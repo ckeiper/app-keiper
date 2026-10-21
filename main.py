@@ -5081,9 +5081,16 @@ def job_dados():
     except Exception:
         pass
     with banco() as conn:
-        conexoes = consultar(conn, "SELECT id FROM conexoes "
-                            "WHERE status='ativa' AND cliente <> %s",
-                            ("CASAMIX_STORE",))
+        conexoes = consultar(conn, """SELECT c.id FROM conexoes c
+            WHERE c.status='ativa' AND c.cliente <> %s
+            ORDER BY CASE WHEN EXISTS (
+                SELECT 1 FROM generate_series(
+                    (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date-14,
+                    (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date-1,
+                    interval '1 day') d(dia)
+                WHERE NOT EXISTS (SELECT 1 FROM vendas_cobertura v
+                    WHERE v.conexao_id=c.id AND v.dia=d.dia::date::text)
+            ) THEN 0 ELSE 1 END, c.id""", ("CASAMIX_STORE",))
     for c in conexoes:
         # Use the existing queue so the scheduler does not abort subsequent shops
         # or overlap a collection already queued from the dashboard.
