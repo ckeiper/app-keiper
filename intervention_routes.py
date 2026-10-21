@@ -95,7 +95,7 @@ def register_interventions(app, login_required, can_view, bank, query, execute, 
             values=request.form if request.method=='POST' and request.form.get('operation','create')=='create' else {}
             body+="<section class='iv-card'><h3>Registrar ação realizada</h3><form class='iv-form' method='post'>"+hidden()
             body+="<input type='hidden' name='submission_key' value='"+escape(values.get('submission_key') or secrets.token_urlsafe(24),quote=True)+"'>"
-            body+="<label>Tipo<select name='kind' required>"+''.join("<option value='%s'%s>%s</option>" % (key,' selected' if values.get('kind')==key else '',label) for key,label in KINDS.items())+'</select></label>'
+            body+="<label>Tipo<select name='kind' aria-label='Tipo' required>"+''.join("<option value='%s'%s>%s</option>" % (key,' selected' if values.get('kind')==key else '',label) for key,label in KINDS.items())+'</select></label>'
             body+="<label>Data em que a ação foi feita<input name='event_date' type='date' required min='"+(day-timedelta(days=365)).isoformat()+"' max='"+day.isoformat()+"' value='"+escape(values.get('event_date') or day.isoformat(),quote=True)+"'></label>"
             body+="<label class='iv-wide'>O que foi alterado<textarea name='note' required minlength='10' maxlength='1500' placeholder='Ex.: foto principal substituída; descreva o que mudou e em qual variação.'>"+escape(values.get('note','')[:1500])+"</textarea></label><div class='iv-wide'><button class='iv-primary'>Registrar ação</button></div></form><p class='iv-meta'>Registro manual de uma ação já executada; este formulário não altera o anúncio no Mercado Livre. Horário de Brasília. Para corrigir, desconsidere o registro e crie outro.</p></section>"
         if selected:
