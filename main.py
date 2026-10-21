@@ -2074,7 +2074,8 @@ def painel():
     from client_home import render_client_home
     corpo = render_client_home(lojas, admin=session.get("tipo") == "admin")
     if session.get("tipo") == "admin":
-        corpo = HOME_WIDGET + corpo
+        # Keep client selection first; CRM is secondary and appears below the store cards.
+        corpo += HOME_WIDGET
     return pagina("Suas lojas", corpo)
 
 
