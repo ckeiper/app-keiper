@@ -84,7 +84,9 @@ class OverviewIntegrationTests(unittest.TestCase):
             response=self.client.get(self.url)
             enqueue.assert_not_called()
         self.assertEqual(response.status_code,200)
-        self.assertEqual(len(calls),5)
+        auth_calls = [sql for sql in calls if 'FROM usuarios WHERE id=%s' in sql]
+        self.assertEqual(len(auth_calls), 1)
+        self.assertEqual(len(calls), 6)  # Five report reads plus one account validation.
         view=response.get_data(as_text=True)
         self.assertIn('2 de 3 lojas na consolidação',view)
         self.assertIn('R$ 400,00',view)
@@ -130,7 +132,12 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertIn("aria-label='Contas conectadas'", view)
         self.assertNotIn("href='/painel/" + str(self.ids[1]) + "'", view)
         self.assertIn('1 de 1 lojas na consolidação',view)
-        self.assertTrue(all(params[0]==[self.ids[0]] for sql,params in calls[1:]))
+        auth_calls = [(sql,params) for sql,params in calls if 'FROM usuarios WHERE id=%s' in sql]
+        self.assertEqual(len(auth_calls), 1)
+        with database_session(self.client) as state:
+            self.assertEqual(auth_calls[0][1], (state['usuario_id'],))
+        report_calls = [(sql,params) for sql,params in calls if 'FROM usuarios WHERE id=%s' not in sql]
+        self.assertTrue(all(params[0]==[self.ids[0]] for sql,params in report_calls[1:]))
         self.assertNotIn('/usuarios',view)
 
     def test_anonymous_and_unassigned_users_do_not_access_other_shops(self):
