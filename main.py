@@ -2708,7 +2708,7 @@ def painel_ads(cid):
         roas_camp = atribuida / investimento if investimento > 0 else None
         acos_camp = investimento / atribuida * 100 if atribuida > 0 else None
         tacos_camp = investimento / faturamento_loja * 100 if faturamento_loja and faturamento_loja > 0 else None
-        linhas_tacos.append((nome, investimento, atribuida, roas_camp, acos_camp, tacos_camp))
+        linhas_tacos.append((nome, investimento, atribuida, roas_camp, acos_camp, tacos_camp, str(camp["campanha_id"])))
     ordem_indices = {"gasto":1, "faturamento":2, "roas":3, "acos":4, "tacos":5}
     indice = ordem_indices[ordem_camp]
     linhas_tacos.sort(key=lambda item: (item[indice] is None,
@@ -2732,7 +2732,7 @@ def painel_ads(cid):
     linhas_tacos_pagina = linhas_tacos[
         (pagina_tacos - 1) * tamanho_tacos:pagina_tacos * tamanho_tacos]
     tacos_campanhas_html = (
-        "<section class='card'><h3>Desempenho por campanha</h3>"
+        "<section class='card kc-campaigns'><h3>Desempenho por campanha</h3>"
         "<p class='muted'>Compare investimento, retorno e participação no faturamento total da loja.</p>"
         "<form method='get' action='/ads/" + str(cid) + "' "
         "style='display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:14px 0'>"
@@ -2765,20 +2765,23 @@ def painel_ads(cid):
             + esc(motivo_tacos or "Não há faturamento total positivo validado.")
             + "</div>")
     tacos_campanhas_html += (
-        "<div style='overflow-x:auto'><table><thead><tr>"
+        "<div class='kc-table-wrap'><table class='kc-campaign-table'><thead><tr>"
         "<th>Campanha</th><th>Investimento</th><th>Faturamento Ads</th>"
         "<th>ROAS</th><th>ACOS</th><th>TACOS</th></tr></thead><tbody>")
-    for nome, investimento, atribuida, roas_camp, acos_camp, tacos_valor in linhas_tacos_pagina:
-        from urllib.parse import quote
-        detalhe = "/ads/" + str(cid) + "/campanha/" + quote(str(next(
-            (c["campanha_id"] for c in alert_rows if str(c["nome"]) == nome), "")), safe="")
+    from urllib.parse import quote
+    for nome, investimento, atribuida, roas_camp, acos_camp, tacos_valor, camp_id in linhas_tacos_pagina:
+        detalhe = "/ads/" + str(cid) + "/campanha/" + quote(camp_id, safe="")
+        url_segura = esc(detalhe, quote=True)
         tacos_campanhas_html += (
-            "<tr><td><a href='" + esc(detalhe,quote=True) + "'>" + esc(nome)
-            + " ↗</a></td><td>" + brl(investimento)
-            + "</td><td>" + brl(atribuida) + "</td><td>"
-            + ("%.2fx" % roas_camp if roas_camp is not None else "—")
-            + "</td><td>" + ("%.2f%%" % acos_camp if acos_camp is not None else "—")
-            + "</td><td>" + ("%.2f%%" % tacos_valor if tacos_valor is not None else "—")
+            "<tr class='kc-campaign-row' tabindex='0' role='link' data-href='"
+            + url_segura + "' aria-label='Abrir campanha " + esc(nome,quote=True) + "'>"
+            "<td data-label='Campanha'><a class='kc-campaign-name' href='" + url_segura
+            + "'>" + esc(nome) + "</a></td>"
+            "<td data-label='Investimento'>" + brl(investimento) + "</td>"
+            "<td data-label='Faturamento Ads'>" + brl(atribuida) + "</td>"
+            "<td data-label='ROAS'>" + ("%.2fx" % roas_camp if roas_camp is not None else "—") + "</td>"
+            "<td data-label='ACOS'>" + ("%.2f%%" % acos_camp if acos_camp is not None else "—") + "</td>"
+            "<td data-label='TACOS'>" + ("%.2f%%" % tacos_valor if tacos_valor is not None else "—")
             + "</td></tr>")
     if not linhas_tacos:
         tacos_campanhas_html += "<tr><td colspan='6'>Nenhuma campanha atende aos filtros.</td></tr>"
@@ -2791,6 +2794,40 @@ def painel_ads(cid):
     if pagina_tacos < paginas_tacos:
         tacos_campanhas_html += (" · <a href='" + esc(url_tacos(pagina_tacos + 1),quote=True)
             + "'>Próxima</a>")
+    tacos_campanhas_html += """<style>
+    .kc-campaigns .kc-table-wrap{width:100%;overflow-x:auto}
+    .kc-campaigns .kc-campaign-table{width:100%;border-collapse:collapse}
+    .kc-campaigns .kc-campaign-table th{font-size:11px;letter-spacing:.03em;white-space:nowrap;padding:13px 12px;background:#f5f7fc}
+    .kc-campaigns .kc-campaign-table td{padding:17px 12px;border-bottom:1px solid #e8edf5;vertical-align:middle;font-variant-numeric:tabular-nums;font-size:12px}
+    .kc-campaigns .kc-campaign-table .kc-campaign-row{cursor:pointer;transition:background .15s ease,box-shadow .15s ease}
+    .kc-campaigns .kc-campaign-row:hover{background:#f0f5ff;box-shadow:inset 3px 0 #5269e7}
+    .kc-campaigns .kc-campaign-row:focus-visible{outline:3px solid #6265dc;outline-offset:-3px;background:#f0f5ff}
+    .kc-campaigns a.kc-campaign-name,.kc-campaigns a.kc-campaign-name:visited{display:block;color:#253657!important;text-decoration:none!important;font-weight:750;line-height:1.45;font-size:12px;overflow-wrap:anywhere}
+    .kc-campaigns .kc-campaign-row:hover a.kc-campaign-name{color:#415fdb!important}
+    .kc-campaigns .kc-campaign-row a.kc-campaign-name:focus-visible{outline:2px solid #5966dc;outline-offset:3px;border-radius:3px}
+    @media(max-width:760px){
+      .kc-campaigns .kc-table-wrap{overflow:visible}
+      .kc-campaigns .kc-campaign-table,.kc-campaigns .kc-campaign-table tbody{display:block;width:100%}
+      .kc-campaigns .kc-campaign-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+      .kc-campaigns .kc-campaign-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:15px;border:1px solid #e1e8f3;border-radius:13px;margin:0 0 11px;background:#fff;box-shadow:0 3px 12px #2436550a}
+      .kc-campaigns .kc-campaign-table td{display:block;padding:0;border:0;font-size:13px;min-width:0;overflow-wrap:anywhere}
+      .kc-campaigns .kc-campaign-table td::before{content:attr(data-label);display:block;margin-bottom:5px;color:#7c8aa2;font-size:10px;font-weight:750;letter-spacing:.02em}
+      .kc-campaigns .kc-campaign-table td:first-child{grid-column:1/-1;border-bottom:1px solid #ebeff6;padding-bottom:11px}
+      .kc-campaigns .kc-campaign-table td:first-child::before{display:none}
+      .kc-campaigns a.kc-campaign-name,.kc-campaigns a.kc-campaign-name:visited{font-size:14px!important}
+    }
+    @media(prefers-reduced-motion:reduce){.kc-campaigns .kc-campaign-row{transition:none}}
+    </style><script>
+    (function(){var table=document.querySelector('.kc-campaigns .kc-campaign-table');if(!table)return;
+      table.addEventListener('click',function(e){var row=e.target.closest('tr[data-href]');
+        if(!row||e.target.closest('a,button,input,select'))return;window.location.assign(row.dataset.href);
+      });
+      table.addEventListener('keydown',function(e){var row=e.target.closest('tr[data-href]');
+        if(!row||e.target!==row||!(e.key==='Enter'||e.key===' '))return;
+        e.preventDefault();window.location.assign(row.dataset.href);
+      });
+    })();
+    </script>"""
     tacos_campanhas_html += (
         "</nav><p class='muted'>ROAS = faturamento atribuído ÷ investimento; "
         "ACOS = investimento ÷ faturamento atribuído; "
