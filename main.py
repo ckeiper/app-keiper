@@ -5200,16 +5200,8 @@ def job_visitas_todas_contas():
                     PRIMARY KEY (conexao_id, item_id)
                 )
             """)
-            cur.execute("""
-                SELECT c.id FROM conexoes c
-                JOIN anuncios a ON a.conexao_id=c.id AND a.status='active'
-                LEFT JOIN item_visits_checked v ON v.conexao_id=a.conexao_id AND v.item_id=a.item_id
-                WHERE c.status='ativa' AND c.access_token IS NOT NULL
-                GROUP BY c.id
-                HAVING COUNT(*) FILTER (WHERE v.consultado_em IS NULL) > 0
-                ORDER BY MAX(v.consultado_em) ASC NULLS FIRST, c.id
-                LIMIT 1
-            """)
+            from visits_refresh import DUE_STORE_SQL, REFRESH_HOURS
+            cur.execute(DUE_STORE_SQL, (REFRESH_HOURS,))
             record = cur.fetchone()
             if record:
                 app.logger.info("visits_batch_result %s", collect(limit=40, connection_id=record[0], rotate=True))

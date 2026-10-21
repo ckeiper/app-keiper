@@ -44,6 +44,21 @@ def _fetch_visits(item, token, today):
         return item, [], str(exc)[:120]
 
 
+def _save_attempt(conn, connection_id, item, parsed, error):
+    """Rotate failed attempts too, preserving all prior daily observations."""
+    with conn.cursor() as cur:
+        if error is None:
+            for day, visits in parsed:
+                cur.execute("""INSERT INTO item_visits_daily (conexao_id,item_id,dia,visitas)
+                    VALUES (%s,%s,%s,%s)
+                    ON CONFLICT (conexao_id,item_id,dia) DO UPDATE
+                    SET visitas=EXCLUDED.visitas,atualizado_em=NOW()""",
+                    (connection_id,item,day,visits))
+        cur.execute("""INSERT INTO item_visits_checked (conexao_id,item_id)
+            VALUES (%s,%s) ON CONFLICT (conexao_id,item_id)
+            DO UPDATE SET consultado_em=NOW()""",(connection_id,item))
+
+
 def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
     """Fetch up to 40 items using four network threads, then save serially."""
     if not isinstance(limit, int) or not 1 <= limit <= 40:
@@ -98,26 +113,14 @@ def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
             futures = [executor.submit(_fetch_visits, item, token, today) for item in items]
             for future in as_completed(futures):
                 item, parsed, error = future.result()
-                if error is not None:
-                    results["falhas"] += 1
-                    continue
                 try:
-                    with conn.cursor() as cur:
-                        for day, visits in parsed:
-                            cur.execute("""
-                                INSERT INTO item_visits_daily (conexao_id, item_id, dia, visitas)
-                                VALUES (%s, %s, %s, %s)
-                                ON CONFLICT (conexao_id, item_id, dia) DO UPDATE
-                                SET visitas=EXCLUDED.visitas, atualizado_em=NOW()
-                            """, (connection_id, item, day, visits))
-                        cur.execute("""
-                            INSERT INTO item_visits_checked (conexao_id, item_id)
-                            VALUES (%s, %s)
-                            ON CONFLICT (conexao_id, item_id) DO UPDATE SET consultado_em=NOW()
-                        """, (connection_id, item))
+                    _save_attempt(conn,connection_id,item,parsed,error)
                     conn.commit()
-                    results["itens_atualizados"] += 1
-                    results["dias_gravados"] += len(parsed)
+                    if error is not None:
+                        results["falhas"] += 1
+                    else:
+                        results["itens_atualizados"] += 1
+                        results["dias_gravados"] += len(parsed)
                 except psycopg2.Error:
                     conn.rollback()
                     results["falhas"] += 1
