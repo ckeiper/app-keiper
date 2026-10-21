@@ -110,7 +110,7 @@ class EvidenceRouteTests(unittest.TestCase):
         from listing_sales import listing_sales_summary
         from listing_trends import comparison
         from listing_ranking import ranking_metrics
-        query=Mock(side_effect=[[{'cliente':'Teste'}],[{'item_id':'MLB1','titulo':'Produto'}],[],[],[],[{'n':False}],[],[],[],[],[],[],[]])
+        query=Mock(side_effect=[[{'cliente':'Teste'}],[{'item_id':'MLB1','titulo':'Produto'}],[],[],[],[{'n':False}],[],[],[],[],[],[],[],[]])
         ns=dict(pode_ver_loja=lambda cid:True,banco=lambda:contextlib.nullcontext(None),
                 consultar=query,diagnose_listing=lambda item:[],listing_sales_summary=listing_sales_summary,
                 comparison=comparison,ranking_metrics=ranking_metrics,datetime=dt,time=time,
@@ -121,7 +121,7 @@ class EvidenceRouteTests(unittest.TestCase):
         self.assertIn('Onde investigar primeiro',output)
         self.assertLess(output.index('Onde investigar primeiro'),output.index('Indicadores de vendas por anúncio'))
         self.assertIn('Vendas sem cobertura verificada',output)
-        self.assertEqual(query.call_count,13)
+        self.assertEqual(query.call_count,14)
 
 if __name__=='__main__':
     unittest.main()
