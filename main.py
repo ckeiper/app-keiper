@@ -3400,13 +3400,8 @@ def diagnostico_saude_anuncio(cid, item_id):
         for vendas in (vendas_7, vendas_30):
             vendas.update(orders=None, units=None, gross_items=None, ticket=None,
                           reason="Há pedidos antigos ainda não verificados nesta loja.")
-    titulo = esc(str(item.get("titulo") or "Anúncio sem título"))
-    corpo = ("<h2>Diagnóstico do anúncio</h2>"
-             "<div class='card'><h3>" + titulo + "</h3><p class='muted'>"
-             + esc(str(item_id)) + "</p>"
-             "<p>Análise de estoque, status, imagens e preço com base na última coleta. "
-             "Este diagnóstico não identifica causas de queda de vendas nem compara "
-             "concorrentes, tráfego ou conversão.</p></div>")
+    from listing_diagnostic_design import hero, priorities
+    corpo = hero(item, cid, item_id, resultados)
     corpo += ("<div class='card'><h3>Indicadores de vendas por anúncio</h3>"
               "<p class='muted'>Somente pedidos pagos e aprovados, com cobertura "
               "diária e vínculo completo dos itens. Valor bruto dos itens = "
@@ -3484,16 +3479,7 @@ def diagnostico_saude_anuncio(cid, item_id):
               "Sem cobertura verificada em qualquer período, a comparação "
               "fica indisponível. Quando a base anterior é zero, não exibimos "
               "crescimento percentual artificial.</p></div>")
-    for acao in resultados:
-        gravidade = acao["priority"]
-        classe = "urgente" if gravidade == "alta" else "atencao" if gravidade in ("media", "revisar") else "ok"
-        corpo += ("<div class='card'><div class='demanda-item " + classe + "'>"
-                  "<h3>" + esc(acao["title"]) + "</h3>"
-                  "<p><b>Evidência:</b> " + esc(acao["evidence"]) + "</p>"
-                  "<p><b>Próxima ação:</b> " + esc(acao["action"]) + "</p>"
-                  "<small>Prioridade: " + esc(gravidade) + "</small></div></div>")
-    corpo += ("<p><a href='/anuncios/" + str(cid)
-              + "'>← Voltar aos anúncios</a></p>")
+    corpo += priorities(resultados)
     return pagina_loja("Diagnóstico do anúncio", cid, lojas[0]["cliente"], "anuncios", corpo)
 
 
