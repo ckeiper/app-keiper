@@ -340,7 +340,9 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertIn(f"id='nome-{cid}'",view)
         self.assertIn(f'editarNome({cid})',view)
         self.assertIn("document.getElementById('nome-' + id)",view)
-        renamed=self.client.post(f'/renomear/{cid}',data={'cliente':'Loja renomeada <teste>'})
+        with self.client.session_transaction() as state:
+            csrf = state['_csrf']
+        renamed=self.client.post(f'/renomear/{cid}',headers={'X-CSRF-Token':csrf},data={'cliente':'Loja renomeada <teste>'})
         self.assertEqual(renamed.status_code,200)
         self.assertTrue(renamed.get_json()['ok'])
         view=self.client.get(self.url).get_data(as_text=True)
@@ -348,7 +350,7 @@ class OverviewIntegrationTests(unittest.TestCase):
         with self.client.session_transaction() as session:
             session['tipo']='cliente'
             session['conexao_id']=cid
-        self.assertEqual(self.client.post(f'/renomear/{self.ids[1]}',data={'cliente':'Negado'}).status_code,403)
+        self.assertEqual(self.client.post(f'/renomear/{self.ids[1]}',headers={'X-CSRF-Token':csrf},data={'cliente':'Negado'}).status_code,403)
 
     def test_legacy_dashboard_and_invalid_filters_remain_accessible(self):
         with patch.object(self.m,'enfileirar_atualizacao',return_value=True):
