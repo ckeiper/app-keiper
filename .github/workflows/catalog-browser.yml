@@ -4,6 +4,11 @@ on:
     paths:
       - 'listing_catalog.py'
       - 'listing_timeline.py'
+      - 'listing_interventions.py'
+      - 'intervention_routes.py'
+      - 'listing_diagnostic_design.py'
+      - 'test_listing_interventions.py'
+      - 'scripts/interventions*'
       - 'investigation_evidence.py'
       - 'investigation_triage.py'
       - 'sales_drivers.py'
@@ -34,10 +39,12 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - run: python scripts/catalog_preview.py
       - run: python scripts/timeline_preview.py
+      - run: python scripts/interventions_preview.py
       - run: npm install --no-save --no-package-lock playwright@1.51.1 chart.js@4.4.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/catalog_browser_check.cjs
       - run: node scripts/timeline_browser_check.cjs
+      - run: node scripts/interventions_browser_check.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
