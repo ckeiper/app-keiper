@@ -1,5 +1,6 @@
 """Fast, database-light client directory for the landing page."""
 from html import escape
+from home_theme import NAVY_HOME_CSS
 
 
 def render_client_home(shops, admin=False):
@@ -32,15 +33,13 @@ def render_client_home(shops, admin=False):
     empty = ("<div class='kh-empty'>Nenhuma loja disponível. "
              + ("Conecte a primeira loja para começar." if admin else "Contate o administrador.")
              + "</div>") if not cards else ""
-    return """<style>
+    count = str(len(cards)) + (" loja" if len(cards) == 1 else " lojas")
+    return NAVY_HOME_CSS + """<style>
 .kh-home{max-width:1240px;margin:4px auto 56px;padding:0 28px;color:#16243b;font-family:Inter,'Segoe UI',Arial,sans-serif}
 .kh-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:0 0 28px;padding:8px 0 20px;border-bottom:1px solid #e4eaf3}
 .kh-eyebrow{color:#5479bd;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
 .kh-home h2{font-size:clamp(30px,4vw,40px);line-height:1.15;letter-spacing:-1.35px;margin:9px 0 8px;font-weight:800;color:#172947}
 .kh-description{font-size:14px;color:#74839b;margin:0;line-height:1.5}
-.kh-toolbar{display:flex;gap:16px;align-items:center;margin-bottom:22px;justify-content:space-between;flex-wrap:wrap}
-.kh-search{padding:15px 18px 15px 44px;border:1px solid #dbe4f1;border-radius:13px;background:#fff;max-width:440px;width:100%;font-size:14px;outline-offset:3px;box-shadow:0 3px 10px #162b4a06;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%238297b4' stroke-width='1.7' viewBox='0 0 24 24'%3E%3Ccircle cx='10.8' cy='10.8' r='6.8'/%3E%3Cpath d='m16 16 5 5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:15px center;transition:border-color .2s,box-shadow .2s}
-.kh-search:focus{border-color:#477fe1;box-shadow:0 0 0 4px #477fe118;outline:none}
 .kh-count{font-size:12px;color:#657892;white-space:nowrap;font-weight:750;background:#eaf0f8;border:1px solid #dce5f1;padding:9px 12px;border-radius:25px}
 .kh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:17px;align-items:stretch}
 .kh-store{position:relative;display:flex;flex-direction:column;align-items:stretch;min-width:0;min-height:104px;background:linear-gradient(145deg,#fff 0%,#fbfdff 100%);border:1px solid #dfe7f2;border-radius:17px;box-shadow:0 3px 7px #18335107,0 12px 29px #18335105;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;overflow:visible}
@@ -63,20 +62,15 @@ def render_client_home(shops, admin=False):
 .kh-links{display:flex;gap:9px 22px;flex-wrap:wrap;border-top:1px solid #e2e9f2;margin-top:34px;padding:23px 0 0}
 .kh-links a{color:#4e6d98;text-decoration:none;font-size:13px;font-weight:650}.kh-links a:hover{text-decoration:underline;color:#2859a7}
 .kh-empty{padding:38px;background:#fff;border:1px dashed #d5e1f0;border-radius:16px;color:#72839b}
-@media(max-width:640px){.kh-home{padding:0 12px}.kh-grid{grid-template-columns:1fr;gap:12px}.kh-head{align-items:flex-start}.kh-toolbar{gap:10px}.kh-search{max-width:none}.kh-store{min-height:96px}.kh-store-main{padding:18px 47px 18px 17px}.kh-store-icon{width:45px;height:45px}.kh-home h2{font-size:31px}.kh-head{margin-bottom:18px;padding-bottom:16px}.kh-toolbar{margin-bottom:17px}}
-@media(prefers-reduced-motion:reduce){.kh-store,.kh-search,.kh-more{transition:none}.kh-store:hover{transform:none}}
+@media(max-width:640px){.kh-home{padding:0 12px}.kh-grid{grid-template-columns:1fr;gap:12px}.kh-head{align-items:flex-start}.kh-store{min-height:96px}.kh-store-main{padding:18px 47px 18px 17px}.kh-store-icon{width:45px;height:45px}.kh-home h2{font-size:31px}.kh-head{margin-bottom:18px;padding-bottom:16px}}
+@media(prefers-reduced-motion:reduce){.kh-store,.kh-more{transition:none}.kh-store:hover{transform:none}}
 </style><main class='kh-home'>
 <section class='kh-head'><div><div class='kh-eyebrow'>Keiper · Workspace</div>
-<h2>Suas lojas</h2><p class='kh-description'>Escolha um cliente para abrir seu painel.</p></div>""" + actions + """</section>
-<div class='kh-toolbar'><input id='kh-search' class='kh-search' type='search'
-placeholder='Buscar loja ou cliente...' aria-label='Buscar lojas' autocomplete='off'>
-<span class='kh-count' id='kh-count'></span></div>
+<h2>Suas lojas <span class='kh-count' id='kh-count'>""" + count + """</span></h2><p class='kh-description'>Escolha um cliente para abrir seu painel.</p></div>""" + actions + """</section>
 <section id='kh-grid' class='kh-grid' aria-label='Lojas conectadas'>""" + "".join(cards) + """</section>""" + empty + management + """</main>
 <script>
 (function(){
-const input=document.getElementById('kh-search');
 const cards=[...document.querySelectorAll('#kh-grid .kh-store')];
-const count=document.getElementById('kh-count');
 const grid=document.getElementById('kh-grid');
 // Cards are server-rendered alphabetically and never reordered by performance.
 function closeMenus(){document.querySelectorAll('.kh-menu').forEach(m=>m.hidden=true);document.querySelectorAll('.kh-more').forEach(b=>b.setAttribute('aria-expanded','false'));}
@@ -91,7 +85,7 @@ grid.addEventListener('click',async e=>{
   const old=card.querySelector('.kh-client-label').textContent.trim();
   const name=prompt('Novo nome da loja:',old);
   if(name===null||!name.trim()||name.trim()===old)return;
-  try{const response=await fetch('/renomear/'+encodeURIComponent(id),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({cliente:name.trim()})});const data=await response.json();if(!response.ok||!data.ok)throw Error('Falha ao renomear');card.querySelector('.kh-client-label').textContent=name.trim();refresh();}catch(err){alert('Não foi possível renomear esta loja.');}
+  try{const response=await fetch('/renomear/'+encodeURIComponent(id),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({cliente:name.trim()})});const data=await response.json();if(!response.ok||!data.ok)throw Error('Falha ao renomear');card.querySelector('.kh-client-label').textContent=name.trim();}catch(err){alert('Não foi possível renomear esta loja.');}
  }
 });
 document.addEventListener('click',e=>{if(!e.target.closest('.kh-more,.kh-menu'))closeMenus();});
@@ -103,16 +97,5 @@ fetch('/painel/tendencias',{credentials:'same-origin'}).then(r=>{if(!r.ok)throw 
  span.title=label+' nos últimos 7 dias, comparados aos 7 anteriores';span.setAttribute('aria-label',span.title);
  }
 }).catch(()=>{});
-function refresh(){
- const q=input.value.trim().toLocaleLowerCase('pt-BR');
- let visible=0;
- for(const card of cards){
-  const show=card.querySelector('.kh-store-name').textContent.toLocaleLowerCase('pt-BR').includes(q);
-  card.hidden=!show;card.style.display=show?'':'none';
-  if(show)visible++;
- }
- count.textContent=visible+' '+(visible===1?'loja':'lojas');
-}
-input.addEventListener('input',refresh);refresh();
 })();
 </script>"""

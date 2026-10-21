@@ -66,7 +66,7 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         page = response.get_data(as_text=True)
         self.assertIn('Suas lojas', page)
-        self.assertIn('Buscar loja ou cliente', page)
+        self.assertNotIn("id='kh-search'", page)
         self.assertIn("href='/painel/" + str(self.ids[0]) + "'", page)
         self.assertIn("href='/crm'", page)
         self.assertLess(page.index("href='/painel/" + str(self.ids[0]) + "'"),
