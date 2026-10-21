@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 import json
 import os
 import time
@@ -109,7 +110,7 @@ class AutomaticHistoryDatabaseTests(unittest.TestCase):
         self.observe(dict(titulo='Antes'))
         self.observe(dict(titulo='Depois'),10)
         client=self.m.app.test_client()
-        with client.session_transaction() as s:s.update(usuario_id=1,tipo='admin')
+        with database_session(client) as s:s.update(usuario_id=1,tipo='admin')
         path=f'/anuncios/{self.cid}/{ITEM}/acoes'
         with patch('requests.get',side_effect=AssertionError('History must not call ML')):
             response=client.get(path)
@@ -120,7 +121,7 @@ class AutomaticHistoryDatabaseTests(unittest.TestCase):
         aid=self.events()[0]['id']
         self.assertEqual(client.get(path+f'?acao={aid}&origem=automatic').status_code,200)
         self.assertEqual(client.get(path+f'?acao={aid}&origem=manual').status_code,404)
-        with client.session_transaction() as s:s.update(tipo='cliente',conexao_id=self.cid+1)
+        with database_session(client) as s:s.update(tipo='cliente',conexao_id=self.cid+1)
         self.assertEqual(client.get(path).status_code,403)
 
     def test_existing_price_observations_seed_reference_without_rewriting_it(self):

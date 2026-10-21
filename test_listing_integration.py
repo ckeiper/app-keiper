@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 """Opt-in PostgreSQL tests; never use the production database URL."""
 import json
 import os
@@ -64,10 +65,10 @@ class ListingDatabaseTests(unittest.TestCase):
                 self.assertIn('SELLER_PACKAGE_WEIGHT', rows[0]['pesos_json'])
             client = main.app.test_client()
             self.assertEqual(client.get('/anuncios/' + str(cid)).status_code, 302)
-            with client.session_transaction() as session:
+            with database_session(client) as session:
                 session.update(usuario_id=1, tipo='cliente', conexao_id=cid + 1)
             self.assertIn('Acesso restrito', client.get('/anuncios/' + str(cid)).get_data(as_text=True))
-            with client.session_transaction() as session:
+            with database_session(client) as session:
                 session.update(usuario_id=1, tipo='admin')
             with patch.object(main.requests, 'get', side_effect=AssertionError('GET during render')):
                 response = client.get('/anuncios/' + str(cid))
@@ -82,7 +83,7 @@ class ListingDatabaseTests(unittest.TestCase):
                 self.assertEqual(client.get('/diagnostico/anuncios/' + str(cid) + '/MLBTEST').status_code, 200)
                 self.assertEqual(client.get('/diagnostico/anuncios/' + str(cid + 1) + '/MLBTEST').status_code, 404)
                 self.assertEqual(inspect.call_count, 1)
-                with client.session_transaction() as session:
+                with database_session(client) as session:
                     session.update(tipo='cliente', conexao_id=cid)
                 self.assertEqual(client.get('/diagnostico/anuncios/' + str(cid) + '/MLBTEST').status_code, 403)
         finally:

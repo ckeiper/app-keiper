@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 import contextlib
 import os
 import time
@@ -176,7 +177,7 @@ class InterventionDatabaseTests(unittest.TestCase):
             self.cid=self.m.consultar(conn,"INSERT INTO conexoes(cliente) VALUES('Action Test') RETURNING id")[0]['id']
             self.m.executar(conn,'INSERT INTO anuncios(conexao_id,item_id,titulo) VALUES(%s,%s,%s)',(self.cid,ITEM,'Teste'))
         self.client=self.m.app.test_client()
-        with self.client.session_transaction() as s:s.update(usuario_id=1,tipo='admin',intervention_csrf='test-csrf')
+        with database_session(self.client) as s:s.update(usuario_id=1,tipo='admin',intervention_csrf='test-csrf')
         self.path=f'/anuncios/{self.cid}/{ITEM}/acoes'
 
     def tearDown(self):
@@ -211,7 +212,7 @@ class InterventionDatabaseTests(unittest.TestCase):
         other=self.path.replace(ITEM,'MLB200')
         self.assertEqual(self.client.get(other+'?acao='+str(aid)).status_code,404)
         self.assertEqual(self.client.post(other,data=dict(operation='void',action_id=aid,csrf_token='test-csrf')).status_code,404)
-        with self.client.session_transaction() as s:s.update(tipo='cliente',conexao_id=self.cid)
+        with database_session(self.client) as s:s.update(tipo='cliente',conexao_id=self.cid)
         self.assertEqual(self.client.post(self.path,data=data).status_code,403)
         self.assertNotIn('Registrar ação realizada',self.client.get(self.path).text)
 

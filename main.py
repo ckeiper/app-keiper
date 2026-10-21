@@ -8,6 +8,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from apscheduler.schedulers.background import BackgroundScheduler
 from werkzeug.security import generate_password_hash, check_password_hash
+from session_security import init_session_schema, install_session_guard
 from web_security import session_key, install_security, init_security_schema, auth_attempt_allowed
 from listing_details import (registered_weights, legacy_weight, render_weights,
                              render_promotions, active_promotions, read_json, get_json,
@@ -62,6 +63,7 @@ LOGO_PATH = os.path.join(BASE_DIR, "logo_Keiper_Consultoria.png")
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+install_session_guard(app, lambda uid: carregar_usuario_sessao(uid))
 install_security(app)
 DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(32))
 
@@ -583,6 +585,15 @@ def banco():
     return psycopg2.connect(DATABASE_URL)
 
 
+def carregar_usuario_sessao(uid):
+    conn = banco()
+    try:
+        rows = consultar(conn, "SELECT id, tipo, conexao_id, auth_version FROM usuarios WHERE id=%s", (uid,))
+        return rows[0] if rows else None
+    finally:
+        conn.close()
+
+
 def consultar(conn, sql, params=None):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(sql, params or ())
@@ -625,6 +636,7 @@ def iniciar_banco():
             executar(conn, "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email TEXT")
         except Exception:
             pass
+        init_session_schema(conn, executar)
         admin = consultar(conn, "SELECT id FROM usuarios WHERE username=%s", ("admin",))
         if not admin:
             # Existing accounts are untouched. New installations require a secret.
@@ -849,6 +861,7 @@ def login():
             session["nome"] = u["nome"]
             session["tipo"] = u["tipo"]
             session["conexao_id"] = u["conexao_id"]
+            session["auth_version"] = u["auth_version"]
             if u["tipo"] == "cliente" and u["conexao_id"]:
                 return redirect("/painel/" + str(u["conexao_id"]))
             return redirect("/painel")

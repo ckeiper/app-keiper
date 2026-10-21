@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 import os
 import time
 import unittest
@@ -121,7 +122,7 @@ class CompetitorIntegrationTests(unittest.TestCase):
                 row=self.m.consultar(conn,"INSERT INTO conexoes(cliente,status,access_token,expires_at) VALUES(%s,'ativa','test-token',%s) RETURNING id",(name,int(time.time())+86400))[0]
                 self.ids.append(row['id'])
         self.client=self.m.app.test_client()
-        with self.client.session_transaction() as s:
+        with database_session(self.client) as s:
             s.update(usuario_id=1,tipo='cliente',conexao_id=self.ids[0],competitor_csrf='csrf-test')
         self.path=f'/anuncios/{self.ids[0]}/concorrencia'
 
