@@ -59,7 +59,8 @@ class OverviewIntegrationTests(unittest.TestCase):
             return original(conn, sql, params)
         with patch.object(m, 'consultar', side_effect=query), \
              patch.object(m, 'load_overview', side_effect=AssertionError('sales overview on directory')), \
-             patch('visits_overview.load_visits_card', side_effect=AssertionError('visits on directory')):
+             patch('visits_overview.load_visits_card', side_effect=AssertionError('visits on directory')), \
+             patch.object(m, 'HOME_WIDGET', '<section id="crm-below-cards-test"></section>'):
             response = self.client.get('/painel')
         self.assertEqual(response.status_code, 200)
         page = response.get_data(as_text=True)
@@ -67,6 +68,8 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertIn('Buscar loja ou cliente', page)
         self.assertIn("href='/painel/" + str(self.ids[0]) + "'", page)
         self.assertIn("href='/crm'", page)
+        self.assertLess(page.index("href='/painel/" + str(self.ids[0]) + "'"),
+                        page.index('id="crm-below-cards-test"'))
         self.assertIn("href='/painel/analise'", page)
         self.assertFalse(any('FROM pedidos' in sql or 'FROM visitas' in sql for sql in calls))
 
