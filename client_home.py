@@ -89,9 +89,7 @@ const input=document.getElementById('kh-search');
 const cards=[...document.querySelectorAll('#kh-grid .kh-store')];
 const count=document.getElementById('kh-count');
 const grid=document.getElementById('kh-grid');
-// Stable alphabetical order: do not reorder cards based on trends.\nconst key='keiper:client-card-order:v1';
-try{const order=JSON.parse(localStorage.getItem(key)||'[]');order.forEach(id=>{const card=cards.find(c=>c.dataset.id===String(id));if(card)grid.appendChild(card);});}catch(e){}
-function saveOrder(){try{localStorage.setItem(key,JSON.stringify([...grid.children].map(c=>c.dataset.id)));}catch(e){}}
+// Cards are server-rendered alphabetically and never reordered by performance.
 function closeMenus(){document.querySelectorAll('.kh-menu').forEach(m=>m.hidden=true);document.querySelectorAll('.kh-more').forEach(b=>b.setAttribute('aria-expanded','false'));}
 grid.addEventListener('click',async e=>{
  const trigger=e.target.closest('.kh-more');
