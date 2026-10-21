@@ -20,11 +20,18 @@ const {chromium}=require('playwright');
  try{
   await page.goto('http://127.0.0.1:'+server.address().port+'/diagnostico/1/MLB100000');await ready();
   assert.ok(await page.getByText('Linha do tempo do anúncio',{exact:true}).isVisible());
+  assert.ok(await page.getByText('Queda confirmada: R$ 245,00',{exact:true}).isVisible());
+  assert.ok(await page.locator('.evidence-next').getByText('Verificar reposição no Full',{exact:false}).isVisible());
+  assert.ok(await page.locator('.evidence-action').filter({hasText:'Revisar aumento de preço observado'}).getByText('Como acompanhar:',{exact:true}).isVisible());
+  await page.locator('.evidence-gaps summary').click();
+  assert.ok(await page.locator('.evidence-gaps').getByText('lacunas não são zero',{exact:false}).isVisible());
   const summary=await page.evaluate(()=>{const c=Object.values(Chart.instances)[0];return {days:c.data.labels.length,lengths:c.data.datasets.map(d=>d.data.length),events:c.data.datasets.at(-1).data.filter(Boolean).length,zeroGaps:c.data.datasets[1].data.filter(v=>v===null).length};});
   assert.equal(summary.days,14);assert.ok(summary.lengths.every(n=>n===14));assert.equal(summary.events,5);assert.ok(summary.zeroGaps>0);
   const eventPixels=await page.evaluate(()=>{const c=Object.values(Chart.instances)[0],n=c.data.datasets.length-1;return c.getDatasetMeta(n).data.map((p,i)=>({i,x:p.x,y:p.y,skip:p.skip,parsed:c.getDatasetMeta(n)._parsed[i],expected:c.scales.x.getPixelForValue(i)})).filter((p,i)=>c.data.datasets[n].data[i]);});
   console.log('Price event rendering:',JSON.stringify(eventPixels));
   assert.ok(eventPixels.every(p=>!p.skip&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&Math.abs(p.x-p.expected)<1),'Price events must render at their matching dates');
+  await page.locator('.timeline-chart').scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>{const c=Object.values(Chart.instances)[0];return c.ctx.getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0);});
   await page.screenshot({path:'visual-qa/timeline-desktop.png',fullPage:true});
   await page.locator('select[name=comparar_linha]').selectOption('preco');
   await Promise.all([page.waitForURL(u=>u.searchParams.get('comparar_linha')==='preco'),page.getByRole('button',{name:'Aplicar',exact:true}).click()]);await ready();
