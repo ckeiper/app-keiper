@@ -34,31 +34,38 @@ def render_client_home(shops, admin=False):
              + ("Conecte a primeira loja para começar." if admin else "Contate o administrador.")
              + "</div>") if not cards else ""
     return """<style>
-.kh-home{max-width:1180px;margin:12px auto 52px;padding:0 24px;color:#17243b}
-.kh-head{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:26px}
-.kh-eyebrow{color:#6685bd;font-size:12px;font-weight:800;letter-spacing:1.7px;text-transform:uppercase}
-.kh-home h2{font-size:clamp(26px,4vw,36px);margin:7px 0;color:#17243b}
-.kh-description{font-size:14px;color:#69788e;margin:0}
-.kh-action{background:#2563eb;border-radius:12px;color:white;text-decoration:none;padding:12px 17px;font-size:14px;font-weight:700}
-.kh-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:20px}
-.kh-search{padding:15px 18px;border:1px solid #dfe6f0;border-radius:13px;background:#fff;max-width:520px;width:100%;font-size:15px;outline-offset:3px}
-.kh-count{font-size:13px;color:#738098;white-space:nowrap}
-.kh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:15px}
-.kh-store{position:relative;display:flex;align-items:center;color:inherit;background:white;border:1px solid #e2e9f2;border-radius:16px;box-shadow:0 4px 14px rgba(24,52,90,.035);transition:transform .15s,border-color .15s,box-shadow .15s;min-width:0}.kh-store-main{display:flex;align-items:center;gap:13px;padding:21px 14px;flex:1;min-width:0;color:inherit;text-decoration:none}
-.kh-store:hover,.kh-store:focus-visible{transform:translateY(-2px);border-color:#6395eb;box-shadow:0 9px 25px rgba(32,76,155,.10)}
-.kh-store-icon{display:grid;place-items:center;border-radius:12px;background:#edf4ff;color:#2563eb;font-size:25px;width:48px;height:48px;flex-shrink:0}
-.kh-store-copy{display:flex;flex-direction:column;min-width:0;gap:6px;flex:1}
-.kh-store-name{font-size:15px;overflow-wrap:anywhere;display:flex;align-items:center;gap:6px}.kh-trend{font-size:14px;line-height:1;min-width:12px}.kh-trend.up{color:#168657}.kh-trend.down{color:#d5424a}.kh-trend.flat{color:#8390a5}
-.kh-more{border:0;background:transparent;color:#77849b;font-size:24px;cursor:pointer;align-self:flex-start;margin:9px 9px 0 0;padding:3px 9px;border-radius:8px}.kh-more:hover,.kh-more:focus-visible{background:#edf3fc;color:#1f3656}.kh-menu{position:absolute;right:8px;top:47px;z-index:10;background:#fff;border:1px solid #dbe5f1;border-radius:12px;box-shadow:0 12px 30px #12274424;padding:5px;min-width:165px}.kh-menu[hidden]{display:none}.kh-menu button,.kh-menu a{width:100%;box-sizing:border-box;display:block;text-align:left;background:transparent;border:0;padding:10px;border-radius:7px;color:#243854;font:inherit;font-size:13px;text-decoration:none;cursor:pointer}.kh-menu button:hover,.kh-menu a:hover{background:#edf3fc}.kh-menu .kh-danger{color:#b52c3b}
-.kh-status{font-size:12px;color:#7b8696}
-.kh-active{color:#17805a}
-.kh-inactive{color:#c07824}
-.kh-arrow{font-size:22px;color:#8da0b9}
-.kh-links{display:flex;gap:8px 20px;flex-wrap:wrap;border-top:1px solid #e2e9f2;margin-top:28px;padding-top:22px}
-.kh-links a{color:#5171a1;text-decoration:none;font-size:13px;font-weight:600}
-.kh-links a:hover{text-decoration:underline}
-.kh-empty{padding:35px;background:white;border:1px dashed #d6e1f0;border-radius:16px;color:#69788e}
-@media(max-width:640px){.kh-home{padding:0 14px}.kh-grid{grid-template-columns:1fr}.kh-head{align-items:flex-start}.kh-toolbar{flex-wrap:wrap}}
+.kh-home{max-width:1240px;margin:4px auto 56px;padding:0 28px;color:#16243b;font-family:Inter,'Segoe UI',Arial,sans-serif}
+.kh-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:0 0 28px;padding:8px 0 20px;border-bottom:1px solid #e4eaf3}
+.kh-eyebrow{color:#5479bd;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
+.kh-home h2{font-size:clamp(30px,4vw,40px);line-height:1.15;letter-spacing:-1.35px;margin:9px 0 8px;font-weight:800;color:#172947}
+.kh-description{font-size:14px;color:#74839b;margin:0;line-height:1.5}
+.kh-toolbar{display:flex;gap:16px;align-items:center;margin-bottom:22px;justify-content:space-between;flex-wrap:wrap}
+.kh-search{padding:15px 18px 15px 44px;border:1px solid #dbe4f1;border-radius:13px;background:#fff;max-width:440px;width:100%;font-size:14px;outline-offset:3px;box-shadow:0 3px 10px #162b4a06;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%238297b4' stroke-width='1.7' viewBox='0 0 24 24'%3E%3Ccircle cx='10.8' cy='10.8' r='6.8'/%3E%3Cpath d='m16 16 5 5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:15px center;transition:border-color .2s,box-shadow .2s}
+.kh-search:focus{border-color:#477fe1;box-shadow:0 0 0 4px #477fe118;outline:none}
+.kh-count{font-size:12px;color:#657892;white-space:nowrap;font-weight:750;background:#eaf0f8;border:1px solid #dce5f1;padding:9px 12px;border-radius:25px}
+.kh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:16px;align-items:stretch}
+.kh-store{position:relative;display:flex;align-items:stretch;min-width:0;min-height:116px;background:linear-gradient(145deg,#fff 0%,#fbfdff 100%);border:1px solid #dfe7f2;border-radius:17px;box-shadow:0 3px 7px #18335107,0 12px 29px #18335105;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;overflow:visible}
+.kh-store:before{content:'';position:absolute;left:0;top:22px;bottom:22px;width:3px;background:#4a83df;border-radius:0 4px 4px 0;opacity:.65;transition:opacity .2s}
+.kh-store-main{display:flex;align-items:center;gap:15px;padding:24px 8px 24px 20px;flex:1;min-width:0;color:inherit;text-decoration:none}
+.kh-store:hover,.kh-store:focus-within{transform:translateY(-3px);border-color:#8eafe4;box-shadow:0 14px 29px #15396514,0 4px 10px #15396508}
+.kh-store:hover:before,.kh-store:focus-within:before{opacity:1}
+.kh-store-main:focus-visible,.kh-more:focus-visible{outline:3px solid #4b87eb;outline-offset:2px}
+.kh-store-icon{display:grid;place-items:center;border-radius:14px;background:linear-gradient(140deg,#e8f2ff,#d8e7fd);color:#366dbb;font-size:24px;font-weight:700;width:51px;height:51px;flex-shrink:0;box-shadow:inset 0 1px 0 #ffffffbd}
+.kh-store-copy{display:flex;flex-direction:column;min-width:0;gap:8px;flex:1}
+.kh-store-name{font-size:15px;line-height:1.35;font-weight:750;color:#1f304c;overflow-wrap:anywhere;display:flex;align-items:baseline;gap:7px;letter-spacing:-.25px}
+.kh-trend{font-size:16px;line-height:1;min-width:14px;font-weight:900;flex-shrink:0}.kh-trend.up{color:#15915c}.kh-trend.down{color:#df4853}.kh-trend.flat{color:#8292aa}
+.kh-status{font-size:11px;color:#687b94;display:flex;gap:5px;align-items:center;font-weight:650;letter-spacing:.03em;text-transform:uppercase}
+.kh-status span{display:none}.kh-active{color:#527090}.kh-inactive{color:#bc713c}
+.kh-more{border:0;background:transparent;color:#6b7e99;font-size:25px;line-height:1;cursor:pointer;align-self:flex-start;margin:12px 11px 0 0;padding:4px 9px;border-radius:9px;transition:background .16s,color .16s}
+.kh-more:hover,.kh-more[aria-expanded=true]{background:#e8effa;color:#24456f}
+.kh-menu{position:absolute;right:9px;top:48px;z-index:10;background:#fff;border:1px solid #d9e4f2;border-radius:12px;box-shadow:0 18px 40px #12274430;padding:5px;min-width:180px}
+.kh-menu[hidden]{display:none}.kh-menu button,.kh-menu a{width:100%;box-sizing:border-box;display:block;text-align:left;background:transparent;border:0;padding:11px;border-radius:8px;color:#253954;font:inherit;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer}
+.kh-menu button:hover,.kh-menu a:hover{background:#edf3fc}.kh-menu .kh-danger{color:#bd3642}
+.kh-links{display:flex;gap:9px 22px;flex-wrap:wrap;border-top:1px solid #e2e9f2;margin-top:34px;padding:23px 0 0}
+.kh-links a{color:#4e6d98;text-decoration:none;font-size:13px;font-weight:650}.kh-links a:hover{text-decoration:underline;color:#2859a7}
+.kh-empty{padding:38px;background:#fff;border:1px dashed #d5e1f0;border-radius:16px;color:#72839b}
+@media(max-width:640px){.kh-home{padding:0 12px}.kh-grid{grid-template-columns:1fr;gap:12px}.kh-head{align-items:flex-start}.kh-toolbar{gap:10px}.kh-search{max-width:none}.kh-store{min-height:104px}}
+@media(prefers-reduced-motion:reduce){.kh-store,.kh-search,.kh-more{transition:none}.kh-store:hover{transform:none}}
 </style><main class='kh-home'>
 <section class='kh-head'><div><div class='kh-eyebrow'>Keiper · Workspace</div>
 <h2>Suas lojas</h2><p class='kh-description'>Escolha um cliente para abrir seu painel.</p></div>""" + actions + """</section>
@@ -72,7 +79,7 @@ const input=document.getElementById('kh-search');
 const cards=[...document.querySelectorAll('#kh-grid .kh-store')];
 const count=document.getElementById('kh-count');
 const grid=document.getElementById('kh-grid');
-const key='keiper:client-card-order:v1';
+// Stable alphabetical order: do not reorder cards based on trends.\nconst key='keiper:client-card-order:v1';
 try{const order=JSON.parse(localStorage.getItem(key)||'[]');order.forEach(id=>{const card=cards.find(c=>c.dataset.id===String(id));if(card)grid.appendChild(card);});}catch(e){}
 function saveOrder(){try{localStorage.setItem(key,JSON.stringify([...grid.children].map(c=>c.dataset.id)));}catch(e){}}
 function closeMenus(){document.querySelectorAll('.kh-menu').forEach(m=>m.hidden=true);document.querySelectorAll('.kh-more').forEach(b=>b.setAttribute('aria-expanded','false'));}
@@ -97,7 +104,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('.kh-more,.kh-menu'))
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenus();});
 fetch('/painel/tendencias',{credentials:'same-origin'}).then(r=>{if(!r.ok)throw Error('indisponível');return r.json();}).then(d=>{
  for(const card of cards){const trend=d[String(card.dataset.id)];if(!trend)continue;
- const span=card.querySelector('.kh-trend');span.className='kh-trend '+trend;span.textContent=trend==='up'?'▲':trend==='down'?'▼':'—';
+ const span=card.querySelector('.kh-trend');span.className='kh-trend '+trend;span.textContent=trend==='up'?'↗':trend==='down'?'↘':'→';
  const label=trend==='up'?'Faturamento subiu':trend==='down'?'Faturamento caiu':'Faturamento estável';
  span.title=label+' nos últimos 7 dias, comparados aos 7 anteriores';span.setAttribute('aria-label',label);
  }
