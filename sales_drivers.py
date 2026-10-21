@@ -69,7 +69,7 @@ def metric(value, unit):
 
 
 CSS = """<style>
-.evidence-drivers{border:1px solid #d8e3f1;background:#fff;border-radius:12px;padding:0 16px;margin:14px 0;min-width:0;max-width:100%;box-sizing:border-box;color:#243651}.evidence-drivers summary{cursor:pointer;padding:15px 0;font-size:13px;font-weight:650;overflow-wrap:anywhere}.drivers-total{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:12px;margin:0 0 12px}.drivers-scroll{overflow-x:auto;max-width:100%;min-width:0}.drivers-table{width:100%;min-width:510px;border-collapse:collapse;font-size:12px}.drivers-table th,.drivers-table td{padding:11px 8px;border-bottom:1px solid #e5ecf4;text-align:right}.drivers-table th:first-child,.drivers-table td:first-child{text-align:left}.drivers-table .negative{color:#ad4949;font-weight:650}.drivers-table .positive{color:#237c65;font-weight:650}.drivers-table tfoot{font-weight:700;background:#f3f7fc}.drivers-method{font-size:11px;color:#63758b;line-height:1.65;margin:12px 0;overflow-wrap:anywhere}.drivers-missing{font-size:12px;line-height:1.6;color:#63758b}
+.evidence-drivers{border:1px solid #d8e3f1;background:#fff;border-radius:12px;padding:0 16px;margin:14px 0;min-width:0;max-width:100%;box-sizing:border-box;color:#243651}.evidence-drivers summary{cursor:pointer;padding:15px 0;font-size:13px;font-weight:650;overflow-wrap:anywhere}.drivers-total{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:12px;margin:0 0 12px}.drivers-scroll{overflow-x:auto;max-width:100%;min-width:0}.drivers-table{width:100%;min-width:510px;border-collapse:collapse;font-size:12px}.drivers-table th,.drivers-table td{padding:11px 8px;border-bottom:1px solid #e5ecf4;text-align:right}.drivers-table th:first-child,.drivers-table td:first-child{text-align:left}.drivers-table .negative{color:#ad4949;font-weight:650}.drivers-table .positive{color:#237c65;font-weight:650}.drivers-table tfoot{font-weight:700;background:#f3f7fc}.drivers-method{font-size:11px;color:#63758b;line-height:1.65;margin:12px 0;overflow-wrap:anywhere}.drivers-hint{display:none}@media(max-width:600px){.drivers-hint{display:block;font-size:11px;color:#63758b;margin:8px 0}}
 </style>"""
 
 
@@ -80,7 +80,7 @@ def render(data):
     if data['main_negative']:
         out += ' · Maior parcela negativa: '+escape(data['main_negative'])
     out += '</summary><div class="drivers-total"><span>Antes: <b>'+money(data['previous'])+'</b></span><span>Agora: <b>'+money(data['current'])+'</b></span></div>'
-    out += '<div class="drivers-scroll"><table class="drivers-table"><thead><tr><th scope="col">Indicador</th><th scope="col">Antes</th><th scope="col">Agora</th><th scope="col">Parcela na variação</th></tr></thead><tbody>'
+    out += '<p class="drivers-hint">Deslize a tabela para ver todas as colunas.</p><div class="drivers-scroll"><table class="drivers-table"><thead><tr><th scope="col">Indicador</th><th scope="col">Antes</th><th scope="col">Agora</th><th scope="col">Parcela na variação</th></tr></thead><tbody>'
     for factor in data['factors']:
         tone = 'negative' if factor['amount'] < 0 else 'positive' if factor['amount'] > 0 else 'neutral'
         out += '<tr><th scope="row">'+escape(factor['label'])+'</th><td>'+metric(factor['before'],factor['unit'])+'</td><td>'+metric(factor['current'],factor['unit'])+'</td><td class="'+tone+'">'+money(factor['amount'],True)+'</td></tr>'
