@@ -1,3 +1,4 @@
+from ml_token_crypto import reveal_token
 """Competitor observations from official ML endpoints; no checkout/coupon inference.
 
 Sources: developers.mercadolivre.com.br/pt_br/api-de-precos (sale_price.amount)
@@ -180,7 +181,7 @@ def collect_due(bank, query, execute, getter, clock=time.time, monotonic=time.mo
             result = dict(price=None, full=None, title=None, seller_id=None,
                           error='Aguardando renovação da conexão da loja com o Mercado Livre')
         else:
-            result = observe(target['item_id'], target['seller_id'], shop['access_token'], getter)
+            result = observe(target['item_id'], target['seller_id'], reveal_token(shop['access_token']), getter)
         stamp = int(clock())
         price_changed = result['price'] is not None and target['price'] is not None and result['price'] != target['price']
         full_changed = result['full'] is not None and target['full_state'] is not None and result['full'] != target['full_state']
