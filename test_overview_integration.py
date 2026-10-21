@@ -42,13 +42,33 @@ class OverviewIntegrationTests(unittest.TestCase):
         with self.client.session_transaction() as session:
             session['usuario_id']=1
             session['tipo']='admin'
-        self.url='/painel?periodo=personalizado&inicio=2026-10-10&fim=2026-10-11'
+        self.url='/painel/analise?periodo=personalizado&inicio=2026-10-10&fim=2026-10-11'
 
     def tearDown(self):
         with self.m.banco() as conn:
             for table in ('pedidos_itens','pedidos','vendas_cobertura','erros'):
                 self.m.executar(conn,'DELETE FROM '+table+' WHERE conexao_id=ANY(%s)',(self.ids,))
             self.m.executar(conn,'DELETE FROM conexoes WHERE id=ANY(%s)',(self.ids,))
+
+    def test_landing_directory_skips_sales_and_visits_queries(self):
+        m = self.m
+        calls = []
+        original = m.consultar
+        def query(conn, sql, params=None):
+            calls.append(sql)
+            return original(conn, sql, params)
+        with patch.object(m, 'consultar', side_effect=query), \
+             patch.object(m, 'load_overview', side_effect=AssertionError('sales overview on directory')), \
+             patch('visits_overview.load_visits_card', side_effect=AssertionError('visits on directory')):
+            response = self.client.get('/painel')
+        self.assertEqual(response.status_code, 200)
+        page = response.get_data(as_text=True)
+        self.assertIn('Suas lojas', page)
+        self.assertIn('Buscar loja ou cliente', page)
+        self.assertIn("href='/painel/" + str(self.ids[0]) + "'", page)
+        self.assertIn("href='/crm'", page)
+        self.assertIn("href='/painel/analise'", page)
+        self.assertFalse(any('FROM pedidos' in sql or 'FROM visitas' in sql for sql in calls))
 
     def test_admin_metrics_alerts_and_constant_number_of_queries(self):
         calls=[]
@@ -332,7 +352,7 @@ class OverviewIntegrationTests(unittest.TestCase):
             legacy=self.client.get('/painel/legado')
             self.assertEqual(legacy.status_code,200)
             self.assertIn('/painel/legado?r=1',legacy.get_data(as_text=True))
-        response=self.client.get('/painel?periodo=invalid')
+        response=self.client.get('/painel/analise?periodo=invalid')
         self.assertEqual(response.status_code,200)
         self.assertIn('Selecione 7, 15, 30, 60 ou 90 dias',response.get_data(as_text=True))
 
@@ -388,7 +408,7 @@ class OverviewIntegrationTests(unittest.TestCase):
                 self.assertEqual(initial.status_code, 200)
                 self.assertIn('Visão Geral 2.0', initial.get_data(as_text=True))
                 self.assertEqual(self.client.get('/painel/legado').status_code, 200)
-                sales = self.client.get(self.url.replace('/painel?', f'/vendas/{cid}?'))
+                sales = self.client.get(self.url.replace('/painel/analise?', f'/vendas/{cid}?'))
                 self.assertEqual(sales.status_code, 200)
                 self.assertIn('R$ 100,00', sales.get_data(as_text=True))
                 listing = self.client.get(f'/anuncios/{cid}')
