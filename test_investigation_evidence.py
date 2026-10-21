@@ -110,18 +110,18 @@ class EvidenceRouteTests(unittest.TestCase):
         from listing_sales import listing_sales_summary
         from listing_trends import comparison
         from listing_ranking import ranking_metrics
-        query=Mock(side_effect=[[{'cliente':'Teste'}],[{'item_id':'MLB1','titulo':'Produto'}],[],[],[],[{'n':False}],[],[],[]])
+        query=Mock(side_effect=[[{'cliente':'Teste'}],[{'item_id':'MLB1','titulo':'Produto'}],[],[],[],[{'n':False}],[],[],[],[],[],[],[]])
         ns=dict(pode_ver_loja=lambda cid:True,banco=lambda:contextlib.nullcontext(None),
                 consultar=query,diagnose_listing=lambda item:[],listing_sales_summary=listing_sales_summary,
                 comparison=comparison,ranking_metrics=ranking_metrics,datetime=dt,time=time,
-                esc=html.escape,pagina_loja=lambda *args:args[-1])
+                esc=html.escape,pagina_loja=lambda *args:args[-1],request=__import__("types").SimpleNamespace(args={}))
         route=main_function('diagnostico_saude_anuncio',ns)
         with patch('requests.get',side_effect=AssertionError('Network during render')):
             output=route(42,'MLB1')
         self.assertIn('Onde investigar primeiro',output)
         self.assertLess(output.index('Onde investigar primeiro'),output.index('Indicadores de vendas por anúncio'))
         self.assertIn('Vendas sem cobertura verificada',output)
-        self.assertEqual(query.call_count,9)
+        self.assertEqual(query.call_count,13)
 
 if __name__=='__main__':
     unittest.main()

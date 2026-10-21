@@ -119,6 +119,9 @@ def sync_promotions(cid, token, banco, consultar, executar, request_get, registr
         with banco() as conn:
             executar(conn, 'UPDATE anuncios SET promocoes_json=%s WHERE conexao_id=%s AND item_id=%s',
                      (json.dumps(snap, ensure_ascii=False), cid, item_id))
+            if include_sale_price:
+                from offer_history import record
+                record(conn,executar,cid,item_id,snap,listing_status=item_status)
     errors = [snap['error'] for _, snap in snapshots if snap.get('error')]
     with banco() as conn:
         if not errors:

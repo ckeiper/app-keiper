@@ -137,6 +137,8 @@ def init_competitor_schema(conn, execute):
         price NUMERIC(14,2), previous_price NUMERIC(14,2), price_at BIGINT, price_changed_at BIGINT,
         full_state BOOLEAN, previous_full BOOLEAN, full_at BIGINT, full_changed_at BIGINT,
         UNIQUE(conexao_id,item_id))''')
+    execute(conn, 'ALTER TABLE competitor_targets ADD COLUMN IF NOT EXISTS own_item_id TEXT')
+    execute(conn, 'CREATE INDEX IF NOT EXISTS idx_competitor_own ON competitor_targets(conexao_id,own_item_id) WHERE active AND own_item_id IS NOT NULL')
     execute(conn, '''CREATE INDEX IF NOT EXISTS idx_competitor_due
         ON competitor_targets(last_slot,id) WHERE active''')
     execute(conn, '''CREATE TABLE IF NOT EXISTS competitor_observations (

@@ -673,6 +673,8 @@ def iniciar_banco():
         init_sales_schema(conn, executar)
         init_full_schema(conn, executar)
         init_competitor_schema(conn, executar)
+        from offer_history import init_schema as init_offer_history
+        init_offer_history(conn, executar)
         init_freight_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
@@ -3640,7 +3642,11 @@ def diagnostico_saude_anuncio(cid, item_id):
     painel_evidencias = render_evidence(build_evidence(
         investigacao, item_id, visitas_evidencia, full_rows, ads_evidencia,
         fim_investigacao), cid, fim_investigacao)
-    corpo = cabecalho + painel_evidencias + corpo[len(cabecalho):]
+    from offer_history import load as load_offers, render as render_offers
+    with banco() as conn:
+        ofertas = load_offers(conn,consultar,cid,item_id,fim_investigacao)
+    painel_ofertas = render_offers(ofertas,cid,item_id,fim_investigacao,args=request.args)
+    corpo = cabecalho + painel_evidencias + painel_ofertas + corpo[len(cabecalho):]
     corpo += priorities(resultados)
     return pagina_loja("Diagnóstico do anúncio", cid, lojas[0]["cliente"], "anuncios", corpo)
 
