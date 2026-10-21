@@ -1,7 +1,7 @@
 """Validate every authenticated request against the current account revision."""
 from flask import abort, redirect, request, session
 
-PUBLIC_ENDPOINTS = {'login', 'recuperar', 'redefinir', 'logo_arquivo', 'static'}
+PUBLIC_ENDPOINTS = {'login', 'recuperar', 'redefinir', 'logo_arquivo', 'static', 'mfa_verify'}
 
 
 def init_session_schema(conn, execute):

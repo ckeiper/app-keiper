@@ -6,3 +6,5 @@ psycopg2-binary
 openpyxl
 pypdf
 cryptography
+pyotp>=2.9,<3
+qrcode>=8,<9

@@ -14,7 +14,7 @@ from visual_theme import VISUAL_CSS
 source=ast.parse(Path('main.py').read_text())
 css=next(ast.literal_eval(n.value) for n in source.body if isinstance(n,ast.Assign)
          and any(isinstance(t,ast.Name) and t.id=='CSS' for t in n.targets))
-page=main_function('pagina',dict(esc=html.escape,CSS=css,VISUAL_CSS=VISUAL_CSS,SCRIPT='',img_logo=lambda size:''))
+page=main_function('pagina',dict(session={'tipo':'admin'},esc=html.escape,CSS=css,VISUAL_CSS=VISUAL_CSS,SCRIPT='',img_logo=lambda size:''))
 shops=[dict(id=1,cliente='ABM VEDAÇÕES',status='ativa'),dict(id=2,cliente='Copas Ind',status='ativa')]
 output=Path('visual-qa');output.mkdir(exist_ok=True)
 (output/'crm-home.html').write_text(page('Suas lojas',render_client_home(shops,admin=True)+HOME_WIDGET))
