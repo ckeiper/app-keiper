@@ -2748,7 +2748,7 @@ def painel_ads(cid):
     for nome, investimento, atribuida, roas_camp, acos_camp, tacos_valor in linhas_tacos_pagina:
         from urllib.parse import quote
         detalhe = "/ads/" + str(cid) + "/campanha/" + quote(str(next(
-            (c["campanha_id"] for c in alert_rows if str(c["nome"]) == nome), ""), safe="")
+            (c["campanha_id"] for c in alert_rows if str(c["nome"]) == nome), "")), safe="")
         tacos_campanhas_html += (
             "<tr><td><a href='" + esc(detalhe,quote=True) + "'>" + esc(nome)
             + " ↗</a></td><td>" + brl(investimento)
