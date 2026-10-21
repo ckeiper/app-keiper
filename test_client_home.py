@@ -1,0 +1,20 @@
+"""Landing directory regression checks."""
+from client_home import render_client_home
+
+
+def test_directory_actions_and_single_connect_control():
+    page = render_client_home([{"id": 7, "cliente": "Loja Exemplo", "status": "ativa"}], admin=True)
+    assert "href='/conectar'" not in page
+    assert "Conectar loja" not in page
+    assert "data-act='rename'" in page
+    assert "data-act='up'" in page and "data-act='down'" in page
+    assert "href='/excluir/7'" in page
+    assert "href='/painel/7'" in page
+    assert "/painel/tendencias" in page
+    assert "localStorage" in page
+
+
+def test_directory_escapes_shop_names():
+    page = render_client_home([{"id": 8, "cliente": "<script>alert(1)</script>", "status": "ativa"}], admin=True)
+    assert "<script>alert(1)</script>" not in page
+    assert "&lt;script&gt;" in page
