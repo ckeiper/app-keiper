@@ -11,14 +11,41 @@ class VisitsRefreshJobTests(unittest.TestCase):
         cur=Mock();cur.fetchone.side_effect=[(True,),(42,)]
         conn=Mock();conn.cursor.return_value=contextlib.nullcontext(cur)
         app=Mock()
-        job=main_function('job_visitas_todas_contas',dict(os=os,app=app))
+        provider=Mock(return_value='fake')
+        query=Mock(return_value=[{'id':42}])
+        job=main_function('job_visitas_todas_contas',dict(os=os,app=app,banco=lambda:contextlib.nullcontext(None),consultar=query,token_atual=provider))
         with patch.dict(os.environ,{'VISITS_AUTO_ENABLED':'1','DATABASE_URL':'isolated'}),patch('psycopg2.connect',return_value=conn),patch('copas_visits_store.collect',return_value={}) as collect:
             job()
         collect.assert_called_once_with(limit=40,connection_id=42,rotate=True)
+        provider.assert_called_once_with({'id':42})
         cur.execute.assert_any_call(DUE_STORE_SQL,(REFRESH_HOURS,))
         cur.execute.assert_any_call('SELECT pg_advisory_unlock(%s)',(880142,))
         conn.close.assert_called_once()
         app.logger.exception.assert_not_called()
+
+    def test_no_collection_when_token_cannot_be_refreshed(self):
+        from test_listing_details import main_function
+        cur=Mock();cur.fetchone.side_effect=[(True,),(42,)]
+        conn=Mock();conn.cursor.return_value=contextlib.nullcontext(cur)
+        app=Mock()
+        job=main_function('job_visitas_todas_contas',dict(os=os,app=app,
+            banco=lambda:contextlib.nullcontext(None),consultar=Mock(return_value=[{'id':42}]),token_atual=Mock(return_value=None)))
+        with patch.dict(os.environ,{'VISITS_AUTO_ENABLED':'1','DATABASE_URL':'isolated'}),patch('psycopg2.connect',return_value=conn),patch('copas_visits_store.collect') as collect:
+            job()
+        collect.assert_not_called()
+        cur.execute.assert_any_call('SELECT pg_advisory_unlock(%s)',(880142,))
+        app.logger.warning.assert_called_once()
+
+    def test_failed_batch_is_visible_in_warning_logs(self):
+        from test_listing_details import main_function
+        cur=Mock();cur.fetchone.side_effect=[(True,),(42,)]
+        conn=Mock();conn.cursor.return_value=contextlib.nullcontext(cur)
+        app=Mock()
+        job=main_function('job_visitas_todas_contas',dict(os=os,app=app,
+            banco=lambda:contextlib.nullcontext(None),consultar=Mock(return_value=[{'id':42}]),token_atual=Mock(return_value='fake')))
+        with patch.dict(os.environ,{'VISITS_AUTO_ENABLED':'1','DATABASE_URL':'isolated'}),patch('psycopg2.connect',return_value=conn),patch('copas_visits_store.collect',return_value={'falhas':2}):
+            job()
+        app.logger.warning.assert_called_once_with('visits_batch_result %s',{'falhas':2})
 
     def test_kill_switch_preserved(self):
         from test_listing_details import main_function
