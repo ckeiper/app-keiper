@@ -27,3 +27,14 @@ def test_directory_escapes_shop_names():
 def test_directory_alphabetical_order():
     page = render_client_home([{'id':2,'cliente':'Zeta','status':'ativa'}, {'id':1,'cliente':'Alfa','status':'ativa'}], admin=True)
     assert page.index("href='/painel/1'") < page.index("href='/painel/2'")
+
+
+def test_home_cards_show_separate_trend_summary_without_unverified_percentage():
+    page = render_client_home([{'id':3, 'cliente':'Copas Ind', 'status':'ativa'}], admin=True)
+    assert 'kh-card-bottom' in page
+    assert 'FATURAMENTO · ÚLTIMOS 7 DIAS' in page
+    assert 'kh-metric-value' in page
+    assert 'Sinal de queda' in page and 'Sinal de crescimento' in page
+    assert 'kh-card-go' in page
+    assert 'Tendência indisponível' in page
+    assert 'localStorage' not in page
