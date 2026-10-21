@@ -1,0 +1,41 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const http=require('node:http');
+const {chromium}=require('playwright');
+(async()=>{
+ const server=http.createServer((req,res)=>{
+  const args=new URL(req.url,'http://localhost').searchParams;
+  const name=args.get('janela_linha')==='7'?'timeline-short':args.get('pagina_linha')==='2'?'timeline-page2':args.get('comparar_linha')==='preco'?'timeline-preco':'timeline-visitas';
+  res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(fs.readFileSync('visual-qa/'+name+'.html'));
+ });
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ const browser=await chromium.launch({headless:true});
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ // Use the pinned package locally so the check does not depend on the CDN.
+ const chart=fs.readFileSync(path.join(path.dirname(require.resolve('chart.js')),'chart.umd.js'),'utf8');
+ await page.route('https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',r=>r.fulfill({contentType:'application/javascript',body:chart}));
+ async function ready(){await page.waitForFunction(()=>typeof Chart!=='undefined'&&Object.keys(Chart.instances).length===1);}
+ try{
+  await page.goto('http://127.0.0.1:'+server.address().port+'/diagnostico/1/MLB100000');await ready();
+  assert.ok(await page.getByText('Linha do tempo do anúncio',{exact:true}).isVisible());
+  const summary=await page.evaluate(()=>{const c=Object.values(Chart.instances)[0];return {days:c.data.labels.length,lengths:c.data.datasets.map(d=>d.data.length),events:c.data.datasets.at(-1).data.filter(Boolean).length,zeroGaps:c.data.datasets[1].data.filter(v=>v===null).length};});
+  assert.equal(summary.days,14);assert.ok(summary.lengths.every(n=>n===14));assert.equal(summary.events,5);assert.ok(summary.zeroGaps>0);
+  await page.screenshot({path:'visual-qa/timeline-desktop.png',fullPage:true});
+  await page.locator('select[name=comparar_linha]').selectOption('preco');
+  await Promise.all([page.waitForURL(u=>u.searchParams.get('comparar_linha')==='preco'),page.getByRole('button',{name:'Aplicar',exact:true}).click()]);await ready();
+  assert.ok(await page.evaluate(()=>Object.values(Chart.instances)[0].data.datasets.some(d=>d.label.includes('Último preço'))));
+  await Promise.all([page.waitForURL(u=>u.searchParams.get('pagina_linha')==='2'),page.getByRole('link',{name:'Próxima',exact:true}).click()]);await ready();
+  await page.locator('.item-timeline details summary').click();
+  assert.equal(await page.locator('.timeline-table tbody tr').count(),7);
+  await page.setViewportSize({width:390,height:844});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Timeline must not overflow the mobile body');
+  await page.screenshot({path:'visual-qa/timeline-mobile.png',fullPage:true});
+  await page.locator('select[name=janela_linha]').selectOption('7');
+  await Promise.all([page.waitForURL(u=>u.searchParams.get('janela_linha')==='7'),page.getByRole('button',{name:'Aplicar',exact:true}).click()]);await ready();
+  assert.equal(await page.evaluate(()=>Object.values(Chart.instances)[0].data.labels.length),7);
+  assert.deepEqual(errors,[]);
+  console.log('Timeline chart, sparse event alignment, metric switch, pagination and mobile layout passed.');
+ }finally{await browser.close();await new Promise(r=>server.close(r));}
+})().catch(e=>{console.error(e);process.exitCode=1;});
