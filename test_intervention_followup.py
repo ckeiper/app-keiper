@@ -8,7 +8,7 @@ DAY=date(2026,9,20)
 ITEM='MLB100'
 
 
-def scenario(first=200, second=180, baseline=100, missing=False, pending=False):
+def scenario(first=200, second=220, baseline=100, missing=False, pending=False):
     orders=[]; items=[]; coverage=[]; visits=[]
     for offset in list(range(-7,0))+list(range(1,15)):
         day=DAY+timedelta(days=offset)
