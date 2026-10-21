@@ -116,7 +116,8 @@ def install_security(app):
     def browser_response_security(response):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
-        response.headers['Referrer-Policy'] = 'no-referrer'
+        # no-referrer makes browser form POSTs send Origin: null, rejecting our own login.
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
         response.headers['Content-Security-Policy'] = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
         if production or request.is_secure:

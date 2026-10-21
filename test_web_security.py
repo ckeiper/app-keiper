@@ -45,7 +45,7 @@ class BrowserSecurityTests(unittest.TestCase):
         self.assertIn('HttpOnly', response.headers['Set-Cookie'])
         self.assertIn('SameSite=Lax', response.headers['Set-Cookie'])
         for key, value in {'X-Frame-Options':'DENY', 'X-Content-Type-Options':'nosniff',
-                           'Cache-Control':'no-store', 'Referrer-Policy':'no-referrer'}.items():
+                           'Cache-Control':'no-store', 'Referrer-Policy':'strict-origin-when-cross-origin'}.items():
             self.assertEqual(response.headers[key], value)
         self.assertEqual(self.client.post('/write', data={'_csrf':token}).status_code, 200)
         self.assertEqual(self.client.post('/write', headers={'X-CSRF-Token':token}).status_code, 200)
@@ -113,6 +113,25 @@ class AuthRouteSecurityTests(unittest.TestCase):
             self.assertNotIn('untrusted',state);self.assertTrue(state.permanent)
         token=self.prepare();self.allowed.return_value=False;self.query.reset_mock()
         self.assertEqual(self.client.post('/login',data=dict(username='owner',senha='x',_csrf=token)).status_code,429)
+        self.query.assert_not_called()
+
+    def test_public_domain_form_login_preserves_browser_origin(self):
+        base = 'https://app.keiperconsultoria.com.br'
+        response = self.client.get('/login', base_url=base)
+        # This policy preserves Origin on same-origin browser form navigations.
+        self.assertEqual(response.headers['Referrer-Policy'], 'strict-origin-when-cross-origin')
+        token = re.search(r"name='_csrf' value='([^']+)'", response.text).group(1)
+        response = self.client.post('/login', base_url=base,
+            headers={'Origin':base, 'Sec-Fetch-Site':'same-origin'},
+            data={'username':'owner', 'senha':'safe-test-password', '_csrf':token})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, '/painel')
+
+    def test_opaque_origin_remains_rejected_even_with_valid_form_token(self):
+        token = self.prepare()
+        response = self.client.post('/login', headers={'Origin':'null'},
+            data={'username':'owner', 'senha':'safe-test-password', '_csrf':token})
+        self.assertEqual(response.status_code, 400)
         self.query.assert_not_called()
 
     def test_user_deletion_get_confirms_post_requires_token_and_admin(self):
