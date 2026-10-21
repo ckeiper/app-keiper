@@ -31,12 +31,12 @@ def assess(item_id, action_day, today, orders, items, covered, visits, first, pe
     valid_visits=[r for r in visits if date_key(r.get('dia')) and date_key(r.get('dia'))<today.isoformat()]
     traffic=window(valid_visits,dates,['visitas'],'dia')
     value=sales['gross_items']
-    if value >= before and first_week >= before and (first_week > before or value > before):
-        state='sustentada'
-    elif first_week > before and value < before:
+    if first_week > before and value < before:
         state='reversao'
     elif first_week > before and value < first_week:
         state='oscilacao'
+    elif value >= before and first_week >= before and (first_week > before or value > before):
+        state='sustentada'
     else:
         state='sem_recuperacao'
     return dict(state=state,before=before,first=first_week,second=value,
