@@ -111,6 +111,8 @@ def build(ranking, item_id, visits, observations, ads, end, days=7, offers=None)
     from investigation_triage import build as build_triage
     result['triage'] = build_triage(result,sales,offers,stock,end,days)
     result['actions'] = result['triage']['actions']
+    from sales_drivers import build as build_drivers
+    result['drivers'] = build_drivers(result,sales)
     return result
 
 
@@ -165,6 +167,9 @@ def render(evidence, cid, end, days=7):
         if triage['gaps']:
             out+="<details class='evidence-gaps'><summary>O que falta para concluir (%s)</summary><ul>" % len(triage['gaps'])
             out+=''.join('<li>'+escape(gap)+'</li>' for gap in triage['gaps'])+'</ul></details>'
+    if e.get('drivers'):
+        from sales_drivers import render as render_drivers
+        out+=render_drivers(e['drivers'])
     out+="<div class='evidence-sources'>"
     traffic=e['traffic']
     out+="<div class='evidence-source'><span class='evidence-badge %s'>%s</span><h4>Visitas do anúncio</h4>" % ('' if traffic['complete'] else 'partial','Cobertura completa' if traffic['complete'] else 'Cobertura parcial')
