@@ -3524,7 +3524,8 @@ def diagnostico_saude_anuncio(cid, item_id):
             vendas.update(orders=None, units=None, gross_items=None, ticket=None,
                           reason="Há pedidos antigos ainda não verificados nesta loja.")
     from listing_diagnostic_design import hero, priorities
-    corpo = hero(item, cid, item_id, resultados)
+    cabecalho = hero(item, cid, item_id, resultados)
+    corpo = cabecalho
     corpo += ("<div class='card'><h3>Indicadores de vendas por anúncio</h3>"
               "<p class='muted'>Somente pedidos pagos e aprovados, com cobertura "
               "diária e vínculo completo dos itens. Valor bruto dos itens = "
@@ -3552,8 +3553,8 @@ def diagnostico_saude_anuncio(cid, item_id):
     corpo += ("</tbody></table></div><p class='muted'>"
               "Ticket médio = valor bruto dos itens deste anúncio ÷ "
               "pedidos que contêm este anúncio. Quando não há pedidos, "
-              "o ticket não é calculado. Visitas e conversão seguem "
-              "indisponíveis até termos fonte validada.</p></div>")
+              "o ticket não é calculado. A cobertura de visitas e a relação "
+              "pedidos/visitas são detalhadas na investigação acima.</p></div>")
     # Compare complete, non-overlapping periods using the same paid-order
     # verification gates as the headline indicators.
     corpo += ("<div class='card'><h3>Evolução das vendas por anúncio</h3>"
@@ -3629,6 +3630,14 @@ def diagnostico_saude_anuncio(cid, item_id):
         ids_investigacao, end=fim_investigacao, days=7,
         pending=bool(pendentes and pendentes[0]["n"]))
     corpo += render_decline(investigacao, [item], cid, {}, fim_investigacao, days=7, item_id=item_id, observations=full_rows)
+    from investigation_evidence import load as load_evidence, build as build_evidence, render as render_evidence
+    with banco() as conn:
+        visitas_evidencia, ads_evidencia = load_evidence(
+            conn, consultar, cid, item_id, fim_investigacao)
+    painel_evidencias = render_evidence(build_evidence(
+        investigacao, item_id, visitas_evidencia, full_rows, ads_evidencia,
+        fim_investigacao), cid, fim_investigacao)
+    corpo = cabecalho + painel_evidencias + corpo[len(cabecalho):]
     corpo += priorities(resultados)
     return pagina_loja("Diagnóstico do anúncio", cid, lojas[0]["cliente"], "anuncios", corpo)
 
