@@ -1174,6 +1174,8 @@ def renomear(cid):
         return jsonify({"ok": False}), 400
     with banco() as conn:
         executar(conn, "UPDATE conexoes SET cliente=%s WHERE id=%s", (novo, cid))
+    from overview_cache import invalidate_overview_cache
+    invalidate_overview_cache()
     return jsonify({"ok": True})
 
 
