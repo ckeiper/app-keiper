@@ -8,6 +8,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from apscheduler.schedulers.background import BackgroundScheduler
 from werkzeug.security import generate_password_hash, check_password_hash
+from ml_token_crypto import seal_token, reveal_token, migrate_tokens, validate_token_config, enabled as token_encryption_enabled
 from session_security import init_session_schema, install_session_guard
 from web_security import session_key, install_security, init_security_schema, auth_attempt_allowed
 from listing_details import (registered_weights, legacy_weight, render_weights,
@@ -53,6 +54,7 @@ CLIENT_SECRET = os.getenv("ML_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("ML_REDIRECT_URI")
 DATABASE_URL = os.getenv("DATABASE_URL")
 SECRET_KEY = session_key()
+validate_token_config()
 
 API = "https://api.mercadolibre.com"
 AUTH_URL = "https://auth.mercadolivre.com.br/authorization"
@@ -65,6 +67,8 @@ app = Flask(__name__)
 app.secret_key = SECRET_KEY
 install_session_guard(app, lambda uid: carregar_usuario_sessao(uid))
 install_security(app)
+app.logger.warning("ml_token_encryption_configuration enabled=%s key_present=%s",
+                   token_encryption_enabled(), bool(os.getenv("ML_TOKEN_ENCRYPTION_KEY")))
 DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(32))
 
 @app.before_request
@@ -1177,7 +1181,7 @@ def callback_ml():
             executar(conn, "UPDATE conexoes SET access_token=%s, "
                            "refresh_token=%s, expires_at=%s, status='ativa' "
                            "WHERE id=%s",
-                     (dados["access_token"], dados["refresh_token"],
+                     (seal_token(dados["access_token"]), seal_token(dados["refresh_token"]),
                       int(time.time()) + dados["expires_in"],
                       existe[0]["id"]))
             cid = existe[0]["id"]
@@ -1188,7 +1192,7 @@ def callback_ml():
                                expires_at, status)
                               VALUES (%s,%s,%s,%s,%s,'ativa') RETURNING id""",
                            (eu.get("nickname") or "Nova loja", eu.get("id"),
-                            dados["access_token"], dados["refresh_token"],
+                            seal_token(dados["access_token"]), seal_token(dados["refresh_token"]),
                             int(time.time()) + dados["expires_in"]))
             cid = cur.fetchone()[0]
     if session.get("usuario_id") and pode_ver_loja(cid):
@@ -4471,24 +4475,24 @@ def renovar(refresh_token):
         "grant_type": "refresh_token",
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
-        "refresh_token": refresh_token,
-    })
+        "refresh_token": reveal_token(refresh_token),
+    }, timeout=25)
     return resp.json()
 
 
 def token_atual(c):
     agora = int(time.time())
     if c["expires_at"] and c["expires_at"] > agora + 600:
-        return c["access_token"]
+        return reveal_token(c["access_token"])
     dados = renovar(c["refresh_token"])
     if "access_token" not in dados:
-        registrar_erro(c["id"], "token", str(dados)[:200])
+        registrar_erro(c["id"], "token", "Não foi possível renovar a autorização do Mercado Livre.")
         return None
     with banco() as conn:
         executar(conn, "UPDATE conexoes SET access_token=%s, "
                        "refresh_token=%s, expires_at=%s, status='ativa' "
                        "WHERE id=%s",
-                 (dados["access_token"], dados["refresh_token"],
+                 (seal_token(dados["access_token"]), seal_token(dados["refresh_token"]),
                   agora + dados["expires_in"], c["id"]))
     return dados["access_token"]
 
@@ -4505,7 +4509,7 @@ def job_refresh():
                 executar(conn, "UPDATE conexoes SET access_token=%s, "
                                "refresh_token=%s, expires_at=%s, "
                                "status='ativa' WHERE id=%s",
-                         (dados["access_token"], dados["refresh_token"],
+                         (seal_token(dados["access_token"]), seal_token(dados["refresh_token"]),
                           agora + dados["expires_in"], c["id"]))
             except Exception:
                 executar(conn, "UPDATE conexoes SET status='expirada' "
@@ -5415,7 +5419,19 @@ def job_concorrencia():
         app.logger.exception("competitor_collection_failed")
 
 
+def job_token_encryption():
+    try:
+        count = migrate_tokens(banco)
+        if count:
+            app.logger.info("ml_tokens_encrypted count=%s", count)
+    except Exception:
+        app.logger.error("ml_token_encryption_failed")
+
+
 scheduler = BackgroundScheduler()
+scheduler.add_job(job_token_encryption, "interval", minutes=1,
+                  next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=10),
+                  max_instances=1, coalesce=True)
 scheduler.add_job(job_concorrencia, "interval", minutes=1,
                   max_instances=1, coalesce=True)
 scheduler.add_job(job_sincronizacao_lojas_novas, "interval", minutes=5,

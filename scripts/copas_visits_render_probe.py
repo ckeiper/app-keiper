@@ -8,6 +8,10 @@ import urllib.error
 import urllib.request
 
 import psycopg2
+from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from ml_token_crypto import reveal_token
 
 COPAS_ID = 5
 API = "https://api.mercadolibre.com"
@@ -28,7 +32,7 @@ def probe():
             record = cursor.fetchone()
     if not record or record[1] != "Copas Ind" or record[2] != "ativa" or not record[0]:
         raise RuntimeError("Copas connection not available")
-    token = record[0]
+    token = reveal_token(record[0])
     url = f"{API}/items/{ITEM}/visits/time_window?last=30&unit=day"
     req = urllib.request.Request(
         url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"}

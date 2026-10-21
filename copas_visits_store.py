@@ -1,3 +1,4 @@
+from ml_token_crypto import reveal_token
 """Bounded daily visits collector and coverage tracking."""
 import datetime as dt
 import json
@@ -73,7 +74,7 @@ def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
             record = cur.fetchone()
             if not record or record[1] != "ativa" or not record[2]:
                 raise RuntimeError("Connection unavailable")
-            token = record[2]
+            token = reveal_token(record[2])
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS item_visits_checked (
                     conexao_id INTEGER NOT NULL, item_id TEXT NOT NULL,
