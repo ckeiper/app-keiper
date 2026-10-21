@@ -3593,6 +3593,24 @@ def diagnostico_saude_anuncio(cid, item_id):
               "Sem cobertura verificada em qualquer período, a comparação "
               "fica indisponível. Quando a base anterior é zero, não exibimos "
               "crescimento percentual artificial.</p></div>")
+    # Plot Full only when the listing has verified fulfillment logistics.
+    # Observations are snapshots: unknown dates are gaps, never a guessed state.
+    metadata = item.get("full_metadata_json") or {}
+    full_atual = (isinstance(metadata, dict) and metadata.get("logistics") == "fulfillment")
+    with banco() as conn:
+        full_rows = consultar(conn, """SELECT observed_at,state,quantity,logistics
+            FROM full_observations
+            WHERE conexao_id=%s AND item_id=%s
+              AND observed_at >= %s
+            ORDER BY observed_at ASC""",
+            (cid,item_id,int(time.time()) - 32*86400))
+    full_historico = any(r["logistics"] == "fulfillment" for r in full_rows)
+    if full_atual or full_historico:
+        from listing_full_sales_chart import render as render_full_sales
+        corpo += render_full_sales(
+            item_id,pedidos_verificados,itens_pedidos,
+            [r["dia"] for r in cobertura],full_rows,
+            has_pending=bool(pendentes and pendentes[0]["n"]))
     corpo += priorities(resultados)
     return pagina_loja("Diagnóstico do anúncio", cid, lojas[0]["cliente"], "anuncios", corpo)
 
