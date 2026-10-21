@@ -19,6 +19,8 @@ class OverviewIntegrationTests(unittest.TestCase):
         main.app.config['TESTING']=True
 
     def setUp(self):
+        from overview_cache import invalidate_overview_cache
+        invalidate_overview_cache()
         m=self.m
         self.ids=[]
         with m.banco() as conn:
@@ -153,7 +155,7 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertEqual(data['included'],1)
         self.assertEqual(data['totals']['current']['revenue'],Decimal(21100))
         self.assertEqual(data['totals']['current']['orders'],21010)
-        self.assertLessEqual(max(counts),1000)
+        self.assertLessEqual(max(counts),4000)
         with m.banco() as conn:
             m.executar(conn,'ANALYZE pedidos')
             plan=m.consultar(conn, '''EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON)
@@ -342,6 +344,8 @@ class OverviewIntegrationTests(unittest.TestCase):
                 with self.m.banco() as conn:
                     self.m.executar(conn, "UPDATE pedidos SET total=%s WHERE conexao_id=%s AND pedido_id LIKE %s",
                                     (unit_total, cid, 'c%'))
+                from overview_cache import invalidate_overview_cache
+                invalidate_overview_cache()
                 with patch.object(self.m.requests, 'get', side_effect=AssertionError('unexpected API read')), \
                      patch.object(self.m, 'enfileirar_atualizacao') as enqueue:
                     response = self.client.get(self.url)

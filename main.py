@@ -1174,6 +1174,8 @@ def renomear(cid):
         return jsonify({"ok": False}), 400
     with banco() as conn:
         executar(conn, "UPDATE conexoes SET cliente=%s WHERE id=%s", (novo, cid))
+    from overview_cache import invalidate_overview_cache
+    invalidate_overview_cache()
     return jsonify({"ok": True})
 
 
@@ -2070,7 +2072,8 @@ def painel():
     admin = session.get("tipo") == "admin"
     inicio_painel = time.perf_counter()
     try:
-        dados = load_overview(lojas, request.args, banco, consultar)
+        from overview_cache import load_cached_overview
+        dados = load_cached_overview(lojas, request.args, banco, consultar, load_overview)
         apos_vendas = time.perf_counter()
         from visits_overview import load_visits_card
         visitas_card = load_visits_card(banco, lojas)
