@@ -4,6 +4,9 @@ on:
     paths:
       - 'listing_catalog.py'
       - 'listing_timeline.py'
+      - 'investigation_evidence.py'
+      - 'investigation_triage.py'
+      - 'test_investigation*.py'
       - 'test_listing_timeline.py'
       - 'scripts/timeline*'
       - 'management_design.py'

@@ -3647,12 +3647,12 @@ def diagnostico_saude_anuncio(cid, item_id):
     with banco() as conn:
         visitas_evidencia, ads_evidencia = load_evidence(
             conn, consultar, cid, item_id, fim_investigacao)
-    painel_evidencias = render_evidence(build_evidence(
-        investigacao, item_id, visitas_evidencia, full_rows, ads_evidencia,
-        fim_investigacao), cid, fim_investigacao)
     from offer_history import load as load_offers, render as render_offers
     with banco() as conn:
         ofertas = load_offers(conn,consultar,cid,item_id,fim_investigacao)
+    painel_evidencias = render_evidence(build_evidence(
+        investigacao, item_id, visitas_evidencia, full_rows, ads_evidencia,
+        fim_investigacao, offers=ofertas['own']), cid, fim_investigacao)
     painel_ofertas = render_offers(ofertas,cid,item_id,fim_investigacao,args=request.args)
     from listing_timeline import render as render_timeline
     linha_tempo = render_timeline(item_id,pedidos_verificados,itens_pedidos,

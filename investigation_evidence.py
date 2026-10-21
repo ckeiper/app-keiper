@@ -53,7 +53,7 @@ def change(current, previous):
     return (current-previous)*100/previous if previous else None
 
 
-def build(ranking, item_id, visits, observations, ads, end, days=7):
+def build(ranking, item_id, visits, observations, ads, end, days=7, offers=None):
     dates = [(end-timedelta(days=2*days-1-i)).isoformat() for i in range(2*days)]
     old_dates, new_dates = dates[:days], dates[days:]
     before = window(visits, old_dates, ['visitas'], 'dia')
@@ -106,8 +106,12 @@ def build(ranking, item_id, visits, observations, ads, end, days=7):
             evidence='Investimento da loja: %+.1f%%.' % advertising['spend_delta'],
             action='Abrir as campanhas e confirmar se os anúncios afetados pertencem às campanhas com menor investimento.',
             scope='Contexto da loja; não atribuído a este anúncio.'))
-    return dict(traffic=traffic,conversion=conversion,full=full,ads=advertising,actions=actions,
-                sales_verified=bool(sales),declining=declining,dates=dates,visits_rows=visits)
+    result = dict(traffic=traffic,conversion=conversion,full=full,ads=advertising,actions=actions,
+                  sales_verified=bool(sales),declining=declining,dates=dates,visits_rows=visits)
+    from investigation_triage import build as build_triage
+    result['triage'] = build_triage(result,sales,offers,stock,end,days)
+    result['actions'] = result['triage']['actions']
+    return result
 
 
 def load(conn, query, cid, item_id, end, days=7):
@@ -122,7 +126,7 @@ def load(conn, query, cid, item_id, end, days=7):
 
 
 CSS = """<style>
-.evidence-panel{margin:20px 0;color:#243651}.evidence-heading{background:#1c3554;color:#fff;padding:22px;border-radius:15px}.evidence-heading h3{color:#fff;margin:0 0 8px}.evidence-heading p{color:#cfdee9;font-size:12px;line-height:1.6;margin:0}.evidence-sources{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0}.evidence-source{background:#fff;border:1px solid #dfe7f1;border-radius:13px;padding:18px;overflow-wrap:anywhere}.evidence-source h4{margin:8px 0 12px;font-size:15px}.evidence-source p,.evidence-action p{font-size:12px;line-height:1.6}.evidence-badge{display:inline-block;border-radius:6px;padding:4px 7px;font-size:10px;background:#e5f5ef;color:#23775b}.evidence-badge.partial{background:#fff2df;color:#916020}.evidence-badge.context{background:#e9eef9;color:#48618d}.evidence-action{border-left:4px solid #1d9d96;background:#fff;padding:17px;border-radius:10px;margin:10px 0}.evidence-action h4{margin:0 0 8px;color:#245168}.evidence-meta{color:#6b7c92;font-size:11px;line-height:1.6}.evidence-table{width:100%;border-collapse:collapse;font-size:12px}.evidence-table th,.evidence-table td{padding:9px;text-align:left;border-bottom:1px solid #e7edf5}.evidence-panel summary{cursor:pointer;font-size:12px;font-weight:600;padding:12px 0}
+.evidence-panel{margin:20px 0;color:#243651}.evidence-heading{background:#1c3554;color:#fff;padding:22px;border-radius:15px}.evidence-heading h3{color:#fff;margin:0 0 8px}.evidence-heading p{color:#cfdee9;font-size:12px;line-height:1.6;margin:0}.evidence-sources{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0}.evidence-source{background:#fff;border:1px solid #dfe7f1;border-radius:13px;padding:18px;overflow-wrap:anywhere}.evidence-source h4{margin:8px 0 12px;font-size:15px}.evidence-source p,.evidence-action p{font-size:12px;line-height:1.6}.evidence-badge{display:inline-block;border-radius:6px;padding:4px 7px;font-size:10px;background:#e5f5ef;color:#23775b}.evidence-badge.partial{background:#fff2df;color:#916020}.evidence-badge.context{background:#e9eef9;color:#48618d}.evidence-action{border-left:4px solid #1d9d96;background:#fff;padding:17px;border-radius:10px;margin:10px 0}.evidence-action h4{margin:0 0 8px;color:#245168}.evidence-meta{color:#6b7c92;font-size:11px;line-height:1.6}.evidence-table{width:100%;border-collapse:collapse;font-size:12px}.evidence-table th,.evidence-table td{padding:9px;text-align:left;border-bottom:1px solid #e7edf5}.evidence-next{border:1px solid #c9d8ed;border-radius:13px;background:#eef4ff;padding:18px;margin:14px 0;overflow-wrap:anywhere}.evidence-next h4{margin:0 0 8px;color:#213e68}.evidence-next p{font-size:12px;line-height:1.6;margin:7px 0}.evidence-gaps{background:#fff8ec;border:1px solid #f0dfbb;border-radius:10px;padding:0 14px;margin:12px 0;overflow-wrap:anywhere}.evidence-gaps ul{padding-left:18px;font-size:12px;line-height:1.7}.evidence-panel summary{cursor:pointer;font-size:12px;font-weight:600;padding:12px 0}
 </style>"""
 
 
@@ -141,6 +145,26 @@ def render(evidence, cid, end, days=7):
         out+='<p class="evidence-meta">Vendas sem cobertura verificada: os sinais abaixo descrevem suas próprias fontes e não confirmam queda de vendas.</p>'
     elif not e['declining']:
         out+='<p class="evidence-meta">Sem queda de faturamento verificada neste recorte. Os sinais abaixo podem revelar pontos de atenção.</p>'
+    triage=e.get('triage')
+    if triage:
+        out+="<div class='evidence-next'>"
+        if triage['status']=='queda':
+            out+='<h4>Queda confirmada: '+fmt(triage['loss'],True)+'</h4><p>Diferença de faturamento bruto dos itens entre as duas janelas; não é uma estimativa de recuperação.</p>'
+        elif triage['status']=='sem_queda':
+            out+='<h4>Sem queda confirmada neste recorte</h4>'
+        else:
+            out+='<h4>Concluir a verificação das vendas</h4>'
+        if not e['sales_verified']:
+            out+='<p><b>Primeira verificação sugerida:</b> validar cobertura e pedidos dos dois períodos. As observações abaixo continuam disponíveis como sinais independentes.</p>'
+        elif e['actions']:
+            first=e['actions'][0]
+            out+='<p><b>Primeira verificação sugerida:</b> '+escape(first['title'])+'</p><p>'+escape(first['action'])+'</p>'
+        else:
+            out+='<p>Nenhum sinal atingiu as regras de triagem. Confira as lacunas e a linha do tempo antes de escolher uma intervenção.</p>'
+        out+='<p class="evidence-meta">A ordem prioriza verificações operacionais do anúncio e deixa Ads da loja como contexto. Não classifica causas comprovadas nem garante impacto em vendas.</p></div>'
+        if triage['gaps']:
+            out+="<details class='evidence-gaps'><summary>O que falta para concluir (%s)</summary><ul>" % len(triage['gaps'])
+            out+=''.join('<li>'+escape(gap)+'</li>' for gap in triage['gaps'])+'</ul></details>'
     out+="<div class='evidence-sources'>"
     traffic=e['traffic']
     out+="<div class='evidence-source'><span class='evidence-badge %s'>%s</span><h4>Visitas do anúncio</h4>" % ('' if traffic['complete'] else 'partial','Cobertura completa' if traffic['complete'] else 'Cobertura parcial')
@@ -167,16 +191,19 @@ def render(evidence, cid, end, days=7):
     out+='<p class="evidence-meta">Ainda não há histórico diário de Ads por anúncio. Os números da loja não são atribuídos a este produto.</p></div></div>'
     if e['actions']:
         for i,action in enumerate(e['actions'],1):
-            out+="<article class='evidence-action'><h4>%s. %s</h4><p><b>Evidência:</b> %s</p><p><b>Ação:</b> %s</p><p class='evidence-meta'>%s</p></article>" % (i,escape(action['title']),escape(action['evidence']),escape(action['action']),escape(action['scope']))
+            out+="<article class='evidence-action'><h4>%s. %s</h4><p><b>Evidência:</b> %s</p><p><b>Ação:</b> %s</p><p class='evidence-meta'>%s</p>" % (i,escape(action['title']),escape(action['evidence']),escape(action['action']),escape(action['scope']))
+            if action.get('follow_up'):
+                out+='<p><b>Como acompanhar:</b> '+escape(action['follow_up'])+'</p>'
+            out+='</article>'
     else:
         out+='<p class="evidence-meta">Nenhum sinal atingiu as regras de triagem com os dados disponíveis. Revise a cobertura antes de concluir que não há problemas.</p>'
     if stock['transitions']:
         out+='<p class="evidence-meta">Mudança de Full disponível para zerado entre dias consecutivos com leitura: '+escape(', '.join(stock['transitions']))+'. Data de observação, não horário exato da ruptura.</p>'
     # Every date stays visible, including gaps, so partial history is inspectable.
-    visit_map={date_key(r.get('dia')):number(r.get('visitas')) for r in e['visits_rows']}
     out+="<details><summary>Conferir visitas diárias e lacunas (14 dias)</summary><table class='evidence-table'><thead><tr><th>Data</th><th>Visitas registradas</th></tr></thead><tbody>"
     for d in e['dates']:
-        v=visit_map.get(d)
+        reading=window(e['visits_rows'],[d],['visitas'],'dia')
+        v=reading['totals']['visitas'] if reading['complete'] else None
         out+='<tr><td>'+date.fromisoformat(d).strftime('%d/%m/%Y')+'</td><td>'+(str(int(v)) if v is not None and v%1==0 else 'Sem dado válido')+'</td></tr>'
     return out+'</tbody></table></details><p class="evidence-meta">Triagem: queda de 20%, com base anterior mínima de 30 visitas para tráfego ou 5 pedidos para eficiência. Estes limites não são um teste de significância. Sinais orientam a investigação; coincidência de datas não comprova causalidade. Preço final, concorrência, prazo e alterações do anúncio ainda precisam ser conferidos.</p></section>'
 
