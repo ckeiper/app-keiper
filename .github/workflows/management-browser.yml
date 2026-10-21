@@ -4,6 +4,8 @@ on:
     paths:
       - 'crm.py'
       - 'crm_home.py'
+      - 'home_theme.py'
+      - 'client_home.py'
       - 'scripts/crm_home*'
       - 'management*.py'
       - 'visual_theme.py'

@@ -20,6 +20,11 @@ const {chromium}=require('playwright');
   for(const [name,width,height] of [['desktop',1440,1050],['mobile',390,844],['small-mobile',320,780]]){
    await page.setViewportSize({width,height});await page.goto(url);
    await page.locator('.kc-panel[aria-busy=false]').waitFor();
+   assert.equal(await page.locator('input[type=search]').count(),0);
+   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(11, 20, 38)');
+   await page.locator('.kh-more').first().click();
+   assert.equal(await page.locator('.kh-menu').first().isVisible(),true);
+   await page.keyboard.press('Escape');
    assert.equal(await page.locator('.kc-lead').count(),3);
    assert.equal(await page.locator('.kc-stat strong').allTextContents().then(x=>x.join(',')),'2,1,4');
    assert.equal(await page.locator('.kc-lead-name').last().textContent(),'Ana <Loja Exemplo>');
@@ -28,6 +33,7 @@ const {chromium}=require('playwright');
    const shops=await page.locator('#kh-grid').boundingBox(),crm=await page.locator('.kc-wrap').boundingBox();
    assert.ok(crm.y>=shops.y+shops.height,'CRM must remain below stores');
    await page.locator('.kc-panel').screenshot({path:'visual-qa/crm-'+name+'.png'});
+   await page.screenshot({path:'visual-qa/home-navy-'+name+'.png',fullPage:true});
   }
   state='empty';await page.goto(url);await page.locator('.kc-empty').waitFor();
   assert.equal(await page.locator('.kc-lead').count(),0);
