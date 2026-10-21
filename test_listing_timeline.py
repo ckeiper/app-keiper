@@ -48,8 +48,12 @@ class TimelineTests(unittest.TestCase):
             self.assertEqual(len(dataset['data']),len(payload['labels']))
         events=payload['datasets'][-1]['data']
         self.assertEqual(events[:-1],[None]*13)
-        self.assertEqual(events[-1]['x'],END.isoformat())
-        self.assertIn('80.00 → R$ 100.00',events[-1]['note'])
+        self.assertEqual(events[-1],.95)
+        self.assertEqual(payload['labels'][-1],END.isoformat())
+        self.assertIn('80.00 → R$ 100.00',payload['datasets'][-1]['eventNotes'][-1])
+        priced=render('MLB1',[],[],self.covered,[],[],offers,END,args={'comparar_linha':'preco'})
+        priced_payload=json.loads(re.search(r'new Chart\(el,\{data:(.*?),options:',priced).group(1))
+        self.assertEqual(priced_payload['datasets'][-1]['data'][-1],100)
 
     def test_daily_table_pagination_and_filters_are_preserved(self):
         output=render('MLB1',[],[],self.covered,[],[],[],END,args={'comparar_linha':'preco','pagina_linha':'2','busca_queda':'"><script>'})
