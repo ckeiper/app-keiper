@@ -80,7 +80,7 @@ def load_comparison(conn, query, cid, item_id, action_day, today):
     items = query(conn, '''SELECT pi.conexao_id,pi.pedido_id,pi.item_id,pi.quantidade,pi.preco_unitario
         FROM pedidos_itens pi JOIN pedidos p ON p.conexao_id=pi.conexao_id AND p.pedido_id=pi.pedido_id
         WHERE pi.conexao_id=%s AND p.vendas_verificado_em IS NOT NULL''',(cid,))
-    start,end = (action_day-timedelta(days=7)).isoformat(),(action_day+timedelta(days=7)).isoformat()
+    start,end = (action_day-timedelta(days=7)).isoformat(),(action_day+timedelta(days=14)).isoformat()
     coverage = query(conn,'SELECT dia FROM vendas_cobertura WHERE conexao_id=%s AND dia BETWEEN %s AND %s',(cid,start,end))
     traffic = query(conn,'SELECT dia,visitas FROM item_visits_daily WHERE conexao_id=%s AND item_id=%s AND dia BETWEEN %s AND %s',(cid,item_id,start,end))
     pending = query(conn,'SELECT EXISTS(SELECT 1 FROM pedidos WHERE conexao_id=%s AND vendas_verificado_em IS NULL) AS pending',(cid,))[0]['pending']
@@ -89,6 +89,8 @@ def load_comparison(conn, query, cid, item_id, action_day, today):
         ' WHERE conexao_id=%s AND item_id=%s AND void_at IS NULL AND event_date BETWEEN %s AND %s',(cid,item_id,start,end))[0]['n']
     result=compare(item_id,action_day,orders,items,[r['dia'] for r in coverage],traffic,today,pending)
     result['other_actions']=max(0,overlaps-1)
+    from intervention_followup import assess
+    result['followup'] = assess(item_id,action_day,today,orders,items,[r['dia'] for r in coverage],traffic,result,pending)
     return result
 
 
@@ -126,4 +128,8 @@ def comparison_html(result, record):
     out+='<p class="iv-meta">O dia '+record['event_date'].strftime('%d/%m/%Y')+' fica fora da comparação. '+source_note+' Valor bruto dos itens deste anúncio, sem rateio de frete, taxas ou cupons. Pedidos/visitas não é a conversão oficial.</p>'
     if result['other_actions']:
         out+="<p class='iv-status warn'>%s outro(s) registro(s) de ações ou alterações neste intervalo. Os resultados se sobrepõem.</p>" % result['other_actions']
-    return out+'<p class="iv-meta">Comparação observacional, sem atribuir causalidade à ação. Demanda, sazonalidade, concorrência e alterações não registradas também podem explicar a variação.</p></section>'
+    out+='<p class="iv-meta">Comparação observacional, sem atribuir causalidade à ação. Demanda, sazonalidade, concorrência e alterações não registradas também podem explicar a variação.</p></section>'
+    if result.get('followup'):
+        from intervention_followup import render as render_followup
+        out += render_followup(result['followup'])
+    return out
