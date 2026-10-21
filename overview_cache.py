@@ -12,6 +12,12 @@ MAX_ENTRIES = 24
 _cache = OrderedDict()
 _lock = threading.Lock()
 
+def invalidate_overview_cache():
+    """Discard cached snapshots after a local mutation or data refresh."""
+    with _lock:
+        _cache.clear()
+
+
 def load_cached_overview(shops, args, banco, query, loader, clock=time.monotonic):
     scope = tuple(sorted((int(s["id"]), str(s.get("status") or "")) for s in shops))
     filters = tuple(sorted((str(key), str(value)) for key, value in args.items()))
