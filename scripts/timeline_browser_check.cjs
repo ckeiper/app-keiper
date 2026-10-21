@@ -30,6 +30,8 @@ const {chromium}=require('playwright');
   const eventPixels=await page.evaluate(()=>{const c=Object.values(Chart.instances)[0],n=c.data.datasets.length-1;return c.getDatasetMeta(n).data.map((p,i)=>({i,x:p.x,y:p.y,skip:p.skip,parsed:c.getDatasetMeta(n)._parsed[i],expected:c.scales.x.getPixelForValue(i)})).filter((p,i)=>c.data.datasets[n].data[i]);});
   console.log('Price event rendering:',JSON.stringify(eventPixels));
   assert.ok(eventPixels.every(p=>!p.skip&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&Math.abs(p.x-p.expected)<1),'Price events must render at their matching dates');
+  await page.locator('.timeline-chart').scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>{const c=Object.values(Chart.instances)[0];return c.ctx.getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0);});
   await page.screenshot({path:'visual-qa/timeline-desktop.png',fullPage:true});
   await page.locator('select[name=comparar_linha]').selectOption('preco');
   await Promise.all([page.waitForURL(u=>u.searchParams.get('comparar_linha')==='preco'),page.getByRole('button',{name:'Aplicar',exact:true}).click()]);await ready();
