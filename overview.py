@@ -10,8 +10,9 @@ from sales_view import filters, fmt
 from overview_store import PERIOD_ROWS_SQL, UNUSUAL_SQL, LATEST_ERRORS_SQL
 from overview_read import bounded_query
 
-EXCEPTION_BATCH_SIZE = 500
-PERIOD_BATCH_SIZE = 1000
+# Fewer database round trips for multi-store overviews while bounding reads.
+EXCEPTION_BATCH_SIZE = 1000
+PERIOD_BATCH_SIZE = 4000
 STALE_SECONDS = 3 * 60 * 60
 HISTORICAL_STALE_SECONDS = 7 * 24 * 60 * 60
 
