@@ -31,8 +31,8 @@ def session_key():
 
 def init_security_schema(conn, execute):
     execute(conn, '''CREATE TABLE IF NOT EXISTS auth_rate_limits (
-        bucket TEXT NOT NULL, window BIGINT NOT NULL, attempts INTEGER NOT NULL,
-        PRIMARY KEY(bucket, window))''')
+        bucket TEXT NOT NULL, window_id BIGINT NOT NULL, attempts INTEGER NOT NULL,
+        PRIMARY KEY(bucket, window_id))''')
 
 
 def auth_attempt_allowed(bank, execute, scope, identity):
@@ -42,11 +42,11 @@ def auth_attempt_allowed(bank, execute, scope, identity):
                (scope + ':peer:' + (request.remote_addr or 'unknown'), 100)]
     allowed = True
     with bank() as conn:
-        execute(conn, 'DELETE FROM auth_rate_limits WHERE window < %s', (window - 1,))
+        execute(conn, 'DELETE FROM auth_rate_limits WHERE window_id < %s', (window - 1,))
         for value, limit in buckets:
             key = hashlib.sha256(value.encode()).hexdigest()
-            row = execute(conn, '''INSERT INTO auth_rate_limits(bucket,window,attempts)
-                VALUES (%s,%s,1) ON CONFLICT(bucket,window) DO UPDATE
+            row = execute(conn, '''INSERT INTO auth_rate_limits(bucket,window_id,attempts)
+                VALUES (%s,%s,1) ON CONFLICT(bucket,window_id) DO UPDATE
                 SET attempts=LEAST(auth_rate_limits.attempts+1,10000)
                 RETURNING attempts''', (key, window)).fetchone()
             allowed = allowed and row[0] <= limit

@@ -147,3 +147,30 @@ class RateLimitTests(unittest.TestCase):
         calls=execute.call_args_list
         self.assertIn('ON CONFLICT',calls[1].args[1])
         self.assertNotIn('PrivateUser',str(calls))
+
+
+@unittest.skipUnless(os.getenv('KEIPER_TEST_DATABASE_URL'), 'isolated PostgreSQL not configured')
+class PersistentRateLimitTests(unittest.TestCase):
+    def test_schema_idempotence_and_concurrent_limit_across_connections(self):
+        import uuid
+        import psycopg2
+        from concurrent.futures import ThreadPoolExecutor
+        from web_security import init_security_schema
+        app = Flask('persistent-rate-test')
+        scope = 'test-' + uuid.uuid4().hex
+        bank = lambda: psycopg2.connect(os.environ['KEIPER_TEST_DATABASE_URL'])
+        def execute(conn, sql, params=None):
+            cur = conn.cursor(); cur.execute(sql, params or ()); return cur
+        with bank() as conn:
+            init_security_schema(conn, execute)
+            init_security_schema(conn, execute)
+        def attempt(_):
+            with app.test_request_context('/'):
+                return auth_attempt_allowed(bank, execute, scope, 'synthetic-user')
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            results = list(pool.map(attempt, range(25)))
+        self.assertEqual(sum(results), 20)
+        key = hashlib.sha256((scope + ':identity:synthetic-user').encode()).hexdigest()
+        with bank() as conn:
+            row = execute(conn, 'SELECT attempts FROM auth_rate_limits WHERE bucket=%s', (key,)).fetchone()
+        self.assertEqual(row[0], 25)
