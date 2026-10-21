@@ -2488,13 +2488,36 @@ def painel_ads_campanha(cid, campanha_id):
                 FROM ads_campanha_dia WHERE conexao_id=%s AND campanha_id=%s
                 AND data BETWEEN %s AND %s ORDER BY data""",
                 (cid,campanha_id,inicio,hoje.isoformat()))
+            ads_loja = consultar(conn, """SELECT data,faturamento
+                FROM ads_dia WHERE conexao_id=%s
+                AND data BETWEEN %s AND %s ORDER BY data""",
+                (cid,(hoje-datetime.timedelta(days=int(dias)-1)).isoformat(),
+                 hoje.isoformat()))
     if not loja:
         return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
     if not camp:
         return pagina_loja("Campanha não encontrada", cid, loja[0]["cliente"],
             "ads", "<div class='card'>Campanha não encontrada para esta loja.</div>"), 404
+    # Whole-store daily revenue is independently classified from approved
+    # paid orders. Null means that date is not safe to plot as zero.
+    loja_diaria = {}
+    try:
+        from overview import load_overview
+        data_inicio = (hoje-datetime.timedelta(days=int(dias)-1)).isoformat()
+        overview = load_overview(
+            [{"id": cid, "cliente": loja[0]["cliente"], "status": "ativa"}],
+            {"periodo":"personalizado","inicio":data_inicio,"fim":hoje.isoformat()},
+            banco, consultar)
+        validado = overview["reports"][0]["current"]
+        if not validado["invalid"] and not validado["unallocated_dates"]:
+            loja_diaria = dict(zip(validado["days"], validado["daily"]))
+    except Exception:
+        app.logger.exception("ads_campaign_nonads_sales_unavailable cid=%s", cid)
+    ads_diaria = {r["data"]:float(r["faturamento"]) for r in ads_loja
+                  if r["faturamento"] is not None}
     from ads_campaign_detail import render
-    corpo = render(cid, camp[0], diario, int(dias), hoje)
+    corpo = render(cid, camp[0], diario, int(dias), hoje,
+                   shop_daily=loja_diaria, ads_total_daily=ads_diaria)
     return pagina_loja("Campanha Ads", cid, loja[0]["cliente"], "ads", corpo)
 
 

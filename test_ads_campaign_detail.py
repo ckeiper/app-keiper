@@ -3,6 +3,25 @@ from datetime import date,timedelta
 from ads_campaign_detail import metrics,render
 
 class CampaignDetailTests(unittest.TestCase):
+    def test_store_non_ads_estimate_keeps_missing_days_unknown(self):
+        from ads_campaign_detail import non_ads_estimate
+        dates=["2026-10-18","2026-10-19","2026-10-20"]
+        store={"2026-10-18":100,"2026-10-19":200,"2026-10-20":50}
+        ads={"2026-10-18":40,"2026-10-20":60}
+        self.assertEqual(non_ads_estimate(dates,store,ads),[60,None,None])
+
+    def test_chart_distinguishes_campaign_ads_from_estimated_store_non_ads(self):
+        today=date(2026,10,20)
+        campaign={"campanha_id":"10","nome":"Teste","status":"active"}
+        history=[{"data":today.isoformat(),"gasto":10,"faturamento":20}]
+        html=render(7,campaign,history,7,today,
+                    shop_daily={today.isoformat():100},
+                    ads_total_daily={today.isoformat():40})
+        self.assertIn('"label": "Sem Ads \\u00b7 loja (estim.)"',html)
+        self.assertIn('"label": "Vendas Ads \\u00b7 campanha"',html)
+        self.assertIn("Estimativa sem Ads disponível em 1 de 7 dias",html)
+        self.assertIn("não equivale a uma classificação oficial",html.lower())
+
     def test_metrics_use_campaign_spend_and_attributed_revenue(self):
         m=metrics([{"gasto":20,"faturamento":100},{"gasto":30,"faturamento":50}])
         self.assertEqual(m["spent"],50)
