@@ -1,6 +1,6 @@
 """Regression: repeated API pages must not strand a reporting day."""
 import unittest
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from sales_sync import collect_day
 
 
@@ -72,4 +72,23 @@ class PaginationRecoveryTests(unittest.TestCase):
         api, calls = self.api('persistent')
         _, complete, _ = collect_day('token', 5, api, self.day)
         self.assertFalse(complete)
+        self.assertLessEqual(len(calls), 80)
+
+    def test_day_above_api_pagination_cap_is_recovered_without_losing_orders(self):
+        start = datetime(2026, 10, 16, tzinfo=timezone(timedelta(hours=-3)))
+        orders = [{'id': i+1, 'date_created': (start+timedelta(minutes=i)).isoformat()}
+                  for i in range(1001)]
+        calls = []
+
+        def api(token, path, params):
+            calls.append(params)
+            lower = datetime.fromisoformat(params['order.date_created.from'])
+            upper = datetime.fromisoformat(params['order.date_created.to'])
+            selected = [r for r in orders if lower <= datetime.fromisoformat(r['date_created']) <= upper]
+            offset = params['offset']
+            return {'results': selected[offset:offset+50], 'paging': {'total': len(selected)}}, None
+
+        rows, complete, _ = collect_day('token', 5, api, self.day)
+        self.assertTrue(complete)
+        self.assertEqual(set(rows), {str(i) for i in range(1, 1002)})
         self.assertLessEqual(len(calls), 80)
