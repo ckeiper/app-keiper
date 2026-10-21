@@ -677,6 +677,10 @@ def iniciar_banco():
         init_offer_history(conn, executar)
         from listing_interventions import init_schema as init_interventions
         init_interventions(conn, executar)
+        from automatic_history import init_schema as init_automatic_history
+        init_automatic_history(conn, executar)
+        from automatic_history import seed_existing
+        seed_existing(conn, executar)
         init_freight_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
@@ -4559,6 +4563,7 @@ def puxar_anuncios(conexao_id, token, user_id):
     agora = int(time.time())
     linhas = []
     full_rows = []
+    change_rows = []
     completo = True
     for i in range(0, len(ids), 20):
         lote = ids[i:i + 20]
@@ -4583,6 +4588,8 @@ def puxar_anuncios(conexao_id, token, user_id):
             if not isinstance(det, dict) or not det.get("id"):
                 completo = False
                 continue
+            from automatic_history import listing_values
+            change_rows.append((det['id'],int(time.time()),listing_values(det,user_id)))
             full_rows.append((json.dumps(full_metadata(det, user_id, int(time.time()))),
                               conexao_id, det['id']))
             fotos = 0
@@ -4625,6 +4632,10 @@ def puxar_anuncios(conexao_id, token, user_id):
                               tags=EXCLUDED.tags, peso=EXCLUDED.peso,
                               sku=EXCLUDED.sku, original_price=EXCLUDED.original_price,
                               pesos_json=EXCLUDED.pesos_json, thumbnail=EXCLUDED.thumbnail""", t)
+
+        from automatic_history import record as record_changes
+        for changed_item,stamp,values in change_rows:
+            record_changes(conn,executar,conexao_id,changed_item,'listing',stamp,values)
 
         for metadata in full_rows:
             executar(conn, '''UPDATE anuncios SET full_metadata_json=%s::jsonb

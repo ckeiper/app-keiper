@@ -41,7 +41,7 @@ def hero(item, cid, item_id, results):
     out+="<div class='diag-code'>"+code+"</div><p>Indicadores de vendas verificados, situação do anúncio e próximos pontos de atenção. Não atribuímos causas de queda sem evidências.</p>"
     out+="<nav class='diag-nav' aria-label='Navegação do diagnóstico'><a href='/desempenho/"+str(cid)+"'>← Desempenho</a>"
     out+="<a href='/anuncios/"+str(cid)+"'>Catálogo</a><a href='#diag-acoes'>Ver prioridades ↓</a></nav></header>"
-    out+="<p class='diag-hint'><a href='/anuncios/"+str(cid)+"/"+escape(str(item_id),quote=True)+"/acoes' style='display:inline-block;padding:10px 14px;background:#eef3ff;border:1px solid #cbd9ef;border-radius:9px;text-decoration:none;color:#31598b;font-weight:650'>Registrar ação e acompanhar resultados</a></p>"
+    out+="<p class='diag-hint'><a href='/anuncios/"+str(cid)+"/"+escape(str(item_id),quote=True)+"/acoes' style='display:inline-block;padding:10px 14px;background:#eef3ff;border:1px solid #cbd9ef;border-radius:9px;text-decoration:none;color:#31598b;font-weight:650'>Histórico automático de alterações</a></p>"
     out+="<section class='diag-summary' aria-label='Resumo de prioridades'>"
     for value,label in ((high,"Prioridade alta"),(review,"Para revisar"),(total,"Verificações")):
         out+="<a href='#diag-acoes' aria-label='"+escape(label,quote=True)+", ver recomendações'><strong>"+str(value)+"</strong><span>"+label+" ↗</span></a>"

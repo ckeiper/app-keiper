@@ -11,7 +11,7 @@ from intervention_routes import register_interventions
 from listing_interventions import compare,BR
 
 DAY=date(2026,10,12);TODAY=DAY+timedelta(days=8);ITEM='MLB100'
-records=[dict(id=i,conexao_id=1,item_id=ITEM,event_date=DAY,kind='conteudo',note='Foto principal atualizada para mostrar a medida. Registro '+str(i),created_at=int(datetime(2026,10,12,15,tzinfo=BR).timestamp()),void_at=None) for i in range(12,0,-1)]
+records=[dict(id=i,conexao_id=1,item_id=ITEM,event_date=DAY,kind='preco',note='Preço final público alterado nas coletas. Registro '+str(i),created_at=int(datetime(2026,10,12,15,tzinfo=BR).timestamp()),void_at=None,source='automatic',field='preco_final',before_value='100.00',after_value='90.00',previous_at=int(datetime(2026,10,12,12,tzinfo=BR).timestamp())) for i in range(12,0,-1)]
 orders=[];items=[];visits=[];covered=[]
 for i in range(-7,8):
     day=DAY+timedelta(days=i);covered.append(day.isoformat())

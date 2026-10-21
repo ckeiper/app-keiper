@@ -5,6 +5,8 @@ on:
       - 'listing_catalog.py'
       - 'listing_timeline.py'
       - 'listing_interventions.py'
+      - 'automatic_history.py'
+      - 'test_automatic_history.py'
       - 'intervention_routes.py'
       - 'listing_diagnostic_design.py'
       - 'test_listing_interventions.py'
