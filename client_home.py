@@ -12,15 +12,19 @@ def render_client_home(shops, admin=False):
         active = status == "ativa"
         label = "Ativa" if active else (escape(status.capitalize()) or "Sem status")
         cards.append(
-            "<a class='kh-store' href='/painel/" + str(cid) + "'>"
+            "<article class='kh-store' data-id='" + str(cid) + "'>"
+            "<a class='kh-store-main' href='/painel/" + str(cid) + "'>"
             "<span class='kh-store-icon' aria-hidden='true'>▣</span>"
-            "<span class='kh-store-copy'><strong class='kh-store-name'>" + name + "</strong>"
+            "<span class='kh-store-copy'><strong class='kh-store-name'><span class='kh-trend' aria-label='Tendência indisponível' title='Comparando os últimos sete dias'></span>" + name + "</strong>"
             "<span class='kh-status " + ("kh-active" if active else "kh-inactive") + "'>"
             "<span aria-hidden='true'>●</span> " + label + "</span></span>"
-            "<span class='kh-arrow' aria-hidden='true'>↗</span></a>"
+            "</a><button type='button' class='kh-more' aria-label='Opções de " + name + "' aria-expanded='false'>⋯</button>"
+            "<div class='kh-menu' hidden><button type='button' data-act='rename'>Renomear</button>"
+            "<button type='button' data-act='up'>Mover para cima</button>"
+            "<button type='button' data-act='down'>Mover para baixo</button>"
+            "<a href='/excluir/" + str(cid) + "' class='kh-danger'>Excluir loja…</a></div></article>"
         )
-    actions = ("<a class='kh-action' href='/conectar'>+ Conectar loja</a>"
-               if admin else "")
+    actions = ""  # The global page header already contains Conectar loja.
     management = ("<nav class='kh-links' aria-label='Administração'>"
                   "<a href='/crm'>CRM e leads</a><a href='/usuarios'>Usuários</a>"
                   "<a href='/diagnostico'>Diagnóstico</a>"
@@ -40,11 +44,12 @@ def render_client_home(shops, admin=False):
 .kh-search{padding:15px 18px;border:1px solid #dfe6f0;border-radius:13px;background:#fff;max-width:520px;width:100%;font-size:15px;outline-offset:3px}
 .kh-count{font-size:13px;color:#738098;white-space:nowrap}
 .kh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:15px}
-.kh-store{display:flex;align-items:center;gap:13px;text-decoration:none;color:inherit;padding:21px 17px;background:white;border:1px solid #e2e9f2;border-radius:16px;box-shadow:0 4px 14px rgba(24,52,90,.035);transition:transform .15s,border-color .15s,box-shadow .15s;min-width:0}
+.kh-store{position:relative;display:flex;align-items:center;color:inherit;background:white;border:1px solid #e2e9f2;border-radius:16px;box-shadow:0 4px 14px rgba(24,52,90,.035);transition:transform .15s,border-color .15s,box-shadow .15s;min-width:0}.kh-store-main{display:flex;align-items:center;gap:13px;padding:21px 14px;flex:1;min-width:0;color:inherit;text-decoration:none}
 .kh-store:hover,.kh-store:focus-visible{transform:translateY(-2px);border-color:#6395eb;box-shadow:0 9px 25px rgba(32,76,155,.10)}
 .kh-store-icon{display:grid;place-items:center;border-radius:12px;background:#edf4ff;color:#2563eb;font-size:25px;width:48px;height:48px;flex-shrink:0}
 .kh-store-copy{display:flex;flex-direction:column;min-width:0;gap:6px;flex:1}
-.kh-store-name{font-size:15px;overflow-wrap:anywhere}
+.kh-store-name{font-size:15px;overflow-wrap:anywhere;display:flex;align-items:center;gap:6px}.kh-trend{font-size:14px;line-height:1;min-width:12px}.kh-trend.up{color:#168657}.kh-trend.down{color:#d5424a}.kh-trend.flat{color:#8390a5}
+.kh-more{border:0;background:transparent;color:#77849b;font-size:24px;cursor:pointer;align-self:flex-start;margin:9px 9px 0 0;padding:3px 9px;border-radius:8px}.kh-more:hover,.kh-more:focus-visible{background:#edf3fc;color:#1f3656}.kh-menu{position:absolute;right:8px;top:47px;z-index:10;background:#fff;border:1px solid #dbe5f1;border-radius:12px;box-shadow:0 12px 30px #12274424;padding:5px;min-width:165px}.kh-menu[hidden]{display:none}.kh-menu button,.kh-menu a{width:100%;box-sizing:border-box;display:block;text-align:left;background:transparent;border:0;padding:10px;border-radius:7px;color:#243854;font:inherit;font-size:13px;text-decoration:none;cursor:pointer}.kh-menu button:hover,.kh-menu a:hover{background:#edf3fc}.kh-menu .kh-danger{color:#b52c3b}
 .kh-status{font-size:12px;color:#7b8696}
 .kh-active{color:#17805a}
 .kh-inactive{color:#c07824}
@@ -66,6 +71,37 @@ placeholder='Buscar loja ou cliente...' aria-label='Buscar lojas' autocomplete='
 const input=document.getElementById('kh-search');
 const cards=[...document.querySelectorAll('#kh-grid .kh-store')];
 const count=document.getElementById('kh-count');
+const grid=document.getElementById('kh-grid');
+const key='keiper:client-card-order:v1';
+try{const order=JSON.parse(localStorage.getItem(key)||'[]');order.forEach(id=>{const card=cards.find(c=>c.dataset.id===String(id));if(card)grid.appendChild(card);});}catch(e){}
+function saveOrder(){try{localStorage.setItem(key,JSON.stringify([...grid.children].map(c=>c.dataset.id)));}catch(e){}}
+function closeMenus(){document.querySelectorAll('.kh-menu').forEach(m=>m.hidden=true);document.querySelectorAll('.kh-more').forEach(b=>b.setAttribute('aria-expanded','false'));}
+grid.addEventListener('click',async e=>{
+ const trigger=e.target.closest('.kh-more');
+ if(trigger){const menu=trigger.nextElementSibling,opening=menu.hidden;closeMenus();menu.hidden=!opening;trigger.setAttribute('aria-expanded',String(opening));return;}
+ const btn=e.target.closest('[data-act]');if(!btn)return;
+ const card=btn.closest('.kh-store'),id=card.dataset.id,act=btn.dataset.act;
+ closeMenus();
+ if(act==='up'&&card.previousElementSibling)grid.insertBefore(card,card.previousElementSibling);
+ if(act==='down'&&card.nextElementSibling)grid.insertBefore(card.nextElementSibling,card);
+ if(act==='up'||act==='down'){saveOrder();refresh();return;}
+ if(act==='rename'){
+  const label=card.querySelector('.kh-store-name');
+  const old=label.textContent.trim();
+  const name=prompt('Novo nome da loja:',old);
+  if(name===null||!name.trim()||name.trim()===old)return;
+  try{const response=await fetch('/renomear/'+encodeURIComponent(id),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({cliente:name.trim()})});const data=await response.json();if(!response.ok||!data.ok)throw Error('Falha ao renomear');label.lastChild.textContent=name.trim();refresh();}catch(err){alert('Não foi possível renomear esta loja.');}
+ }
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.kh-more,.kh-menu'))closeMenus();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenus();});
+fetch('/painel/tendencias',{credentials:'same-origin'}).then(r=>{if(!r.ok)throw Error('indisponível');return r.json();}).then(d=>{
+ for(const card of cards){const trend=d[String(card.dataset.id)];if(!trend)continue;
+ const span=card.querySelector('.kh-trend');span.className='kh-trend '+trend;span.textContent=trend==='up'?'▲':trend==='down'?'▼':'—';
+ const label=trend==='up'?'Faturamento subiu':trend==='down'?'Faturamento caiu':'Faturamento estável';
+ span.title=label+' nos últimos 7 dias, comparados aos 7 anteriores';span.setAttribute('aria-label',label);
+ }
+}).catch(()=>{});
 function refresh(){
  const q=input.value.trim().toLocaleLowerCase('pt-BR');
  let visible=0;
