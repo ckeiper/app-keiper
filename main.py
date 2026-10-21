@@ -2068,11 +2068,20 @@ def painel():
     # Keep the existing access policy and apply it before any sales/coverage read.
     lojas = [loja for loja in lojas if pode_ver_loja(loja["id"])]
     admin = session.get("tipo") == "admin"
+    inicio_painel = time.perf_counter()
     try:
         dados = load_overview(lojas, request.args, banco, consultar)
+        apos_vendas = time.perf_counter()
         from visits_overview import load_visits_card
         visitas_card = load_visits_card(banco, lojas)
+        apos_visitas = time.perf_counter()
         corpo = render_overview(dados, request.args, admin=admin, visits_card=visitas_card)
+        apos_render = time.perf_counter()
+        if (apos_render - inicio_painel) > 0.5:
+            app.logger.warning(
+                "painel_etapas lojas=%d vendas_ms=%.0f visitas_ms=%.0f render_ms=%.0f",
+                len(lojas),(apos_vendas-inicio_painel)*1000,
+                (apos_visitas-apos_vendas)*1000,(apos_render-apos_visitas)*1000)
     except ValueError as erro:
         from sales_view import filters
         corpo = ("<div class='aviso'>" + esc(str(erro))
