@@ -3778,9 +3778,27 @@ def diagnostico_saude_anuncio(cid, item_id):
     from offer_history import load as load_offers, render as render_offers
     with banco() as conn:
         ofertas = load_offers(conn,consultar,cid,item_id,fim_investigacao)
-    painel_evidencias = render_evidence(build_evidence(
+    evidencia = build_evidence(
         investigacao, item_id, visitas_evidencia, full_rows, ads_evidencia,
-        fim_investigacao, offers=ofertas['own']), cid, fim_investigacao)
+        fim_investigacao, offers=ofertas['own'])
+    painel_evidencias = render_evidence(evidencia, cid, fim_investigacao)
+    # Reuse stored manual and automatically detected changes; one bounded read.
+    # No API calls, no guessing when a change actually happened.
+    from automatic_history import HISTORY
+    from investigation_change_context import read as read_change_context, render as render_change_context
+    boundary = fim_investigacao - datetime.timedelta(days=6)
+    with banco() as conn:
+        alteracoes = consultar(conn, """
+            SELECT event_date, kind, note, created_at, source, field
+            FROM """ + HISTORY + """ WHERE conexao_id=%s AND item_id=%s
+              AND void_at IS NULL AND event_date BETWEEN %s AND %s
+            ORDER BY event_date DESC,created_at DESC LIMIT 100
+        """, (cid,item_id,(boundary-datetime.timedelta(days=3)).isoformat(),
+              (boundary+datetime.timedelta(days=3)).isoformat()))
+    contexto = read_change_context(alteracoes, fim_investigacao,
+                                  sales_verified=evidencia['sales_verified'],
+                                  declining=evidencia['declining'])
+    painel_evidencias += render_change_context(contexto)
     painel_ofertas = render_offers(ofertas,cid,item_id,fim_investigacao,args=request.args)
     from listing_timeline import render as render_timeline
     linha_tempo = render_timeline(item_id,pedidos_verificados,itens_pedidos,
