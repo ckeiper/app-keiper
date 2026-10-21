@@ -181,7 +181,7 @@ class OverviewTests(unittest.TestCase):
         self.assertEqual(len(calls),4)
         self.assertIn('LEFT(criado_em, 10) BETWEEN', calls[0][0])
         self.assertIn('vendas_verificado_em IS NOT NULL', calls[0][0])
-        self.assertEqual(calls[0][1][1:], ('2026-10-07', '2026-10-12', 1000))
+        self.assertEqual(calls[0][1][1:], ('2026-10-07', '2026-10-12', 4000))
         self.assertIn('NULLS FIRST LIMIT 1', calls[2][0])
         self.assertEqual(conn.options,dict(isolation_level='REPEATABLE READ',readonly=True))
 
