@@ -28,9 +28,10 @@ def record(conn,execute,cid,item_id,snapshot,listing_status="active"):
     regular=money(data.get('regular_amount')) if price is not None and data.get('amount_tax_inclusion_type')!='net' else None
     promo=None
     if price is not None and regular is not None:
-        if price>=regular:
+        metadata=data.get('metadata') if isinstance(data.get('metadata'),dict) else {}
+        if price>=regular and not metadata.get('promotion_id'):
             promo=False
-        elif isinstance(data.get('metadata'),dict) and data['metadata'].get('promotion_id'):
+        elif price<regular and metadata.get('promotion_id'):
             promo=True
     execute(conn,'''INSERT INTO listing_offer_observations
         (conexao_id,item_id,observed_at,price,regular_price,promotion,confirmed)
@@ -104,7 +105,7 @@ def render(data,cid,item_id,end,days=7,args=None):
     if len(recent)>5:
         out+='<p class="muted">Últimas 5 de %s mudanças de preço detectadas neste recorte.</p>' % len(recent)
     for event in recent[-5:][::-1]:
-        label='Fim de promoção observado' if event['promotion_ended'] else ('Aumento de preço observado' if event['delta']>0 else 'Redução de preço observada')
+        label='Retorno ao preço regular observado' if event['promotion_ended'] else ('Aumento de preço observado' if event['delta']>0 else 'Redução de preço observada')
         out+="<article class='offer-event'><b>%s</b><p>R$ %.2f → R$ %.2f (%+.1f%%) · Detectado em %s</p><p class='muted'>Leitura anterior: %s. Confira visitas e vendas nessas datas; a coincidência não comprova a causa da queda.</p></article>" % (label,event['before'],event['after'],event['delta'],time_label(event['at']),time_label(event['previous_at']))
     out+="<h4>Concorrentes vinculados a este anúncio</h4>"
     if not data['targets']:

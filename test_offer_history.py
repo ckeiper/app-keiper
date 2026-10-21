@@ -20,6 +20,8 @@ class OfferHistoryTests(unittest.TestCase):
         self.assertEqual(params,(42,'MLB1',BASE,D('80'),D('100'),True,True))
         params=self.capture(dict(amount=100,regular_amount=100,currency_id='BRL'))
         self.assertIs(params[-2],False)
+        params=self.capture(dict(amount=100,regular_amount=100,currency_id='BRL',metadata={'promotion_id':'still-present'}))
+        self.assertIsNone(params[-2])
 
     def test_failure_currency_invalid_price_or_inactive_never_reuses_old_price(self):
         for payload,error,status in [({'amount':80,'currency_id':'USD'},None,'active'),({'amount':80,'currency_id':'BRL'},'HTTP 403','active'),({'amount':'NaN','currency_id':'BRL'},None,'active'),({'amount':80,'currency_id':'BRL'},None,'paused')]:
