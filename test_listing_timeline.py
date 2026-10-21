@@ -54,6 +54,7 @@ class TimelineTests(unittest.TestCase):
     def test_daily_table_pagination_and_filters_are_preserved(self):
         output=render('MLB1',[],[],self.covered,[],[],[],END,args={'comparar_linha':'preco','pagina_linha':'2','busca_queda':'"><script>'})
         self.assertIn('Página 2 de 2',output)
+        self.assertIn('<details open>',output)
         self.assertEqual(output.count('<tr>'),8)
         self.assertIn('comparar_linha=preco',output)
         self.assertNotIn('value=\'"><script>',output)
