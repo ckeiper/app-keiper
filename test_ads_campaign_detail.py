@@ -17,8 +17,8 @@ class CampaignDetailTests(unittest.TestCase):
         html=render(7,campaign,history,7,today,
                     shop_daily={today.isoformat():100},
                     ads_total_daily={today.isoformat():40})
-        self.assertIn("Sem Ads · loja (estim.)",html)
-        self.assertIn("Vendas Ads · campanha",html)
+        self.assertIn('"label": "Sem Ads \\u00b7 loja (estim.)"',html)
+        self.assertIn('"label": "Vendas Ads \\u00b7 campanha"',html)
         self.assertIn("Estimativa sem Ads disponível em 1 de 7 dias",html)
         self.assertIn("não equivale a uma classificação oficial",html.lower())
 
