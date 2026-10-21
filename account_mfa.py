@@ -158,8 +158,8 @@ def register_mfa(app,bank,query,execute,page,rate):
     def form(action,label,password=False):
         return ("<form method='post' style='margin-top:18px'><input type='hidden' name='acao' value='"+action+"'>"
             +("<label>Senha atual<input type='password' name='senha' class='input' autocomplete='current-password' required maxlength='256'></label>" if password else '')
-            +("<label>Código do aplicativo ou de recuperação<input name='codigo' class='input' autocomplete='one-time-code' required maxlength='100'></label>" if action in ('confirmar','desativar') else '')
-            +"<button class='btn-salvar'>"+label+"</button></form>")
+            +(("<label>"+("Código de seis números do aplicativo" if action=="confirmar" else "Código do aplicativo ou de recuperação")+"<input name='codigo' class='input' autocomplete='one-time-code' required maxlength='100'></label>") if action in ('confirmar','desativar') else '')
+            +"<button class='btn-salvar' style='max-width:100%;white-space:normal'>"+label+"</button></form>")
 
     @app.route('/login/verificar',methods=['GET','POST'])
     def mfa_verify():
