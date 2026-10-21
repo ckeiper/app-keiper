@@ -2465,6 +2465,39 @@ def excluir(cid):
     return pagina("Excluir loja", corpo)
 
 
+@app.route("/ads/<int:cid>/campanha/<path:campanha_id>")
+@login_required
+def painel_ads_campanha(cid, campanha_id):
+    """Campaign detail: scoped DB-only reporting, no on-demand API calls."""
+    if not pode_ver_loja(cid):
+        return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
+    if not campanha_id or len(campanha_id) > 120 or "/" in campanha_id:
+        return pagina("Campanha inválida", "<div class='card'>Código inválido.</div>"), 400
+    from sales_metrics import reporting_today
+    hoje = reporting_today()
+    dias = request.args.get("dias", "30")
+    if dias not in ("7", "15", "30", "60", "90"):
+        dias = "30"
+    inicio = (hoje - datetime.timedelta(days=int(dias)*2-1)).isoformat()
+    with banco() as conn:
+        loja = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
+        camp = consultar(conn, """SELECT campanha_id,nome,status,orcamento,roas_objetivo,tipo,atualizado_em
+            FROM ads_campanhas WHERE conexao_id=%s AND campanha_id=%s""", (cid,campanha_id))
+        if loja and camp:
+            diario = consultar(conn, """SELECT data,gasto,faturamento,atualizado_em
+                FROM ads_campanha_dia WHERE conexao_id=%s AND campanha_id=%s
+                AND data BETWEEN %s AND %s ORDER BY data""",
+                (cid,campanha_id,inicio,hoje.isoformat()))
+    if not loja:
+        return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
+    if not camp:
+        return pagina_loja("Campanha não encontrada", cid, loja[0]["cliente"],
+            "ads", "<div class='card'>Campanha não encontrada para esta loja.</div>"), 404
+    from ads_campaign_detail import render
+    corpo = render(cid, camp[0], diario, int(dias), hoje)
+    return pagina_loja("Campanha Ads", cid, loja[0]["cliente"], "ads", corpo)
+
+
 @app.route("/ads/<int:cid>")
 @login_required
 def painel_ads(cid):
@@ -2713,8 +2746,12 @@ def painel_ads(cid):
         "<th>Campanha</th><th>Investimento</th><th>Faturamento Ads</th>"
         "<th>ROAS</th><th>ACOS</th><th>TACOS</th></tr></thead><tbody>")
     for nome, investimento, atribuida, roas_camp, acos_camp, tacos_valor in linhas_tacos_pagina:
+        from urllib.parse import quote
+        detalhe = "/ads/" + str(cid) + "/campanha/" + quote(str(next(
+            (c["campanha_id"] for c in alert_rows if str(c["nome"]) == nome), ""), safe="")
         tacos_campanhas_html += (
-            "<tr><td>" + esc(nome) + "</td><td>" + brl(investimento)
+            "<tr><td><a href='" + esc(detalhe,quote=True) + "'>" + esc(nome)
+            + " ↗</a></td><td>" + brl(investimento)
             + "</td><td>" + brl(atribuida) + "</td><td>"
             + ("%.2fx" % roas_camp if roas_camp is not None else "—")
             + "</td><td>" + ("%.2f%%" % acos_camp if acos_camp is not None else "—")
