@@ -113,6 +113,7 @@ def build(ranking, item_id, visits, observations, ads, end, days=7, offers=None)
     result['actions'] = result['triage']['actions']
     from sales_drivers import build as build_drivers
     result['drivers'] = build_drivers(result,sales)
+    result['sales_for_cross'] = {'previous_orders': sales.get('previous_orders')} if sales else None
     return result
 
 
@@ -167,6 +168,9 @@ def render(evidence, cid, end, days=7):
         if triage['gaps']:
             out+="<details class='evidence-gaps'><summary>O que falta para concluir (%s)</summary><ul>" % len(triage['gaps'])
             out+=''.join('<li>'+escape(gap)+'</li>' for gap in triage['gaps'])+'</ul></details>'
+    from investigation_cross_signals import assess as assess_cross, render as render_cross, CSS as cross_css
+    sales = e.get('sales_for_cross')
+    out += cross_css + render_cross(assess_cross(e, sales))
     if e.get('drivers'):
         from sales_drivers import render as render_drivers
         out+=render_drivers(e['drivers'])
