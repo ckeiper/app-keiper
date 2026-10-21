@@ -675,6 +675,8 @@ def iniciar_banco():
         init_competitor_schema(conn, executar)
         from offer_history import init_schema as init_offer_history
         init_offer_history(conn, executar)
+        from listing_interventions import init_schema as init_interventions
+        init_interventions(conn, executar)
         init_freight_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
@@ -5044,6 +5046,8 @@ def job_dados():
 register_crm(app, banco, consultar, executar, pagina)
 register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja, session)
 register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
+from intervention_routes import register_interventions
+register_interventions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
                     is_updating=lambda cid: cid in ATUALIZANDO)
 
