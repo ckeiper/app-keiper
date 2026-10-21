@@ -106,7 +106,7 @@ def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
         conn.commit()
         results = {"loja": record[0], "conexao_id": connection_id, "offset": offset,
                    "proximo_offset": offset + len(items), "itens_solicitados": len(items),
-                   "itens_atualizados": 0, "dias_gravados": 0, "falhas": 0}
+                   "itens_atualizados": 0, "dias_gravados": 0, "falhas": 0, "erros_amostra": []}
         today = dt.datetime.now(ZoneInfo("America/Sao_Paulo")).date()
         from concurrent.futures import ThreadPoolExecutor, as_completed
         with ThreadPoolExecutor(max_workers=4) as executor:
@@ -118,6 +118,8 @@ def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
                     conn.commit()
                     if error is not None:
                         results["falhas"] += 1
+                        if len(results["erros_amostra"]) < 3:
+                            results["erros_amostra"].append({"item_id":item,"erro":error[:120]})
                     else:
                         results["itens_atualizados"] += 1
                         results["dias_gravados"] += len(parsed)

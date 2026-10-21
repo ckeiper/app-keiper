@@ -5204,7 +5204,18 @@ def job_visitas_todas_contas():
             cur.execute(DUE_STORE_SQL, (REFRESH_HOURS,))
             record = cur.fetchone()
             if record:
-                app.logger.info("visits_batch_result %s", collect(limit=40, connection_id=record[0], rotate=True))
+                # Reuse the same refresh path as store synchronization before
+                # the collector opens its own connection and reads the token.
+                with banco() as conn:
+                    contas = consultar(conn, "SELECT * FROM conexoes WHERE id=%s AND status='ativa'", (record[0],))
+                if not contas or not token_atual(contas[0]):
+                    app.logger.warning("visits_batch_auth_unavailable connection_id=%s",record[0])
+                    return
+                resultado = collect(limit=40, connection_id=record[0], rotate=True)
+                if resultado.get("falhas"):
+                    app.logger.warning("visits_batch_result %s",resultado)
+                else:
+                    app.logger.info("visits_batch_result %s",resultado)
     except Exception:
         app.logger.exception("visits_all_accounts_batch_failed")
     finally:
