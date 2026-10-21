@@ -12,7 +12,10 @@ def test_directory_actions_and_single_connect_control():
     assert "href='/painel/7'" in page
     assert "/painel/tendencias" in page
     assert "localStorage" not in page
-    assert "↗" in page and "↘" in page and "→" in page
+    assert "span.innerHTML=trend" in page
+    assert "svg viewBox=" in page
+    assert "stroke:currentColor" in page
+    assert "<svg width='23'" in page
 
 
 def test_directory_escapes_shop_names():
