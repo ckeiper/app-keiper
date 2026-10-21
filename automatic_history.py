@@ -174,9 +174,9 @@ def seed_existing(conn, execute):
       FROM public.full_observations f JOIN public.conexoes c ON c.id=f.conexao_id
       ORDER BY f.conexao_id,item_id,observed_at DESC ON CONFLICT DO NOTHING''')
     execute(conn,'''INSERT INTO public.listing_change_baselines(conexao_id,item_id,stream,observed_at,payload)
-      SELECT a.conexao_id,item_id,'listing',atualizado_em,
-        jsonb_build_object('titulo',jsonb_build_object('value',NULLIF(btrim(titulo),''),'label','Título','kind','conteudo'),
-          'status',jsonb_build_object('value',CASE WHEN status IN ('active','paused','closed','under_review','inactive') THEN status END,'label','Status do anúncio','kind','outro'),
-          'disponibilidade',jsonb_build_object('value',CASE WHEN quantidade>0 THEN 'com estoque' WHEN quantidade=0 THEN 'zerado' END,'label','Disponibilidade do anúncio','kind','full'))
+      SELECT a.conexao_id,a.item_id,'listing',a.atualizado_em,
+        jsonb_build_object('titulo',jsonb_build_object('value',CASE WHEN btrim(a.titulo)<>'' THEN a.titulo END,'label','Título','kind','conteudo'),
+          'status',jsonb_build_object('value',CASE WHEN a.status IN ('active','paused','closed','under_review','inactive') THEN a.status END,'label','Status do anúncio','kind','outro'),
+          'disponibilidade',jsonb_build_object('value',CASE WHEN a.quantidade>0 THEN 'com estoque' WHEN a.quantidade=0 THEN 'zerado' END,'label','Disponibilidade do anúncio','kind','full'))
       FROM public.anuncios a JOIN public.conexoes c ON c.id=a.conexao_id
-      WHERE atualizado_em>0 AND item_id IS NOT NULL ON CONFLICT DO NOTHING''')
+      WHERE a.atualizado_em>0 AND a.item_id IS NOT NULL ON CONFLICT DO NOTHING''')
