@@ -84,8 +84,9 @@ def load_comparison(conn, query, cid, item_id, action_day, today):
     coverage = query(conn,'SELECT dia FROM vendas_cobertura WHERE conexao_id=%s AND dia BETWEEN %s AND %s',(cid,start,end))
     traffic = query(conn,'SELECT dia,visitas FROM item_visits_daily WHERE conexao_id=%s AND item_id=%s AND dia BETWEEN %s AND %s',(cid,item_id,start,end))
     pending = query(conn,'SELECT EXISTS(SELECT 1 FROM pedidos WHERE conexao_id=%s AND vendas_verificado_em IS NULL) AS pending',(cid,))[0]['pending']
-    overlaps = query(conn,'''SELECT COUNT(*) AS n FROM listing_interventions
-        WHERE conexao_id=%s AND item_id=%s AND void_at IS NULL AND event_date BETWEEN %s AND %s''',(cid,item_id,start,end))[0]['n']
+    from automatic_history import HISTORY
+    overlaps = query(conn,'SELECT COUNT(*) AS n FROM '+HISTORY+
+        ' WHERE conexao_id=%s AND item_id=%s AND void_at IS NULL AND event_date BETWEEN %s AND %s',(cid,item_id,start,end))[0]['n']
     result=compare(item_id,action_day,orders,items,[r['dia'] for r in coverage],traffic,today,pending)
     result['other_actions']=max(0,overlaps-1)
     return result
@@ -97,7 +98,7 @@ CSS = """<style>
 
 
 def comparison_html(result, record):
-    out="<section class='iv-card' aria-label='Comparação da ação'><h3>Antes e depois da ação informada</h3>"
+    out="<section class='iv-card' aria-label='Comparação da ação'><h3>"+('Antes e depois da detecção' if record.get('source')=='automatic' else 'Antes e depois da ação informada')+'</h3>'
     if not result['ready']:
         out+="<p class='iv-status warn'>Aguardando os 7 dias seguintes encerrados: %s/7 completos.</p>" % result['closed_after']
     if result['delta'] is not None:
@@ -121,7 +122,8 @@ def comparison_html(result, record):
         if p['sales']['reason']:
             out+=' Vendas: '+escape(p['sales']['reason'])
         out+='</p>'
-    out+='<p class="iv-meta">O dia '+record['event_date'].strftime('%d/%m/%Y')+' fica fora da comparação. Registro manual; não confirma execução no Mercado Livre. Valor bruto dos itens deste anúncio, sem rateio de frete, taxas ou cupons. Pedidos/visitas não é a conversão oficial.</p>'
+    source_note=('Data da detecção automática, não horário exato da alteração.' if record.get('source')=='automatic' else 'Registro manual; não confirma execução no Mercado Livre.')
+    out+='<p class="iv-meta">O dia '+record['event_date'].strftime('%d/%m/%Y')+' fica fora da comparação. '+source_note+' Valor bruto dos itens deste anúncio, sem rateio de frete, taxas ou cupons. Pedidos/visitas não é a conversão oficial.</p>'
     if result['other_actions']:
-        out+="<p class='iv-status warn'>%s outra(s) ação(ões) registrada(s) neste intervalo. Os resultados se sobrepõem.</p>" % result['other_actions']
+        out+="<p class='iv-status warn'>%s outro(s) registro(s) de ações ou alterações neste intervalo. Os resultados se sobrepõem.</p>" % result['other_actions']
     return out+'<p class="iv-meta">Comparação observacional, sem atribuir causalidade à ação. Demanda, sazonalidade, concorrência e alterações não registradas também podem explicar a variação.</p></section>'

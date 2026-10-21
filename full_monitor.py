@@ -129,6 +129,8 @@ def sync_full(cid, token, banco, query, execute, getter, clock=time.time,
         metadata = row.get('full_metadata_json')
         result = observe(metadata, lookup, int(clock()))
         with banco() as conn:
+            from automatic_history import record as record_changes, full_values
+            record_changes(conn,execute,cid,row['item_id'],'full',int(clock()),full_values(result))
             execute(conn, '''INSERT INTO full_observations
                 (conexao_id,item_id,observed_at,state,quantity,logistics,evidence)
                 VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb) ON CONFLICT DO NOTHING''',

@@ -1,6 +1,6 @@
 """Observed final offer prices; never reconstruct past promotions from today's price."""
 from datetime import datetime,timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from html import escape
 from zoneinfo import ZoneInfo
 from competitor_monitor import money
@@ -33,10 +33,13 @@ def record(conn,execute,cid,item_id,snapshot,listing_status="active"):
             promo=False
         elif price<regular and metadata.get('promotion_id'):
             promo=True
+    from automatic_history import record as record_changes
+    record_changes(conn,execute,cid,item_id,'price',stamp,dict(preco_final=str(price.quantize(Decimal('0.01'),rounding=ROUND_HALF_UP)) if price is not None else None,promocao=promo))
     execute(conn,'''INSERT INTO listing_offer_observations
         (conexao_id,item_id,observed_at,price,regular_price,promotion,confirmed)
         VALUES (%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING''',
         (cid,item_id,stamp,price,regular,promo,price is not None))
+
 
 
 def price_events(rows):

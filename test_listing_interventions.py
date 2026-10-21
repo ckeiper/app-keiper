@@ -90,7 +90,7 @@ class InterventionMetricsTests(unittest.TestCase):
     def test_comparison_discloses_manual_record_overlap_and_causal_limits(self):
         result=compare(ITEM,DAY,*sample(),TODAY);result['other_actions']=2
         output=comparison_html(result,dict(event_date=DAY))
-        self.assertIn('2 outra(s)',output)
+        self.assertIn('2 outro(s)',output)
         self.assertIn('não confirma execução no Mercado Livre',output)
         self.assertIn('sem atribuir causalidade',output)
         self.assertIn('12/10/2026',output)
