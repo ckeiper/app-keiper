@@ -2061,6 +2061,24 @@ def auditoria_frete(cid):
 @app.route("/painel")
 @login_required
 def painel():
+    # The landing page is a client directory, not an expensive sales report.
+    with banco() as conn:
+        if session.get("tipo") == "admin":
+            lojas = consultar(conn, "SELECT id, cliente, status FROM conexoes ORDER BY cliente, id")
+        else:
+            lojas = consultar(conn, "SELECT id, cliente, status FROM conexoes WHERE id=%s ORDER BY cliente, id",
+                              (session.get("conexao_id"),))
+    lojas = [loja for loja in lojas if pode_ver_loja(loja["id"])]
+    from client_home import render_client_home
+    corpo = render_client_home(lojas, admin=session.get("tipo") == "admin")
+    if session.get("tipo") == "admin":
+        corpo = HOME_WIDGET + corpo
+    return pagina("Suas lojas", corpo)
+
+
+@app.route("/painel/analise")
+@login_required
+def painel_analise():
     with banco() as conn:
         if session.get("tipo") == "admin":
             lojas = consultar(conn, "SELECT id, cliente, status FROM conexoes ORDER BY cliente, id")
