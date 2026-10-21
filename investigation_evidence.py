@@ -5,6 +5,7 @@ No network calls, no campaign-to-item allocation, no filled-in missing days.
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from html import escape
+from zoneinfo import ZoneInfo
 
 
 def number(value):
@@ -86,22 +87,22 @@ def build(ranking, item_id, visits, observations, ads, end, days=7):
     actions=[]
     declining = bool(sales and sales['value'] < sales['previous_value'])
     if full['empty_dates']:
-        actions.append(dict(title='Verificar reposição no Full',
+        actions.append(dict(code='full',title='Verificar reposição no Full',
             evidence='Full sem estoque observado em '+', '.join(full['empty_dates'])+'.',
             action='Conferir estoque e reposição por variação; verificar o prazo de entrega nas datas observadas.',
             scope='Evidência do anúncio; não comprova a causa da queda.'))
     if traffic['delta'] is not None and traffic['delta'] <= -20 and before['totals']['visitas'] >= 30:
-        actions.append(dict(title='Investigar redução de tráfego',
+        actions.append(dict(code='trafego',title='Investigar redução de tráfego',
             evidence='Visitas do anúncio: %+.1f%% entre períodos completos.' % traffic['delta'],
             action='Conferir exposição, status do anúncio e participação em catálogo; verificar publicidade específica do produto.',
             scope='Sinal do anúncio; triagem de queda de 20% com pelo menos 30 visitas na base anterior.'))
     if conversion['delta'] is not None and conversion['delta'] <= -20 and sales['previous_orders'] >= 5:
-        actions.append(dict(title='Investigar eficiência das visitas',
+        actions.append(dict(code='eficiencia',title='Investigar eficiência das visitas',
             evidence='Relação pedidos pagos/visitas: %+.1f%%.' % conversion['delta'],
             action='Revisar preço final, frete, prazo e disponibilidade das variações; comparar a oferta com os concorrentes.',
             scope='Triagem de queda de 20% com pelo menos 5 pedidos anteriores; diferente da conversão oficial do Mercado Livre.'))
     if declining and advertising['spend_delta'] is not None and advertising['spend_delta'] <= -20:
-        actions.append(dict(title='Revisar a redução de Ads da loja',
+        actions.append(dict(code='ads_loja',title='Revisar a redução de Ads da loja',
             evidence='Investimento da loja: %+.1f%%.' % advertising['spend_delta'],
             action='Abrir as campanhas e confirmar se os anúncios afetados pertencem às campanhas com menor investimento.',
             scope='Contexto da loja; não atribuído a este anúncio.'))
@@ -178,3 +179,35 @@ def render(evidence, cid, end, days=7):
         v=visit_map.get(d)
         out+='<tr><td>'+date.fromisoformat(d).strftime('%d/%m/%Y')+'</td><td>'+(str(int(v)) if v is not None and v%1==0 else 'Sem dado válido')+'</td></tr>'
     return out+'</tbody></table></details><p class="evidence-meta">Triagem: queda de 20%, com base anterior mínima de 30 visitas para tráfego ou 5 pedidos para eficiência. Estes limites não são um teste de significância. Sinais orientam a investigação; coincidência de datas não comprova causalidade. Preço final, concorrência, prazo e alterações do anúncio ainda precisam ser conferidos.</p></section>'
+
+
+def load_bulk(conn, query, cid, ranking, end, days=7):
+    """Two local reads for all losing listings; never one DB query per item."""
+    if not ranking.get('available'):
+        return {}
+    ids = [str(key) for key,m in ranking['rows'].items() if m['value'] < m['previous_value']]
+    if not ids:
+        return {}
+    start = end-timedelta(days=2*days-1)
+    visits = query(conn, """SELECT item_id,dia,visitas FROM item_visits_daily
+        WHERE conexao_id=%s AND dia BETWEEN %s AND %s ORDER BY item_id,dia""",
+        (cid,start.isoformat(),end.isoformat()))
+    start_stamp = int(datetime.combine(start,datetime.min.time(),ZoneInfo('America/Sao_Paulo')).timestamp())
+    end_stamp = int(datetime.combine(end+timedelta(days=1),datetime.min.time(),ZoneInfo('America/Sao_Paulo')).timestamp())
+    observations = query(conn, """SELECT item_id,observed_at,state,logistics FROM full_observations
+        WHERE conexao_id=%s AND observed_at >= %s AND observed_at < %s
+        ORDER BY item_id,observed_at""", (cid,start_stamp,end_stamp))
+    from collections import defaultdict
+    by_visits,by_full=defaultdict(list),defaultdict(list)
+    for row in visits:
+        by_visits[str(row['item_id'])].append(row)
+    for row in observations:
+        by_full[str(row['item_id'])].append(row)
+    result={}
+    for item_id in ids:
+        evidence=build(ranking,item_id,by_visits[item_id],by_full[item_id],[],end,days=days)
+        result[item_id]=dict(actions=evidence['actions'],
+            codes=[a['code'] for a in evidence['actions']],
+            visits_days=evidence['traffic']['previous']['covered']+evidence['traffic']['current']['covered'],
+            full_days=evidence['full']['previous_known']+evidence['full']['current_known'],expected=2*days)
+    return result

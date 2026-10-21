@@ -46,7 +46,7 @@ CSS = """<style>
 </style>"""
 
 
-def render(ranking, listings, cid, args, end, days=7, item_id=None, observations=None):
+def render(ranking, listings, cid, args, end, days=7, item_id=None, observations=None, evidence_by_item=None):
     analysis = investigate(ranking)
     out = CSS + "<section class='decline'><div class='decline-head'><h3>Investigar queda de vendas</h3>"
     out += '<p>%s dias encerrados até %s, comparados aos %s dias anteriores. Valores brutos dos itens.</p></div>' % (days, end.strftime('%d/%m/%Y'), days)
@@ -60,7 +60,20 @@ def render(ranking, listings, cid, args, end, days=7, item_id=None, observations
     else:
         search = str(args.get('busca_queda') or '').strip()[:100]
         rows = [r for r in rows if search.casefold() in (names.get(r['item_id'], r['item_id'])+' '+r['item_id']).casefold()]
-        out += "<form class='decline-tools' method='get'><input type='hidden' name='dias' value='%s'><label>Buscar anúncio <input name='busca_queda' value='%s'></label><button class='filtro-btn'>Filtrar quedas</button></form>" % (days, escape(search, quote=True))
+        tools = "<form class='decline-tools' method='get'><input type='hidden' name='dias' value='%s'><label>Buscar anúncio <input name='busca_queda' value='%s'></label>" % (days, escape(search, quote=True))
+        if evidence_by_item is not None:
+            selected=str(args.get('sinal_queda') or 'todos')
+            choices=[('todos','Todos os sinais'),('full','Full zerado observado'),('trafego','Redução de tráfego'),('eficiencia','Menor eficiência das visitas'),('sem_sinais','Sem sinal nas regras')]
+            if selected not in dict(choices):
+                selected='todos'
+            tools+="<label>Sinal para investigar <select name='sinal_queda'>"
+            for code,label in choices:
+                matched=sum(1 for r in rows if code=='todos' or (not evidence_by_item.get(r['item_id'],{}).get('codes') if code=='sem_sinais' else code in evidence_by_item.get(r['item_id'],{}).get('codes',[])))
+                tools+="<option value='%s'%s>%s (%s)</option>" % (code,' selected' if selected==code else '',label,matched)
+            tools+='</select></label>'
+            if selected!='todos':
+                rows=[r for r in rows if (not evidence_by_item.get(r['item_id'],{}).get('codes') if selected=='sem_sinais' else selected in evidence_by_item.get(r['item_id'],{}).get('codes',[]))]
+        out+=tools+"<button class='filtro-btn'>Filtrar quedas</button></form>"
     if item_id is not None and observations is not None:
         from listing_full_sales_chart import daily_full_status
         dates = [(end-timedelta(days=2*days-1-i)).isoformat() for i in range(2*days)]
@@ -81,7 +94,15 @@ def render(ranking, listings, cid, args, end, days=7, item_id=None, observations
         out += '<p>R$ %.2f → R$ %.2f (%+.1f%%)<br>%.1f%% das perdas dos anúncios</p>' % (r['previous'],r['current'],r['percent'],r['share'])
         out += '<p><b>Sinal: %s</b><br>%s</p>' % (escape(r['hypothesis']),escape(' '.join(r['evidence'])))
         out += '<p>Efeito de volume: R$ %+.2f<br>Efeito de valor médio/mix: R$ %+.2f</p>' % (r['volume_effect'],r['price_effect'])
-        out += '<p><b>Próxima investigação</b><br>' + escape(r['action']) + '</p><p>Causa ainda não confirmada · Vendas verificadas</p></a>'
+        evidence=(evidence_by_item or {}).get(r['item_id'])
+        if evidence is not None:
+            out+='<p><b>Sinais do anúncio</b><br>'
+            out+='<br>'.join(escape(a['title']) for a in evidence['actions']) or 'Nenhum sinal atingiu as regras; confira a cobertura.'
+            out+='</p><p>Visitas: %s/%s dias · Full: %s/%s dias conhecidos.</p>' % (evidence['visits_days'],evidence['expected'],evidence['full_days'],evidence['expected'])
+            next_action=' '.join(a['action'] for a in evidence['actions']) or r['action']
+        else:
+            next_action=r['action']
+        out += '<p><b>Próxima investigação</b><br>' + escape(next_action) + '</p><p>Causa ainda não confirmada · Vendas verificadas</p></a>'
     if not rows:
         out += '<p>Nenhuma perda de faturamento identificada neste recorte.</p>'
     out += '</div>'
