@@ -2078,6 +2078,55 @@ def painel():
     return pagina("Suas lojas", corpo)
 
 
+@app.route("/painel/tendencias")
+@login_required
+def painel_tendencias():
+    """Lightweight, separately loaded seven-day sales direction per authorized shop."""
+    from zoneinfo import ZoneInfo
+    hoje = datetime.datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    fim = hoje.isoformat()
+    inicio_atual = (hoje - datetime.timedelta(days=7)).isoformat()
+    inicio_anterior = (hoje - datetime.timedelta(days=14)).isoformat()
+    with banco() as conn:
+        if session.get("tipo") == "admin":
+            lojas = consultar(conn, "SELECT id FROM conexoes")
+        else:
+            lojas = consultar(conn, "SELECT id FROM conexoes WHERE id=%s",
+                               (session.get("conexao_id"),))
+        ids = [int(loja["id"]) for loja in lojas if pode_ver_loja(loja["id"])]
+        if not ids:
+            response = jsonify({})
+            response.headers["Cache-Control"] = "private, max-age=60"
+            return response
+        linhas = consultar(conn, """
+            SELECT conexao_id,
+                   COALESCE(SUM(CASE WHEN LEFT(fechado_em,10) >= %s
+                                      AND LEFT(fechado_em,10) < %s
+                                THEN total ELSE 0 END),0) AS atual,
+                   COALESCE(SUM(CASE WHEN LEFT(fechado_em,10) >= %s
+                                      AND LEFT(fechado_em,10) < %s
+                                THEN total ELSE 0 END),0) AS anterior
+            FROM pedidos
+            WHERE conexao_id = ANY(%s)
+              AND fechado_em IS NOT NULL
+              AND LEFT(fechado_em,10) >= %s
+              AND LEFT(fechado_em,10) < %s
+              AND (status IS NULL OR status NOT IN ('cancelled', 'cancelada'))
+            GROUP BY conexao_id
+        """, (inicio_atual, fim, inicio_anterior, inicio_atual,
+              ids, inicio_anterior, fim))
+    tendencias = {}
+    for linha in linhas:
+        atual = float(linha["atual"] or 0)
+        anterior = float(linha["anterior"] or 0)
+        tendencias[str(linha["conexao_id"])] = (
+            "up" if atual > anterior else "down" if atual < anterior else "flat"
+        )
+    response = jsonify(tendencias)
+    response.headers["Cache-Control"] = "private, max-age=60"
+    return response
+
+
 @app.route("/painel/analise")
 @login_required
 def painel_analise():
