@@ -1,14 +1,16 @@
-"""Copas-only bounded daily visits collector and coverage tracking."""
+"""Bounded daily visits collector and coverage tracking."""
 import datetime as dt
 import json
 import os
 import urllib.error
 import urllib.request
+from zoneinfo import ZoneInfo
 
 import psycopg2
 
 CONNECTION_ID = 5
 API = "https://api.mercadolibre.com"
+HISTORY_DAYS = 14
 
 
 def _parse_day(value):
@@ -18,7 +20,7 @@ def _parse_day(value):
 def _fetch_visits(item, token, today):
     """Fetch outside the database transaction; bounded network parallelism."""
     req = urllib.request.Request(
-        f"{API}/items/{item}/visits/time_window?last=7&unit=day",
+        f"{API}/items/{item}/visits/time_window?last={HISTORY_DAYS}&unit=day&ending={today.isoformat()}",
         headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
     )
     try:
@@ -26,13 +28,16 @@ def _fetch_visits(item, token, today):
             payload = json.load(response)
         if not isinstance(payload, dict) or payload.get("item_id") != item or not isinstance(payload.get("results"), list):
             raise ValueError("Unexpected API response")
-        parsed = []
+        parsed, seen = [], set()
         for entry in payload["results"]:
             day = _parse_day(entry["date"])
+            if day in seen:
+                raise ValueError("Duplicate visit day")
+            seen.add(day)
             visits = entry["total"]
             if type(visits) is not int or visits < 0:
                 raise ValueError("Invalid daily visits")
-            if today - dt.timedelta(days=7) <= day < today:
+            if today - dt.timedelta(days=HISTORY_DAYS) <= day < today:
                 parsed.append((day, visits))
         return item, parsed, None
     except (urllib.error.HTTPError, urllib.error.URLError, ValueError, KeyError, TypeError, TimeoutError) as exc:
@@ -87,7 +92,7 @@ def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
         results = {"loja": record[0], "conexao_id": connection_id, "offset": offset,
                    "proximo_offset": offset + len(items), "itens_solicitados": len(items),
                    "itens_atualizados": 0, "dias_gravados": 0, "falhas": 0}
-        today = dt.datetime.now(dt.timezone.utc).date()
+        today = dt.datetime.now(ZoneInfo("America/Sao_Paulo")).date()
         from concurrent.futures import ThreadPoolExecutor, as_completed
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = [executor.submit(_fetch_visits, item, token, today) for item in items]

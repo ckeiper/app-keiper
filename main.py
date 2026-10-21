@@ -3675,7 +3675,7 @@ def ranking_anuncios(cid):
     """Store-level verified listing ranking; never use lifetime vendidos."""
     if not pode_ver_loja(cid):
         return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
-    dias = request.args.get("dias", "30")
+    dias = request.args.get("dias", "7")
     if dias not in ("7", "30"):
         dias = "30"
     from sales_metrics import reporting_today
@@ -3724,7 +3724,7 @@ def ranking_anuncios(cid):
              "<p class='muted'>Últimos " + dias + " dias encerrados comparados aos " + dias + " anteriores. "
              "Somente pedidos pagos e aprovados com dados verificados. "
              "Valor bruto dos itens, não valor líquido recebido. "
-             "Visitas e conversão não estão disponíveis.</p>")
+             "Sinais de tráfego e eficiência dependem da cobertura diária do anúncio.</p>")
     corpo += ("<div class='card'><p>Período: "
               "<a class='filtro' href='/ranking-anuncios/" + str(cid)
               + "?dias=7'>7 dias</a> "
@@ -3738,7 +3738,11 @@ def ranking_anuncios(cid):
         return pagina_loja("Ranking de anúncios", cid, lojas[0]["cliente"],
                           "desempenho", corpo)
     from sales_decline import render as render_decline
-    corpo += render_decline(resumo, anuncios_loja, cid, request.args, fim_analise, days=int(dias))
+    from investigation_evidence import load_bulk
+    with banco() as conn:
+        evidencias_queda = load_bulk(conn, consultar, cid, resumo, fim_analise, days=int(dias))
+    corpo += render_decline(resumo, anuncios_loja, cid, request.args, fim_analise,
+                            days=int(dias), evidence_by_item=evidencias_queda)
     kpis = listing_kpis(resumo["rows"])
     valor = "R$ %.2f" % kpis["value"]
     medio = ("R$ %.2f" % kpis["average_value_per_listing_order"]
