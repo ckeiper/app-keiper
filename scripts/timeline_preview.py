@@ -27,4 +27,9 @@ for name,args in [('timeline-visitas',{}),('timeline-preco',{'comparar_linha':'p
     panel=render_evidence(build_evidence(ranked,'MLB100000',visits,full,[],end,offers=offers),1,end)
     body='<p>Dados fictícios para validação automática.</p>'+panel+render('MLB100000',orders,items,covered,full,visits,offers,end,args=args)
     (dest/(name+'.html')).write_text(page('Linha do tempo',1,'Loja de demonstração','desempenho',body),encoding='utf-8')
+complete_visits=[dict(dia=end-timedelta(days=13-i),visitas=100 if i<7 else 50) for i in range(14)]
+ranked=ranking_metrics(orders,items,covered,['MLB100000'],end=end,days=7)
+panel=render_evidence(build_evidence(ranked,'MLB100000',complete_visits,full,[],end,offers=offers),1,end)
+body='<p>Dados fictícios para validação automática.</p>'+panel+render('MLB100000',orders,items,covered,full,complete_visits,offers,end)
+(dest/'timeline-drivers.html').write_text(page('Fatores do faturamento',1,'Loja de demonstração','desempenho',body),encoding='utf-8')
 print('Synthetic timeline previews rendered.')
