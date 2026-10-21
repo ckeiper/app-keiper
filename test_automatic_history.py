@@ -139,6 +139,16 @@ class AutomaticHistoryDatabaseTests(unittest.TestCase):
         change=next(r for r in self.events() if r['observed_at']==self.stamp+120)
         self.assertEqual(change['before_value'],'100.00');self.assertEqual(change['after_value'],'120.00')
 
+    def test_cached_listing_title_is_a_reference_for_the_next_collection(self):
+        from automatic_history import seed_existing
+        with self.m.banco() as conn:
+            self.m.executar(conn,'UPDATE anuncios SET titulo=%s,status=%s,quantidade=3,atualizado_em=%s WHERE conexao_id=%s AND item_id=%s',('Título anterior','active',self.stamp,self.cid,ITEM))
+            seed_existing(conn,self.m.executar)
+        self.observe(dict(titulo='Título novo',status='active',disponibilidade='com estoque',fotos=['A']),120)
+        rows=self.events();self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]['field'],'titulo')
+        self.assertEqual(rows[0]['before_value'],'Título anterior')
+
     def test_price_collector_hook_persists_events_in_same_transaction(self):
         from offer_history import record as offer
         for offset,value in [(0,80),(60,100)]:

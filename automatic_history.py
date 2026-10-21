@@ -33,7 +33,7 @@ def init_schema(conn, execute):
     execute(conn,'''CREATE OR REPLACE FUNCTION public.record_listing_changes(
         cid INTEGER, item TEXT, channel TEXT, stamp BIGINT, snapshot JSONB)
         RETURNS VOID LANGUAGE plpgsql AS $body$
-        DECLARE old public.listing_change_baselines%ROWTYPE; entry RECORD;
+        DECLARE old RECORD; entry RECORD;
         BEGIN
           INSERT INTO public.listing_change_baselines(conexao_id,item_id,stream,observed_at,payload)
             VALUES(cid,item,channel,stamp,snapshot) ON CONFLICT DO NOTHING;
@@ -173,3 +173,10 @@ def seed_existing(conn, execute):
           'label','Disponibilidade no Full','kind','full'))
       FROM public.full_observations f JOIN public.conexoes c ON c.id=f.conexao_id
       ORDER BY f.conexao_id,item_id,observed_at DESC ON CONFLICT DO NOTHING''')
+    execute(conn,'''INSERT INTO public.listing_change_baselines(conexao_id,item_id,stream,observed_at,payload)
+      SELECT a.conexao_id,item_id,'listing',atualizado_em,
+        jsonb_build_object('titulo',jsonb_build_object('value',NULLIF(btrim(titulo),''),'label','Título','kind','conteudo'),
+          'status',jsonb_build_object('value',CASE WHEN status IN ('active','paused','closed','under_review','inactive') THEN status END,'label','Status do anúncio','kind','outro'),
+          'disponibilidade',jsonb_build_object('value',CASE WHEN quantidade>0 THEN 'com estoque' WHEN quantidade=0 THEN 'zerado' END,'label','Disponibilidade do anúncio','kind','full'))
+      FROM public.anuncios a JOIN public.conexoes c ON c.id=a.conexao_id
+      WHERE atualizado_em>0 AND item_id IS NOT NULL ON CONFLICT DO NOTHING''')
