@@ -3626,10 +3626,7 @@ def diagnostico_saude_anuncio(cid, item_id):
               "Sem cobertura verificada em qualquer período, a comparação "
               "fica indisponível. Quando a base anterior é zero, não exibimos "
               "crescimento percentual artificial.</p></div>")
-    # Plot Full only when the listing has verified fulfillment logistics.
-    # Observations are snapshots: unknown dates are gaps, never a guessed state.
-    metadata = item.get("full_metadata_json") or {}
-    full_atual = (isinstance(metadata, dict) and metadata.get("logistics") == "fulfillment")
+    # Observations are snapshots: unknown dates never inherit a guessed state.
     with banco() as conn:
         full_rows = consultar(conn, """SELECT observed_at,state,quantity,logistics
             FROM full_observations
@@ -3637,13 +3634,6 @@ def diagnostico_saude_anuncio(cid, item_id):
               AND observed_at >= %s
             ORDER BY observed_at ASC""",
             (cid,item_id,int(time.time()) - 32*86400))
-    full_historico = any(r["logistics"] == "fulfillment" for r in full_rows)
-    if full_atual or full_historico:
-        from listing_full_sales_chart import render as render_full_sales
-        corpo += render_full_sales(
-            item_id,pedidos_verificados,itens_pedidos,
-            [r["dia"] for r in cobertura],full_rows,
-            has_pending=bool(pendentes and pendentes[0]["n"]))
     from sales_decline import render as render_decline
     from sales_metrics import reporting_today
     fim_investigacao = reporting_today() - datetime.timedelta(days=1)
@@ -3664,7 +3654,11 @@ def diagnostico_saude_anuncio(cid, item_id):
     with banco() as conn:
         ofertas = load_offers(conn,consultar,cid,item_id,fim_investigacao)
     painel_ofertas = render_offers(ofertas,cid,item_id,fim_investigacao,args=request.args)
-    corpo = cabecalho + painel_evidencias + painel_ofertas + corpo[len(cabecalho):]
+    from listing_timeline import render as render_timeline
+    linha_tempo = render_timeline(item_id,pedidos_verificados,itens_pedidos,
+        [r["dia"] for r in cobertura],full_rows,visitas_evidencia,ofertas['own'],
+        fim_investigacao,pending=bool(pendentes and pendentes[0]["n"]),args=request.args)
+    corpo = cabecalho + painel_evidencias + linha_tempo + painel_ofertas + corpo[len(cabecalho):]
     corpo += priorities(resultados)
     return pagina_loja("Diagnóstico do anúncio", cid, lojas[0]["cliente"], "anuncios", corpo)
 
