@@ -38,6 +38,10 @@ CSS="""<style>
 .k-camp .kc-stale{border-radius:11px;background:#fff5e6;border:1px solid #f0d5aa;padding:13px;font-size:12px;color:#855c2d;margin-top:12px}
 @media(max-width:980px){.k-camp .kc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.k-camp .kc-layout{grid-template-columns:1fr}}
 @media(max-width:570px){.k-camp .kc-hero{padding:16px}.k-camp .kc-section{padding:16px}.k-camp .kc-kpi{padding:12px}.k-camp .kc-kpi strong{font-size:19px}}
+.k-camp .kc-change-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:11px;margin-top:17px}
+.k-camp .kc-change{background:#f8faff;border:1px solid #e1e9f7;border-radius:11px;padding:16px;display:grid;gap:8px}
+.k-camp .kc-change-type{font-size:10px;font-weight:800;color:#687a9d;text-transform:uppercase;letter-spacing:.05em}
+.k-camp .kc-change strong{font-size:15px;color:#26406f}.k-camp .kc-change small{font-size:10px;color:#7e8ba2}
 </style>"""
 
 def money(v):
@@ -65,7 +69,7 @@ def non_ads_estimate(dates, shop_daily, ads_total_daily):
     return values
 
 
-def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=None, ads_total_daily=None):
+def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=None, ads_total_daily=None, changes=None):
     # One source of truth: campaign daily snapshots; never fabricate impressions,
     # campaign clicks or attributable sales not present in the database.
     selected_start=today-timedelta(days=days-1)
@@ -135,6 +139,8 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
     ]
     out+="<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
     out+="<script>(function(){var el=document.getElementById('kc-daily-chart');if(!el||typeof Chart==='undefined')return;new Chart(el,{data:{labels:"+json.dumps(labels)+",datasets:"+json.dumps(datasets)+"},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}})})();</script>"
+    from ads_change_history import display_history
+    out+=display_history(changes or [])
     out+="<div class='kc-layout'><section class='kc-section'><h3>O que merece atenção</h3><p class='kc-sub'>Sugestões de investigação, não mudanças automáticas de orçamento ou meta.</p><div class='kc-tasks'>"
     suggestions=[]
     if not current:

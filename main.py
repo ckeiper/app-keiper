@@ -721,6 +721,9 @@ def iniciar_banco():
             executar(conn, "ALTER TABLE ads_campanhas ADD COLUMN IF NOT EXISTS roas_objetivo REAL")
         except Exception:
             pass
+        from ads_change_history import CREATE_SQL, INDEX_SQL
+        executar(conn, CREATE_SQL)
+        executar(conn, INDEX_SQL)
         executar(conn, """CREATE TABLE IF NOT EXISTS ads_metricas (
             conexao_id INTEGER, ad_id TEXT, campanha_id TEXT, item_id TEXT,
             impressoes INTEGER, cliques INTEGER, ctr REAL, gasto REAL, atualizado_em BIGINT,
@@ -1202,7 +1205,16 @@ def salvar_roas(cid, campanha_id):
         return jsonify({"ok": False}), 400
     if roas < 0:
         return jsonify({"ok": False}), 400
+    from ads_change_history import number, record_changes
+    if number(roas) is None:
+        return jsonify({"ok": False}), 400
     with banco() as conn:
+        anterior = consultar(conn, """SELECT roas_objetivo FROM ads_campanhas
+            WHERE conexao_id=%s AND campanha_id=%s FOR UPDATE""", (cid,campanha_id))
+        if not anterior:
+            return jsonify({"ok": False, "error":"Campanha não encontrada"}), 404
+        record_changes(conn, executar, cid, campanha_id, anterior[0],
+                       {"roas_objetivo":roas}, int(time.time()), "painel")
         executar(conn, "UPDATE ads_campanhas SET roas_objetivo=%s "
                        "WHERE conexao_id=%s AND campanha_id=%s",
                  (roas, cid, campanha_id))
@@ -2488,6 +2500,10 @@ def painel_ads_campanha(cid, campanha_id):
                 FROM ads_campanha_dia WHERE conexao_id=%s AND campanha_id=%s
                 AND data BETWEEN %s AND %s ORDER BY data""",
                 (cid,campanha_id,inicio,hoje.isoformat()))
+            historico_alteracoes = consultar(conn, """SELECT campo,valor_anterior,
+                valor_novo,observado_em,origem FROM ads_campanha_alteracoes
+                WHERE conexao_id=%s AND campanha_id=%s ORDER BY observado_em DESC,id DESC LIMIT 50""",
+                (cid,campanha_id))
             ads_loja = consultar(conn, """SELECT data,faturamento
                 FROM ads_dia WHERE conexao_id=%s
                 AND data BETWEEN %s AND %s ORDER BY data""",
@@ -2517,7 +2533,8 @@ def painel_ads_campanha(cid, campanha_id):
                   if r["faturamento"] is not None}
     from ads_campaign_detail import render
     corpo = render(cid, camp[0], diario, int(dias), hoje,
-                   shop_daily=loja_diaria, ads_total_daily=ads_diaria)
+                   shop_daily=loja_diaria, ads_total_daily=ads_diaria,
+                   changes=historico_alteracoes)
     return pagina_loja("Campanha Ads", cid, loja[0]["cliente"], "ads", corpo)
 
 
@@ -4710,6 +4727,14 @@ def puxar_ads(conexao_id, token, user_id):
                 if budget is None:
                     budget = campanha.get("budget")
                 target = campanha.get("roas_target")
+                from ads_change_history import record_changes
+                anterior = consultar(conn, """SELECT orcamento, roas_objetivo
+                    FROM ads_campanhas WHERE conexao_id=%s AND campanha_id=%s
+                    FOR UPDATE""", (conexao_id, str(camp_id)))
+                record_changes(conn, executar, conexao_id, camp_id,
+                    anterior[0] if anterior else None,
+                    {"orcamento":budget,"roas_objetivo":target},
+                    int(time.time()), "api")
                 executar(conn, """
                     INSERT INTO ads_campanhas (
                         conexao_id, campanha_id, nome, status, tipo,
