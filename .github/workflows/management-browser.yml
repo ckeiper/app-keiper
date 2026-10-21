@@ -2,6 +2,9 @@ name: Management browser checks
 on:
   pull_request:
     paths:
+      - 'crm.py'
+      - 'crm_home.py'
+      - 'scripts/crm_home*'
       - 'management*.py'
       - 'visual_theme.py'
       - 'main.py'
@@ -25,9 +28,11 @@ jobs:
           node-version: '22'
       - run: python -m pip install -r requirements.txt
       - run: python scripts/management_preview.py
+      - run: python scripts/crm_home_preview.py
       - run: npm install --no-save --no-package-lock playwright@1.51.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/management_browser_check.cjs
+      - run: node scripts/crm_home_browser_check.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
