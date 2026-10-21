@@ -82,7 +82,7 @@ class AuthRouteSecurityTests(unittest.TestCase):
         self.app=Flask('auth-test');self.app.secret_key='isolated-auth-test-key'
         install_security(self.app)
         self.query=Mock(return_value=[dict(id=7,username='owner',nome='Owner',tipo='admin',
-                          conexao_id=None,senha_hash=generate_password_hash('safe-test-password'))])
+                          conexao_id=None,auth_version=1,senha_hash=generate_password_hash('safe-test-password'))])
         self.write=Mock()
         self.allowed=Mock(return_value=True)
         self.env=dict(app=self.app,request=request,session=session,redirect=redirect,

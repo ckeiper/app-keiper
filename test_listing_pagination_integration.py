@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 import os
 import unittest
 
@@ -22,7 +23,7 @@ class ListingPaginationIntegrationTests(unittest.TestCase):
                 SELECT %s,'PAGE-'||n,'Pagination product '||n,10,1,10,100-n,'active'
                 FROM generate_series(1,45) n''',(cid,))
         client=m.app.test_client()
-        with client.session_transaction() as session:
+        with database_session(client) as session:
             session['usuario_id']=1
             session['tipo']='admin'
         try:
@@ -38,7 +39,7 @@ class ListingPaginationIntegrationTests(unittest.TestCase):
                 self.assertIn("<div class='num'>45</div>",view)
                 self.assertIn('Peso cadastrado',view)
                 self.assertIn('Peso logístico',view)
-            with client.session_transaction() as session:
+            with database_session(client) as session:
                 session['tipo']='cliente'
                 session['conexao_id']=cid+1000
             denied=client.get('/anuncios/'+str(cid)+'?pagina=2').get_data(as_text=True)

@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 """Real PostgreSQL/Flask checks, on the same disposable database as sales CI."""
 import os
 import json
@@ -39,7 +40,7 @@ class OverviewIntegrationTests(unittest.TestCase):
                     m.executar(conn,'INSERT INTO vendas_cobertura VALUES(%s,%s,%s)',
                                (cid,f'2026-10-{d:02}',int(time.time())))
         self.client=m.app.test_client()
-        with self.client.session_transaction() as session:
+        with database_session(self.client) as session:
             session['usuario_id']=1
             session['tipo']='admin'
         self.url='/painel/analise?periodo=personalizado&inicio=2026-10-10&fim=2026-10-11'
@@ -83,7 +84,9 @@ class OverviewIntegrationTests(unittest.TestCase):
             response=self.client.get(self.url)
             enqueue.assert_not_called()
         self.assertEqual(response.status_code,200)
-        self.assertEqual(len(calls),5)
+        auth_calls = [sql for sql in calls if 'FROM usuarios WHERE id=%s' in sql]
+        self.assertEqual(len(auth_calls), 1)
+        self.assertEqual(len(calls), 6)  # Five report reads plus one account validation.
         view=response.get_data(as_text=True)
         self.assertIn('2 de 3 lojas na consolidação',view)
         self.assertIn('R$ 400,00',view)
@@ -113,7 +116,7 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertIn('R$ 400,00', self.client.get(self.url).get_data(as_text=True))
 
     def test_customer_only_reads_and_sees_assigned_shop(self):
-        with self.client.session_transaction() as session:
+        with database_session(self.client) as session:
             session['tipo']='cliente'
             session['conexao_id']=self.ids[0]
         calls=[]
@@ -129,12 +132,17 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertIn("aria-label='Contas conectadas'", view)
         self.assertNotIn("href='/painel/" + str(self.ids[1]) + "'", view)
         self.assertIn('1 de 1 lojas na consolidação',view)
-        self.assertTrue(all(params[0]==[self.ids[0]] for sql,params in calls[1:]))
+        auth_calls = [(sql,params) for sql,params in calls if 'FROM usuarios WHERE id=%s' in sql]
+        self.assertEqual(len(auth_calls), 1)
+        with database_session(self.client) as state:
+            self.assertEqual(auth_calls[0][1], (state['usuario_id'],))
+        report_calls = [(sql,params) for sql,params in calls if 'FROM usuarios WHERE id=%s' not in sql]
+        self.assertTrue(all(params[0]==[self.ids[0]] for sql,params in report_calls[1:]))
         self.assertNotIn('/usuarios',view)
 
     def test_anonymous_and_unassigned_users_do_not_access_other_shops(self):
         self.assertEqual(self.m.app.test_client().get('/painel').status_code,302)
-        with self.client.session_transaction() as session:
+        with database_session(self.client) as session:
             session['tipo']='cliente'
             session['conexao_id']=None
         view=self.client.get(self.url).get_data(as_text=True)
@@ -340,14 +348,14 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertIn(f"id='nome-{cid}'",view)
         self.assertIn(f'editarNome({cid})',view)
         self.assertIn("document.getElementById('nome-' + id)",view)
-        with self.client.session_transaction() as state:
+        with database_session(self.client) as state:
             csrf = state['_csrf']
         renamed=self.client.post(f'/renomear/{cid}',headers={'X-CSRF-Token':csrf},data={'cliente':'Loja renomeada <teste>'})
         self.assertEqual(renamed.status_code,200)
         self.assertTrue(renamed.get_json()['ok'])
         view=self.client.get(self.url).get_data(as_text=True)
         self.assertIn(f"id='nome-{cid}'>Loja renomeada &lt;teste&gt;",view)
-        with self.client.session_transaction() as session:
+        with database_session(self.client) as session:
             session['tipo']='cliente'
             session['conexao_id']=cid
         self.assertEqual(self.client.post(f'/renomear/{self.ids[1]}',headers={'X-CSRF-Token':csrf},data={'cliente':'Negado'}).status_code,403)
@@ -428,7 +436,7 @@ class OverviewIntegrationTests(unittest.TestCase):
                 self.assertIn('Campanha integrada', campaigns.get_data(as_text=True))
                 for path in (self.url, f'/vendas/{cid}', f'/anuncios/{cid}', f'/promocoes/{cid}'):
                     self.assertEqual(m.app.test_client().get(path).status_code, 302)
-                with self.client.session_transaction() as session:
+                with database_session(self.client) as session:
                     session.update(tipo='cliente', conexao_id=self.ids[1])
                 for path in (f'/vendas/{cid}', f'/anuncios/{cid}', f'/promocoes/{cid}'):
                     denied = self.client.get(path).get_data(as_text=True)
