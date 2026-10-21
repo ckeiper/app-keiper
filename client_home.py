@@ -14,7 +14,7 @@ def render_client_home(shops, admin=False):
         cards.append(
             "<article class='kh-store' data-id='" + str(cid) + "'>"
             "<a class='kh-store-main' href='/painel/" + str(cid) + "'>"
-            "<span class='kh-store-icon' aria-hidden='true'>▣</span>"
+            "<span class='kh-store-icon' aria-hidden='true'><svg width='23' height='23' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M3 10h18l-1.3-5H4.3L3 10Z'/><path d='M5 10v9h14v-9M9 19v-6h6v6M3 10c0 2 3 2 4.5 0 1.5 2 3.5 2 4.5 0 1.5 2 3.5 2 4.5 0 1.5 2 4.5 2 4.5 0'/></svg></span>"
             "<span class='kh-store-copy'><strong class='kh-store-name'><span class='kh-trend' aria-label='Tendência indisponível' title='Comparando os últimos sete dias'></span>" + name + "</strong>"
             "<span class='kh-status " + ("kh-active" if active else "kh-inactive") + "'>"
             "<span aria-hidden='true'>●</span> " + label + "</span></span>"
@@ -51,7 +51,7 @@ def render_client_home(shops, admin=False):
 .kh-store-icon{display:grid;place-items:center;border-radius:14px;background:linear-gradient(140deg,#e8f2ff,#d8e7fd);color:#366dbb;font-size:24px;font-weight:700;width:51px;height:51px;flex-shrink:0;box-shadow:inset 0 1px 0 #ffffffbd}
 .kh-store-copy{display:flex;flex-direction:column;min-width:0;gap:8px;flex:1}
 .kh-store-name{font-size:15px;line-height:1.35;font-weight:750;color:#1f304c;overflow-wrap:anywhere;display:flex;align-items:baseline;gap:7px;letter-spacing:-.25px}
-.kh-trend{font-size:16px;line-height:1;min-width:14px;font-weight:900;flex-shrink:0}.kh-trend.up{color:#15915c}.kh-trend.down{color:#df4853}.kh-trend.flat{color:#8292aa}
+.kh-trend{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;vertical-align:middle}.kh-trend svg{display:block;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round}.kh-trend.up{color:#15915c}.kh-trend.down{color:#df4853}.kh-trend.flat{color:#8292aa}
 .kh-status{font-size:11px;color:#687b94;display:flex;gap:5px;align-items:center;font-weight:650;letter-spacing:.03em;text-transform:uppercase}
 .kh-status span{display:none}.kh-active{color:#527090}.kh-inactive{color:#bc713c}
 .kh-more{border:0;background:transparent;color:#6b7e99;font-size:25px;line-height:1;cursor:pointer;align-self:flex-start;margin:12px 11px 0 0;padding:4px 9px;border-radius:9px;transition:background .16s,color .16s}
@@ -62,7 +62,7 @@ def render_client_home(shops, admin=False):
 .kh-links{display:flex;gap:9px 22px;flex-wrap:wrap;border-top:1px solid #e2e9f2;margin-top:34px;padding:23px 0 0}
 .kh-links a{color:#4e6d98;text-decoration:none;font-size:13px;font-weight:650}.kh-links a:hover{text-decoration:underline;color:#2859a7}
 .kh-empty{padding:38px;background:#fff;border:1px dashed #d5e1f0;border-radius:16px;color:#72839b}
-@media(max-width:640px){.kh-home{padding:0 12px}.kh-grid{grid-template-columns:1fr;gap:12px}.kh-head{align-items:flex-start}.kh-toolbar{gap:10px}.kh-search{max-width:none}.kh-store{min-height:104px}}
+@media(max-width:640px){.kh-home{padding:0 12px}.kh-grid{grid-template-columns:1fr;gap:12px}.kh-head{align-items:flex-start}.kh-toolbar{gap:10px}.kh-search{max-width:none}.kh-store{min-height:94px}.kh-store-main{padding:16px 8px 16px 17px}.kh-store-icon{width:45px;height:45px}.kh-home h2{font-size:31px}.kh-head{margin-bottom:18px;padding-bottom:16px}.kh-toolbar{margin-bottom:17px}}
 @media(prefers-reduced-motion:reduce){.kh-store,.kh-search,.kh-more{transition:none}.kh-store:hover{transform:none}}
 </style><main class='kh-home'>
 <section class='kh-head'><div><div class='kh-eyebrow'>Keiper · Workspace</div>
@@ -99,7 +99,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('.kh-more,.kh-menu'))
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenus();});
 fetch('/painel/tendencias',{credentials:'same-origin'}).then(r=>{if(!r.ok)throw Error('indisponível');return r.json();}).then(d=>{
  for(const card of cards){const trend=d[String(card.dataset.id)];if(!trend)continue;
- const span=card.querySelector('.kh-trend');span.className='kh-trend '+trend;span.textContent=trend==='up'?'↗':trend==='down'?'↘':'→';
+ const span=card.querySelector('.kh-trend');span.className='kh-trend '+trend;span.innerHTML=trend==='up'?'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 16 16 4M7 4h9v9"/></svg>':trend==='down'?'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 4 12 12M7 16h9V7"/></svg>':'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h14m-5-5 5 5-5 5"/></svg>';
  const label=trend==='up'?'Faturamento subiu':trend==='down'?'Faturamento caiu':'Faturamento estável';
  span.title=label+' nos últimos 7 dias, comparados aos 7 anteriores';span.setAttribute('aria-label',label);
  }
