@@ -517,6 +517,7 @@ def pagina(titulo, corpo):
 def pagina_loja(titulo, cid, cliente, secao, corpo):
     itens = [
         ("resumo", "📊 Resumo", "/painel/" + str(cid)),
+        ("prioridades", "⭐ Minhas prioridades", "/prioridades/" + str(cid)),
         ("anuncios", "📦 Anúncios", "/anuncios/" + str(cid)),
         ("full", "Full e vendas", "/full/" + str(cid)),
         ("desempenho", "📈 Desempenho", "/desempenho/" + str(cid)),
@@ -800,6 +801,12 @@ def iniciar_banco():
         executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
         init_overview_schema(conn, executar)
         init_crm_schema(conn, executar)
+        executar(conn, """CREATE TABLE IF NOT EXISTS cliente_prioridades_acessos (
+            conexao_id INTEGER PRIMARY KEY,
+            habilitado BOOLEAN NOT NULL DEFAULT FALSE,
+            atualizado_em BIGINT NOT NULL
+        )""")
+
         # ---------- AUTENTICAÇÃO ----------
 
 def login_required(f):
@@ -2197,6 +2204,76 @@ def painel_saude():
     response=Response(CSS+render(snapshot_saude_coletas(),compact=True),mimetype="text/html")
     response.headers['Cache-Control']='private, max-age=180'
     return response
+
+
+
+@app.route("/prioridades")
+@login_required
+def central_prioridades():
+    if session.get('tipo') != 'admin':
+        cid=session.get('conexao_id')
+        if not isinstance(cid,int):
+            return pagina('Acesso negado', '<div class="card">Conta sem loja vinculada.</div>'),403
+        return redirect('/prioridades/'+str(cid))
+    from client_priorities import admin_index
+    with banco() as conn:
+        shops=consultar(conn,"SELECT id,cliente,status FROM conexoes ORDER BY cliente")
+        enabled=consultar(conn,"SELECT conexao_id FROM cliente_prioridades_acessos WHERE habilitado=TRUE")
+    csrf=session.get('prioridades_csrf')
+    if not csrf:
+        csrf=secrets.token_urlsafe(32)
+        session['prioridades_csrf']=csrf
+    body=admin_index(shops,{int(r['conexao_id']) for r in enabled},snapshot_saude_coletas(),csrf)
+    response=Response(pagina('Central de Prioridades',body),mimetype='text/html')
+    response.headers['Cache-Control']='no-store'
+    return response
+
+
+@app.route("/prioridades/<int:cid>")
+@login_required
+def prioridades_loja(cid):
+    if not pode_ver_loja(cid):
+        return pagina('Acesso negado','<div class="card">Acesso restrito</div>'),403
+    is_admin=session.get('tipo')=='admin'
+    if not is_admin:
+        with banco() as conn:
+            enabled=consultar(conn,"SELECT habilitado FROM cliente_prioridades_acessos WHERE conexao_id=%s",(cid,))
+        if not enabled or not enabled[0]['habilitado']:
+            return pagina('Acesso não liberado','<div class="card">A Central de Prioridades ainda não foi liberada para esta loja.</div>'),403
+    from client_priorities import store_portal
+    from management_data import load_management
+    from overview_read import TIMEOUT_MESSAGE
+    try:
+        report=load_management(cid,{'dias':'7'},banco,consultar)
+        if report is None:
+            return pagina('Loja não encontrada','<div class="card">Loja não encontrada</div>'),404
+        body=store_portal(report,cid,client_view=not is_admin)
+    except ValueError:
+        return pagina('Prioridades indisponíveis','<div class="card">'+esc(TIMEOUT_MESSAGE)+'</div>'),503
+    response=Response(pagina('Central de Prioridades',body),mimetype='text/html')
+    response.headers['Cache-Control']='no-store'
+    return response
+
+
+@app.route("/prioridades/<int:cid>/acesso",methods=['POST'])
+@admin_required
+def acesso_prioridades_cliente(cid):
+    expected=session.get('prioridades_csrf')
+    token=request.form.get('csrf_token','')
+    if not expected or not secrets.compare_digest(expected,token):
+        return 'Solicitação inválida',403
+    flag=request.form.get('enabled')
+    if flag not in ('0','1'):
+        return 'Parâmetro inválido',400
+    with banco() as conn:
+        exists=consultar(conn,'SELECT id FROM conexoes WHERE id=%s',(cid,))
+        if not exists:
+            return 'Loja não encontrada',404
+        executar(conn,"""INSERT INTO cliente_prioridades_acessos (conexao_id,habilitado,atualizado_em)
+            VALUES (%s,%s,%s) ON CONFLICT (conexao_id) DO UPDATE SET
+            habilitado=EXCLUDED.habilitado,atualizado_em=EXCLUDED.atualizado_em""",
+            (cid,flag=='1',int(time.time())))
+    return redirect('/prioridades')
 
 
 @app.route("/painel/tendencias")

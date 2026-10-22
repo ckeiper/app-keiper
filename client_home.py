@@ -28,7 +28,7 @@ def render_client_home(shops, admin=False):
     management = ("<nav class='kh-links' aria-label='Administração'>"
                   "<a href='/crm'>CRM e leads</a><a href='/usuarios'>Usuários</a>"
                   "<a href='/diagnostico'>Diagnóstico</a>"
-                  "<a href='/painel/analise'>Relatórios consolidados</a></nav>"
+                  "<a href='/painel/analise'>Relatórios consolidados</a><a href='/prioridades'>Central de prioridades</a></nav>"
                   if admin else "")
     empty = ("<div class='kh-empty'>Nenhuma loja disponível. "
              + ("Conecte a primeira loja para começar." if admin else "Contate o administrador.")
