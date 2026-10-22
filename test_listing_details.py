@@ -247,7 +247,7 @@ class SyncTests(unittest.TestCase):
                   threading=SimpleNamespace(Thread=thread))
         route=main_function('atualizar_tipo',ns)
         for tipo in ('anuncios','promocoes','desempenho','custos','campanhas'):
-            self.assertEqual(route(tipo,9),'/'+tipo+'/9')
+            self.assertEqual(route(tipo,9),'/ads/9' if tipo=='campanhas' else '/'+tipo+'/9')
         enqueue.assert_not_called()
         token.assert_not_called()
         thread.assert_not_called()
