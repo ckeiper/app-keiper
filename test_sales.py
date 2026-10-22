@@ -258,7 +258,8 @@ class SyncTests(unittest.TestCase):
     def test_multiple_pages_and_variations(self):
         def api(token, path, params):
             offset = params['offset']
-            results = [{'id': offset+i+1, 'date_created': '2026-10-15T12:00:00-03:00',
+            requested_day = params['order.date_created.from'][:10]
+            results = [{'id': offset+i+1, 'date_created': requested_day+'T12:00:00-03:00',
                         'payments': [{'id': 1, 'status': 'approved'}],
                         'order_items': [{'item': {'id': 'MLB1'}, 'quantity': 2, 'unit_price': 10},
                                         {'item': {'id': 'MLB1'}, 'quantity': 1, 'unit_price': 40}]} for i in range(50 if offset == 0 else 1)]
@@ -343,4 +344,5 @@ class ViewTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
 
