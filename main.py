@@ -1413,50 +1413,80 @@ def salvar_config(cid):
 @login_required
 def upload_custos(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
+        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>"),403
+    onboarding=session.get('tipo')=='cliente' and session.get('onboarding_financeiro_concluido')!=cid
+    base='/primeiro-acesso' if onboarding else '/custos/'+str(cid)
     if openpyxl is None:
-        return redirect("/custos/" + str(cid) + "?erro=biblioteca")
-    arquivo = request.files.get("arquivo")
+        return redirect(base+'?erro=biblioteca')
+    arquivo=request.files.get('arquivo')
     if not arquivo or not arquivo.filename:
-        return redirect("/custos/" + str(cid) + "?erro=sem_arquivo")
+        return redirect(base+'?erro=sem_arquivo')
+    if not arquivo.filename.lower().endswith('.xlsx'):
+        return redirect(base+'?erro=arquivo_invalido')
+    from client_onboarding import parse_cost
     try:
-        wb = openpyxl.load_workbook(arquivo, data_only=True, read_only=True)
-        ws = wb.active
+        arquivo.stream.seek(0,2)
+        size=arquivo.stream.tell()
+        arquivo.stream.seek(0)
+        if size>4*1024*1024:
+            return redirect(base+'?erro=tamanho')
+        wb=openpyxl.load_workbook(arquivo,data_only=True,read_only=True)
+        ws=wb.active
     except Exception:
-        return redirect("/custos/" + str(cid) + "?erro=arquivo_invalido")
-    with banco() as conn:
-        anuncios = consultar(conn, "SELECT item_id, sku FROM anuncios WHERE conexao_id=%s", (cid,))
-    mapa = {}
-    for a in anuncios:
-        if a["sku"]:
-            mapa[str(a["sku"]).strip().upper()] = a["item_id"]
-        mapa[str(a["item_id"]).strip().upper()] = a["item_id"]
-    atualizados = 0
-    nao_achados = []
-    for row in ws.iter_rows(min_row=2, max_col=2, values_only=True):
-        sku = row[0] if len(row) > 0 else None
-        custo = row[1] if len(row) > 1 else None
-        if sku is None or custo is None:
-            continue
+        return redirect(base+'?erro=arquivo_invalido')
+    try:
+        with banco() as conn:
+            anuncios=consultar(conn,"SELECT item_id,sku FROM anuncios WHERE conexao_id=%s",(cid,))
+        mapa={}
+        for a in anuncios:
+            for key in (a.get('sku'),a['item_id']):
+                if key is not None:
+                    mapa.setdefault(str(key).strip().upper(),set()).add(a['item_id'])
+        atualizacoes={}
+        nao_achados=set()
+        for index,row in enumerate(ws.iter_rows(min_row=2,max_col=2,values_only=True)):
+            if index>=20000:
+                return redirect(base+'?erro=tamanho')
+            sku=row[0] if len(row)>0 else None
+            custo=row[1] if len(row)>1 else None
+            if sku is None and custo is None:
+                continue
+            if sku is None or custo is None:
+                return redirect(base+'?erro=custos')
+            value=parse_cost(custo)
+            if value is None:
+                return redirect(base+'?erro=custos')
+            ids=mapa.get(str(sku).strip().upper())
+            if ids:
+                for item_id in ids:
+                    atualizacoes[item_id]=value
+            else:
+                nao_achados.add(str(sku))
+    except Exception:
+        app.logger.exception('cost_import_invalid cid=%s',cid)
+        return redirect(base+'?erro=arquivo_invalido')
+    finally:
         try:
-            custo_v = float(str(custo).replace("R$", "").replace(" ", "").replace(",", "."))
+            wb.close()
         except Exception:
-            continue
-        item_id = mapa.get(str(sku).strip().upper())
-        if item_id:
-            with banco() as conn:
-                executar(conn, "UPDATE anuncios SET custo=%s "
-                               "WHERE conexao_id=%s AND item_id=%s",
-                         (custo_v, cid, item_id))
-            atualizados += 1
-        else:
-            nao_achados.append(str(sku))
-    try:
-        wb.close()
-    except Exception:
-        pass
-    return redirect("/custos/" + str(cid) + "?ok=" + str(atualizados)
-                    + "&faltam=" + str(len(nao_achados)))
+            pass
+    if not atualizacoes:
+        return redirect(base+'?erro=sem_itens')
+    from psycopg2.extras import execute_batch
+    with banco() as conn:
+        with conn.cursor() as cursor:
+            execute_batch(cursor,"UPDATE anuncios SET custo=%s WHERE conexao_id=%s AND item_id=%s",
+                          [(value,cid,item_id) for item_id,value in atualizacoes.items()],page_size=200)
+        if onboarding:
+            executar(conn,"""INSERT INTO cliente_onboarding_financeiro
+                (usuario_id,conexao_id,custos_importados_em) VALUES (%s,%s,%s)
+                ON CONFLICT (usuario_id) DO UPDATE SET
+                conexao_id=EXCLUDED.conexao_id,
+                custos_importados_em=EXCLUDED.custos_importados_em""",
+                (session['usuario_id'],cid,int(time.time())))
+    if onboarding:
+        return redirect('/primeiro-acesso')
+    return redirect('/custos/'+str(cid)+'?ok='+str(len(atualizacoes))+'&faltam='+str(len(nao_achados)))
 
 
 @app.route("/modelo_custos/<int:cid>")
