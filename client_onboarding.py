@@ -52,7 +52,7 @@ def onboarding_page(cid, shop, progress, current_tax, message=''):
     <h3>Confirme a alíquota</h3><p>Informe a alíquota efetiva de imposto sobre as vendas.
     Zero é permitido somente quando realmente aplicável. Consulte seu contador em caso de dúvida.</p>
     <form method="post" action="/primeiro-acesso/imposto"><label for="on-tax">Imposto sobre vendas (%)</label>
-    <input id="on-tax" type="number" name="aliquota" min="0" max="100" step="0.01" required value=""""+escape(str(current_tax),quote=True)+"""">
+    <input id="on-tax" type="number" name="aliquota" min="0" max="100" step="0.01" required value=\'"""+escape(str(current_tax),quote=True)+"""\'>
     <button type="submit">Confirmar imposto</button></form></section>
     <section class="on-card"><span class="on-status">2 · Planilha de custos — """+step2+"""</span>
     <h3>Importe seus custos</h3><p>Use a planilha modelo com os SKUs da sua loja e o custo de aquisição por produto.
