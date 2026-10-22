@@ -17,14 +17,14 @@ class SalesHistoryFixTests(unittest.TestCase):
         self.assertIn("ORDER BY fechado_em DESC LIMIT 100", self.main)
         self.assertIn("pi.pedido_id = ANY(%s)", self.main)
 
-    def test_manual_sales_refresh_is_queued(self):
+    def test_only_summary_legacy_link_enqueues_full_refresh(self):
         enqueue, connect = Mock(), Mock(side_effect=AssertionError('synchronous collection'))
         ns=dict(pode_ver_loja=lambda cid:True,loja_habilitada_fila_persistente=lambda cid:False,
                 enfileirar_atualizacao=enqueue,banco=connect,redirect=lambda path:path)
         route=main_function('atualizar_tipo',ns)
         self.assertEqual(route('vendas',5),'/vendas/5')
         self.assertEqual(route('resumo',5),'/painel/5')
-        self.assertEqual(enqueue.call_count,2)
+        enqueue.assert_called_once_with(5)
         connect.assert_not_called()
 
     def test_uncovered_days_are_not_rendered_as_zero(self):
