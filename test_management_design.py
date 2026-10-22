@@ -59,3 +59,14 @@ class PriorityPlacementTests(unittest.TestCase):
         self.assertIn("fetch(url,{credentials:'same-origin'})",source)
         self.assertIn("if(!response.ok)throw",source)
         self.assertIn("ranking de anúncios",source)
+
+
+class MobileSidebarLayoutTests(unittest.TestCase):
+    def test_performance_sidebar_stays_off_canvas_without_layout_gap(self):
+        from management_design import STYLE
+        mobile=STYLE.split('/* Performance page must preserve the shared off-canvas mobile navigation.')[1]
+        self.assertIn('.layout:has(.mgmt-dashboard){display:flex;flex-direction:row',mobile)
+        self.assertIn('position:fixed;top:0;left:0;bottom:0',mobile)
+        self.assertIn('transform:translateX(-105%)',mobile)
+        self.assertIn('body.sidebar-open .layout:has(.mgmt-dashboard)>.menu-lateral',mobile)
+        self.assertIn('width:100%;padding:0 0 20px',mobile)
