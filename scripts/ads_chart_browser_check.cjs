@@ -14,9 +14,13 @@ const {chromium}=require('playwright');
   for(const [name,width] of [['desktop',1200],['mobile',390],['small-mobile',320]]){
    await page.setViewportSize({width,height:1000});await page.goto('http://127.0.0.1:'+server.address().port);
    await page.waitForFunction(()=>typeof Chart!=='undefined'&&Chart.getChart('kc-daily-chart'));
-   await page.evaluate(()=>Chart.getChart('kc-daily-chart').update('none'));
+   await page.evaluate(()=>{const c=Chart.getChart('kc-daily-chart');c.stop();c.options.animation=false;c.update('none')});
    const values=await page.evaluate(()=>{const c=Chart.getChart('kc-daily-chart');return {labels:c.data.labels,data:c.data.datasets[0].data,money:c.options.plugins.tooltip.callbacks.label({dataset:{label:'Vendas Ads'},parsed:{y:683.64}})}});
    assert.deepEqual(values.labels,['16/10','17/10','18/10','19/10','20/10','21/10','22/10']);assert.equal(values.data.at(-2),683.64);assert.match(values.money,/683,64/);
+   const stack=await page.evaluate(()=>{const c=Chart.getChart('kc-daily-chart'),ads=c.getDatasetMeta(0).data[5],organic=c.getDatasetMeta(1).data[5],line=c.getDatasetMeta(2).data[5];return {adsX:ads.x,organicX:organic.x,adsTop:ads.y,organicBase:organic.base,lineY:line.y,expectedLineY:c.scales.y.getPixelForValue(c.data.datasets[2].data[5])}});
+   assert.ok(Math.abs(stack.adsX-stack.organicX)<1,'Sales must share a single column');
+   assert.ok(Math.abs(stack.adsTop-stack.organicBase)<1,'Non-Ads sales must sit above Ads');
+   assert.ok(Math.abs(stack.lineY-stack.expectedLineY)<1,'Investment must retain its own value: '+JSON.stringify(stack));
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
    const canvas=page.locator('#kc-daily-chart');await canvas.scrollIntoViewIfNeeded();
    await page.evaluate(()=>{const c=Chart.getChart('kc-daily-chart');const e=c.getDatasetMeta(0).data[5];c.tooltip.setActiveElements([{datasetIndex:0,index:5},{datasetIndex:1,index:5},{datasetIndex:2,index:5}],{x:e.x,y:e.y});c.update('none')});
