@@ -96,7 +96,15 @@ def render_management(cid,report,args):
     body+='</div></section>'
     body+='<p class="muted">Publicidade no período · impressões: '+fmt(ad['impressions'],False)+' · cliques: '+fmt(ad['clicks'],False)+' · CTR: '+number(ad['ctr'],2,'%')+'.</p>'
     if ad['coverage']<ad['expected']:
-        body+=f"<p class='muted'>Ads: {ad['coverage']} de {ad['expected']} dias com registros. Totais incompletos ficam indisponíveis.</p>"
+        missing=ad.get('missing_dates',[])
+        dates=', '.join(datetime.strptime(day,'%Y-%m-%d').strftime('%d/%m') for day in missing[:10])
+        if len(missing)>10:
+            dates+=f' e mais {len(missing)-10}'
+        body+=("<div class='mgmt-notice' role='status'><b>Publicidade: histórico incompleto</b>"
+               +f"<p>Dados coletados em {ad['coverage']} de {ad['expected']} dias. "
+               +"Faltam: "+escape(dates)+". Investimento, ROAS, ACOS e TACOS "
+               +"aguardam a recuperação automática; não tratamos lacunas como gasto zero.</p>"
+               +f"<a class='btn-acoes cinza' href='/atualizar/ads/{int(cid)}'>Sincronizar Ads agora</a></div>")
     body+="<nav class='mgmt-links' aria-label='Análises detalhadas'>"+''.join("<a class='btn-acoes cinza' href='"+escape(url,quote=True)+"'>"+label+'</a>' for url,label in [(sales_url,'Analisar vendas'),(ads_url,'Ads e alertas de campanhas'),(f'/anuncios/{cid}/concorrencia','Concorrência'),(f'/custos/{cid}','Custos e margens'),(f'/full/{cid}','Full e vendas')])+'</nav>'
     body+=priorities(cid,report,args)
     # The current store home is /painel/<cid>; the legacy /operacao page is
