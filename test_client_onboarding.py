@@ -18,6 +18,8 @@ class FinancialOnboardingTests(unittest.TestCase):
 
     def test_completion_requires_import_tax_and_full_active_coverage(self):
         self.assertFalse(status(None,10,10)['done'])
+        self.assertFalse(status(None,10,10)['required'])
+        self.assertTrue(status({'custos_importados_em':None},10,10)['required'])
         self.assertFalse(status({'imposto_confirmado_em':1},10,10)['done'])
         self.assertFalse(status({'custos_importados_em':1},10,10)['done'])
         self.assertFalse(status({'custos_importados_em':1,'imposto_confirmado_em':1},10,9)['done'])
@@ -42,6 +44,9 @@ class FinancialOnboardingTests(unittest.TestCase):
         self.assertIn("session['onboarding_financeiro_concluido']=cid",gate)
         self.assertIn('CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro',main)
         self.assertIn('execute_batch(cursor',main)
+        self.assertIn('if not progress[\'required\']:',main)
+        self.assertIn('if tipo==\'cliente\' and conexao_id is not None:',main)
+        self.assertIn("if flag=='1':",main)
         self.assertIn('if not atualizacoes:',main)
         self.assertIn('imposto = float(c.get("aliquota_imposto") or 0) / 100',main)
         self.assertIn('comissao = float(c.get("comissao_pct") or 0) / 100',main)
