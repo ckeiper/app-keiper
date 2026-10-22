@@ -3805,7 +3805,7 @@ def promocoes(cid):
         <h2 style='margin-bottom:7px'>Meta de Margem de Contribuição (MC)</h2>
         <p class='sub'>Defina a MC mínima desejada para avaliar cada promoção.
         Verde: dentro da meta. Vermelho: abaixo da meta.
-        O sistema não participa nem cria promoções automaticamente.</p>
+        Para campanhas tradicionais DEAL, você pode enviar a participação manualmente após confirmar o preço e a MC. Nenhuma adesão é automática.</p>
         <form method='post' action='/promocoes/meta/""" + str(cid) + """'
         style='display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px'>
         <label for='mc_meta' style='font-weight:700'>MC mínima desejada (%)</label>
