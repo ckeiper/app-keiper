@@ -18,12 +18,12 @@ CSS="""<style>
 .k-camp .kc-period{display:flex;flex-wrap:wrap;gap:8px;margin:19px 0}
 .k-camp .kc-period a{text-decoration:none;font-size:12px;font-weight:700;padding:9px 16px;border-radius:9px;color:#52617a;border:1px solid #e2e8f2;background:white}
 .k-camp .kc-period a[aria-current=page]{background:#4165e7;color:#fff;border-color:#4165e7}
-.k-camp .kc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:17px 0}
-.k-camp .kc-kpi{background:white;border:1px solid #e6ebf4;border-radius:13px;padding:16px;min-width:0;box-shadow:0 5px 20px #213b6208}
+.k-camp .kc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}
+.k-camp .kc-kpi{background:white;border:1px solid #e6ebf4;border-radius:11px;padding:11px 13px;min-width:0;box-shadow:0 5px 20px #213b6208}
 .k-camp .kc-kpi:nth-child(4n+1){border-top:3px solid #26a8b4}.k-camp .kc-kpi:nth-child(4n+2){border-top:3px solid #4873ed}.k-camp .kc-kpi:nth-child(4n+3){border-top:3px solid #f59a43}.k-camp .kc-kpi:nth-child(4n){border-top:3px solid #8299ba}
-.k-camp .kc-kpi label{display:block;font-size:10px;color:#7b88a2;margin-bottom:10px;font-weight:750}
-.k-camp .kc-kpi strong{display:block;font-size:23px;letter-spacing:-.6px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;color:#1c3252}
-.k-camp .kc-kpi small{font-size:11px;color:#7a8aa3;display:block;margin-top:7px}
+.k-camp .kc-kpi label{display:block;font-size:10px;color:#7b88a2;margin-bottom:5px;font-weight:750}
+.k-camp .kc-kpi strong{display:block;font-size:21px;letter-spacing:-.6px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;color:#1c3252}
+.k-camp .kc-kpi small{font-size:11px;color:#7a8aa3;display:block;margin-top:4px}
 .k-camp .kc-down{color:#c94e50!important}.k-camp .kc-up{color:#138769!important}
 .k-camp .kc-section{background:white;border:1px solid #e2eaf3;border-radius:17px;padding:22px;margin:18px 0;box-shadow:0 7px 25px #223b5d08}
 .k-camp .kc-section h3{font-size:16px;color:#24395a;margin:0 0 8px}
@@ -86,7 +86,7 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
             cls="kc-up" if delta>=0 else "kc-down"
             trend="<small class='"+cls+"'>"+("%+.1f%%" % delta).replace(".",",")+" vs. período anterior</small>"
         else:
-            trend="<small>Comparação indisponível sem cobertura completa</small>"
+            trend=""
         return "<div class='kc-kpi'><label>"+name+"</label><strong>"+value+"</strong>"+trend+("<small>"+note+"</small>" if note else "")+"</div>"
     name=escape(str(campaign.get("nome") or ("Campanha "+str(campaign["campanha_id"]))))
     status=escape(str(campaign.get("status") or "Sem status"))
@@ -117,19 +117,19 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
     organic=[value(campaign_days.get(day, {}), 'outras_vendas', integer=True) for day in labels]
     available=sum(a is not None and b is not None for a,b in zip(attributed,organic))
     out+="<section class='kc-section'><h3>Vendas e investimento da campanha</h3>"
-    out+="<p class='kc-sub'>Barras empilhadas: Vendas atribuídas e Outras vendas dos anúncios desta campanha, conforme informado pelo Mercado Livre. A linha mostra o investimento em reais.</p>"
+    out+="<p class='kc-sub'>Barras empilhadas: Vendas Ads e outras vendas dos anúncios desta campanha, conforme informado pelo Mercado Livre. A linha mostra o investimento em reais.</p>"
     out+="<p class='kc-sub'>Vendas em quantidade no eixo esquerdo; investimento no eixo direito. Cada produto diferente no carrinho conta como uma venda, independentemente das unidades.</p>"
     if available<days:
         out+="<div class='kc-stale'>Métricas oficiais de vendas disponíveis em "+str(available)+" de "+str(days)+" dias. O histórico está sendo atualizado nas sincronizações. Dados não fornecidos aparecem como indisponíveis, sem estimativa e sem substituição por zero.</div>"
-    out+="<div class='kc-chart'><canvas id='kc-daily-chart' role='img' aria-label='Vendas atribuídas e Outras vendas da campanha empilhadas, com investimento em reais'></canvas></div></section>"
+    out+="<div class='kc-chart'><canvas id='kc-daily-chart' role='img' aria-label='Vendas Ads e outras vendas dos anúncios da campanha empilhadas, com investimento em reais'></canvas></div></section>"
     datasets=[
-        {"type":"bar","label":"Vendas atribuídas","data":attributed,"stack":"sales","backgroundColor":"#3483fa","borderRadius":4,"borderSkipped":False,"maxBarThickness":36,"categoryPercentage":0.7,"barPercentage":0.85,"order":2},
-        {"type":"bar","label":"Outras vendas","data":organic,"stack":"sales","backgroundColor":"#bdd7ff","borderRadius":4,"borderSkipped":False,"maxBarThickness":36,"categoryPercentage":0.7,"barPercentage":0.85,"order":3},
+        {"type":"bar","label":"Vendas Ads","data":attributed,"stack":"sales","backgroundColor":"#3483fa","borderRadius":4,"borderSkipped":False,"maxBarThickness":36,"categoryPercentage":0.7,"barPercentage":0.85,"order":2},
+        {"type":"bar","label":"Outras vendas dos anúncios","data":organic,"stack":"sales","backgroundColor":"#bdd7ff","borderRadius":4,"borderSkipped":False,"maxBarThickness":36,"categoryPercentage":0.7,"barPercentage":0.85,"order":3},
         {"type":"line","label":"Investimento","data":spends,"yAxisID":"investment","borderColor":"#194579","backgroundColor":"#194579","tension":0.35,"borderWidth":3,"pointRadius":0,"pointHoverRadius":5,"pointHoverBackgroundColor":"#fff","pointHoverBorderWidth":3,"spanGaps":False,"order":1}
     ]
     out+="<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
     display_labels=[date.fromisoformat(day).strftime('%d/%m') for day in labels]
-    out+="<script>(function(){var el=document.getElementById('kc-daily-chart');if(!el||typeof Chart==='undefined')return;var datasets="+json.dumps(datasets)+";"+"""
+    out+="<script>(function(){var el=document.getElementById('kc-daily-chart');if(!el||typeof Chart==='undefined')return;var datasets="+json.dumps(datasets,ensure_ascii=False)+";"+"""
 var currency=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
 var compact=new Intl.NumberFormat('pt-BR',{notation:'compact',maximumFractionDigits:1});
 var quantity=new Intl.NumberFormat('pt-BR',{maximumFractionDigits:0});
