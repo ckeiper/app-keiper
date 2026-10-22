@@ -99,6 +99,41 @@ def render_management(cid,report,args):
         body+=f"<p class='muted'>Ads: {ad['coverage']} de {ad['expected']} dias com registros. Totais incompletos ficam indisponíveis.</p>"
     body+="<nav class='mgmt-links' aria-label='Análises detalhadas'>"+''.join("<a class='btn-acoes cinza' href='"+escape(url,quote=True)+"'>"+label+'</a>' for url,label in [(sales_url,'Analisar vendas'),(ads_url,'Ads e alertas de campanhas'),(f'/anuncios/{cid}/concorrencia','Concorrência'),(f'/custos/{cid}','Custos e margens'),(f'/full/{cid}','Full e vendas')])+'</nav>'
     body+=priorities(cid,report,args)
+    # The current store home is /painel/<cid>; the legacy /operacao page is
+    # different. Load verified item priorities after the visible dashboard.
+    # Do not block KPI rendering on the more expensive ranking calculation.
+    priority_url=f'/ranking-anuncios/{int(cid)}?dias=7&modo=prioridades'
+    body+=("<section id='mgmt-auto-priorities' aria-label='Anúncios prioritários' "
+           "data-priority-url='"+escape(priority_url,quote=True)+"'>"
+           "<div class='card'><h2>Anúncios que precisam de atenção</h2>"
+           "<p class='muted'>Verificando as quedas de faturamento dos anúncios…</p>"
+           "</div></section>")
+    body+="""<script>
+    (function(){
+      var section=document.getElementById('mgmt-auto-priorities');
+      if(!section)return;
+      var url=section.getAttribute('data-priority-url');
+      fetch(url,{credentials:'same-origin'})
+        .then(function(response){
+          if(!response.ok)throw new Error('priority-load');
+          return response.text();
+        }).then(function(html){
+          if(section)section.innerHTML=html;
+        }).catch(function(){
+          if(section){
+            section.textContent='';
+            var error=document.createElement('p');
+            error.className='muted';
+            error.textContent='Não foi possível carregar as prioridades. Consulte o ranking dos anúncios.';
+            var link=document.createElement('a');
+            link.href=url.split('?')[0];
+            link.textContent='Abrir ranking de anúncios →';
+            section.appendChild(error);
+            section.appendChild(link);
+          }
+        });
+    })();
+    </script>"""
     body+="<div class='mgmt-overview-bottom'><section class='card mgmt-catalog'><h2>Saúde do catálogo</h2><div class='mgmt-kpis'>"
     body+=card('Anúncios com vendas',fmt(report['selling'],False),f"Entre {report['listing_count']} anúncios cadastrados")
     body+=card('Sem vendas no período',fmt(report['no_sales'],False),'Ausência de vendas não comprova falta de demanda')

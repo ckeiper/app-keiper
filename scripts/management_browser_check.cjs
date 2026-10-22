@@ -6,7 +6,7 @@ const {chromium}=require('playwright');
 
 (async()=>{
   const html=fs.readFileSync('visual-qa/management-preview.html');
-  const server=http.createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(html);});
+  const server=http.createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});if(req.url.startsWith('/ranking-anuncios/')){res.end('<section class="kp-queue"><h2>Anúncios que precisam de atenção</h2><p>Dados de teste</p></section>');return;}res.end(html);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const browser=await chromium.launch({headless:true});
   const page=await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
@@ -15,6 +15,8 @@ const {chromium}=require('playwright');
   try{
     await page.goto('http://127.0.0.1:'+server.address().port+'/management-preview.html');
     assert.equal(await page.locator('#mgmt-panel-overview').isVisible(),true);
+    await page.locator('#mgmt-auto-priorities .kp-queue').waitFor();
+    assert.equal(await page.locator('#mgmt-panel-overview').count(),1);
     assert.equal(await page.locator('#mgmt-panel-actions').isVisible(),false);
     assert.equal(await page.locator('#mgmt-panel-analysis').isVisible(),false);
     assert.equal(await page.locator('.mgmt-preview-card').count(),3);
