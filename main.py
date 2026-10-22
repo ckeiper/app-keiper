@@ -630,6 +630,8 @@ def iniciar_banco():
         try:
             executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS aliquota_imposto REAL DEFAULT 0")
             executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS comissao_pct REAL DEFAULT 12")
+            executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS mc_meta_pct REAL")
+            executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS mc_meta_atualizada_em BIGINT")
         except Exception:
             pass
         executar(conn, """CREATE TABLE IF NOT EXISTS usuarios (
@@ -3568,6 +3570,22 @@ def campanhas(cid):
     return pagina_loja("Campanhas", cid, c["cliente"], "campanhas", corpo)
 
 
+@app.route("/promocoes/meta/<int:cid>",methods=["POST"])
+@login_required
+def salvar_meta_promocoes(cid):
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito',403
+    from client_onboarding import validate_tax
+    try:
+        meta=validate_tax(request.form.get('mc_meta'))
+    except ValueError:
+        return redirect('/promocoes/'+str(cid)+'?meta_erro=1')
+    with banco() as conn:
+        executar(conn,"UPDATE conexoes SET mc_meta_pct=%s,mc_meta_atualizada_em=%s WHERE id=%s",
+                 (meta,int(time.time()),cid))
+    return redirect('/promocoes/'+str(cid)+'?meta_ok=1')
+
+
 @app.route("/promocoes/<int:cid>")
 @login_required
 def promocoes(cid):
@@ -3596,8 +3614,25 @@ def promocoes(cid):
     itens_por_promo = {}
     for it in itens_promo:
         itens_por_promo.setdefault(it["promocao_id"], []).append(it)
+    meta=c.get("mc_meta_pct")
+    meta_txt=("%.2f" % meta) if meta is not None else ""
     corpo = "<h2 style='margin-bottom:10px'>Promoções</h2>" \
         + barra_atualizar(cid, ultima, "promocoes")
+    corpo += ("""<div class='card' style='border:1px solid #d6e5f4;border-left:5px solid #2464a0'>
+        <h2 style='margin-bottom:7px'>Meta de Margem de Contribuição (MC)</h2>
+        <p class='sub'>Defina a MC mínima desejada para avaliar cada promoção.
+        Verde: dentro da meta. Vermelho: abaixo da meta.
+        O sistema não participa nem cria promoções automaticamente.</p>
+        <form method='post' action='/promocoes/meta/""" + str(cid) + """'
+        style='display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px'>
+        <label for='mc_meta' style='font-weight:700'>MC mínima desejada (%)</label>
+        <input id='mc_meta' name='mc_meta' type='number' step='0.01' min='0' max='100'
+        required class='filtro' style='width:110px' value='""" + meta_txt + """'>
+        <button type='submit' class='filtro-btn'>Salvar meta</button></form></div>""")
+    if request.args.get("meta_erro"):
+        corpo += "<div class='aviso'>Informe uma meta de MC entre 0% e 100%.</div>"
+    if request.args.get("meta_ok"):
+        corpo += "<div class='sucesso'>Meta de MC atualizada.</div>"
     if not promos:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhuma promoção carregada ainda</h2>"
@@ -3683,14 +3718,12 @@ def promocoes(cid):
                         margem = round((preco_promo - custo - preco_promo * (imposto + comissao)) * 100.0 / preco_promo, 1)
                     else:
                         margem = 0
-                    if margem <= 0:
-                        margem_html = ("<span class='alerta urgente'>%.1f%% "
-                                       "(come a margem)</span>" % margem)
-                    elif margem < 20:
-                        margem_html = ("<span class='alerta atencao'>%.1f%%"
-                                       "</span>" % margem)
+                    if meta is None:
+                        margem_html = ("<span class='alerta atencao'>%.1f%% · defina a meta</span>" % margem)
+                    elif margem < float(meta):
+                        margem_html = ("<span class='alerta urgente'>%.1f%% · abaixo da meta</span>" % margem)
                     else:
-                        margem_html = ("<span class='alerta ok'>%.1f%%</span>" % margem)
+                        margem_html = ("<span class='alerta ok'>%.1f%% · dentro da meta</span>" % margem)
                 elif custo is None:
                     margem_html = ("<a class='link' href='/custos/"
                                    + str(cid) + "'>+ custo</a>")
