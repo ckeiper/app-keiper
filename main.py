@@ -1427,7 +1427,8 @@ def salvar_config(cid):
 def upload_custos(cid):
     if not pode_ver_loja(cid):
         return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>"),403
-    onboarding=session.get('tipo')=='cliente' and session.get('onboarding_financeiro_concluido')!=cid
+    onboarding=(session.get('tipo')=='cliente' and session.get('onboarding_financeiro_concluido')!=cid
+                and financeiro_status_usuario(session['usuario_id'],cid)['required'])
     base='/primeiro-acesso' if onboarding else '/custos/'+str(cid)
     if openpyxl is None:
         return redirect(base+'?erro=biblioteca')
