@@ -630,6 +630,8 @@ def iniciar_banco():
         try:
             executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS aliquota_imposto REAL DEFAULT 0")
             executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS comissao_pct REAL DEFAULT 12")
+            executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS mc_meta_pct REAL")
+            executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS mc_meta_atualizada_em BIGINT")
         except Exception:
             pass
         executar(conn, """CREATE TABLE IF NOT EXISTS usuarios (
@@ -801,11 +803,25 @@ def iniciar_banco():
         executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
         init_overview_schema(conn, executar)
         init_crm_schema(conn, executar)
+        executar(conn, """CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro (
+            usuario_id INTEGER PRIMARY KEY,
+            conexao_id INTEGER NOT NULL,
+            custos_importados_em BIGINT,
+            imposto_confirmado_em BIGINT,
+            concluido_em BIGINT
+        )""")
         executar(conn, """CREATE TABLE IF NOT EXISTS cliente_prioridades_acessos (
             conexao_id INTEGER PRIMARY KEY,
             habilitado BOOLEAN NOT NULL DEFAULT FALSE,
             atualizado_em BIGINT NOT NULL
         )""")
+        # Existing clients are enrolled when the portal is explicitly enabled;
+        # this avoids abruptly locking long-standing accounts before rollout.
+        executar(conn, """INSERT INTO cliente_onboarding_financeiro(usuario_id,conexao_id)
+            SELECT u.id,u.conexao_id FROM usuarios u
+            JOIN cliente_prioridades_acessos a ON a.conexao_id=u.conexao_id
+            WHERE u.tipo='cliente' AND a.habilitado=TRUE
+            ON CONFLICT(usuario_id) DO NOTHING""")
 
         # ---------- AUTENTICAÇÃO ----------
 
@@ -901,6 +917,11 @@ def login():
             session["tipo"] = u["tipo"]
             session["conexao_id"] = u["conexao_id"]
             session["auth_version"] = u["auth_version"]
+            if u["tipo"] == "cliente" and u["conexao_id"]:
+                with banco() as conn:
+                    enrolled=consultar(conn,"""SELECT 1 FROM cliente_onboarding_financeiro
+                        WHERE usuario_id=%s AND conexao_id=%s""",(u["id"],u["conexao_id"]))
+                session['onboarding_requerido']=bool(enrolled)
             if u["tipo"] == "cliente" and u["conexao_id"]:
                 return redirect("/painel/" + str(u["conexao_id"]))
             return redirect("/painel")
@@ -1305,6 +1326,96 @@ def salvar_roas(cid, campanha_id):
     return jsonify({"ok": True})
 
 
+def financeiro_status_usuario(uid,cid):
+    """Always validate progress server-side, never rely on a client cookie."""
+    from client_onboarding import status
+    with banco() as conn:
+        row=consultar(conn,"SELECT * FROM cliente_onboarding_financeiro WHERE usuario_id=%s AND conexao_id=%s",(uid,cid))
+        if not row:
+            return status(None,0,0)
+        count=consultar(conn,"""SELECT COUNT(*) FILTER(WHERE LOWER(status)='active') AS total,
+             COUNT(*) FILTER(WHERE LOWER(status)='active' AND custo IS NOT NULL AND custo>=0) AS com_custo
+             FROM anuncios WHERE conexao_id=%s""",(cid,))
+    metrics=count[0] if count else {}
+    return status(row[0] if row else None,int(metrics.get('total') or 0),int(metrics.get('com_custo') or 0))
+
+
+@app.before_request
+def exigir_onboarding_financeiro_cliente():
+    if session.get('tipo')!='cliente' or not session.get('usuario_id'):
+        return None
+    cid=session.get('conexao_id')
+    if not isinstance(cid,int):
+        return None
+    if session.get('onboarding_financeiro_concluido')==cid:
+        return None
+    # The login records whether the client was enrolled. Legacy sessions
+    # keep their previous access; entering the shared portal always rechecks.
+    if not session.get('onboarding_requerido') and request.endpoint!='prioridades_loja':
+        return None
+    if request.endpoint in {'login','logout','logo_arquivo','static',
+                            'primeiro_acesso','primeiro_acesso_imposto',
+                            'modelo_custos','upload_custos'}:
+        return None
+    progress=financeiro_status_usuario(session['usuario_id'],cid)
+    if not progress['required']:
+        session['onboarding_requerido']=False
+        return None
+    session['onboarding_requerido']=True
+    if progress['done']:
+        session['onboarding_financeiro_concluido']=cid
+        return None
+    return redirect('/primeiro-acesso')
+
+
+@app.route('/primeiro-acesso')
+@login_required
+def primeiro_acesso():
+    if session.get('tipo')!='cliente' or not isinstance(session.get('conexao_id'),int):
+        return redirect('/painel')
+    cid=session['conexao_id']
+    progress=financeiro_status_usuario(session['usuario_id'],cid)
+    if not progress['required']:
+        return redirect('/painel/'+str(cid))
+    if progress['done']:
+        session['onboarding_financeiro_concluido']=cid
+        return redirect('/painel/'+str(cid))
+    with banco() as conn:
+        rows=consultar(conn,'SELECT cliente,aliquota_imposto FROM conexoes WHERE id=%s',(cid,))
+    if not rows:
+        return pagina('Configuração inicial','<div class="card">Loja não encontrada.</div>'),404
+    from client_onboarding import onboarding_page
+    message={'arquivo':'O arquivo precisa ser um Excel .xlsx válido.',
+             'sem_itens':'A planilha não atualizou nenhum SKU desta loja. Confira o modelo.',
+             'taxa':'Informe uma alíquota válida entre 0% e 100%.',
+             'tamanho':'O arquivo é muito grande. Limite: 4 MB.',
+             'custos':'A planilha contém custos inválidos ou negativos.'}.get(request.args.get('erro'),'')
+    return pagina('Configuração inicial',onboarding_page(cid,rows[0]['cliente'],progress,
+        rows[0]['aliquota_imposto'] if rows[0]['aliquota_imposto'] is not None else '',message))
+
+
+@app.route('/primeiro-acesso/imposto',methods=['POST'])
+@login_required
+def primeiro_acesso_imposto():
+    if session.get('tipo')!='cliente' or not isinstance(session.get('conexao_id'),int):
+        return 'Acesso restrito',403
+    from client_onboarding import validate_tax
+    try:
+        aliquota=validate_tax(request.form.get('aliquota'))
+    except ValueError:
+        return redirect('/primeiro-acesso?erro=taxa')
+    cid=session['conexao_id']
+    with banco() as conn:
+        executar(conn,'UPDATE conexoes SET aliquota_imposto=%s WHERE id=%s',(aliquota,cid))
+        executar(conn,"""INSERT INTO cliente_onboarding_financeiro
+            (usuario_id,conexao_id,imposto_confirmado_em) VALUES (%s,%s,%s)
+            ON CONFLICT (usuario_id) DO UPDATE SET
+            conexao_id=EXCLUDED.conexao_id,
+            imposto_confirmado_em=EXCLUDED.imposto_confirmado_em""",
+            (session['usuario_id'],cid,int(time.time())))
+    return redirect('/primeiro-acesso')
+
+
 @app.route("/salvar_config/<int:cid>", methods=["POST"])
 @login_required
 def salvar_config(cid):
@@ -1328,50 +1439,81 @@ def salvar_config(cid):
 @login_required
 def upload_custos(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
+        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>"),403
+    onboarding=(session.get('tipo')=='cliente' and session.get('onboarding_financeiro_concluido')!=cid
+                and financeiro_status_usuario(session['usuario_id'],cid)['required'])
+    base='/primeiro-acesso' if onboarding else '/custos/'+str(cid)
     if openpyxl is None:
-        return redirect("/custos/" + str(cid) + "?erro=biblioteca")
-    arquivo = request.files.get("arquivo")
+        return redirect(base+'?erro=biblioteca')
+    arquivo=request.files.get('arquivo')
     if not arquivo or not arquivo.filename:
-        return redirect("/custos/" + str(cid) + "?erro=sem_arquivo")
+        return redirect(base+'?erro=sem_arquivo')
+    if not arquivo.filename.lower().endswith('.xlsx'):
+        return redirect(base+'?erro=arquivo_invalido')
+    from client_onboarding import parse_cost
     try:
-        wb = openpyxl.load_workbook(arquivo, data_only=True, read_only=True)
-        ws = wb.active
+        arquivo.stream.seek(0,2)
+        size=arquivo.stream.tell()
+        arquivo.stream.seek(0)
+        if size>4*1024*1024:
+            return redirect(base+'?erro=tamanho')
+        wb=openpyxl.load_workbook(arquivo,data_only=True,read_only=True)
+        ws=wb.active
     except Exception:
-        return redirect("/custos/" + str(cid) + "?erro=arquivo_invalido")
-    with banco() as conn:
-        anuncios = consultar(conn, "SELECT item_id, sku FROM anuncios WHERE conexao_id=%s", (cid,))
-    mapa = {}
-    for a in anuncios:
-        if a["sku"]:
-            mapa[str(a["sku"]).strip().upper()] = a["item_id"]
-        mapa[str(a["item_id"]).strip().upper()] = a["item_id"]
-    atualizados = 0
-    nao_achados = []
-    for row in ws.iter_rows(min_row=2, max_col=2, values_only=True):
-        sku = row[0] if len(row) > 0 else None
-        custo = row[1] if len(row) > 1 else None
-        if sku is None or custo is None:
-            continue
+        return redirect(base+'?erro=arquivo_invalido')
+    try:
+        with banco() as conn:
+            anuncios=consultar(conn,"SELECT item_id,sku FROM anuncios WHERE conexao_id=%s",(cid,))
+        mapa={}
+        for a in anuncios:
+            for key in (a.get('sku'),a['item_id']):
+                if key is not None:
+                    mapa.setdefault(str(key).strip().upper(),set()).add(a['item_id'])
+        atualizacoes={}
+        nao_achados=set()
+        for index,row in enumerate(ws.iter_rows(min_row=2,max_col=2,values_only=True)):
+            if index>=20000:
+                return redirect(base+'?erro=tamanho')
+            sku=row[0] if len(row)>0 else None
+            custo=row[1] if len(row)>1 else None
+            if sku is None and custo is None:
+                continue
+            if sku is None or custo is None:
+                return redirect(base+'?erro=custos')
+            value=parse_cost(custo)
+            if value is None:
+                return redirect(base+'?erro=custos')
+            ids=mapa.get(str(sku).strip().upper())
+            if ids:
+                for item_id in ids:
+                    atualizacoes[item_id]=value
+            else:
+                nao_achados.add(str(sku))
+    except Exception:
+        app.logger.exception('cost_import_invalid cid=%s',cid)
+        return redirect(base+'?erro=arquivo_invalido')
+    finally:
         try:
-            custo_v = float(str(custo).replace("R$", "").replace(" ", "").replace(",", "."))
+            wb.close()
         except Exception:
-            continue
-        item_id = mapa.get(str(sku).strip().upper())
-        if item_id:
-            with banco() as conn:
-                executar(conn, "UPDATE anuncios SET custo=%s "
-                               "WHERE conexao_id=%s AND item_id=%s",
-                         (custo_v, cid, item_id))
-            atualizados += 1
-        else:
-            nao_achados.append(str(sku))
-    try:
-        wb.close()
-    except Exception:
-        pass
-    return redirect("/custos/" + str(cid) + "?ok=" + str(atualizados)
-                    + "&faltam=" + str(len(nao_achados)))
+            pass
+    if not atualizacoes:
+        return redirect(base+'?erro=sem_itens')
+    from psycopg2.extras import execute_batch
+    with banco() as conn:
+        with conn.cursor() as cursor:
+            execute_batch(cursor,"UPDATE anuncios SET custo=%s WHERE conexao_id=%s AND item_id=%s",
+                          [(value,cid,item_id) for item_id,value in atualizacoes.items()],page_size=200)
+        if onboarding:
+            executar(conn,"""INSERT INTO cliente_onboarding_financeiro
+                (usuario_id,conexao_id,custos_importados_em) VALUES (%s,%s,%s)
+                ON CONFLICT (usuario_id) DO UPDATE SET
+                conexao_id=EXCLUDED.conexao_id,
+                custos_importados_em=EXCLUDED.custos_importados_em""",
+                (session['usuario_id'],cid,int(time.time())))
+    if onboarding:
+        return redirect('/primeiro-acesso')
+    return redirect('/custos/'+str(cid)+'?ok='+str(len(atualizacoes))+'&faltam='+str(len(nao_achados)))
 
 
 @app.route("/modelo_custos/<int:cid>")
@@ -2273,6 +2415,10 @@ def acesso_prioridades_cliente(cid):
             VALUES (%s,%s,%s) ON CONFLICT (conexao_id) DO UPDATE SET
             habilitado=EXCLUDED.habilitado,atualizado_em=EXCLUDED.atualizado_em""",
             (cid,flag=='1',int(time.time())))
+        if flag=='1':
+            executar(conn,"""INSERT INTO cliente_onboarding_financeiro(usuario_id,conexao_id)
+                SELECT id,conexao_id FROM usuarios WHERE tipo='cliente' AND conexao_id=%s
+                ON CONFLICT(usuario_id) DO NOTHING""",(cid,))
     return redirect('/prioridades')
 
 
@@ -2636,6 +2782,11 @@ def usuarios_criar():
                        "VALUES (%s,%s,%s,%s,%s,%s,%s)",
                  (username, generate_password_hash(senha), nome, email,
                   tipo, conexao_id, int(time.time())))
+        if tipo=='cliente' and conexao_id is not None:
+            new_user=consultar(conn,"SELECT id FROM usuarios WHERE username=%s",(username,))
+            executar(conn,"""INSERT INTO cliente_onboarding_financeiro(usuario_id,conexao_id)
+                VALUES (%s,%s) ON CONFLICT(usuario_id) DO NOTHING""",
+                (new_user[0]['id'],conexao_id))
     return redirect("/usuarios?msg=Usuário criado com sucesso")
 
 
@@ -3424,6 +3575,22 @@ def campanhas(cid):
     return pagina_loja("Campanhas", cid, c["cliente"], "campanhas", corpo)
 
 
+@app.route("/promocoes/meta/<int:cid>",methods=["POST"])
+@login_required
+def salvar_meta_promocoes(cid):
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito',403
+    from client_onboarding import validate_tax
+    try:
+        meta=validate_tax(request.form.get('mc_meta'))
+    except ValueError:
+        return redirect('/promocoes/'+str(cid)+'?meta_erro=1')
+    with banco() as conn:
+        executar(conn,"UPDATE conexoes SET mc_meta_pct=%s,mc_meta_atualizada_em=%s WHERE id=%s",
+                 (meta,int(time.time()),cid))
+    return redirect('/promocoes/'+str(cid)+'?meta_ok=1')
+
+
 @app.route("/promocoes/<int:cid>")
 @login_required
 def promocoes(cid):
@@ -3452,8 +3619,25 @@ def promocoes(cid):
     itens_por_promo = {}
     for it in itens_promo:
         itens_por_promo.setdefault(it["promocao_id"], []).append(it)
+    meta=c.get("mc_meta_pct")
+    meta_txt=("%.2f" % meta) if meta is not None else ""
     corpo = "<h2 style='margin-bottom:10px'>Promoções</h2>" \
         + barra_atualizar(cid, ultima, "promocoes")
+    corpo += ("""<div class='card' style='border:1px solid #d6e5f4;border-left:5px solid #2464a0'>
+        <h2 style='margin-bottom:7px'>Meta de Margem de Contribuição (MC)</h2>
+        <p class='sub'>Defina a MC mínima desejada para avaliar cada promoção.
+        Verde: dentro da meta. Vermelho: abaixo da meta.
+        O sistema não participa nem cria promoções automaticamente.</p>
+        <form method='post' action='/promocoes/meta/""" + str(cid) + """'
+        style='display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px'>
+        <label for='mc_meta' style='font-weight:700'>MC mínima desejada (%)</label>
+        <input id='mc_meta' name='mc_meta' type='number' step='0.01' min='0' max='100'
+        required class='filtro' style='width:110px' value='""" + meta_txt + """'>
+        <button type='submit' class='filtro-btn'>Salvar meta</button></form></div>""")
+    if request.args.get("meta_erro"):
+        corpo += "<div class='aviso'>Informe uma meta de MC entre 0% e 100%.</div>"
+    if request.args.get("meta_ok"):
+        corpo += "<div class='sucesso'>Meta de MC atualizada.</div>"
     if not promos:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhuma promoção carregada ainda</h2>"
@@ -3522,7 +3706,7 @@ def promocoes(cid):
         if itens:
             corpo += ("<table><thead><tr><th>Anúncio</th><th>Preço normal</th>"
                       "<th>Preço promo</th><th>Desconto</th><th>Custo</th>"
-                      "<th>Margem na promo</th></tr></thead><tbody>")
+                      "<th>Contribuição estimada</th></tr></thead><tbody>")
             for it in itens:
                 preco = it["preco"] or 0
                 preco_promo = it["preco_promocional"]
@@ -3534,17 +3718,17 @@ def promocoes(cid):
                     desc_html = "<span class='tag sem'>—</span>"
                 if custo is not None and preco_promo is not None:
                     if preco_promo:
-                        margem = round((preco_promo - custo) * 100.0 / preco_promo, 1)
+                        imposto = float(c.get("aliquota_imposto") or 0) / 100
+                        comissao = float(c.get("comissao_pct") or 0) / 100
+                        margem = round((preco_promo - custo - preco_promo * (imposto + comissao)) * 100.0 / preco_promo, 1)
                     else:
                         margem = 0
-                    if margem <= 0:
-                        margem_html = ("<span class='alerta urgente'>%.1f%% "
-                                       "(come a margem)</span>" % margem)
-                    elif margem < 20:
-                        margem_html = ("<span class='alerta atencao'>%.1f%%"
-                                       "</span>" % margem)
+                    if meta is None:
+                        margem_html = ("<span class='alerta atencao'>%.1f%% · defina a meta</span>" % margem)
+                    elif margem < float(meta):
+                        margem_html = ("<span class='alerta urgente'>%.1f%% · abaixo da meta</span>" % margem)
                     else:
-                        margem_html = ("<span class='alerta ok'>%.1f%%</span>" % margem)
+                        margem_html = ("<span class='alerta ok'>%.1f%% · dentro da meta</span>" % margem)
                 elif custo is None:
                     margem_html = ("<a class='link' href='/custos/"
                                    + str(cid) + "'>+ custo</a>")
@@ -3574,8 +3758,10 @@ def promocoes(cid):
     corpo += ("<div class='muted'>Para o comparativo de margem, cadastre o "
               "<b>custo</b> dos anúncios na <a class='link' href='/custos/"
               + str(cid) + "'>tela de Custos</a> (individual ou por planilha). "
-              "O painel calcula o desconto aplicado e se a promoção ainda "
-              "deixa margem.</div>")
+              "O painel calcula uma contribuição estimada descontando custo, "
+              "imposto e comissão configurada. Frete, tarifa fixa, publicidade "
+              "e outros custos não estão incluídos; confira a rentabilidade "
+              "real antes de aderir a qualquer promoção.</div>")
     return pagina_loja("Promoções", cid, c["cliente"], "promocoes", corpo)
 
 
