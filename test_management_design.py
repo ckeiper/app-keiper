@@ -41,3 +41,21 @@ class ProductTests(unittest.TestCase):
         self.assertIn('<img',html)
         self.assertIn('&lt;script&gt;',html)
         self.assertIn('/diagnostico/1/MLB1',html)
+
+
+class PriorityPlacementTests(unittest.TestCase):
+    def test_current_store_home_loads_priority_queue_after_opportunities(self):
+        import inspect
+        from management_view import render_management
+        from management_routes import register_management
+        source=inspect.getsource(render_management)
+        route=inspect.getsource(register_management)
+        self.assertIn("@app.route('/painel/<int:cid>')",route)
+        self.assertIn("body+=priorities(cid,report,args)",source)
+        self.assertIn("id='mgmt-auto-priorities'",source)
+        self.assertGreater(source.index("id='mgmt-auto-priorities'"),
+                           source.index("body+=priorities(cid,report,args)"))
+        self.assertIn("modo=prioridades",source)
+        self.assertIn("fetch(url,{credentials:'same-origin'})",source)
+        self.assertIn("if(!response.ok)throw",source)
+        self.assertIn("ranking de anúncios",source)
