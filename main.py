@@ -3697,9 +3697,28 @@ def participar_deal(cid,pid,item_id):
     with banco() as conn:
         previous=consultar(conn,"SELECT status FROM promocoes_adesoes WHERE conexao_id=%s AND promocao_id=%s AND item_id=%s",(cid,pid,item_id))
     if previous:
+        from promo_participation import find_deal,is_participating
+        state=previous[0]['status']
+        # Read-only reconciliation; never resend a request with an uncertain outcome.
+        token=token_atual(shop)
+        if token:
+            rows,error=api_get(token,'/seller-promotions/items/'+item_id,{'app_version':'v2'})
+            if not error and is_participating(find_deal(rows,pid)):
+                state='confirmed'
+                if previous[0]['status']!='confirmed':
+                    with banco() as conn:
+                        executar(conn,"""UPDATE promocoes_adesoes SET status='confirmed',
+                            resposta=%s,atualizado_em=%s WHERE conexao_id=%s
+                            AND promocao_id=%s AND item_id=%s""",
+                            ('Participação verificada novamente no Mercado Livre.',
+                             int(time.time()),cid,pid,item_id))
+        label={'confirmed':'Confirmada no Mercado Livre','rejected':'Recusada pelo Mercado Livre',
+               'uncertain':'Aguardando confirmação','sending':'Envio em andamento'}.get(state,'Em análise')
         return pagina_loja('Participação',cid,shop['cliente'],'promocoes',
-            '<div class="card"><h2>Participação já enviada</h2><p>Registro: '+esc(previous[0]['status'])+
-            '. Confira o status atualizado no Mercado Livre. Para evitar duplicidade, não reenviamos esta solicitação automaticamente.</p></div>')
+            '<div class="card"><h2>'+esc(label)+'</h2><p>Campanha: '+esc(pid)+
+            ' · Anúncio: '+esc(item_id)+'</p><p>Verificamos novamente o Mercado Livre. '
+            'Para evitar adesões duplicadas, esta solicitação não será reenviada.</p>'
+            '<p><a class="link" href="/promocoes/'+str(cid)+'">Voltar às promoções</a></p></div>')
     if request.method=='GET':
         token=token_atual(shop)
         if not token:
