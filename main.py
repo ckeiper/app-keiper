@@ -519,31 +519,30 @@ def pagina(titulo, corpo):
     return cab + sidebar + topo + marca + links + fim
 
 
-def _store_nav_icon(name):
-    """Lightweight inline outline icons, consistent with marketplace navigation."""
-    paths = {
-        "resumo": "<rect x='3' y='3' width='7' height='9' rx='1'/><rect x='14' y='3' width='7' height='5' rx='1'/><rect x='14' y='12' width='7' height='9' rx='1'/><rect x='3' y='16' width='7' height='5' rx='1'/>",
-        "prioridades": "<path d='m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z'/>",
-        "anuncios": "<path d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'/><path d='m3.3 7 8.7 5 8.7-5M12 22V12'/>",
-        "full": "<path d='M10 17h4V5H2v12h3'/><path d='M14 9h4l4 4v4h-3'/><circle cx='7.5' cy='17.5' r='2.5'/><circle cx='16.5' cy='17.5' r='2.5'/>",
-        "desempenho": "<path d='M3 3v18h18'/><path d='m7 16 4-5 4 3 5-8'/>",
-        "demandas": "<rect x='5' y='4' width='14' height='18' rx='2'/><path d='M9 4.5h6M9 10h6M9 14h6M9 18h3'/>",
-        "promocoes": "<path d='M20.6 13.4 12 22l-9-9V3h10z'/><circle cx='8' cy='8' r='1'/>",
-        "ads": "<path d='m3 11 18-7-7 18-3-8z'/><path d='m11 14 10-10'/>",
-        "campanhas": "<path d='M3 11v2l10 4V7L3 11zM13 7l7-3v16l-7-3M7 15l1 5h4l-2-4'/>",
-        "custos": "<rect x='2' y='5' width='20' height='15' rx='2'/><path d='M2 10h20M17 15h2'/>",
-        "vendas": "<circle cx='9' cy='20' r='1'/><circle cx='19' cy='20' r='1'/><path d='M2 3h2l2.5 12h13l2-9H5'/>",
-        "auditoria_frete": "<path d='M8 3h9l4 4v14H8zM17 3v5h4M11 12h7M11 16h5'/><path d='M4 8H2v12h3'/>",
-        "atualizar": "<path d='M20 7v5h-5M4 17v-5h5'/><path d='M5 9a8 8 0 0 1 14-2l1 5M4 12l1 5a8 8 0 0 0 14-2'/>",
-        "diagnostico": "<circle cx='10.5' cy='10.5' r='7.5'/><path d='m16 16 5 5'/>",
-        "excluir": "<path d='M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7'/>",
-    }
-    return ("<svg class='ks-store-icon' viewBox='0 0 24 24' fill='none' "
-            "stroke='currentColor' stroke-width='1.8' stroke-linecap='round' "
-            "stroke-linejoin='round' aria-hidden='true'>" + paths[name] + "</svg>")
-
-
 def pagina_loja(titulo, cid, cliente, secao, corpo):
+    def _store_nav_icon(name):
+        """Lightweight inline outline icons, consistent with marketplace navigation."""
+        paths = {
+            "resumo": "<rect x='3' y='3' width='7' height='9' rx='1'/><rect x='14' y='3' width='7' height='5' rx='1'/><rect x='14' y='12' width='7' height='9' rx='1'/><rect x='3' y='16' width='7' height='5' rx='1'/>",
+            "prioridades": "<path d='m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z'/>",
+            "anuncios": "<path d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'/><path d='m3.3 7 8.7 5 8.7-5M12 22V12'/>",
+            "full": "<path d='M10 17h4V5H2v12h3'/><path d='M14 9h4l4 4v4h-3'/><circle cx='7.5' cy='17.5' r='2.5'/><circle cx='16.5' cy='17.5' r='2.5'/>",
+            "desempenho": "<path d='M3 3v18h18'/><path d='m7 16 4-5 4 3 5-8'/>",
+            "demandas": "<rect x='5' y='4' width='14' height='18' rx='2'/><path d='M9 4.5h6M9 10h6M9 14h6M9 18h3'/>",
+            "promocoes": "<path d='M20.6 13.4 12 22l-9-9V3h10z'/><circle cx='8' cy='8' r='1'/>",
+            "ads": "<path d='m3 11 18-7-7 18-3-8z'/><path d='m11 14 10-10'/>",
+            "campanhas": "<path d='M3 11v2l10 4V7L3 11zM13 7l7-3v16l-7-3M7 15l1 5h4l-2-4'/>",
+            "custos": "<rect x='2' y='5' width='20' height='15' rx='2'/><path d='M2 10h20M17 15h2'/>",
+            "vendas": "<circle cx='9' cy='20' r='1'/><circle cx='19' cy='20' r='1'/><path d='M2 3h2l2.5 12h13l2-9H5'/>",
+            "auditoria_frete": "<path d='M8 3h9l4 4v14H8zM17 3v5h4M11 12h7M11 16h5'/><path d='M4 8H2v12h3'/>",
+            "atualizar": "<path d='M20 7v5h-5M4 17v-5h5'/><path d='M5 9a8 8 0 0 1 14-2l1 5M4 12l1 5a8 8 0 0 0 14-2'/>",
+            "diagnostico": "<circle cx='10.5' cy='10.5' r='7.5'/><path d='m16 16 5 5'/>",
+            "excluir": "<path d='M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7'/>",
+        }
+        return ("<svg class='ks-store-icon' viewBox='0 0 24 24' fill='none' "
+                "stroke='currentColor' stroke-width='1.8' stroke-linecap='round' "
+                "stroke-linejoin='round' aria-hidden='true'>" + paths[name] + "</svg>")
+
     # Group related screens into accessible, single-open navigation sections.
     groups = [
         ("anuncios", "Anúncios", [
