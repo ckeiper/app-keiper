@@ -246,8 +246,14 @@ class SyncTests(unittest.TestCase):
                   enfileirar_atualizacao=enqueue,redirect=lambda path:path,token_atual=token,
                   threading=SimpleNamespace(Thread=thread))
         route=main_function('atualizar_tipo',ns)
-        for tipo in ('anuncios','promocoes','desempenho','custos','campanhas'):
-            self.assertEqual(route(tipo,9),'/'+tipo+'/9')
+        for tipo, expected_path in (
+                ('anuncios', '/anuncios/9'),
+                ('promocoes', '/promocoes/9'),
+                ('desempenho', '/desempenho/9'),
+                ('custos', '/custos/9'),
+                ('campanhas', '/ads/9')):
+            with self.subTest(tipo=tipo):
+                self.assertEqual(route(tipo,9), expected_path)
         enqueue.assert_not_called()
         token.assert_not_called()
         thread.assert_not_called()
