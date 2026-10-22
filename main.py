@@ -521,38 +521,46 @@ def pagina(titulo, corpo):
 
 def pagina_loja(titulo, cid, cliente, secao, corpo):
     itens = [
-        ("resumo", "📊 Resumo", "/painel/" + str(cid)),
-        ("prioridades", "⭐ Minhas prioridades", "/prioridades/" + str(cid)),
-        ("anuncios", "📦 Anúncios", "/anuncios/" + str(cid)),
+        ("resumo", "▦ Visão geral", "/painel/" + str(cid)),
+        ("prioridades", "✦ Prioridades", "/prioridades/" + str(cid)),
+        ("anuncios", "▤ Anúncios", "/anuncios/" + str(cid)),
         ("full", "Full e vendas", "/full/" + str(cid)),
-        ("desempenho", "📈 Desempenho", "/desempenho/" + str(cid)),
+        ("desempenho", "↗ Desempenho", "/desempenho/" + str(cid)),
         ("demandas", "🟡 Demandas", "/demandas/" + str(cid)),
         ("promocoes", "🏷️ Promoções", "/promocoes/" + str(cid)),
-        ("ads", "📣 Ads", "/ads/" + str(cid)),
+        ("ads", "◈ Publicidade Ads", "/ads/" + str(cid)),
         ("campanhas", "📢 Campanhas", "/campanhas/" + str(cid)),
-        ("custos", "💰 Custos", "/custos/" + str(cid)),
-        ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
+        ("custos", "◇ Custos", "/custos/" + str(cid)),
+        ("vendas", "▥ Vendas", "/vendas/" + str(cid)),
         ("auditoria_frete", "🚚 Auditoria de Frete", "/auditoria-frete/" + str(cid)),
     ]
-    menu = "<div class='menu-lateral'>"
+    menu = "<nav class='menu-lateral ks-store-nav' aria-label='Navegação da loja'>"
     menu += "<a class='voltar' href='/painel'>← Todas as lojas</a>"
+    menu += "<div class='ks-store-caption'>PAINEL DA LOJA</div>"
     for chave, rotulo, href in itens:
+        if chave == "anuncios":
+            menu += "<div class='ks-store-caption'>CATÁLOGO E OPERAÇÃO</div>"
+        elif chave == "ads":
+            menu += "<div class='ks-store-caption'>CRESCIMENTO</div>"
+        elif chave == "custos":
+            menu += "<div class='ks-store-caption'>FINANCEIRO</div>"
         classe = "item"
         if secao == chave:
             classe += " atual"
         menu += "<a class='" + classe + "' href='" + href + "'>"
         menu += rotulo + "</a>"
+    menu += "<div class='ks-store-caption'>FERRAMENTAS</div>"
     menu += "<a class='item' href='/atualizar?cid=" + str(cid) + "'>"
     menu += "🔄 Atualizar dados</a>"
     menu += "<a class='item' href='/diagnostico'>🔍 Diagnóstico</a>"
     menu += "<a class='item perigo' href='/excluir/" + str(cid) + "'>"
-    menu += "🗑️ Excluir loja</a></div>"
+    menu += "🗑️ Excluir loja</a></nav>"
     links = ""
     links += "<a class='btn sair' href='/logout'>Sair</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
     cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS
-    cab += "</head><body><div class='top'>"
+    cab += "<style>\nbody:has(.ks-store-nav){background:#f4f7fc}\nbody:has(.ks-store-nav) .layout{gap:24px;align-items:flex-start}\nbody:has(.ks-store-nav) .ks-store-nav{position:sticky;top:16px;flex:0 0 240px;width:240px;max-height:calc(100dvh - 32px);padding:18px 12px;background:linear-gradient(160deg,#0d192d,#142b4b);border:1px solid #2b4568;border-radius:16px;box-shadow:0 12px 36px #0b1b3024;scrollbar-width:thin;scrollbar-color:#42628a transparent}\n.ks-store-nav .voltar{color:#d7e7ff!important;font-weight:750!important;padding:12px!important;border-radius:10px!important;background:#233c5e!important;text-decoration:none!important;margin-bottom:14px!important}\n.ks-store-nav .ks-store-caption{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#829fc4;padding:17px 11px 7px}\n.ks-store-nav a.item{display:flex!important;align-items:center;min-height:42px!important;padding:10px 12px!important;border-radius:10px!important;background:transparent!important;color:#c4d5ee!important;font-size:13px!important;font-weight:600!important;border:0!important;text-decoration:none!important;transition:background .16s,color .16s}\n.ks-store-nav a.item:hover{background:#274467!important;color:#fff!important}\n.ks-store-nav a.item.atual,.ks-store-nav a.item.atual:hover{background:#2a568c!important;color:#fff!important;box-shadow:inset 3px 0 #79b5ff}\n.ks-store-nav a.item.perigo{color:#ffa7ac!important;margin-top:8px}\n.ks-store-nav a.item.perigo:hover{background:#633040!important}\n.ks-store-nav a:focus-visible{outline:3px solid #8dc4ff;outline-offset:2px}\nbody:has(.ks-store-nav) .conteudo{min-width:0;flex:1}\n@media(max-width:820px){body:has(.ks-store-nav) .layout{gap:0}body:has(.ks-store-nav) .ks-store-nav{position:fixed;top:0;bottom:0;left:0;z-index:1102;width:min(290px,84vw)!important;max-height:100dvh;border-radius:0;flex:none;overflow-y:auto;transform:translateX(-105%);transition:transform .2s ease}body.sidebar-open .ks-store-nav{transform:translateX(0)}}\n</style>" + "</head><body><div class='top'>"
     cab += "<div><h1>" + img_logo(34) + "Keiper Consultoria</h1></div>"
     cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>"
     cab += esc(str(cliente)) + "</div>"
