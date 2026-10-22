@@ -546,7 +546,7 @@ def _store_nav_icon(name):
 def pagina_loja(titulo, cid, cliente, secao, corpo):
     itens = [
         ("resumo", "Visão geral", "/painel/" + str(cid)),
-        ("prioridades", "Prioridades", "/prioridades/" + str(cid)),
+        ("prioridades", "Minhas prioridades", "/prioridades/" + str(cid)),
         ("anuncios", "Anúncios", "/anuncios/" + str(cid)),
         ("full", "Full e vendas", "/full/" + str(cid)),
         ("desempenho", "Desempenho", "/desempenho/" + str(cid)),
