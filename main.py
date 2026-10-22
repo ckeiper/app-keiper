@@ -517,6 +517,7 @@ def pagina(titulo, corpo):
 def pagina_loja(titulo, cid, cliente, secao, corpo):
     itens = [
         ("resumo", "📊 Resumo", "/painel/" + str(cid)),
+        ("prioridades", "⭐ Minhas prioridades", "/prioridades/" + str(cid)),
         ("anuncios", "📦 Anúncios", "/anuncios/" + str(cid)),
         ("full", "Full e vendas", "/full/" + str(cid)),
         ("desempenho", "📈 Desempenho", "/desempenho/" + str(cid)),
@@ -2223,7 +2224,7 @@ def central_prioridades():
         csrf=secrets.token_urlsafe(32)
         session['prioridades_csrf']=csrf
     body=admin_index(shops,{int(r['conexao_id']) for r in enabled},snapshot_saude_coletas(),csrf)
-    response=Response(body,mimetype='text/html')
+    response=Response(pagina('Central de Prioridades',body),mimetype='text/html')
     response.headers['Cache-Control']='no-store'
     return response
 
@@ -2249,7 +2250,7 @@ def prioridades_loja(cid):
         body=store_portal(report,cid,client_view=not is_admin)
     except ValueError:
         return pagina('Prioridades indisponíveis','<div class="card">'+esc(TIMEOUT_MESSAGE)+'</div>'),503
-    response=Response(body,mimetype='text/html')
+    response=Response(pagina('Central de Prioridades',body),mimetype='text/html')
     response.headers['Cache-Control']='no-store'
     return response
 
