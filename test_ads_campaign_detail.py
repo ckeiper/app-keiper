@@ -19,7 +19,7 @@ class CampaignDetailTests(unittest.TestCase):
         html=render(7,campaign,history,7,today,
                     shop_daily={today.isoformat():100},
                     ads_total_daily={today.isoformat():40})
-        self.assertIn('"label": "Outras vendas"',html)
+        self.assertIn('"label": "Outras vendas dos anúncios"',html)
         self.assertIn('"data": [null, null, null, null, null, null, 3]',html)
         self.assertIn('"data": [null, null, null, null, null, null, 7]',html)
         self.assertIn("Métricas oficiais de vendas disponíveis em 1 de 7 dias",html)
