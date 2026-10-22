@@ -10,6 +10,7 @@ on:
       - 'store_sidebar.py'
       - 'ads_overview_design.py'
       - 'test_store_ads_design.py'
+      - 'test_unified_publicidade.py'
       - 'scripts/ads_overview*'
       - 'test_home_sidebar.py'
       - 'ads_campaign_detail.py'

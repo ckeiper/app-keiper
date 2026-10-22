@@ -1,9 +1,10 @@
 # Inventário de telas e plano de melhoria visual — Keiper Consultoria
 
-Levantamento do código em 22/10/2026: **46 rotas de tela e 76 rotas no total**. Uma rota com parâmetros representa uma família de telas, não uma entrada por loja ou campanha. Abas, modais e estados da mesma página aparecem após a lista. Este documento cobre o código versionado, sem acessar dados de produção.
+Levantamento do código em 22/10/2026: **45 rotas de tela e 76 rotas no total**. Uma rota com parâmetros representa uma família de telas, não uma entrada por loja ou campanha. Abas, modais e estados da mesma página aparecem após a lista. Este documento cobre o código versionado, sem acessar dados de produção.
 
 ## Entrega atual
 
+- Publicidade é a única lista de campanhas: clique em uma campanha para abrir a análise individual. A rota antiga de Campanhas redireciona à Publicidade.
 - Menu recolhível compartilhado aplicado a todas as páginas que usam pagina_loja, com o contexto e os links da loja atual.
 - Publicidade da loja redesenhada: cabeçalho, filtros, indicadores, alertas compactos, tabela e gráfico.
 - Minhas lojas e gráfico da campanha Ads já receberam melhorias na entrega anterior.
@@ -49,38 +50,37 @@ Levantamento do código em 22/10/2026: **46 rotas de tela e 76 rotas no total**.
 | 22 | Full — seleção de loja | `/full` | Revisar visual |
 | 23 | Histórico de ações do anúncio | `/anuncios/<int:cid>/<item_id>/acoes` | Revisar visual |
 | 24 | Histórico de um concorrente | `/anuncios/<int:cid>/concorrencia/<int:target_id>` | Revisar visual |
-| 25 | Lista e gestão de campanhas Ads | `/campanhas/<int:cid>` | Revisar visual |
-| 26 | Minhas prioridades da loja | `/prioridades/<int:cid>` | Revisar visual |
-| 27 | Monitor de concorrência | `/anuncios/<int:cid>/concorrencia` | Revisar visual |
-| 28 | Promoções da loja | `/promocoes/<int:cid>` | Revisar visual |
-| 29 | Publicidade / Product Ads da loja | `/ads/<int:cid>` | Redesenhada nesta entrega |
-| 30 | Ranking e fila de anúncios | `/ranking-anuncios/<int:cid>` | Revisar visual |
-| 31 | Resumo e gestão da loja | `/painel/<int:cid>` | Revisar visual |
-| 32 | Resumo operacional da loja | `/painel/<int:cid>/operacao` | Revisar visual |
-| 33 | Vendas da loja | `/vendas/<int:cid>` | Revisar visual |
+| 25 | Minhas prioridades da loja | `/prioridades/<int:cid>` | Revisar visual |
+| 26 | Monitor de concorrência | `/anuncios/<int:cid>/concorrencia` | Revisar visual |
+| 27 | Promoções da loja | `/promocoes/<int:cid>` | Revisar visual |
+| 28 | Publicidade / Product Ads da loja | `/ads/<int:cid>` | Redesenhada nesta entrega |
+| 29 | Ranking e fila de anúncios | `/ranking-anuncios/<int:cid>` | Revisar visual |
+| 30 | Resumo e gestão da loja | `/painel/<int:cid>` | Revisar visual |
+| 31 | Resumo operacional da loja | `/painel/<int:cid>/operacao` | Revisar visual |
+| 32 | Vendas da loja | `/vendas/<int:cid>` | Revisar visual |
 
 ### CRM
 
 | # | Tela | Rota | Próximo passo |
 |---|---|---|---|
-| 34 | CRM — detalhe e edição do lead | `/crm/<int:lead_id>` | Revisar visual |
-| 35 | CRM — novo lead | `/crm/novo` | Revisar visual |
-| 36 | CRM — configuração da integração | `/crm/configuracao` | Revisar visual |
-| 37 | CRM — importar transcrição | `/crm/importar` | Revisar visual |
-| 38 | CRM — lista de leads | `/crm` | Revisar visual |
-| 39 | CRM — revisar importação | `/crm/revisar/<draft_id>` | Revisar visual |
+| 33 | CRM — detalhe e edição do lead | `/crm/<int:lead_id>` | Revisar visual |
+| 34 | CRM — novo lead | `/crm/novo` | Revisar visual |
+| 35 | CRM — configuração da integração | `/crm/configuracao` | Revisar visual |
+| 36 | CRM — importar transcrição | `/crm/importar` | Revisar visual |
+| 37 | CRM — lista de leads | `/crm` | Revisar visual |
+| 38 | CRM — revisar importação | `/crm/revisar/<draft_id>` | Revisar visual |
 
 ### Administração e diagnóstico
 
 | # | Tela | Rota | Próximo passo |
 |---|---|---|---|
-| 40 | Coleta piloto de visitas Copas | `/admin/coleta-visitas-copas` | Revisar visual |
-| 41 | Diagnóstico de um anúncio | `/diagnostico/<int:cid>/<item_id>` | Revisar visual |
-| 42 | Diagnóstico geral | `/diagnostico` | Revisar visual |
-| 43 | Editar usuário | `/usuarios/editar/<int:uid>` | Revisar visual |
-| 44 | Excluir usuário | `/usuarios/excluir/<int:uid>` | Revisar visual |
-| 45 | Gestão de usuários | `/usuarios` | Revisar visual |
-| 46 | Progresso da coleta de visitas | `/admin/progresso-visitas` | Revisar visual |
+| 39 | Coleta piloto de visitas Copas | `/admin/coleta-visitas-copas` | Revisar visual |
+| 40 | Diagnóstico de um anúncio | `/diagnostico/<int:cid>/<item_id>` | Revisar visual |
+| 41 | Diagnóstico geral | `/diagnostico` | Revisar visual |
+| 42 | Editar usuário | `/usuarios/editar/<int:uid>` | Revisar visual |
+| 43 | Excluir usuário | `/usuarios/excluir/<int:uid>` | Revisar visual |
+| 44 | Gestão de usuários | `/usuarios` | Revisar visual |
+| 45 | Progresso da coleta de visitas | `/admin/progresso-visitas` | Revisar visual |
 
 ## Subtelas e estados dentro dessas páginas
 
@@ -99,8 +99,8 @@ Levantamento do código em 22/10/2026: **46 rotas de tela e 76 rotas no total**.
 ## Ordem sugerida — uma tela por vez
 
 1. Publicidade da loja — entrega atual.
-2. Lista e gestão de campanhas Ads.
-3. Detalhe de uma campanha Ads, além do gráfico já atualizado.
+2. Revisar o detalhe individual de cada campanha, acessado pela Publicidade.
+3. Aprimorar os controles e as explicações da análise individual de Ads.
 4. Resumo e gestão da loja, incluindo as três abas.
 5. Catálogo de anúncios e detalhes.
 6. Desempenho, diagnóstico do anúncio e ranking.
@@ -172,6 +172,7 @@ Estas rotas complementam o sistema, mas não são telas independentes de navega�
 | Rota | Métodos | Função |
 |---|---|---|
 | `/` | GET | `home` |
+| `/campanhas/<int:cid>` | GET | `campanhas` |
 | `/logout` | GET | `logout` |
 
 ## Manutenção do inventário

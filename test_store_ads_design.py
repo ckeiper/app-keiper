@@ -10,7 +10,8 @@ class StoreNavigationTests(unittest.TestCase):
         for key,label,path,icon in ITEMS:
             self.assertIn("href='"+path+"7'",result)
         self.assertEqual(result.count("aria-current='page'"),1)
-        self.assertIn("href='/ads/7' title='Ads' aria-current='page'",result)
+        self.assertIn("href='/ads/7' title='Publicidade' aria-current='page'",result)
+        self.assertNotIn("href='/campanhas/7'",result)
         self.assertIn("href='/atualizar?cid=7'",result)
         self.assertIn("href='/excluir/7'",result)
         self.assertIn("href='/seguranca'",result)

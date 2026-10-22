@@ -26,6 +26,12 @@ const {chromium}=require('playwright');
    await page.evaluate(()=>{const c=Chart.getChart('kc-daily-chart');const e=c.getDatasetMeta(0).data[5];c.tooltip.setActiveElements([{datasetIndex:0,index:5},{datasetIndex:1,index:5},{datasetIndex:2,index:5}],{x:e.x,y:e.y});c.update('none')});
    await canvas.locator('..').screenshot({path:'visual-qa/ads-chart-'+name+'.png'});
   }
-  assert.deepEqual(errors,[]);console.log('Ads chart: DD/MM labels, BRL tooltip, unchanged values and responsive desktop/mobile passed.');
+  const saved=[];
+  await page.route('**/salvar_roas/**',async route=>{saved.push({path:new URL(route.request().url()).pathname,body:route.request().postData()});await route.fulfill({contentType:'application/json',body:'{"ok":false}'})});
+  await page.locator('.kc-roas-form input').fill('5.5');await page.getByRole('button',{name:'Salvar meta',exact:true}).click();
+  await page.getByText('Não foi possível salvar a meta. Tente novamente.').waitFor();
+  assert.deepEqual(saved,[{path:'/salvar_roas/1/10',body:'roas=5.5'}]);
+  assert.equal(await page.getByRole('button',{name:'Salvar meta',exact:true}).isEnabled(),true);
+  assert.deepEqual(errors,[]);console.log('Ads chart, per-campaign ROAS control, scoped save failure and responsive desktop/mobile passed.');
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1});

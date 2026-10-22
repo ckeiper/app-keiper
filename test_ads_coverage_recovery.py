@@ -40,7 +40,7 @@ class AdsRecoveryTests(unittest.TestCase):
         from pathlib import Path
         source=Path('management_view.py').read_text()
         self.assertIn('Faltam:',source)
-        self.assertIn('/atualizar/campanhas/',source)
+        self.assertIn('/ads/',source)
         self.assertIn('não tratamos lacunas como gasto zero',source)
 
 

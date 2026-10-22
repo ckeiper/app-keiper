@@ -44,6 +44,8 @@ def collect(root):
                     kind='Tela'
                 if node.name in ('conectar','callback_ml','atualizar','atualizar_tipo'):
                     kind='Fluxo auxiliar'
+                if node.name=='campanhas':
+                    kind='Redirecionamento / ação'
                 routes.append(dict(path=path,methods=methods,handler=node.name,file=file.name,line=node.lineno,kind=kind,titles=list(dict.fromkeys(titles))))
     return sorted(routes,key=lambda r:(r['kind'],r['path'],r['file']))
 

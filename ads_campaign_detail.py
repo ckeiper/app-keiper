@@ -93,7 +93,8 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
     out=CSS+"<div class='k-camp'><header class='kc-hero'><div class='kc-head'><div><div class='kc-eyebrow'>Keiper / Inteligência de Ads</div><h2>"+name+"</h2><p class='kc-sub'>Campanha "+escape(str(campaign["campanha_id"]))+" · "+status+"</p>"
     out+="<span class='kc-badge'>Meta de ROAS: "+(num(target)+"x" if target>0 else "não cadastrada")+"</span>"
     out+="<span class='kc-badge'>Orçamento diário: "+(money(budget) if budget>0 else "não informado")+"</span>"
-    out+="</div><a class='kc-back' href='/ads/"+str(cid)+"'>← Voltar a Ads</a></div></header>"
+    out+="</div><a class='kc-back' href='/ads/"+str(cid)+"'>← Voltar à Publicidade</a></div></header>"
+    out+=roas_control(cid,campaign['campanha_id'],target)
     out+="<nav class='kc-period' aria-label='Período de análise'>"
     safe_id=quote(str(campaign["campanha_id"]),safe="")
     for option in (7,15,30,60,90):
@@ -173,3 +174,11 @@ investment:{position:'right',beginAtZero:true,border:{display:false},title:{disp
     out+="<tr><td>ROAS</td><td>"+(num(m["roas"])+"x" if m["roas"] is not None else "—")+"</td><td>"+(num(pm["roas"])+"x" if complete and pm["roas"] is not None else "—")+"</td></tr></tbody></table>"
     out+="<p class='kc-sub' style='margin-top:14px'>Histórico de mudanças de orçamento e meta ainda não é registrado. Não inferimos alterações a partir de resultados.</p></section></div></div>"
     return out
+
+
+def roas_control(cid, campaign_id, target):
+    """Keep the former campaign-list target editor on the individual analysis."""
+    url='/salvar_roas/'+str(int(cid))+'/'+quote(str(campaign_id),safe='')
+    return """<style>.k-camp .kc-roas-form{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:16px 0;padding:16px;border:1px solid #dce6f5;border-radius:12px;background:#fff}.kc-roas-form label{display:grid;gap:6px;font-size:11px;color:#647a99}.kc-roas-form input{width:100px;padding:9px;border:1px solid #ccdaef;border-radius:8px}.kc-roas-form button{background:#315fd2;color:#fff;padding:11px 15px;border:0;border-radius:8px;cursor:pointer}.kc-roas-form [role=status]{font-size:11px;color:#647a99}</style>
+<form class='kc-roas-form' action='"""+escape(url,quote=True)+"""' method='post'><label>Meta de ROAS do painel<input name='roas' type='number' min='0' step='0.01' required value='"""+str(target)+"""'></label><button type='submit'>Salvar meta</button><span role='status' aria-live='polite'></span></form>
+<script>(function(){const form=document.currentScript.previousElementSibling,button=form.querySelector('button'),status=form.querySelector('[role=status]');form.addEventListener('submit',async function(e){e.preventDefault();if(button.disabled)return;button.disabled=true;status.textContent='Salvando…';try{const response=await fetch(form.getAttribute('action'),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(new FormData(form))});const data=await response.json();if(!response.ok||!data.ok)throw Error();location.reload();}catch(e){status.textContent='Não foi possível salvar a meta. Tente novamente.';button.disabled=false;}});})();</script>"""
