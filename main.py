@@ -4894,7 +4894,11 @@ def diagnostico_anuncio(cid, item_id):
 
 
 def puxar_ads(conexao_id, token, user_id):
-    hoje = datetime.date.today().isoformat()
+    from sales_metrics import reporting_today
+    # Use the same Brazilian reporting day as the dashboards, even after
+    # midnight UTC. Freeze it for this entire collection.
+    reporting_day = reporting_today()
+    hoje = reporting_day.isoformat()
     # 1) Descobre o advertiser_id no formato novo da API
     try:
         r = requests.get(API + "/advertising/advertisers",
@@ -5046,13 +5050,13 @@ def puxar_ads(conexao_id, token, user_id):
     # 3) Fill the initial historical window and repair recent missing days
     # after it has 60+ records. A missed daily collection must not become
     # permanent. Keep API work bounded for established stores.
-    from ads_coverage import missing_days_to_fetch
+    from ads_coverage import daily_days_to_fetch
     with banco() as conn:
         reg = consultar(conn, "SELECT data FROM ads_dia WHERE conexao_id=%s AND data BETWEEN %s AND %s",
-                        (conexao_id, (datetime.date.today()-datetime.timedelta(days=89)).isoformat(),
-                         (datetime.date.today()-datetime.timedelta(days=1)).isoformat()))
-    days_to_fetch = missing_days_to_fetch(
-        [r["data"] for r in reg], datetime.date.today(),
+                        (conexao_id, (reporting_day-datetime.timedelta(days=89)).isoformat(),
+                         (reporting_day-datetime.timedelta(days=1)).isoformat()))
+    days_to_fetch = daily_days_to_fetch(
+        [r["data"] for r in reg], reporting_day,
         initial=len(reg)<60, max_recent=3)
     if days_to_fetch:
         for dia_b in days_to_fetch:
@@ -5505,4 +5509,5 @@ scheduler.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+
 
