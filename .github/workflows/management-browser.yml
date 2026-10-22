@@ -8,6 +8,8 @@ on:
       - 'home_sidebar.py'
       - 'test_home_sidebar.py'
       - 'ads_campaign_detail.py'
+      - 'ads_official_metrics.py'
+      - 'test_ads_official_metrics.py'
       - 'test_ads_campaign_detail.py'
       - 'scripts/ads_chart*'
       - 'client_home.py'

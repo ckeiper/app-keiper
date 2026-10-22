@@ -819,6 +819,8 @@ def iniciar_banco():
             PRIMARY KEY (conexao_id, categoria)
         )""")
         executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
+        from ads_official_metrics import init_schema as init_ads_sales_schema
+        init_ads_sales_schema(conn, executar)
         init_overview_schema(conn, executar)
         init_crm_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro (
@@ -2954,7 +2956,8 @@ def painel_ads_campanha(cid, campanha_id):
         camp = consultar(conn, """SELECT campanha_id,nome,status,orcamento,roas_objetivo,tipo,atualizado_em
             FROM ads_campanhas WHERE conexao_id=%s AND campanha_id=%s""", (cid,campanha_id))
         if loja and camp:
-            diario = consultar(conn, """SELECT data,gasto,faturamento,atualizado_em
+            diario = consultar(conn, """SELECT data,gasto,faturamento,atualizado_em,
+                vendas_atribuidas,outras_vendas,faturamento_sem_ads
                 FROM ads_campanha_dia WHERE conexao_id=%s AND campanha_id=%s
                 AND data BETWEEN %s AND %s ORDER BY data""",
                 (cid,campanha_id,inicio,hoje.isoformat()))
@@ -2962,36 +2965,13 @@ def painel_ads_campanha(cid, campanha_id):
                 valor_novo,observado_em,origem FROM ads_campanha_alteracoes
                 WHERE conexao_id=%s AND campanha_id=%s ORDER BY observado_em DESC,id DESC LIMIT 50""",
                 (cid,campanha_id))
-            ads_loja = consultar(conn, """SELECT data,faturamento
-                FROM ads_dia WHERE conexao_id=%s
-                AND data BETWEEN %s AND %s ORDER BY data""",
-                (cid,(hoje-datetime.timedelta(days=int(dias)-1)).isoformat(),
-                 hoje.isoformat()))
     if not loja:
         return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
     if not camp:
         return pagina_loja("Campanha não encontrada", cid, loja[0]["cliente"],
             "ads", "<div class='card'>Campanha não encontrada para esta loja.</div>"), 404
-    # Whole-store daily revenue is independently classified from approved
-    # paid orders. Null means that date is not safe to plot as zero.
-    loja_diaria = {}
-    try:
-        from overview import load_overview
-        data_inicio = (hoje-datetime.timedelta(days=int(dias)-1)).isoformat()
-        overview = load_overview(
-            [{"id": cid, "cliente": loja[0]["cliente"], "status": "ativa"}],
-            {"periodo":"personalizado","inicio":data_inicio,"fim":hoje.isoformat()},
-            banco, consultar)
-        validado = overview["reports"][0]["current"]
-        if not validado["invalid"] and not validado["unallocated_dates"]:
-            loja_diaria = dict(zip(validado["days"], validado["daily"]))
-    except Exception:
-        app.logger.exception("ads_campaign_nonads_sales_unavailable cid=%s", cid)
-    ads_diaria = {r["data"]:float(r["faturamento"]) for r in ads_loja
-                  if r["faturamento"] is not None}
     from ads_campaign_detail import render
     corpo = render(cid, camp[0], diario, int(dias), hoje,
-                   shop_daily=loja_diaria, ads_total_daily=ads_diaria,
                    changes=historico_alteracoes)
     return pagina_loja("Campanha Ads", cid, loja[0]["cliente"], "ads", corpo)
 
@@ -5406,6 +5386,7 @@ def diagnostico_anuncio(cid, item_id):
 
 def puxar_ads(conexao_id, token, user_id):
     from sales_metrics import reporting_today
+    from ads_official_metrics import save_day
     # Use the same Brazilian reporting day as the dashboards, even after
     # midnight UTC. Freeze it for this entire collection.
     reporting_day = reporting_today()
@@ -5449,7 +5430,8 @@ def puxar_ads(conexao_id, token, user_id):
                                  params={"limit": 50, "offset": offset,
                                          "date_from": dia, "date_to": dia,
                                          "metrics": "clicks,prints,cost,"
-                                                    "total_amount"},
+                                                    "total_amount,advertising_items_quantity,"
+                                                    "organic_items_quantity,organic_units_amount"},
                                  timeout=30)
             except Exception as e:
                 registrar_erro(conexao_id, "ads",
@@ -5470,7 +5452,7 @@ def puxar_ads(conexao_id, token, user_id):
                 tot_c += int(m.get("clicks") or 0)
                 tot_g += g
                 tot_f += f
-                linhas.append((str(c.get("id")), g, f))
+                linhas.append((str(c.get("id")), g, f, m))
             offset += 50
             total = (dados.get("paging") or {}).get("total") or 0
             if not resultados or offset >= total:
@@ -5536,16 +5518,8 @@ def puxar_ads(conexao_id, token, user_id):
     _, tot_g, tot_f, tot_i, tot_c, linhas = res_hoje
     agora = int(time.time())
     with banco() as conn:
-        for camp_id, g, f in linhas:
-            executar(conn,
-                     """INSERT INTO ads_campanha_dia
-                        (conexao_id, campanha_id, data, gasto, faturamento,
-                         atualizado_em)
-                        VALUES (%s,%s,%s,%s,%s,%s)
-                        ON CONFLICT (conexao_id, campanha_id, data)
-                        DO UPDATE SET gasto=EXCLUDED.gasto,
-                          faturamento=EXCLUDED.faturamento, atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, camp_id, hoje, g, f, agora))
+        for camp_id, g, f, metricas in linhas:
+            save_day(conn, executar, conexao_id, camp_id, hoje, g, f, metricas, agora)
         executar(conn,
                  """INSERT INTO ads_dia
                     (conexao_id, data, gasto, faturamento, impressoes,
@@ -5569,6 +5543,15 @@ def puxar_ads(conexao_id, token, user_id):
     days_to_fetch = daily_days_to_fetch(
         [r["data"] for r in reg], reporting_day,
         initial=len(reg)<60, max_recent=3)
+    # Enrich old snapshots gradually without an unbounded API backfill.
+    # Mark an attempted successful response even if a metric is unavailable.
+    with banco() as conn:
+        pending = consultar(conn, """SELECT DISTINCT data FROM ads_campanha_dia
+            WHERE conexao_id=%s AND data BETWEEN %s AND %s
+            AND metricas_vendas_coletadas_em IS NULL ORDER BY data DESC LIMIT 3""",
+            (conexao_id, (reporting_day-datetime.timedelta(days=89)).isoformat(),
+             (reporting_day-datetime.timedelta(days=1)).isoformat()))
+    days_to_fetch = list(dict.fromkeys(days_to_fetch + [r['data'] for r in pending]))
     if days_to_fetch:
         for dia_b in days_to_fetch:
             res = buscar_dia(dia_b)
@@ -5576,16 +5559,8 @@ def puxar_ads(conexao_id, token, user_id):
                 continue
             _, g2, f2, i2, c2, linhas2 = res
             with banco() as conn:
-                for camp_id, g, f in linhas2:
-                    executar(conn,
-                             """INSERT INTO ads_campanha_dia
-                                (conexao_id, campanha_id, data, gasto,
-                                 faturamento, atualizado_em)
-                                VALUES (%s,%s,%s,%s,%s,%s)
-                                ON CONFLICT (conexao_id, campanha_id, data)
-                                DO UPDATE SET gasto=EXCLUDED.gasto,
-                                  faturamento=EXCLUDED.faturamento, atualizado_em=EXCLUDED.atualizado_em""",
-                             (conexao_id, camp_id, dia_b, g, f, agora))
+                for camp_id, g, f, metricas in linhas2:
+                    save_day(conn, executar, conexao_id, camp_id, dia_b, g, f, metricas, agora)
                 executar(conn,
                          """INSERT INTO ads_dia
                             (conexao_id, data, gasto, faturamento, impressoes,

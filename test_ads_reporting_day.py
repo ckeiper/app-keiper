@@ -36,7 +36,7 @@ class AdsReportingDayTests(unittest.TestCase):
         self.assertEqual(len(days), 89)
         self.assertEqual(len(days), len(set(days)))
 
-    def collector(self, failed_day=None):
+    def collector(self, failed_day=None, official=None, pending=None):
         import datetime as datetime_module
         import time
         tree = ast.parse(Path('main.py').read_text())
@@ -50,13 +50,18 @@ class AdsReportingDayTests(unittest.TestCase):
             params = kwargs['params']
             day = params.get('date_from')
             if day:
+                self.assertIn('organic_items_quantity',params['metrics'])
+                self.assertIn('advertising_items_quantity',params['metrics'])
                 self.requested.append(day)
             if day == failed_day and failed_day is not None:
                 return SimpleNamespace(status_code=503, text='Unavailable')
             result = {'results': [{'id': 9, 'metrics': {'cost': 15, 'total_amount': 90,
                        'prints': 100, 'clicks': 5}}], 'paging': {'total': 1}}
+            result['results'][0]['metrics'].update(official or {})
             return SimpleNamespace(status_code=200, json=lambda: result)
         def query(conn, sql, params):
+            if 'metricas_vendas_coletadas_em IS NULL' in sql:
+                return [{'data': d} for d in (pending or [])]
             if 'SELECT data FROM ads_dia' in sql:
                 self.bounds = params
                 return [{'data': date(2026, 10, 21).fromordinal(date(2026, 10, 21).toordinal()-i).isoformat()}
@@ -88,6 +93,24 @@ class AdsReportingDayTests(unittest.TestCase):
         snapshots = [params for sql, params in self.written if 'INSERT INTO ads_dia' in sql]
         self.assertEqual([p[1] for p in snapshots], ['2026-10-21'])
         self.assertEqual(self.errors[0][1], 'ads')
+
+    def test_official_campaign_sales_persist_for_today_and_history(self):
+        collect=self.collector(official={'advertising_items_quantity':3,
+            'organic_items_quantity':7,'organic_units_amount':123.45})
+        with patch('sales_metrics.reporting_today',return_value=date(2026,10,21)):
+            collect(5,'test-token',1)
+        rows=[params for sql,params in self.written if 'INSERT INTO ads_campanha_dia' in sql]
+        self.assertEqual(len(rows),2)
+        self.assertEqual([r[2] for r in rows],['2026-10-21','2026-10-20'])
+        self.assertTrue(all(r[6:9]==(3,7,123.45) for r in rows))
+
+    def test_absent_official_fields_remain_unknown_and_legacy_days_are_enriched(self):
+        collect=self.collector(pending=['2026-10-20','2026-10-19'])
+        with patch('sales_metrics.reporting_today',return_value=date(2026,10,21)):
+            collect(5,'test-token',1)
+        self.assertEqual(self.requested,['2026-10-21','2026-10-20','2026-10-19'])
+        rows=[params for sql,params in self.written if 'INSERT INTO ads_campanha_dia' in sql]
+        self.assertTrue(all(r[6:9]==(None,None,None) for r in rows))
 
 
 if __name__ == '__main__':

@@ -6,7 +6,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from ads_campaign_detail import render
 
 today=date(2026,10,22)
-history=[dict(data=(today-timedelta(days=i)).isoformat(),gasto=cost,faturamento=revenue)
+history=[dict(data=(today-timedelta(days=i)).isoformat(),gasto=cost,faturamento=revenue,
+              vendas_atribuidas=[42,68,73,31,48,59,61][i],outras_vendas=[38,71,69,56,44,52,47][i])
          for i,(cost,revenue) in enumerate([(43.9,352.4),(79.66,683.64),(85.1,824.8),(48.2,298.7),(62.5,458.3),(71.8,649.9),(74.2,617.2)])]
 shop={r['data']:r['faturamento']+789.5-(i*67) for i,r in enumerate(history)}
 ads={r['data']:r['faturamento'] for r in history}

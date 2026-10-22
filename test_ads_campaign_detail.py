@@ -11,24 +11,34 @@ class CampaignDetailTests(unittest.TestCase):
         self.assertIn('currency.format(context.parsed.y)',html)
         self.assertIn('"data": [null, null, null, null, null, null, null]',html)
 
-    def test_store_non_ads_estimate_keeps_missing_days_unknown(self):
-        from ads_campaign_detail import non_ads_estimate
-        dates=["2026-10-18","2026-10-19","2026-10-20"]
-        store={"2026-10-18":100,"2026-10-19":200,"2026-10-20":50}
-        ads={"2026-10-18":40,"2026-10-20":60}
-        self.assertEqual(non_ads_estimate(dates,store,ads),[60,None,None])
-
-    def test_chart_distinguishes_campaign_ads_from_estimated_store_non_ads(self):
+    def test_chart_uses_official_campaign_counts_not_store_revenue(self):
         today=date(2026,10,20)
         campaign={"campanha_id":"10","nome":"Teste","status":"active"}
-        history=[{"data":today.isoformat(),"gasto":10,"faturamento":20}]
+        history=[{"data":today.isoformat(),"gasto":10,"faturamento":20,
+                  "vendas_atribuidas":3,"outras_vendas":7}]
         html=render(7,campaign,history,7,today,
                     shop_daily={today.isoformat():100},
                     ads_total_daily={today.isoformat():40})
-        self.assertIn('"label": "Sem Ads \\u00b7 loja (estim.)"',html)
-        self.assertIn('"label": "Vendas Ads \\u00b7 campanha"',html)
-        self.assertIn("Estimativa sem Ads disponível em 1 de 7 dias",html)
-        self.assertIn("não equivale a uma classificação oficial",html.lower())
+        self.assertIn('"label": "Outras vendas"',html)
+        self.assertIn('"data": [null, null, null, null, null, null, 3]',html)
+        self.assertIn('"data": [null, null, null, null, null, null, 7]',html)
+        self.assertIn("Métricas oficiais de vendas disponíveis em 1 de 7 dias",html)
+        self.assertNotIn('estimativa sem Ads',html)
+        self.assertIn('Vendas em quantidade no eixo esquerdo',html)
+
+    def test_missing_official_metrics_do_not_become_zero_or_store_estimates(self):
+        today=date(2026,10,20)
+        html=render(7,{"campanha_id":"10"},[{"data":today.isoformat(),"gasto":10,"faturamento":20}],7,today,
+                    shop_daily={today.isoformat():100},ads_total_daily={today.isoformat():40})
+        self.assertIn('Métricas oficiais de vendas disponíveis em 0 de 7 dias',html)
+        self.assertNotIn('"data": [null, null, null, null, null, null, 60',html)
+
+    def test_official_zero_sales_are_not_treated_as_missing(self):
+        today=date(2026,10,20)
+        html=render(7,{"campanha_id":"10"},[{"data":today.isoformat(),"gasto":10,"faturamento":20,
+            "vendas_atribuidas":0,"outras_vendas":0}],1,today)
+        self.assertIn('"data": [0]',html)
+        self.assertNotIn('Métricas oficiais de vendas disponíveis',html)
 
     def test_metrics_use_campaign_spend_and_attributed_revenue(self):
         m=metrics([{"gasto":20,"faturamento":100},{"gasto":30,"faturamento":50}])
