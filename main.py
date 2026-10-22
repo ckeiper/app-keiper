@@ -801,6 +801,13 @@ def iniciar_banco():
         executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
         init_overview_schema(conn, executar)
         init_crm_schema(conn, executar)
+        executar(conn, """CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro (
+            usuario_id INTEGER PRIMARY KEY,
+            conexao_id INTEGER NOT NULL,
+            custos_importados_em BIGINT,
+            imposto_confirmado_em BIGINT,
+            concluido_em BIGINT
+        )""")
         executar(conn, """CREATE TABLE IF NOT EXISTS cliente_prioridades_acessos (
             conexao_id INTEGER PRIMARY KEY,
             habilitado BOOLEAN NOT NULL DEFAULT FALSE,
@@ -1303,6 +1310,84 @@ def salvar_roas(cid, campanha_id):
                        "WHERE conexao_id=%s AND campanha_id=%s",
                  (roas, cid, campanha_id))
     return jsonify({"ok": True})
+
+
+def financeiro_status_usuario(uid,cid):
+    """Always validate progress server-side, never rely on a client cookie."""
+    from client_onboarding import status
+    with banco() as conn:
+        row=consultar(conn,"SELECT * FROM cliente_onboarding_financeiro WHERE usuario_id=%s AND conexao_id=%s",(uid,cid))
+        count=consultar(conn,"""SELECT COUNT(*) FILTER(WHERE LOWER(status)='active') AS total,
+             COUNT(*) FILTER(WHERE LOWER(status)='active' AND custo IS NOT NULL AND custo>=0) AS com_custo
+             FROM anuncios WHERE conexao_id=%s""",(cid,))
+    metrics=count[0] if count else {}
+    return status(row[0] if row else None,int(metrics.get('total') or 0),int(metrics.get('com_custo') or 0))
+
+
+@app.before_request
+def exigir_onboarding_financeiro_cliente():
+    if session.get('tipo')!='cliente' or not session.get('usuario_id'):
+        return None
+    cid=session.get('conexao_id')
+    if not isinstance(cid,int):
+        return None
+    if session.get('onboarding_financeiro_concluido')==cid:
+        return None
+    if request.endpoint in {'login','logout','logo_arquivo','static',
+                            'primeiro_acesso','primeiro_acesso_imposto',
+                            'modelo_custos','upload_custos'}:
+        return None
+    progress=financeiro_status_usuario(session['usuario_id'],cid)
+    if progress['done']:
+        session['onboarding_financeiro_concluido']=cid
+        return None
+    return redirect('/primeiro-acesso')
+
+
+@app.route('/primeiro-acesso')
+@login_required
+def primeiro_acesso():
+    if session.get('tipo')!='cliente' or not isinstance(session.get('conexao_id'),int):
+        return redirect('/painel')
+    cid=session['conexao_id']
+    progress=financeiro_status_usuario(session['usuario_id'],cid)
+    if progress['done']:
+        session['onboarding_financeiro_concluido']=cid
+        return redirect('/painel/'+str(cid))
+    with banco() as conn:
+        rows=consultar(conn,'SELECT cliente,aliquota_imposto FROM conexoes WHERE id=%s',(cid,))
+    if not rows:
+        return pagina('Configuração inicial','<div class="card">Loja não encontrada.</div>'),404
+    from client_onboarding import onboarding_page
+    message={'arquivo':'O arquivo precisa ser um Excel .xlsx válido.',
+             'sem_itens':'A planilha não atualizou nenhum SKU desta loja. Confira o modelo.',
+             'taxa':'Informe uma alíquota válida entre 0% e 100%.',
+             'tamanho':'O arquivo é muito grande. Limite: 4 MB.',
+             'custos':'A planilha contém custos inválidos ou negativos.'}.get(request.args.get('erro'),'')
+    return pagina('Configuração inicial',onboarding_page(cid,rows[0]['cliente'],progress,
+        rows[0]['aliquota_imposto'] if rows[0]['aliquota_imposto'] is not None else '',message))
+
+
+@app.route('/primeiro-acesso/imposto',methods=['POST'])
+@login_required
+def primeiro_acesso_imposto():
+    if session.get('tipo')!='cliente' or not isinstance(session.get('conexao_id'),int):
+        return 'Acesso restrito',403
+    from client_onboarding import validate_tax
+    try:
+        aliquota=validate_tax(request.form.get('aliquota'))
+    except ValueError:
+        return redirect('/primeiro-acesso?erro=taxa')
+    cid=session['conexao_id']
+    with banco() as conn:
+        executar(conn,'UPDATE conexoes SET aliquota_imposto=%s WHERE id=%s',(aliquota,cid))
+        executar(conn,"""INSERT INTO cliente_onboarding_financeiro
+            (usuario_id,conexao_id,imposto_confirmado_em) VALUES (%s,%s,%s)
+            ON CONFLICT (usuario_id) DO UPDATE SET
+            conexao_id=EXCLUDED.conexao_id,
+            imposto_confirmado_em=EXCLUDED.imposto_confirmado_em""",
+            (session['usuario_id'],cid,int(time.time())))
+    return redirect('/primeiro-acesso')
 
 
 @app.route("/salvar_config/<int:cid>", methods=["POST"])
