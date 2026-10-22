@@ -813,6 +813,13 @@ def iniciar_banco():
             habilitado BOOLEAN NOT NULL DEFAULT FALSE,
             atualizado_em BIGINT NOT NULL
         )""")
+        # Existing clients are enrolled when the portal is explicitly enabled;
+        # this avoids abruptly locking long-standing accounts before rollout.
+        executar(conn, """INSERT INTO cliente_onboarding_financeiro(usuario_id,conexao_id)
+            SELECT u.id,u.conexao_id FROM usuarios u
+            JOIN cliente_prioridades_acessos a ON a.conexao_id=u.conexao_id
+            WHERE u.tipo='cliente' AND a.habilitado=TRUE
+            ON CONFLICT(usuario_id) DO NOTHING""")
 
         # ---------- AUTENTICAÇÃO ----------
 
@@ -1317,6 +1324,8 @@ def financeiro_status_usuario(uid,cid):
     from client_onboarding import status
     with banco() as conn:
         row=consultar(conn,"SELECT * FROM cliente_onboarding_financeiro WHERE usuario_id=%s AND conexao_id=%s",(uid,cid))
+        if not row:
+            return status(None,0,0)
         count=consultar(conn,"""SELECT COUNT(*) FILTER(WHERE LOWER(status)='active') AS total,
              COUNT(*) FILTER(WHERE LOWER(status)='active' AND custo IS NOT NULL AND custo>=0) AS com_custo
              FROM anuncios WHERE conexao_id=%s""",(cid,))
@@ -1338,6 +1347,8 @@ def exigir_onboarding_financeiro_cliente():
                             'modelo_custos','upload_custos'}:
         return None
     progress=financeiro_status_usuario(session['usuario_id'],cid)
+    if not progress['required']:
+        return None
     if progress['done']:
         session['onboarding_financeiro_concluido']=cid
         return None
@@ -1351,6 +1362,8 @@ def primeiro_acesso():
         return redirect('/painel')
     cid=session['conexao_id']
     progress=financeiro_status_usuario(session['usuario_id'],cid)
+    if not progress['required']:
+        return redirect('/painel/'+str(cid))
     if progress['done']:
         session['onboarding_financeiro_concluido']=cid
         return redirect('/painel/'+str(cid))
@@ -2388,6 +2401,10 @@ def acesso_prioridades_cliente(cid):
             VALUES (%s,%s,%s) ON CONFLICT (conexao_id) DO UPDATE SET
             habilitado=EXCLUDED.habilitado,atualizado_em=EXCLUDED.atualizado_em""",
             (cid,flag=='1',int(time.time())))
+        if flag=='1':
+            executar(conn,"""INSERT INTO cliente_onboarding_financeiro(usuario_id,conexao_id)
+                SELECT id,conexao_id FROM usuarios WHERE tipo='cliente' AND conexao_id=%s
+                ON CONFLICT(usuario_id) DO NOTHING""",(cid,))
     return redirect('/prioridades')
 
 
@@ -2751,6 +2768,11 @@ def usuarios_criar():
                        "VALUES (%s,%s,%s,%s,%s,%s,%s)",
                  (username, generate_password_hash(senha), nome, email,
                   tipo, conexao_id, int(time.time())))
+        if tipo=='cliente' and conexao_id is not None:
+            new_user=consultar(conn,"SELECT id FROM usuarios WHERE username=%s",(username,))
+            executar(conn,"""INSERT INTO cliente_onboarding_financeiro(usuario_id,conexao_id)
+                VALUES (%s,%s) ON CONFLICT(usuario_id) DO NOTHING""",
+                (new_user[0]['id'],conexao_id))
     return redirect("/usuarios?msg=Usuário criado com sucesso")
 
 
