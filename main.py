@@ -765,6 +765,19 @@ def iniciar_banco():
             preco_promocional REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, item_id, promocao_id)
         )""")
+        executar(conn, """CREATE TABLE IF NOT EXISTS promocoes_adesoes (
+            conexao_id INTEGER NOT NULL,
+            promocao_id TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            usuario_id INTEGER NOT NULL,
+            preco DECIMAL(14,2) NOT NULL,
+            margem_pct DECIMAL(7,2) NOT NULL,
+            status TEXT NOT NULL,
+            criado_em BIGINT NOT NULL,
+            atualizado_em BIGINT NOT NULL,
+            resposta TEXT,
+            PRIMARY KEY(conexao_id,promocao_id,item_id)
+        )""")
         try:
             executar(conn, "ALTER TABLE promocoes_itens ADD COLUMN IF NOT EXISTS preco_promocional REAL")
         except Exception:
@@ -3591,6 +3604,171 @@ def salvar_meta_promocoes(cid):
     return redirect('/promocoes/'+str(cid)+'?meta_ok=1')
 
 
+def carregar_deal_e_anuncio(cid,pid,item_id=None):
+    """Tenant-checked local campaign and product; no cross-shop item injection."""
+    from promo_participation import safe_promo,safe_item
+    safe_promo(pid)
+    if item_id is not None:
+        safe_item(item_id)
+    with banco() as conn:
+        campaign=consultar(conn,"SELECT * FROM promocoes WHERE conexao_id=%s AND promocao_id=%s AND tipo='DEAL'",(cid,pid))
+        shop=consultar(conn,"SELECT * FROM conexoes WHERE id=%s",(cid,))
+        item=(consultar(conn,"SELECT * FROM anuncios WHERE conexao_id=%s AND item_id=%s",(cid,item_id))
+              if item_id else [])
+    if not campaign or not shop or (item_id and not item):
+        raise ValueError('Campanha ou anúncio não encontrado nesta loja.')
+    return campaign[0],shop[0],item[0] if item else None
+
+
+@app.route('/promocoes/candidatos/<int:cid>/<pid>')
+@login_required
+def promocoes_candidatos(cid,pid):
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito',403
+    from promo_participation import candidate_table
+    try:
+        campaign,shop,_=carregar_deal_e_anuncio(cid,pid)
+    except ValueError:
+        return 'Campanha indisponível',404
+    token=token_atual(shop)
+    if not token:
+        return pagina_loja('Promoções',cid,shop['cliente'],'promocoes',
+                           '<div class="aviso">Reconecte a conta do Mercado Livre para consultar candidatos.</div>'),503
+    try:
+        offset=max(0,min(int(request.args.get('offset','0')),10000))
+    except ValueError:
+        offset=0
+    data,error=api_get(token,'/seller-promotions/promotions/'+pid+'/items',
+                       {'promotion_type':'DEAL','app_version':'v2','limit':50,'offset':offset})
+    if error or not isinstance(data,dict) or not isinstance(data.get('results'),list):
+        return pagina_loja('Promoções',cid,shop['cliente'],'promocoes',
+                           '<div class="aviso">Não foi possível consultar os candidatos agora.</div>'),503
+    ids=[str(x.get('id')) for x in data['results'] if isinstance(x,dict) and x.get('id')]
+    with banco() as conn:
+        names=consultar(conn,'SELECT item_id,titulo FROM anuncios WHERE conexao_id=%s AND item_id=ANY(%s)',(cid,ids))
+    html='<p><a class="link" href="/promocoes/'+str(cid)+'">Voltar às promoções</a></p>'
+    html+=candidate_table(cid,pid,data['results'],{a['item_id']:a['titulo'] for a in names})
+    paging=data.get('paging') or {}
+    if len(data['results'])==50 or offset+len(data['results'])<int(paging.get('total') or 0):
+        html+='<p><a class="filtro-btn" href="/promocoes/candidatos/'+str(cid)+'/'+pid+'?offset='+str(offset+50)+'">Próximos 50 candidatos</a></p>'
+    return pagina_loja('Candidatos',cid,shop['cliente'],'promocoes',html)
+
+
+def validar_adesao_deal(cid,pid,item_id,raw_price):
+    """Re-read live ML candidate and financial configuration on every POST."""
+    from promo_participation import parse_price,find_deal,check_candidate,margin_pct
+    price=parse_price(raw_price)
+    campaign,shop,item=carregar_deal_e_anuncio(cid,pid,item_id)
+    if str(item.get('status') or '').lower()!='active':
+        raise ValueError('Anúncio não está ativo.')
+    if item.get('custo') is None or shop.get('mc_meta_pct') is None:
+        raise ValueError('Cadastre o custo do produto e a meta de MC antes de participar.')
+    if shop.get('aliquota_imposto') is None or shop.get('comissao_pct') is None:
+        raise ValueError('Configure imposto e comissão antes de participar.')
+    if session.get('tipo')=='cliente':
+        with banco() as conn:
+            finance=consultar(conn,"SELECT imposto_confirmado_em,custos_importados_em FROM cliente_onboarding_financeiro WHERE usuario_id=%s AND conexao_id=%s",(session['usuario_id'],cid))
+        if not finance or not finance[0].get('imposto_confirmado_em') or not finance[0].get('custos_importados_em'):
+            raise ValueError('Conclua a configuração financeira antes de participar.')
+    token=token_atual(shop)
+    if not token:
+        raise ValueError('Autorização do Mercado Livre indisponível.')
+    rows,error=api_get(token,'/seller-promotions/items/'+item_id,{'app_version':'v2'})
+    if error:
+        raise ValueError('Não foi possível validar o convite atualizado no Mercado Livre.')
+    deal=find_deal(rows,pid)
+    check_candidate(deal,price)
+    mc=margin_pct(price,item['custo'],shop['aliquota_imposto'],shop['comissao_pct'])
+    if mc < float(shop['mc_meta_pct']):
+        raise ValueError('A margem estimada fica abaixo da meta definida para a loja.')
+    return token,price,mc,shop,deal
+
+
+@app.route('/promocoes/participar/<int:cid>/<pid>/<item_id>',methods=['GET','POST'])
+@login_required
+def participar_deal(cid,pid,item_id):
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito',403
+    from promo_participation import confirmation_form,find_deal,is_participating
+    try:
+        campaign,shop,item=carregar_deal_e_anuncio(cid,pid,item_id)
+    except ValueError:
+        return 'Campanha ou anúncio indisponível',404
+    with banco() as conn:
+        previous=consultar(conn,"SELECT status FROM promocoes_adesoes WHERE conexao_id=%s AND promocao_id=%s AND item_id=%s",(cid,pid,item_id))
+    if previous:
+        return pagina_loja('Participação',cid,shop['cliente'],'promocoes',
+            '<div class="card"><h2>Participação já enviada</h2><p>Registro: '+esc(previous[0]['status'])+
+            '. Confira o status atualizado no Mercado Livre. Para evitar duplicidade, não reenviamos esta solicitação automaticamente.</p></div>')
+    if request.method=='GET':
+        token=token_atual(shop)
+        if not token:
+            return pagina_loja('Participação',cid,shop['cliente'],'promocoes',
+                '<div class="aviso">Conta do Mercado Livre sem autorização válida.</div>'),503
+        rows,error=api_get(token,'/seller-promotions/items/'+item_id,{'app_version':'v2'})
+        if error:
+            return pagina_loja('Participação',cid,shop['cliente'],'promocoes',
+                '<div class="aviso">Não foi possível validar o convite no Mercado Livre.</div>'),503
+        deal=find_deal(rows,pid)
+        if not deal or str(deal.get('status','')).lower()!='candidate':
+            return pagina_loja('Participação',cid,shop['cliente'],'promocoes',
+                '<div class="aviso">O anúncio não é candidato a esta campanha.</div>'),409
+        suggested=deal.get('suggested_discounted_price')
+        default=esc(str(request.args.get('preco') or suggested or ''),quote=True)
+        content=('<h2>Analisar participação</h2><p class="sub">'+esc(str(item.get('titulo') or item_id))+'</p>'
+                 '<form method="get"><label>Preço promocional (R$)</label> '
+                 '<input type="number" name="preco" min="0.01" step="0.01" required class="filtro" value="'+default+'"> '
+                 '<button type="submit" class="filtro-btn">Calcular MC</button></form>')
+        if request.args.get('preco'):
+            try:
+                _,price,mc,_,_=validar_adesao_deal(cid,pid,item_id,request.args['preco'])
+                content+=confirmation_form(cid,pid,item_id,price,mc,shop['mc_meta_pct'],deal.get('original_price') or item['preco'] or 0)
+            except ValueError as e:
+                content+='<div class="aviso" role="alert">'+esc(str(e))+'</div>'
+        return pagina_loja('Analisar participação',cid,shop['cliente'],'promocoes',content)
+    if request.form.get('confirmar')!='sim':
+        return 'Confirmação explícita obrigatória',400
+    try:
+        token,price,mc,shop,deal=validar_adesao_deal(cid,pid,item_id,request.form.get('deal_price'))
+    except ValueError as e:
+        return pagina_loja('Participação não enviada',cid,shop['cliente'],'promocoes',
+                          '<div class="aviso" role="alert">'+esc(str(e))+'</div>'),409
+    now=int(time.time())
+    with banco() as conn:
+        cursor=executar(conn,"""INSERT INTO promocoes_adesoes
+            (conexao_id,promocao_id,item_id,usuario_id,preco,margem_pct,status,criado_em,atualizado_em)
+            VALUES (%s,%s,%s,%s,%s,%s,'sending',%s,%s)
+            ON CONFLICT DO NOTHING""",(cid,pid,item_id,session['usuario_id'],price,mc,now,now))
+        reserved=cursor.rowcount==1
+    if not reserved:
+        return 'Já existe uma solicitação para esta campanha e anúncio.',409
+    # The user authorized a real API write. Never retry automatically after timeout.
+    state='uncertain'
+    detail='Envio realizado; confirmação ainda não verificada.'
+    try:
+        response=requests.post(API+'/seller-promotions/items/'+item_id,
+            params={'app_version':'v2'},
+            headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+            json={'promotion_id':pid,'promotion_type':'DEAL','deal_price':float(price)},timeout=25)
+        if response.status_code not in (200,201,202,204):
+            state='rejected'
+            detail='Mercado Livre recusou a solicitação (HTTP '+str(response.status_code)+').'
+        else:
+            fresh,error=api_get(token,'/seller-promotions/items/'+item_id,{'app_version':'v2'})
+            if not error and is_participating(find_deal(fresh,pid)):
+                state='confirmed'
+                detail='Participação confirmada pelo Mercado Livre.'
+    except requests.RequestException:
+        detail='O envio não pôde ser confirmado. Verifique no Mercado Livre antes de tentar novamente.'
+    with banco() as conn:
+        executar(conn,"""UPDATE promocoes_adesoes SET status=%s,resposta=%s,atualizado_em=%s
+            WHERE conexao_id=%s AND promocao_id=%s AND item_id=%s""",
+            (state,detail,int(time.time()),cid,pid,item_id))
+    message=('<div class="sucesso">' if state=='confirmed' else '<div class="aviso">')+esc(detail)+'</div>'
+    return pagina_loja('Resultado da participação',cid,shop['cliente'],'promocoes',
+        message+'<p><a class="link" href="/promocoes/'+str(cid)+'">Voltar às promoções</a></p>')
+
+
 @app.route("/promocoes/<int:cid>")
 @login_required
 def promocoes(cid):
@@ -3703,6 +3881,9 @@ def promocoes(cid):
                   + " · Início: " + esc(str(p["inicio"] or "-")[:10])
                   + " · Fim: " + esc(str(p["fim"] or "-")[:10])
                   + " · Itens: " + str(len(itens)) + "</div>")
+        if p.get('tipo')=='DEAL':
+            corpo += ('<p style="margin:10px 0"><a class="filtro-btn" href="/promocoes/candidatos/'
+                      +str(cid)+'/'+esc(str(p['promocao_id']))+'">Ver candidatos e participar</a></p>')
         if itens:
             corpo += ("<table><thead><tr><th>Anúncio</th><th>Preço normal</th>"
                       "<th>Preço promo</th><th>Desconto</th><th>Custo</th>"
