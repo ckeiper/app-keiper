@@ -15,7 +15,7 @@ class CollectionHealthTests(unittest.TestCase):
         errors=[{'conexao_id':1,'categoria':'ads'}]
         rows=assess(shops,catalog,ads,sales,runs,errors,today=date(2026,10,22),now=now)
         self.assertEqual(rows[0]['state'],'atencao')
-        self.assertEqual(len(rows[0]['issues']),5)
+        self.assertEqual(len(rows[0]['issues']),6)
         self.assertIn('5/7',str(rows[0]['issues']))
         self.assertIn('falha',str(rows[0]['issues']))
         self.assertIn('Loja A',render(rows,compact=True))
