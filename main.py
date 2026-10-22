@@ -3903,6 +3903,10 @@ def ranking_anuncios(cid):
               + "?dias=7'>7 dias</a> "
               "<a class='filtro' href='/ranking-anuncios/" + str(cid)
               + "?dias=30'>30 dias</a></p></div>")
+    from listing_priority_queue import prioritize as prioritize_listings, render as render_priorities
+    compact_priorities = request.args.get("modo") == "prioridades"
+    if not resumo["available"] and compact_priorities:
+        return render_priorities(prioritize_listings(resumo), anuncios_loja, cid, days=int(dias), compact=True)
     if not resumo["available"]:
         corpo += ("<div class='card'><b>Ranking indisponível</b><p>"
                   + esc(resumo["reason"] or "Dados não verificados.")
@@ -3914,6 +3918,13 @@ def ranking_anuncios(cid):
     from investigation_evidence import load_bulk
     with banco() as conn:
         evidencias_queda = load_bulk(conn, consultar, cid, resumo, fim_analise, days=int(dias))
+    prioridades = render_priorities(prioritize_listings(resumo, evidencias_queda),
+                                   anuncios_loja, cid, days=int(dias), compact=compact_priorities)
+    if compact_priorities:
+        response = Response(prioridades, mimetype="text/html")
+        response.headers["Cache-Control"] = "private, max-age=60"
+        return response
+    corpo += prioridades
     corpo += render_decline(resumo, anuncios_loja, cid, request.args, fim_analise,
                             days=int(dias), evidence_by_item=evidencias_queda)
     kpis = listing_kpis(resumo["rows"])
@@ -4410,6 +4421,21 @@ def painel_detalhe(cid):
     if atualizando:
         corpo += ("<script>setTimeout(function(){ location.reload(); }, "
                   "90000);</script>")
+    # Load deeper priority analysis separately so the store summary stays fast.
+    priority_url = "/ranking-anuncios/%s?dias=7&modo=prioridades" % int(cid)
+    corpo = ("<div id='kp-auto-priorities' aria-live='polite'>"
+             "<div class='card'><h3>Prioridades dos anúncios</h3>"
+             "<p class='muted'>Investigando quedas de vendas verificadas…</p></div></div>"
+             "<script>(function(){"
+             "var node=document.getElementById('kp-auto-priorities');"
+             "fetch("+json.dumps(priority_url)+",{credentials:'same-origin'})"
+             ".then(function(r){if(!r.ok)throw Error('priority-load');return r.text()})"
+             ".then(function(h){if(node)node.innerHTML=h})"
+             ".catch(function(){if(node)node.innerHTML="
+             "'<div class=\\'card\\'><h3>Prioridades indisponíveis</h3>' +"
+             "'<p>Abra o ranking para consultar as quedas verificadas.</p>' +"
+             "'<a href=\\'/ranking-anuncios/"+str(int(cid))+"?dias=7\\'>Ver ranking de anúncios</a></div>'})"
+             "})();</script>") + corpo
     return pagina_loja("Resumo", cid, c["cliente"], "resumo", corpo)
 @app.route("/atualizar/<tipo>/<int:cid>")
 @login_required
