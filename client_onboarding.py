@@ -20,7 +20,7 @@ def status(record, total_active, active_with_cost):
     tax=bool(record and record.get('imposto_confirmado_em'))
     uploaded=bool(record and record.get('custos_importados_em'))
     covered=total_active>0 and active_with_cost==total_active
-    return {'tax':tax,'uploaded':uploaded,'covered':covered,
+    return {'required':bool(record),'tax':tax,'uploaded':uploaded,'covered':covered,
             'done':tax and uploaded and covered,
             'total':total_active,'with_cost':active_with_cost}
 
