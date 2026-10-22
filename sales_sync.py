@@ -64,43 +64,51 @@ def _read_window(token, user_id, api_get, lower, upper, budget):
 
 
 def collect_day(token, user_id, api_get, day):
-    """Recover unstable pagination using bounded, nonoverlapping time windows.
+    """Recover pagination with hour-aligned, half-open reporting windows.
 
-    A successful recovery replaces the failed day's pages. Every child must
-    be complete, honor its time filter and have disjoint IDs before coverage
-    can be restored. Transport/auth failures are left to the normal scheduler.
+    Orders search discards minutes/seconds in date filters. Query complete
+    hours (including the next boundary) and assign returned orders locally
+    to [start, end), after validating every raw page and paging.total.
     """
     zone = datetime.timezone(datetime.timedelta(hours=-3))
     lower = datetime.datetime.combine(day, datetime.time(), zone)
-    upper = lower + datetime.timedelta(days=1, milliseconds=-1)
+    upper = lower + datetime.timedelta(days=1)
     budget = [80]
+    hour = datetime.timedelta(hours=1)
 
     def read(start, end, depth=0):
         rows, complete, reason = _read_window(token, user_id, api_get, start, end, budget)
-        if depth:
-            for row in rows.values():
-                try:
-                    stamp = datetime.datetime.fromisoformat(row.get('date_created', '').replace('Z', '+00:00'))
-                    valid = stamp.tzinfo is not None and start <= stamp <= end
-                except (TypeError, ValueError, AttributeError):
-                    valid = False
-                if not valid:
+        assigned = {}
+        for oid, row in rows.items():
+            try:
+                stamp = datetime.datetime.fromisoformat(row.get('date_created', '').replace('Z', '+00:00'))
+                valid = stamp.tzinfo is not None
+            except (TypeError, ValueError, AttributeError):
+                valid = False
+            if not valid:
+                if depth:
                     return rows, False, 'resposta fora do intervalo solicitado ou sem data verificável'
+                # Preserve unknown dates for the existing integrity indicators.
+                assigned[oid] = row
+                continue
+            if not start <= stamp < end + hour:
+                return rows, False, 'resposta fora do intervalo solicitado ou sem data verificável'
+            if stamp < end:
+                assigned[oid] = row
         if complete:
-            return rows, True, reason
+            return assigned, True, reason
         recoverable = any(text in reason for text in
                           ('identificadores duplicados', 'total alterado', '1000 resultados'))
-        if not recoverable or not rows or depth >= 6 or budget[0] < 2:
+        hours = int((end-start).total_seconds()//3600)
+        if not recoverable or not rows or hours < 2 or budget[0] < 2:
             return rows, False, reason
-        # Without valid timestamps the API's time filter cannot be checked.
-        if any(created_day(row.get('date_created')) != day for row in rows.values()):
+        if any(created_day(row.get('date_created')) is None for row in rows.values()):
             return rows, False, reason
-        millis = int((end-start).total_seconds()*1000)
-        middle = start + datetime.timedelta(milliseconds=millis//2)
+        middle = start + hour * (hours//2)
         left, ok, failure = read(start, middle, depth+1)
         if not ok:
             return rows, False, failure
-        right, ok, failure = read(middle+datetime.timedelta(milliseconds=1), end, depth+1)
+        right, ok, failure = read(middle, end, depth+1)
         if not ok:
             return rows, False, failure
         if left.keys() & right.keys():
@@ -184,3 +192,4 @@ def select_sync_days(today, now, coverage, older_limit=4):
         0 if (today - d).days < 60 else 1,
         coverage.get(d.isoformat(), 0), -d.toordinal()))
     return recent + eligible[:older_limit]
+

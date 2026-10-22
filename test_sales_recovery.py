@@ -92,3 +92,34 @@ class PaginationRecoveryTests(unittest.TestCase):
         self.assertTrue(complete)
         self.assertEqual(set(rows), {str(i) for i in range(1, 1002)})
         self.assertLessEqual(len(calls), 80)
+
+    def test_hour_precision_api_and_inclusive_boundary_recover_every_order(self):
+        start = datetime(2026, 10, 16, tzinfo=timezone(timedelta(hours=-3)))
+        # Include the final hour, exact split boundaries, and the next day's
+        # orders returned by an inclusive hour-precision upper bound.
+        orders = [{'id': i+1, 'date_created': (start+timedelta(minutes=15*i)).isoformat()}
+                  for i in range(100)]
+        calls = []
+        def api(token, path, params):
+            calls.append(params)
+            lower = datetime.fromisoformat(params['order.date_created.from'])
+            upper = datetime.fromisoformat(params['order.date_created.to'])
+            self.assertEqual((lower.minute, lower.second, lower.microsecond), (0, 0, 0))
+            self.assertEqual((upper.minute, upper.second, upper.microsecond), (0, 0, 0))
+            selected = [r for r in orders if lower <= datetime.fromisoformat(r['date_created']) < upper+timedelta(hours=1)]
+            if upper-lower > timedelta(hours=1):
+                return {'results': selected[:1], 'paging': {'total': len(selected)}}, None
+            return {'results': selected, 'paging': {'total': len(selected)}}, None
+        rows, complete, reason = collect_day('token', 5, api, self.day)
+        self.assertTrue(complete, reason)
+        self.assertEqual(set(rows), {str(i) for i in range(1, 97)})
+        self.assertLessEqual(len(calls), 80)
+
+    def test_next_day_boundary_is_not_assigned_to_previous_day(self):
+        orders = [{'id': 1, 'date_created': '2026-10-16T23:59:59.999-03:00'},
+                  {'id': 2, 'date_created': '2026-10-17T00:00:00.000-03:00'}]
+        rows, complete, _ = collect_day('token', 5, lambda *args:
+            ({'results': orders, 'paging': {'total': 2}}, None), self.day)
+        self.assertTrue(complete)
+        self.assertEqual(set(rows), {'1'})
+
