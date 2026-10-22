@@ -523,39 +523,80 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
     from section_refresh import SCOPES, render as render_refresh
     if secao in SCOPES and "class='k-refresh'" not in corpo:
         corpo = render_refresh(cid, secao) + corpo
-    itens = [
-        ("resumo", "📊 Resumo", "/painel/" + str(cid)),
-        ("prioridades", "⭐ Minhas prioridades", "/prioridades/" + str(cid)),
-        ("anuncios", "📦 Anúncios", "/anuncios/" + str(cid)),
-        ("full", "Full e vendas", "/full/" + str(cid)),
-        ("desempenho", "📈 Desempenho", "/desempenho/" + str(cid)),
-        ("demandas", "🟡 Demandas", "/demandas/" + str(cid)),
-        ("promocoes", "🏷️ Promoções", "/promocoes/" + str(cid)),
-        ("ads", "📣 Ads", "/ads/" + str(cid)),
-        ("campanhas", "📢 Campanhas", "/campanhas/" + str(cid)),
-        ("custos", "💰 Custos", "/custos/" + str(cid)),
-        ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
-        ("auditoria_frete", "🚚 Auditoria de Frete", "/auditoria-frete/" + str(cid)),
+    def _store_nav_icon(name):
+        """Lightweight inline outline icons, consistent with marketplace navigation."""
+        paths = {
+            "resumo": "<rect x='3' y='3' width='7' height='9' rx='1'/><rect x='14' y='3' width='7' height='5' rx='1'/><rect x='14' y='12' width='7' height='9' rx='1'/><rect x='3' y='16' width='7' height='5' rx='1'/>",
+            "prioridades": "<path d='m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z'/>",
+            "anuncios": "<path d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'/><path d='m3.3 7 8.7 5 8.7-5M12 22V12'/>",
+            "full": "<path d='M10 17h4V5H2v12h3'/><path d='M14 9h4l4 4v4h-3'/><circle cx='7.5' cy='17.5' r='2.5'/><circle cx='16.5' cy='17.5' r='2.5'/>",
+            "desempenho": "<path d='M3 3v18h18'/><path d='m7 16 4-5 4 3 5-8'/>",
+            "demandas": "<rect x='5' y='4' width='14' height='18' rx='2'/><path d='M9 4.5h6M9 10h6M9 14h6M9 18h3'/>",
+            "promocoes": "<path d='M20.6 13.4 12 22l-9-9V3h10z'/><circle cx='8' cy='8' r='1'/>",
+            "ads": "<path d='m3 11 18-7-7 18-3-8z'/><path d='m11 14 10-10'/>",
+            "campanhas": "<path d='M3 11v2l10 4V7L3 11zM13 7l7-3v16l-7-3M7 15l1 5h4l-2-4'/>",
+            "custos": "<rect x='2' y='5' width='20' height='15' rx='2'/><path d='M2 10h20M17 15h2'/>",
+            "vendas": "<circle cx='9' cy='20' r='1'/><circle cx='19' cy='20' r='1'/><path d='M2 3h2l2.5 12h13l2-9H5'/>",
+            "auditoria_frete": "<path d='M8 3h9l4 4v14H8zM17 3v5h4M11 12h7M11 16h5'/><path d='M4 8H2v12h3'/>",
+            "atualizar": "<path d='M20 7v5h-5M4 17v-5h5'/><path d='M5 9a8 8 0 0 1 14-2l1 5M4 12l1 5a8 8 0 0 0 14-2'/>",
+            "diagnostico": "<circle cx='10.5' cy='10.5' r='7.5'/><path d='m16 16 5 5'/>",
+            "excluir": "<path d='M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7'/>",
+        }
+        return ("<svg class='ks-store-icon' viewBox='0 0 24 24' fill='none' "
+                "stroke='currentColor' stroke-width='1.8' stroke-linecap='round' "
+                "stroke-linejoin='round' aria-hidden='true'>" + paths[name] + "</svg>")
+
+    # Group related screens into accessible, single-open navigation sections.
+    groups = [
+        ("anuncios", "Anúncios", [
+            ("anuncios", "Lista de anúncios", "/anuncios/" + str(cid)),
+            ("desempenho", "Desempenho", "/desempenho/" + str(cid)),
+            ("promocoes", "Promoções", "/promocoes/" + str(cid)),
+        ]),
+        ("vendas", "Vendas", [
+            ("vendas", "Vendas", "/vendas/" + str(cid)),
+            ("full", "Full e vendas", "/full/" + str(cid)),
+            ("auditoria_frete", "Auditoria de Frete", "/auditoria-frete/" + str(cid)),
+        ]),
+        ("ads", "Publicidade", [
+            ("ads", "Publicidade Ads", "/ads/" + str(cid)),
+            ("campanhas", "Campanhas", "/campanhas/" + str(cid)),
+        ]),
+        ("demandas", "Gestão", [
+            ("prioridades", "Minhas prioridades", "/prioridades/" + str(cid)),
+            ("demandas", "Demandas", "/demandas/" + str(cid)),
+            ("custos", "Custos", "/custos/" + str(cid)),
+        ]),
+        ("diagnostico", "Ferramentas", [
+            ("atualizar", "Atualizar dados", "/atualizar?cid=" + str(cid)),
+            ("diagnostico", "Diagnóstico", "/diagnostico"),
+        ]),
     ]
-    menu = "<div class='menu-lateral'>"
+    menu = "<nav class='menu-lateral ks-store-nav' aria-label='Navegação da loja'>"
     menu += "<a class='voltar' href='/painel'>← Todas as lojas</a>"
-    for chave, rotulo, href in itens:
-        classe = "item"
-        if secao == chave:
-            classe += " atual"
-        menu += "<a class='" + classe + "' href='" + href + "'>"
-        menu += rotulo + "</a>"
-    menu += "<a class='item' href='/atualizar?cid=" + str(cid) + "'>"
-    menu += "🔄 Atualizar dados</a>"
-    menu += "<a class='item' href='/diagnostico'>🔍 Diagnóstico</a>"
-    menu += "<a class='item perigo' href='/excluir/" + str(cid) + "'>"
-    menu += "🗑️ Excluir loja</a></div>"
+    menu += "<div class='ks-store-caption'>PAINEL DA LOJA</div>"
+    menu += "<a class='item" + (" atual" if secao == "resumo" else "") + "' href='/painel/" + str(cid) + "'"
+    menu += (" aria-current='page'" if secao == "resumo" else "") + ">"
+    menu += _store_nav_icon("resumo") + "<span>Visão geral</span></a>"
+    for icon, label, children in groups:
+        active = any(key == secao for key, _, _ in children)
+        menu += "<details class='ks-nav-group'" + (" open" if active else "") + ">"
+        menu += "<summary>" + _store_nav_icon(icon) + "<span>" + label + "</span>"
+        menu += "<svg class='ks-chevron' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' aria-hidden='true'><path d='m6 9 6 6 6-6'/></svg></summary>"
+        menu += "<div class='ks-nav-children'>"
+        for key, title, url in children:
+            active_item = secao == key
+            menu += "<a class='item" + (" atual" if active_item else "") + "' href='" + url + "'"
+            menu += (" aria-current='page'" if active_item else "") + "><span>" + title + "</span></a>"
+        menu += "</div></details>"
+    menu += "<div class='ks-nav-bottom'><a class='item perigo' href='/excluir/" + str(cid) + "'>"
+    menu += _store_nav_icon("excluir") + "<span>Excluir loja</span></a></div></nav>"
     links = ""
     links += "<a class='btn sair' href='/logout'>Sair</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
     cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS
-    cab += "</head><body><div class='top'>"
+    cab += "<style>\nbody:has(.ks-store-nav){background:#f4f7fc}\nbody:has(.ks-store-nav) .layout{gap:24px;align-items:flex-start}\nbody:has(.ks-store-nav) .ks-store-nav{position:sticky;top:16px;flex:0 0 240px;width:240px;max-height:calc(100dvh - 32px);padding:18px 12px;background:linear-gradient(160deg,#0d192d,#142b4b);border:1px solid #2b4568;border-radius:16px;box-shadow:0 12px 36px #0b1b3024;scrollbar-width:thin;scrollbar-color:#42628a transparent}\n.ks-store-nav .ks-store-icon{width:19px;height:19px;flex:0 0 19px;margin-right:12px;opacity:.88}.ks-store-nav a.item.atual .ks-store-icon{opacity:1}\n.ks-store-nav .voltar{color:#d7e7ff!important;font-weight:750!important;padding:12px!important;border-radius:10px!important;background:#233c5e!important;text-decoration:none!important;margin-bottom:14px!important}\n.ks-store-nav .ks-store-caption{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#829fc4;padding:17px 11px 7px}\n.ks-store-nav a.item{display:flex!important;align-items:center;min-height:42px!important;padding:10px 12px!important;border-radius:10px!important;background:transparent!important;color:#c4d5ee!important;font-size:13px!important;font-weight:600!important;border:0!important;text-decoration:none!important;transition:background .16s,color .16s}\n.ks-store-nav a.item:hover{background:#274467!important;color:#fff!important}\n.ks-store-nav a.item.atual,.ks-store-nav a.item.atual:hover{background:#2a568c!important;color:#fff!important;box-shadow:inset 3px 0 #79b5ff}\n.ks-store-nav a.item.perigo{color:#ffa7ac!important;margin-top:8px}\n.ks-store-nav a.item.perigo:hover{background:#633040!important}\n.ks-store-nav a:focus-visible{outline:3px solid #8dc4ff;outline-offset:2px}\n\n.ks-store-nav .ks-nav-group{margin:2px 0}.ks-store-nav .ks-nav-group>summary{display:flex;align-items:center;list-style:none;cursor:pointer;padding:11px 12px;border-radius:10px;color:#c4d5ee;font-size:13px;font-weight:700;min-height:42px;box-sizing:border-box}.ks-store-nav .ks-nav-group>summary::-webkit-details-marker{display:none}.ks-store-nav .ks-nav-group>summary:hover,.ks-store-nav .ks-nav-group[open]>summary{background:#203c60;color:#fff}.ks-store-nav .ks-chevron{width:16px;height:16px;margin-left:auto;flex-shrink:0;transition:transform .18s}.ks-store-nav .ks-nav-group[open] .ks-chevron{transform:rotate(180deg)}.ks-store-nav .ks-nav-children{padding:3px 0 7px 28px;border-left:1px solid #335377;margin-left:21px}.ks-store-nav .ks-nav-children a.item{font-size:12px!important;padding:9px 10px!important;min-height:36px!important}.ks-store-nav .ks-nav-bottom{margin-top:16px;border-top:1px solid #314967;padding-top:10px}.ks-store-nav summary:focus-visible{outline:3px solid #8dc4ff;outline-offset:2px}\nbody:has(.ks-store-nav) .conteudo{min-width:0;flex:1}\n@media(max-width:820px){body:has(.ks-store-nav) .layout{gap:0}body:has(.ks-store-nav) .ks-store-nav{position:fixed;top:0;bottom:0;left:0;z-index:1102;width:min(290px,84vw)!important;max-height:100dvh;border-radius:0;flex:none;overflow-y:auto;transform:translateX(-105%);transition:transform .2s ease}body.sidebar-open .ks-store-nav{transform:translateX(0)}}\n</style>" + "</head><body><div class='top'>"
     cab += "<div><h1>" + img_logo(34) + "Keiper Consultoria</h1></div>"
     cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>"
     cab += esc(str(cliente)) + "</div>"
@@ -566,7 +607,7 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
             " aria-hidden='true'></div>")
     cab += "<div class='wrap'><div class='layout'>" + menu
     cab += "<div class='conteudo'>" + corpo
-    cab += "</div></div></div>" + SCRIPT + "<script>\nfunction alternarMenuLateral(forcar) {\n  var aberto = typeof forcar === 'boolean'\n    ? forcar : !document.body.classList.contains('sidebar-open');\n  document.body.classList.toggle('sidebar-open', aberto);\n  var botao = document.querySelector('.sidebar-toggle');\n  if (botao) botao.setAttribute('aria-expanded', String(aberto));\n}\ndocument.addEventListener('keydown', function(e) {\n  if (e.key === 'Escape' && document.body.classList.contains('sidebar-open'))\n    alternarMenuLateral(false);\n});\n</script>" + "</body></html>"
+    cab += "</div></div></div>" + SCRIPT + "<script>\nfunction alternarMenuLateral(forcar) {\n  var aberto = typeof forcar === 'boolean'\n    ? forcar : !document.body.classList.contains('sidebar-open');\n  document.body.classList.toggle('sidebar-open', aberto);\n  var botao = document.querySelector('.sidebar-toggle');\n  if (botao) botao.setAttribute('aria-expanded', String(aberto));\n}\n\ndocument.querySelectorAll('.ks-store-nav .ks-nav-group').forEach(function(group){\n  group.addEventListener('toggle', function(){\n    if (!group.open) return;\n    document.querySelectorAll('.ks-store-nav .ks-nav-group').forEach(function(other){\n      if (other !== group) other.open = false;\n    });\n  });\n});\ndocument.addEventListener('keydown', function(e) {\n  if (e.key === 'Escape' && document.body.classList.contains('sidebar-open'))\n    alternarMenuLateral(false);\n});\n</script>" + "</body></html>"
     return cab
 
 
