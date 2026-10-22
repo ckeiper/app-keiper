@@ -1342,6 +1342,12 @@ def exigir_onboarding_financeiro_cliente():
         return None
     if session.get('onboarding_financeiro_concluido')==cid:
         return None
+    # Onboarding is mandatory for clients whose shared portal was enabled;
+    # existing legacy accounts outside the rollout remain unaffected.
+    with banco() as conn:
+        enabled=consultar(conn,"SELECT habilitado FROM cliente_prioridades_acessos WHERE conexao_id=%s",(cid,))
+    if not enabled or not enabled[0]['habilitado']:
+        return None
     if request.endpoint in {'login','logout','logo_arquivo','static',
                             'primeiro_acesso','primeiro_acesso_imposto',
                             'modelo_custos','upload_custos'}:
