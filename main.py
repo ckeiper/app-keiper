@@ -1759,6 +1759,9 @@ def diagnostico():
     corpo = ("<p style='margin-bottom:10px'><a class='link' href='/painel'>"
              "← Voltar ao painel</a></p>"
              "<h2 style='margin-bottom:14px'>Diagnóstico</h2>")
+    if session.get('tipo')=='admin':
+        from collection_health import render as render_health,CSS as health_css
+        corpo += health_css+render_health(snapshot_saude_coletas())
     if FILA_ATUALIZACAO:
         fila_txt = str(len(FILA_ATUALIZACAO)) + " na fila"
     else:
@@ -2151,9 +2154,49 @@ def painel():
     from client_home import render_client_home
     corpo = render_client_home(lojas, admin=session.get("tipo") == "admin")
     if session.get("tipo") == "admin":
-        # Keep client selection first; CRM is secondary and appears below the store cards.
+        # Async collection-health snapshot keeps the client directory fast.
+        corpo += """<div id="kh-collection-health" aria-live="polite"></div>
+        <script>(function(){
+          var panel=document.getElementById('kh-collection-health');
+          fetch('/painel/saude',{credentials:'same-origin'})
+            .then(function(r){if(!r.ok)throw Error();return r.text();})
+            .then(function(html){if(panel)panel.innerHTML=html;})
+            .catch(function(){if(panel)panel.innerHTML='<p class="muted">Saúde das coletas indisponível. <a href="/diagnostico">Abrir diagnóstico</a></p>';});
+        })();</script>"""
+        # CRM stays beneath the client cards and health summary.
         corpo += HOME_WIDGET
     return pagina("Suas lojas", corpo)
+
+
+
+def snapshot_saude_coletas():
+    """A few bounded reads; no order load or marketplace API calls."""
+    from collection_health import assess
+    from sales_metrics import reporting_today
+    hoje=reporting_today()
+    semana=(hoje-datetime.timedelta(days=7)).isoformat()
+    ontem=(hoje-datetime.timedelta(days=1)).isoformat()
+    with banco() as conn:
+        shops=consultar(conn,"SELECT id,cliente,status FROM conexoes ORDER BY cliente")
+        catalog=consultar(conn,"SELECT conexao_id,MAX(atualizado_em) AS latest FROM anuncios GROUP BY conexao_id")
+        ads=consultar(conn,"""SELECT conexao_id,MIN(data) AS first_day,MAX(data) AS last_day,
+            COUNT(*) FILTER(WHERE data >= %s AND data <= %s) AS days_7
+            FROM ads_dia GROUP BY conexao_id""",(semana,ontem))
+        sales=consultar(conn,"SELECT conexao_id,MAX(dia) AS latest_day FROM vendas_cobertura WHERE dia <= %s GROUP BY conexao_id",(ontem,))
+        runs=consultar(conn,"""SELECT DISTINCT ON(conexao_id) conexao_id,status,inicio_em,heartbeat_em
+            FROM sincronizacao_execucoes ORDER BY conexao_id,id DESC""")
+        errors=consultar(conn,"SELECT conexao_id,categoria FROM erros WHERE resolvido_em IS NULL")
+    return assess(shops,catalog,ads,sales,runs,errors,today=hoje)
+
+
+@app.route("/painel/saude")
+@login_required
+@admin_required
+def painel_saude():
+    from collection_health import render,CSS
+    response=Response(CSS+render(snapshot_saude_coletas(),compact=True),mimetype="text/html")
+    response.headers['Cache-Control']='private, max-age=180'
+    return response
 
 
 @app.route("/painel/tendencias")
