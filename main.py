@@ -918,6 +918,11 @@ def login():
             session["conexao_id"] = u["conexao_id"]
             session["auth_version"] = u["auth_version"]
             if u["tipo"] == "cliente" and u["conexao_id"]:
+                with banco() as conn:
+                    enrolled=consultar(conn,"""SELECT 1 FROM cliente_onboarding_financeiro
+                        WHERE usuario_id=%s AND conexao_id=%s""",(u["id"],u["conexao_id"]))
+                session['onboarding_requerido']=bool(enrolled)
+            if u["tipo"] == "cliente" and u["conexao_id"]:
                 return redirect("/painel/" + str(u["conexao_id"]))
             return redirect("/painel")
         corpo = ("<div class='card' style='max-width:420px;margin:60px auto;text-align:center'>"
@@ -1344,11 +1349,9 @@ def exigir_onboarding_financeiro_cliente():
         return None
     if session.get('onboarding_financeiro_concluido')==cid:
         return None
-    # Onboarding is mandatory for clients whose shared portal was enabled;
-    # existing legacy accounts outside the rollout remain unaffected.
-    with banco() as conn:
-        enabled=consultar(conn,"SELECT habilitado FROM cliente_prioridades_acessos WHERE conexao_id=%s",(cid,))
-    if not enabled or not enabled[0]['habilitado']:
+    # The login records whether the client was enrolled. Legacy sessions
+    # keep their previous access; entering the shared portal always rechecks.
+    if not session.get('onboarding_requerido') and request.endpoint!='prioridades_loja':
         return None
     if request.endpoint in {'login','logout','logo_arquivo','static',
                             'primeiro_acesso','primeiro_acesso_imposto',
@@ -1356,7 +1359,9 @@ def exigir_onboarding_financeiro_cliente():
         return None
     progress=financeiro_status_usuario(session['usuario_id'],cid)
     if not progress['required']:
+        session['onboarding_requerido']=False
         return None
+    session['onboarding_requerido']=True
     if progress['done']:
         session['onboarding_financeiro_concluido']=cid
         return None
