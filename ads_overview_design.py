@@ -23,7 +23,7 @@ STYLE = """<style>
 def header(cid, store, start, end):
     cid=str(int(cid))
     from section_refresh import render as refresh
-    return STYLE+"<style>.ka-actions .k-refresh{margin:0!important;max-width:330px;gap:8px!important}.ka-actions .k-refresh button{background:#ffffff0b;color:#e3edfc;border:1px solid #59789e;border-radius:10px;min-height:40px;padding:10px 15px;font-size:12px;cursor:pointer}.ka-actions .k-refresh [role=status]{font-size:10px!important;color:#b6c9e4}</style><div class='ka-ads'><header class='ka-hero'><div><span class='ka-eyebrow'>Product Ads · "+escape(str(store))+"</span><h2>Publicidade</h2><p>Investimento, vendas e oportunidades das suas campanhas.</p><p>"+start.strftime('%d/%m')+' a '+end.strftime('%d/%m')+"</p></div><div class='ka-actions'><a href='/campanhas/"+cid+"'>Ver campanhas</a>"+refresh(cid,'ads')+"</div></header>"
+    return STYLE+"<style>.ka-actions .k-refresh{margin:0!important;max-width:330px;gap:8px!important}.ka-actions .k-refresh button{background:#ffffff0b;color:#e3edfc;border:1px solid #59789e;border-radius:10px;min-height:40px;padding:10px 15px;font-size:12px;cursor:pointer}.ka-actions .k-refresh [role=status]{font-size:10px!important;color:#b6c9e4}</style><div class='ka-ads'><header class='ka-hero'><div><span class='ka-eyebrow'>Product Ads · "+escape(str(store))+"</span><h2>Publicidade</h2><p>Investimento, vendas e oportunidades das suas campanhas.</p><p>"+start.strftime('%d/%m')+' a '+end.strftime('%d/%m')+"</p></div><div class='ka-actions'><a href='#ka-campaign-list'>Ver campanhas</a>"+refresh(cid,'ads')+"</div></header>"
 
 
 def alert_card(title, description, items, empty, opportunity=False):

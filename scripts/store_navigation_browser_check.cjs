@@ -19,16 +19,16 @@ const {chromium}=require('playwright');
     for(const [section,route] of [['resumo','/painel/5'],['ads','/ads/5'],['custos','/custos/5'],['anuncios','/anuncios/5']]){
       await page.goto(url+'/?section='+section);
       assert.equal(await page.locator('.ks-store-nav [aria-current=page]').getAttribute('href'),route);
-      assert.equal(await page.locator('.ks-nav-group[open]').count(),section==='resumo'?0:1);
-      if(section!=='resumo')assert.ok(await page.locator('.ks-nav-group[open] [aria-current=page]').isVisible());
+      assert.equal(await page.locator('.ks-nav-group[open]').count(),['resumo','ads'].includes(section)?0:1);
+      assert.ok(await page.locator('.ks-store-nav [aria-current=page]').isVisible());
     }
-    const expected=['/painel/5','/anuncios/5','/desempenho/5','/promocoes/5','/vendas/5','/full/5','/auditoria-frete/5','/ads/5','/campanhas/5','/prioridades/5','/demandas/5','/custos/5','/atualizar?cid=5','/diagnostico','/excluir/5'];
+    const expected=['/painel/5','/anuncios/5','/desempenho/5','/promocoes/5','/vendas/5','/full/5','/auditoria-frete/5','/ads/5','/prioridades/5','/demandas/5','/custos/5','/atualizar?cid=5','/diagnostico','/excluir/5'];
     const routes=await page.locator('.ks-sidebar a').evaluateAll(a=>a.map(x=>x.getAttribute('href')));
     for(const route of expected)assert.ok(routes.includes(route),'Missing route '+route);
-    const publicity=page.locator('.ks-nav-group summary').filter({hasText:'Publicidade'});
-    await publicity.click();await page.waitForTimeout(100);
+    assert.ok(!routes.includes('/campanhas/5'),'Duplicate campaign page must not be in navigation');
+    const publicity=page.locator('.ks-store-nav a[title=Publicidade]');
+    assert.equal(await publicity.getAttribute('href'),'/ads/5');
     assert.equal(await page.locator('.ks-nav-group[open]').count(),1);
-    assert.ok(await page.locator('.ks-nav-group[open]').innerText().then(x=>x.includes('Publicidade')));
     const sales=page.locator('.ks-nav-group summary').filter({hasText:'Vendas'});
     await sales.focus();await page.keyboard.press('Enter');await page.waitForTimeout(100);
     assert.equal(await page.locator('.ks-nav-group[open]').count(),1);

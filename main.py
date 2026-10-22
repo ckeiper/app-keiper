@@ -3070,8 +3070,7 @@ def painel_ads(cid):
                  + "<section class='card'><h3>Sem dados de publicidade para este período</h3>"
                  "<p>Confira se Product Ads está ativo, se a sincronização da loja terminou "
                  "e se existe investimento no intervalo selecionado.</p>"
-                 "<p><a class='link' href='/campanhas/" + str(cid)
-                 + "'>Ver campanhas e atualizar dados</a></p></section>")
+                 "<p>Use Atualizar Ads acima para carregar as campanhas e os resultados.</p></section>")
         return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo + alertas_html + "</div>")
     def soma(campo):
         return sum(float(row[campo] or 0) for row in dias_ads)
@@ -3116,7 +3115,7 @@ def painel_ads(cid):
     # Filter and page campaign comparisons without changing the sales baseline.
     filtro_nome = (request.args.get("campanha", "") or "").strip()[:80]
     situacao = request.args.get("situacao", "todas")
-    if situacao not in ("todas", "com_gasto", "sem_vendas", "com_vendas"):
+    if situacao not in ("todas", "com_gasto", "sem_vendas", "com_vendas", "ativas_sem_vendas"):
         situacao = "todas"
     ordem_camp = request.args.get("ordem_campanha", "gasto")
     if ordem_camp not in ("gasto", "faturamento", "roas", "acos", "tacos"):
@@ -3127,6 +3126,8 @@ def painel_ads(cid):
         investimento = float(camp["gasto_periodo"] or 0)
         atribuida = float(camp["fat_periodo"] or 0)
         if filtro_nome and filtro_nome.casefold() not in nome.casefold():
+            continue
+        if situacao == "ativas_sem_vendas" and (str(camp["status"] or "").lower() not in ("active", "running") or atribuida > 0):
             continue
         if situacao == "com_gasto" and investimento <= 0:
             continue
@@ -3161,7 +3162,7 @@ def painel_ads(cid):
     linhas_tacos_pagina = linhas_tacos[
         (pagina_tacos - 1) * tamanho_tacos:pagina_tacos * tamanho_tacos]
     tacos_campanhas_html = (
-        "<section class='card kc-campaigns'><h3>Desempenho por campanha</h3>"
+        "<section id='ka-campaign-list' class='card kc-campaigns'><h3>Desempenho por campanha</h3>"
         "<p class='muted'>Compare investimento, retorno e participação no faturamento total da loja.</p>"
         "<form method='get' action='/ads/" + str(cid) + "' "
         "style='display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:14px 0'>"
@@ -3174,7 +3175,7 @@ def painel_ads(cid):
         + "".join("<option value='" + valor + "'" + (" selected" if situacao == valor else "")
             + ">" + rotulo + "</option>" for valor,rotulo in (
                 ("todas","Todas"),("com_gasto","Com investimento"),
-                ("sem_vendas","Com gasto e sem vendas"),("com_vendas","Com vendas")))
+                ("sem_vendas","Com gasto e sem vendas"),("com_vendas","Com vendas"),("ativas_sem_vendas","Ativas sem vendas")))
         + "</select></label>"
         + "<label>Ordenar por <select name='ordem_campanha'>"
         + "".join("<option value='" + valor + "'" + (" selected" if ordem_camp == valor else "")
@@ -3331,209 +3332,28 @@ def painel_ads(cid):
     corpo += ("</nav><p class='muted'>Indicadores de Product Ads importados da API. "
               "Vendas atribuídas não representam o faturamento total da loja. "
               "ROAS = vendas atribuídas ÷ investimento; ACOS = investimento ÷ vendas atribuídas.</p>"
-              "<p><a class='link' href='/campanhas/" + str(cid)
-              + "'>Ver campanhas detalhadas →</a></p></section>")
+              "<p><a class='link' href='#ka-campaign-list'>Escolher uma campanha para abrir sua análise →</a></p></section>")
     return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo + "</div>")
 
 
 @app.route("/campanhas/<int:cid>")
 @login_required
 def campanhas(cid):
+    """Compatibility link: Publicidade is the only campaign list."""
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado",
-                      "<div class='card'><h2>Acesso restrito</h2></div>")
-    hoje = datetime.date.today().isoformat()
-    sem_vendas = request.args.get("sem_vendas", type=int, default=0)
-    with banco() as conn:
-        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        c = c[0] if c else None
-        if c:
-            campanhas = consultar(conn, "SELECT * FROM ads_campanhas "
-                                        "WHERE conexao_id=%s ORDER BY data_inicio DESC", (cid,))
-            gastos = consultar(conn, """SELECT campanha_id, COALESCE(SUM(gasto),0) AS gasto
-                                        FROM ads_metricas WHERE conexao_id=%s
-                                        GROUP BY campanha_id""", (cid,))
-            camp_dia = consultar(conn, "SELECT * FROM ads_campanha_dia WHERE conexao_id=%s", (cid,))
-            ads_dia = consultar(conn, "SELECT * FROM ads_dia WHERE conexao_id=%s "
-                                      "AND data >= %s ORDER BY data",
-                                (cid, (datetime.date.today()
-                                       - datetime.timedelta(days=6)).isoformat()))
-            filtro_ativo = sem_vendas > 0
-            if filtro_ativo:
-                data_limite = (datetime.date.today()
-                               - datetime.timedelta(days=sem_vendas)).isoformat()
-                fat_janela = consultar(conn, """SELECT campanha_id,
-                    COALESCE(SUM(faturamento),0) AS fat
-                    FROM ads_campanha_dia
-                    WHERE conexao_id=%s AND data >= %s
-                    GROUP BY campanha_id""", (cid, data_limite))
-    if not c:
-        return pagina("Não encontrada",
-                      "<div class='card'><h2>Loja não encontrada</h2></div>")
-    ultima = ultima_atualizacao(cid)
-    if filtro_ativo:
-        fat_por_camp = {r["campanha_id"]: (r["fat"] or 0) for r in fat_janela}
-        campanhas = [c2 for c2 in campanhas
-                     if str(c2["status"]) in ("active", "ACTIVE", "running")
-                     and fat_por_camp.get(c2["campanha_id"], 0) <= 0]
-    gasto_por_camp = {g["campanha_id"]: g["gasto"] for g in gastos}
-    camp_dia_map = {}
-    for r in camp_dia:
-        camp_dia_map[(r["campanha_id"], r["data"])] = r
-    ads_map = {r["data"]: r for r in ads_dia}
-    ad_hoje = ads_map.get(hoje)
-    gasto_total = ad_hoje["gasto"] if ad_hoje and ad_hoje["gasto"] is not None else None
-    fat_total = ad_hoje["faturamento"] if ad_hoje and ad_hoje["faturamento"] is not None else None
-    roas_total = (fat_total / gasto_total) if (gasto_total and fat_total
-                                               is not None and gasto_total > 0) else None
-    corpo = "<h2 style='margin-bottom:10px'>Campanhas Ads</h2>" \
-        + barra_atualizar(cid, ultima, "campanhas")
-    filtros = [("", "Todas"), (3, "3 dias sem vender"), (7, "7 dias sem vender"),
-               (15, "15 dias sem vender"), (30, "30 dias sem vender")]
-    corpo += ("<div class='card no-print'><h2>Filtro: X dias sem vendas</h2>"
-              "<div class='sub'>Mostra apenas campanhas <b>ativas</b> sem "
-              "faturamento de Ads nos últimos X dias</div>"
-              "<div style='display:flex;flex-wrap:wrap;gap:8px'>")
-    for val, rotulo in filtros:
-        classe = "filtro"
-        if (val == 0 and not filtro_ativo) or (val != 0 and sem_vendas == val):
-            classe += " filtro-btn"
-        if val == 0:
-            href = "/campanhas/" + str(cid)
-        else:
-            href = "/campanhas/" + str(cid) + "?sem_vendas=" + str(val)
-        corpo += "<a class='" + classe + "' href='" + href \
-            + "' style='text-decoration:none'>" + rotulo + "</a>"
-    corpo += "</div></div>"
-    if not campanhas:
-        if filtro_ativo:
-            titulo_v = ("Nenhuma campanha ativa sem vendas nos últimos "
-                        + str(sem_vendas) + " dias")
-            sub_v = "Nenhuma campanha ativa ficou sem faturamento de Ads nesse período."
-        else:
-            titulo_v = "Nenhuma campanha carregada ainda"
-            sub_v = "Use 'Atualizar agora' acima para buscar as campanhas de Mercado Ads."
-        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
-                  "<h2>" + titulo_v + "</h2><div class='sub'>" + sub_v + "</div></div>")
-        return pagina_loja("Campanhas", cid, c["cliente"], "campanhas", corpo)
-    if roas_total is not None:
-        roas_html = "<span class='alerta ok'>%.1f</span>" % roas_total
-    else:
-        roas_html = "<span class='tag sem'>—</span>"
-    corpo += ("<div class='grid' style='margin-bottom:18px'>"
-              "<div class='stat'><div class='num'>"
-              + (("R$ %.2f" % gasto_total) if gasto_total is not None
-                 else "<span class='tag sem'>—</span>")
-              + "</div><div class='lab'>Gasto Ads hoje</div></div>"
-              "<div class='stat'><div class='num'>"
-              + (("R$ %.2f" % fat_total) if fat_total is not None
-                 else "<span class='tag sem'>—</span>")
-              + "</div><div class='lab'>Faturamento Ads hoje</div></div>"
-              "<div class='stat'><div class='num'>" + roas_html
-              + "</div><div class='lab'>ROAS real (faturamento ÷ gasto)</div></div>"
-              "</div>")
-    corpo += ("<div class='card'><h2>Campanhas <span class='badge'>"
-              + str(len(campanhas)) + "</span></h2>"
-              "<div class='sub'>Defina o <b>ROAS objetivo</b> de cada campanha "
-              "(clique no valor). O painel alerta quando o orçamento acabou "
-              "e compara o ROAS real com o objetivo.</div>")
-    for camp in campanhas:
-        cid_camp = camp["campanha_id"]
-        st = str(camp["status"])
-        if st in ("active", "ACTIVE", "running"):
-            tag, st_txt = "tag ativa", "ativa"
-        elif st in ("paused", "PAUSED"):
-            tag, st_txt = "tag expirada", "pausada"
-        elif st in ("finished", "FINISHED", "ended"):
-            tag, st_txt = "tag normal", "finalizada"
-        else:
-            tag, st_txt = "tag normal", st
-        orcamento = camp["orcamento"]
-        gasto = gasto_por_camp.get(cid_camp, 0)
-        pct = (gasto * 100.0 / orcamento) if orcamento else 0
-        roas_obj = camp["roas_objetivo"]
-        camp_hoje = camp_dia_map.get((cid_camp, hoje))
-        camp_gasto = camp_hoje["gasto"] if camp_hoje else None
-        camp_fat = camp_hoje["faturamento"] if camp_hoje else None
-        roas_real = (camp_fat / camp_gasto) if (camp_gasto and camp_fat
-                                                is not None and camp_gasto > 0) else None
-        if orcamento is not None:
-            orc_txt = "R$ %.2f" % orcamento
-        else:
-            orc_txt = "<span class='tag sem'>—</span>"
-        gasto_txt = "R$ %.2f" % gasto
-        pct_html = ""
-        if orcamento:
-            if pct >= 100:
-                pct_html = "<span class='alerta urgente'>%.0f%% consumido</span>" % pct
-            elif pct >= 80:
-                pct_html = "<span class='alerta atencao'>%.0f%% consumido</span>" % pct
-            else:
-                pct_html = "<span class='alerta ok'>%.0f%% consumido</span>" % pct
-        if roas_obj is not None:
-            roas_obj_html = ("<span id='roas-" + str(cid) + "-" + str(cid_camp)
-                             + "'>%.1f</span>" % roas_obj)
-        else:
-            roas_obj_html = ("<a class='link' href='#' onclick='editarRoas("
-                             + str(cid) + ", \"" + str(cid_camp)
-                             + "\"); return false;'>+ definir</a>")
-        if roas_real is not None:
-            if roas_obj is not None:
-                if roas_real < roas_obj:
-                    roas_real_html = ("<span class='alerta urgente'>%.1f "
-                                      "(abaixo do objetivo)</span>" % roas_real)
-                else:
-                    roas_real_html = ("<span class='alerta ok'>%.1f "
-                                      "(acima do objetivo)</span>" % roas_real)
-            else:
-                roas_real_html = ("<span class='alerta atencao'>%.1f</span>" % roas_real)
-        else:
-            roas_real_html = "<span class='tag sem'>sem dados</span>"
-        corpo += ("<div class='campanha-item'>"
-                  "<div class='titulo'>"
-                  + esc(camp["nome"] or ("Campanha " + str(cid_camp)))
-                  + " <span class='" + tag + "'>" + st_txt + "</span></div>"
-                  "<div class='meta'>Tipo: " + esc(str(camp["tipo"] or "-"))
-                  + " · Início: " + esc(str(camp["data_inicio"] or "-")[:10])
-                  + " · Fim: " + esc(str(camp["data_fim"] or "-")[:10]) + "</div>"
-                  "<table><thead><tr><th>Orçamento</th><th>Gasto</th>"
-                  "<th>Consumo</th><th>ROAS objetivo</th><th>ROAS real</th>"
-                  "</tr></thead><tbody>"
-                  "<tr><td>" + orc_txt + "</td><td>" + gasto_txt + "</td>"
-                  "<td>" + pct_html + "</td>"
-                  "<td>" + roas_obj_html + "</td><td>" + roas_real_html + "</td>"
-                  "</tr></tbody></table>")
-        alertas = []
-        if orcamento and gasto >= orcamento:
-            alertas.append(("urgente",
-                            "Orçamento totalmente consumido (gasto R$ %.2f ≥ "
-                            "orçamento R$ %.2f). Considere liberar mais verba."
-                            % (gasto, orcamento)))
-        elif orcamento and pct >= 80:
-            alertas.append(("atencao",
-                            "Orçamento quase no limite (%.0f%% consumido). "
-                            "Avalie se vale liberar mais verba." % pct))
-        if roas_real is not None and roas_obj is not None:
-            if roas_real < roas_obj:
-                alertas.append(("urgente",
-                                "ROAS real (%.1f) está ABAIXO do objetivo (%.1f). "
-                                "Revise anúncios, lance ou segmentação."
-                                % (roas_real, roas_obj)))
-            else:
-                alertas.append(("ok",
-                                "ROAS real (%.1f) está ACIMA do objetivo (%.1f). "
-                                "Campanha saudável — pode valer aumentar verba."
-                                % (roas_real, roas_obj)))
-        for grav, msg in alertas:
-            corpo += ("<div class='alerta " + grav
-                      + "' style='margin-top:8px;display:block'>" + msg + "</div>")
-        corpo += "</div>"
-    corpo += ("<div class='muted'>ROAS = retorno sobre o investimento em anúncios "
-              "(faturamento gerado ÷ gasto). O ROAS objetivo é uma meta definida "
-              "aqui no painel — não altera a campanha no Mercado Livre. Ajustes "
-              "reais (orçamento, lance) são feitos na Central de Vendedores.</div>")
-    corpo += "</div>"
-    return pagina_loja("Campanhas", cid, c["cliente"], "campanhas", corpo)
+        return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
+    from urllib.parse import urlencode
+    from sales_metrics import reporting_today
+    params = request.args.to_dict(flat=True)
+    raw = params.pop("sem_vendas", "0")
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        days = 0
+    if 0 < days < 90:
+        today = reporting_today()
+        params.update(situacao="ativas_sem_vendas", de=(today-datetime.timedelta(days=days)).isoformat(), ate=today.isoformat())
+    return redirect("/ads/" + str(cid) + ("?"+urlencode(params) if params else ""))
 
 
 @app.route("/promocoes/meta/<int:cid>",methods=["POST"])
@@ -4900,7 +4720,7 @@ def atualizar_tipo(tipo, cid):
     from section_refresh import SCOPES
     if tipo in SCOPES:
         # Opening a legacy refresh URL only displays the explicit POST button.
-        return redirect("/" + tipo + "/" + str(cid))
+        return redirect(("/ads/" if tipo == "campanhas" else "/" + tipo + "/") + str(cid))
     if tipo != "resumo":
         return pagina("Seção inválida", "<div class='card'>Seção inválida</div>"), 400
     enfileirar_atualizacao(cid)

@@ -11,7 +11,6 @@ ITEMS = [
     ('demandas','Demandas','/demandas/','M4 4h16v12H8l-4 4zM8 8h8M8 12h5'),
     ('promocoes','Promoções','/promocoes/','M3 3h8l10 10-8 8L3 11zM7 7h.01'),
     ('ads','Ads','/ads/','M4 10v5h4l10 5V5L8 10zM8 15l2 6'),
-    ('campanhas','Campanhas','/campanhas/','M5 21V3m0 1h14l-3 5 3 5H5'),
     ('custos','Custos','/custos/','M4 4h16v16H4zM8 8h8M8 12h2m4 0h2m-8 4h2m4 0h2'),
     ('vendas','Vendas','/vendas/','M3 3h2l3 13h11l2-9H6M9 21h.01M18 21h.01'),
     ('auditoria_frete','Auditoria de Frete','/auditoria-frete/','M4 3h12v18H4zM8 7h4m-4 4h4m-4 4h4M16 8h4v10h-4'),
@@ -31,9 +30,12 @@ def render_store_sidebar(cid, cliente, secao, admin=False):
     nav+=link('Visão geral','/painel/'+cid,items['resumo'][3],secao=='resumo')
     groups=[('anuncios','Anúncios',['anuncios','desempenho','promocoes']),
             ('vendas','Vendas',['vendas','full','auditoria_frete']),
-            ('ads','Publicidade',['ads','campanhas']),
+            ('ads','Publicidade',['ads']),
             ('demandas','Gestão',['prioridades','demandas','custos'])]
     for icon,label,keys in groups:
+        if icon=='ads':
+            nav+=link('Publicidade','/ads/'+cid,items['ads'][3],secao in ('ads','campanhas'))
+            continue
         active=secao in keys
         nav+="<details class='ks-nav-group'"+(' open' if active else '')+"><summary><span aria-hidden='true'><svg viewBox='0 0 24 24'><path d='"+items[icon][3]+"'/></svg></span><span class='ks-label'>"+label+"</span><span class='ks-chevron' aria-hidden='true'>⌄</span></summary><div class='ks-nav-children'>"
         nav+=''.join(link(items[key][1],items[key][2]+cid,items[key][3],secao==key) for key in keys)
