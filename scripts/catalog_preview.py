@@ -14,7 +14,6 @@ rows=[dict(item_id='MLB'+str(100000+i),titulo=['Kit organizador de cozinha com 6
 tree=ast.parse(Path('main.py').read_text(encoding='utf-8'))
 css=next(ast.literal_eval(n.value) for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='CSS' for t in n.targets))
 env=dict(session={'tipo':'admin'},esc=html.escape,CSS=css,VISUAL_CSS=VISUAL_CSS,SCRIPT='',img_logo=lambda size:'')
-env['_store_nav_icon']=main_function('_store_nav_icon',env)
 page=main_function('pagina_loja',env)
 dest=Path('visual-qa');dest.mkdir(exist_ok=True)
 for name,args in [('catalog',{}),('catalog-filtered',{'status':'active','estoque':'baixo','por_pagina':'10'})]:
