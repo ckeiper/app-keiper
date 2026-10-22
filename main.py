@@ -520,6 +520,9 @@ def pagina(titulo, corpo):
 
 
 def pagina_loja(titulo, cid, cliente, secao, corpo):
+    from section_refresh import SCOPES, render as render_refresh
+    if secao in SCOPES and "class='k-refresh'" not in corpo:
+        corpo = render_refresh(cid, secao) + corpo
     def _store_nav_icon(name):
         """Lightweight inline outline icons, consistent with marketplace navigation."""
         paths = {
@@ -619,6 +622,9 @@ def hora_br(ts):
 
 
 def barra_atualizar(cid, ultima, tipo="resumo"):
+    from section_refresh import SCOPES, render as render_refresh
+    if tipo in SCOPES:
+        return render_refresh(cid, tipo, hora_br(ultima))
     ult_txt = hora_br(ultima)
     return ("<div style='display:flex;gap:12px;align-items:center;"
             "flex-wrap:wrap;margin-bottom:14px'>"
@@ -862,6 +868,8 @@ def iniciar_banco():
         executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
         from ads_official_metrics import init_schema as init_ads_sales_schema
         init_ads_sales_schema(conn, executar)
+        from section_refresh import init_schema as init_section_refresh
+        init_section_refresh(conn, executar)
         init_overview_schema(conn, executar)
         init_crm_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro (
@@ -4975,58 +4983,14 @@ def atualizar_tipo(tipo, cid):
     if not pode_ver_loja(cid):
         return pagina("Acesso negado",
                       "<div class='card'><h2>Acesso restrito</h2></div>")
-    # Full order history sync can take minutes; never run it in an HTTP worker.
-    if tipo in ("resumo", "vendas") or loja_habilitada_fila_persistente(cid):
-        enfileirar_atualizacao(cid)
-        destino = "/painel/" if tipo == "resumo" else "/" + tipo + "/"
-        return redirect(destino + str(cid))
-    with banco() as conn:
-        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        c = c[0] if c else None
-    if not c:
-        return pagina("Sem loja",
-                      "<div class='card'><h2>Nenhuma loja conectada</h2></div>")
-    token = token_atual(c)
-    if not token:
-        return pagina("Erro",
-                      "<div class='card'><h2>Falha ao renovar o token</h2></div>")
-    user_id = c["user_id"]
-    if tipo in ("anuncios", "promocoes") and user_id:
-        with LOCK_ATUALIZACAO:
-            if cid not in ATUALIZANDO:
-                ATUALIZANDO.add(cid)
-                threading.Thread(target=atualizar_anuncios_bg,
-                                 args=(cid, token, user_id, tipo), daemon=True).start()
+    from section_refresh import SCOPES
+    if tipo in SCOPES:
+        # Opening a legacy refresh URL only displays the explicit POST button.
         return redirect("/" + tipo + "/" + str(cid))
-    if user_id:
-        if tipo in ("resumo", "vendas"):
-            puxar_pedidos(c["id"], token, user_id)
-            puxar_envios(c["id"], token, user_id)
-        if tipo in ("resumo", "anuncios", "desempenho",
-                    "demandas", "custos"):
-            puxar_anuncios(c["id"], token, user_id)
-            puxar_metricas(c["id"], token)
-            puxar_promocoes(c["id"], token, user_id)
-        if tipo == "resumo":
-            puxar_perguntas(c["id"], token, user_id)
-            try:
-                puxar_ads(c["id"], token, user_id)
-            except Exception:
-                pass
-        if tipo == "promocoes":
-            puxar_promocoes(c["id"], token, user_id)
-        if tipo == "campanhas":
-            try:
-                puxar_ads(c["id"], token, user_id)
-            except Exception:
-                pass
-    if tipo in ("resumo", "desempenho"):
-        gravar_historico(c["id"])
-    if tipo == "resumo":
-        destino = "/painel/" + str(cid)
-    else:
-        destino = "/" + tipo + "/" + str(cid)
-    return redirect(destino)
+    if tipo != "resumo":
+        return pagina("Seção inválida", "<div class='card'>Seção inválida</div>"), 400
+    enfileirar_atualizacao(cid)
+    return redirect("/painel/" + str(cid))
 
 
 @app.route("/atualizar")
@@ -5425,7 +5389,28 @@ def diagnostico_anuncio(cid, item_id):
     return jsonify(inspect_listing(token, conta["user_id"], item_id, requests.get))
 
 
-def puxar_ads(conexao_id, token, user_id):
+def coletar_secao(cid, secao, periodo=None):
+    """Run only the collectors required by the requested page."""
+    with banco() as conn:
+        rows = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+    if not rows:
+        return False
+    conta = rows[0]
+    token = token_atual(conta)
+    user_id = conta.get("user_id")
+    if not token or not user_id:
+        return False
+    from section_refresh import collector_names
+    for name in collector_names(secao):
+        collector = globals()[name]
+        result = (collector(cid, token, user_id, refresh_range=periodo)
+                  if name == "puxar_ads" else collector(cid, token, user_id))
+        if result is False:
+            return False
+    return True
+
+
+def puxar_ads(conexao_id, token, user_id, refresh_range=None):
     from sales_metrics import reporting_today
     from ads_official_metrics import save_day
     # Use the same Brazilian reporting day as the dashboards, even after
@@ -5593,10 +5578,18 @@ def puxar_ads(conexao_id, token, user_id):
             (conexao_id, (reporting_day-datetime.timedelta(days=89)).isoformat(),
              (reporting_day-datetime.timedelta(days=1)).isoformat()))
     days_to_fetch = list(dict.fromkeys(days_to_fetch + [r['data'] for r in pending]))
+    if refresh_range is not None:
+        # Explicit refresh repairs the period visible on the Ads page only.
+        start, end = refresh_range
+        days_to_fetch = [(end-datetime.timedelta(days=i)).isoformat()
+                         for i in range((end-start).days+1)
+                         if (end-datetime.timedelta(days=i)).isoformat() != hoje]
+    history_complete = True
     if days_to_fetch:
         for dia_b in days_to_fetch:
             res = buscar_dia(dia_b)
             if res is None:
+                history_complete = False
                 continue
             _, g2, f2, i2, c2, linhas2 = res
             with banco() as conn:
@@ -5613,7 +5606,7 @@ def puxar_ads(conexao_id, token, user_id):
                               impressoes=EXCLUDED.impressoes,
                               cliques=EXCLUDED.cliques, atualizado_em=EXCLUDED.atualizado_em""",
                          (conexao_id, dia_b, g2, f2, i2, c2, agora))
-    return True
+    return history_complete if refresh_range is not None else True
 
 def puxar_pedidos(conexao_id, token, user_id):
     return sync_orders(conexao_id, token, user_id, banco, consultar,
@@ -5728,6 +5721,9 @@ from intervention_routes import register_interventions
 register_interventions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
                     is_updating=lambda cid: cid in ATUALIZANDO)
+
+from section_refresh import register as register_section_refresh
+register_section_refresh(app, login_required, pode_ver_loja, banco, consultar, executar, coletar_secao)
 
 iniciar_banco()
 
@@ -6036,5 +6032,3 @@ scheduler.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
-
-
