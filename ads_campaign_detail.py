@@ -129,7 +129,7 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
     ]
     out+="<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
     display_labels=[date.fromisoformat(day).strftime('%d/%m') for day in labels]
-    out+="<script>(function(){var el=document.getElementById('kc-daily-chart');if(!el||typeof Chart==='undefined')return;var datasets="+json.dumps(datasets)+";"+"""
+    out+="<script>(function(){var el=document.getElementById('kc-daily-chart');if(!el||typeof Chart==='undefined')return;var datasets="+json.dumps(datasets,ensure_ascii=False)+";"+"""
 var currency=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
 var compact=new Intl.NumberFormat('pt-BR',{notation:'compact',maximumFractionDigits:1});
 var quantity=new Intl.NumberFormat('pt-BR',{maximumFractionDigits:0});
