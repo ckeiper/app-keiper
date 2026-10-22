@@ -109,6 +109,22 @@ body:has(.mgmt-dashboard) .wrap{max-width:1680px;margin:22px auto}
 @media(max-width:500px){body:has(.mgmt-dashboard) .wrap{padding:0 12px;margin:12px auto}.mgmt-kpis{gap:9px}.mgmt-dashboard .stat{padding:14px 11px}.mgmt-dashboard .stat .num{font-size:21px}.mgmt-dashboard .stat .lab{font-size:10px}.mgmt-metric-icon{width:24px;height:24px;right:10px;top:10px}.mgmt-filter label{flex:1;min-width:125px}.mgmt-header .mgmt-links{width:100%}.mgmt-section-title h2{font-size:14px}}
 @media(prefers-reduced-motion:reduce){.mgmt-dashboard *{scroll-behavior:auto!important;transition:none!important}}
 .mgmt-chart-switch{display:flex;gap:6px;flex-wrap:wrap;margin-top:22px}.mgmt-chart-switch button{border:1px solid #dedff1;border-radius:8px;padding:9px 14px;background:white;color:#77809b;cursor:pointer;font:inherit;font-size:11px}.mgmt-chart-switch button[aria-pressed=true]{background:#6265dc;color:white;border-color:#6265dc}.mgmt-interactive-chart [hidden]{display:none!important}.mgmt-interactive-chart .mgmt-chart{margin-top:10px}.mgmt-product{display:flex;gap:12px;align-items:center}.mgmt-product img,.mgmt-product-placeholder{width:44px;height:44px;object-fit:contain;background:#f1f3fa;border-radius:10px;flex-shrink:0}.mgmt-product-placeholder{display:grid;place-items:center;color:#9b9fc0;font-size:10px}.mgmt-detail-trigger{cursor:pointer;text-align:left;background:none;border:0;color:#6265dc;font:inherit;padding:0}.mgmt-drawer{position:fixed;inset:0 0 0 auto;margin:0;width:min(440px,100vw);max-width:100vw;max-height:100dvh;height:100dvh;box-sizing:border-box;border:0;padding:28px;color:#26334c;box-shadow:-20px 0 80px #111a3230}.mgmt-drawer::backdrop{background:#111a3266}.mgmt-drawer h2{margin:28px 0 15px}.mgmt-drawer dl{display:grid;grid-template-columns:1fr 1fr;gap:14px}.mgmt-drawer dt{color:#7c879e;font-size:12px}.mgmt-drawer dd{margin:0;font-weight:650}.mgmt-drawer-close{float:right;border:0;border-radius:8px;background:#eef0fa;padding:10px;cursor:pointer}.mgmt-drawer .mgmt-product img{width:72px;height:72px}
+
+/* Performance page must preserve the shared off-canvas mobile navigation.
+   Earlier management rules reset position:static and flex-direction:column,
+   leaving a blank sidebar-sized area even when the menu is closed. */
+@media(max-width:820px){
+  .layout:has(.mgmt-dashboard){display:flex;flex-direction:row;align-items:flex-start;gap:0}
+  .layout:has(.mgmt-dashboard)>.menu-lateral{
+    position:fixed;top:0;left:0;bottom:0;z-index:1102;
+    width:min(280px,82vw)!important;max-height:100dvh;
+    border-radius:0;overflow-y:auto;box-sizing:border-box;
+    align-self:auto;flex-shrink:0;
+    transform:translateX(-105%);
+  }
+  body.sidebar-open .layout:has(.mgmt-dashboard)>.menu-lateral{transform:translateX(0)}
+  .layout:has(.mgmt-dashboard)>.conteudo{flex:1;min-width:0;width:100%;padding:0 0 20px}
+}
 </style>"""
 
 ICON = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 18V8m5 10V4m5 14v-7m5 7V6M3 21h18'/></svg>"
