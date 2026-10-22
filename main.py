@@ -3801,6 +3801,11 @@ def promocoes(cid):
         if c:
             promos = consultar(conn, "SELECT * FROM promocoes "
                                      "WHERE conexao_id=%s ORDER BY fim DESC", (cid,))
+            historico_adesoes = consultar(conn, """
+                SELECT h.*,a.titulo FROM promocoes_adesoes h
+                LEFT JOIN anuncios a ON a.conexao_id=h.conexao_id AND a.item_id=h.item_id
+                WHERE h.conexao_id=%s ORDER BY h.criado_em DESC LIMIT 100
+            """, (cid,))
             itens_promo = consultar(conn, """
                 SELECT pi.promocao_id, pi.item_id, pi.preco_promocional,
                        a.titulo, a.preco, a.custo, a.quantidade, a.status
@@ -3831,6 +3836,8 @@ def promocoes(cid):
         <input id='mc_meta' name='mc_meta' type='number' step='0.01' min='0' max='100'
         required class='filtro' style='width:110px' value='""" + meta_txt + """'>
         <button type='submit' class='filtro-btn'>Salvar meta</button></form></div>""")
+    from promo_history import render_history
+    corpo += render_history(historico_adesoes,cid)
     if request.args.get("meta_erro"):
         corpo += "<div class='aviso'>Informe uma meta de MC entre 0% e 100%.</div>"
     if request.args.get("meta_ok"):
