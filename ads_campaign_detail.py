@@ -128,15 +128,16 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
     organic=non_ads_estimate(labels,shop_daily or {},ads_total_daily or {})
     available=sum(value is not None for value in organic)
     out+="<section class='kc-section'><h3>Evolução diária da campanha e da loja</h3>"
-    out+="<p class='kc-sub'>Azul: vendas atribuídas a esta campanha. Turquesa: estimativa de vendas sem Ads da loja inteira. Laranja: investimento da campanha.</p>"
+    out+="<p class='kc-sub'>Na mesma coluna: azul para vendas desta campanha e turquesa para a estimativa sem Ads da loja. A linha laranja mostra o investimento da campanha.</p>"
+    out+="<p class='kc-sub'>A coluna não representa o faturamento total da loja quando existem vendas atribuídas a outras campanhas.</p>"
     out+="<p class='kc-sub'>Estimativa sem Ads = vendas totais verificadas da loja menos faturamento atribuído a todas as campanhas de Ads. Não equivale a uma classificação oficial de vendas orgânicas.</p>"
     if available<days:
         out+="<div class='kc-stale'>Estimativa sem Ads disponível em "+str(available)+" de "+str(days)+" dias. Datas sem cobertura de vendas, sem coleta de Ads ou com valores inconsistentes não aparecem como zero.</div>"
     out+="<div class='kc-chart'><canvas id='kc-daily-chart' role='img' aria-label='Gráfico de vendas Ads por campanha, estimativa sem Ads da loja e investimento'></canvas></div></section>"
     datasets=[
-        {"type":"bar","label":"Vendas Ads · campanha","data":revenues,"backgroundColor":"#527bef","borderRadius":6,"borderSkipped":False,"maxBarThickness":24,"categoryPercentage":0.7,"barPercentage":0.85,"order":2},
-        {"type":"bar","label":"Sem Ads · loja (estim.)","data":organic,"backgroundColor":"#35b8b1","borderRadius":6,"borderSkipped":False,"maxBarThickness":24,"categoryPercentage":0.7,"barPercentage":0.85,"order":3},
-        {"type":"line","label":"Investimento · campanha","data":spends,"borderColor":"#e99438","backgroundColor":"#e99438","tension":0.35,"borderWidth":3,"pointRadius":0,"pointHoverRadius":5,"pointHoverBackgroundColor":"#fff","pointHoverBorderWidth":3,"spanGaps":False,"order":1}
+        {"type":"bar","label":"Vendas Ads · campanha","data":revenues,"stack":"sales","backgroundColor":"#527bef","borderRadius":6,"borderSkipped":False,"maxBarThickness":36,"categoryPercentage":0.7,"barPercentage":0.85,"order":2},
+        {"type":"bar","label":"Sem Ads · loja (estim.)","data":organic,"stack":"sales","backgroundColor":"#35b8b1","borderRadius":6,"borderSkipped":False,"maxBarThickness":36,"categoryPercentage":0.7,"barPercentage":0.85,"order":3},
+        {"type":"line","label":"Investimento · campanha","data":spends,"stack":"investment","borderColor":"#e99438","backgroundColor":"#e99438","tension":0.35,"borderWidth":3,"pointRadius":0,"pointHoverRadius":5,"pointHoverBackgroundColor":"#fff","pointHoverBorderWidth":3,"spanGaps":False,"order":1}
     ]
     out+="<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
     display_labels=[date.fromisoformat(day).strftime('%d/%m') for day in labels]
@@ -149,8 +150,8 @@ animation:matchMedia('(prefers-reduced-motion: reduce)').matches?false:{duration
 interaction:{intersect:false,mode:'index'},layout:{padding:{top:8,right:8}},
 plugins:{legend:{position:'bottom',align:'start',labels:{color:'#526582',usePointStyle:true,pointStyle:'rectRounded',boxWidth:9,boxHeight:9,padding:18,font:{family:"Inter, 'Segoe UI', sans-serif",size:11}}},
 tooltip:{backgroundColor:'#14243b',titleColor:'#fff',bodyColor:'#dce8fb',borderColor:'#314b70',borderWidth:1,cornerRadius:12,padding:14,boxPadding:6,usePointStyle:true,titleMarginBottom:10,bodySpacing:7,titleFont:{size:13,weight:'bold'},bodyFont:{size:12},callbacks:{title:function(items){return items.length?items[0].label:'';},label:function(context){return context.dataset.label+': '+currency.format(context.parsed.y);}}}},
-scales:{x:{border:{display:false},grid:{display:false},ticks:{color:'#7b8ca6',maxRotation:0,minRotation:0,autoSkip:true,maxTicksLimit:el.clientWidth<500?5:10,font:{size:11},padding:10}},
-y:{beginAtZero:true,border:{display:false},grid:{color:'#e9eef6',drawTicks:false},ticks:{color:'#7b8ca6',maxTicksLimit:5,padding:12,font:{size:10},callback:function(value){return 'R$ '+compact.format(value);}}}}}});
+scales:{x:{stacked:true,border:{display:false},grid:{display:false},ticks:{color:'#7b8ca6',maxRotation:0,minRotation:0,autoSkip:true,maxTicksLimit:el.clientWidth<500?5:10,font:{size:11},padding:10}},
+y:{stacked:true,beginAtZero:true,border:{display:false},grid:{color:'#e9eef6',drawTicks:false},ticks:{color:'#7b8ca6',maxTicksLimit:5,padding:12,font:{size:10},callback:function(value){return 'R$ '+compact.format(value);}}}}}});
 })();</script>"""
     from ads_change_history import display_history
     out+=display_history(changes or [])
