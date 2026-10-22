@@ -50,6 +50,10 @@ class FinancialOnboardingTests(unittest.TestCase):
         self.assertIn('if not atualizacoes:',main)
         self.assertIn('imposto = float(c.get("aliquota_imposto") or 0) / 100',main)
         self.assertIn('comissao = float(c.get("comissao_pct") or 0) / 100',main)
+        self.assertIn('mc_meta_pct REAL',main)
+        self.assertIn('@app.route("/promocoes/meta/<int:cid>"',main)
+        self.assertIn("elif margem < float(meta):",main)
+        self.assertIn("Contribuição estimada",main)
 
 
 if __name__=='__main__':
