@@ -28,11 +28,14 @@ const {chromium}=require('playwright');
     assert.ok(await page.locator('.catalog-table tbody tr').count()<=10);
     await page.setViewportSize({width:390,height:844});
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Mobile body must not overflow; table scrolls internally');
-    await page.waitForFunction(()=>document.querySelector('.menu-lateral').getBoundingClientRect().right<=0);
-    await page.getByRole('button',{name:'Abrir menu lateral'}).click();
-    await page.waitForFunction(()=>document.querySelector('.menu-lateral').getBoundingClientRect().x>=-1);
+    // Reload to apply the shared sidebar's initial mobile state.
+    await page.reload();
+    assert.equal(await page.locator('.ks-mobile-toggle').getAttribute('aria-expanded'),'false');
+    await page.locator('.ks-mobile-toggle').click();
+    assert.equal(await page.locator('.ks-mobile-toggle').getAttribute('aria-expanded'),'true');
+    assert.ok(await page.locator('.ks-sidebar a[aria-current=page]').isVisible());
     await page.keyboard.press('Escape');
-    await page.waitForFunction(()=>document.querySelector('.menu-lateral').getBoundingClientRect().right<=0);
+    assert.equal(await page.locator('.ks-mobile-toggle').getAttribute('aria-expanded'),'false');
     await page.screenshot({path:'visual-qa/catalog-mobile.png',fullPage:true});
     assert.deepEqual(errors,[]);
     console.log('Catalog desktop/mobile layout, five-column table, technical disclosure and GET filters passed.');

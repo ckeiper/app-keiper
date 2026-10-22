@@ -523,92 +523,16 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
     from section_refresh import SCOPES, render as render_refresh
     if secao in SCOPES and "class='k-refresh'" not in corpo:
         corpo = render_refresh(cid, secao) + corpo
-    def _store_nav_icon(name):
-        """Lightweight inline outline icons, consistent with marketplace navigation."""
-        paths = {
-            "resumo": "<rect x='3' y='3' width='7' height='9' rx='1'/><rect x='14' y='3' width='7' height='5' rx='1'/><rect x='14' y='12' width='7' height='9' rx='1'/><rect x='3' y='16' width='7' height='5' rx='1'/>",
-            "prioridades": "<path d='m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z'/>",
-            "anuncios": "<path d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'/><path d='m3.3 7 8.7 5 8.7-5M12 22V12'/>",
-            "full": "<path d='M10 17h4V5H2v12h3'/><path d='M14 9h4l4 4v4h-3'/><circle cx='7.5' cy='17.5' r='2.5'/><circle cx='16.5' cy='17.5' r='2.5'/>",
-            "desempenho": "<path d='M3 3v18h18'/><path d='m7 16 4-5 4 3 5-8'/>",
-            "demandas": "<rect x='5' y='4' width='14' height='18' rx='2'/><path d='M9 4.5h6M9 10h6M9 14h6M9 18h3'/>",
-            "promocoes": "<path d='M20.6 13.4 12 22l-9-9V3h10z'/><circle cx='8' cy='8' r='1'/>",
-            "ads": "<path d='m3 11 18-7-7 18-3-8z'/><path d='m11 14 10-10'/>",
-            "campanhas": "<path d='M3 11v2l10 4V7L3 11zM13 7l7-3v16l-7-3M7 15l1 5h4l-2-4'/>",
-            "custos": "<rect x='2' y='5' width='20' height='15' rx='2'/><path d='M2 10h20M17 15h2'/>",
-            "vendas": "<circle cx='9' cy='20' r='1'/><circle cx='19' cy='20' r='1'/><path d='M2 3h2l2.5 12h13l2-9H5'/>",
-            "auditoria_frete": "<path d='M8 3h9l4 4v14H8zM17 3v5h4M11 12h7M11 16h5'/><path d='M4 8H2v12h3'/>",
-            "atualizar": "<path d='M20 7v5h-5M4 17v-5h5'/><path d='M5 9a8 8 0 0 1 14-2l1 5M4 12l1 5a8 8 0 0 0 14-2'/>",
-            "diagnostico": "<circle cx='10.5' cy='10.5' r='7.5'/><path d='m16 16 5 5'/>",
-            "excluir": "<path d='M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7'/>",
-        }
-        return ("<svg class='ks-store-icon' viewBox='0 0 24 24' fill='none' "
-                "stroke='currentColor' stroke-width='1.8' stroke-linecap='round' "
-                "stroke-linejoin='round' aria-hidden='true'>" + paths[name] + "</svg>")
-
-    # Group related screens into accessible, single-open navigation sections.
-    groups = [
-        ("anuncios", "Anúncios", [
-            ("anuncios", "Lista de anúncios", "/anuncios/" + str(cid)),
-            ("desempenho", "Desempenho", "/desempenho/" + str(cid)),
-            ("promocoes", "Promoções", "/promocoes/" + str(cid)),
-        ]),
-        ("vendas", "Vendas", [
-            ("vendas", "Vendas", "/vendas/" + str(cid)),
-            ("full", "Full e vendas", "/full/" + str(cid)),
-            ("auditoria_frete", "Auditoria de Frete", "/auditoria-frete/" + str(cid)),
-        ]),
-        ("ads", "Publicidade", [
-            ("ads", "Publicidade Ads", "/ads/" + str(cid)),
-            ("campanhas", "Campanhas", "/campanhas/" + str(cid)),
-        ]),
-        ("demandas", "Gestão", [
-            ("prioridades", "Minhas prioridades", "/prioridades/" + str(cid)),
-            ("demandas", "Demandas", "/demandas/" + str(cid)),
-            ("custos", "Custos", "/custos/" + str(cid)),
-        ]),
-        ("diagnostico", "Ferramentas", [
-            ("atualizar", "Atualizar dados", "/atualizar?cid=" + str(cid)),
-            ("diagnostico", "Diagnóstico", "/diagnostico"),
-        ]),
-    ]
-    menu = "<nav class='menu-lateral ks-store-nav' aria-label='Navegação da loja'>"
-    menu += "<a class='voltar' href='/painel'>← Todas as lojas</a>"
-    menu += "<div class='ks-store-caption'>PAINEL DA LOJA</div>"
-    menu += "<a class='item" + (" atual" if secao == "resumo" else "") + "' href='/painel/" + str(cid) + "'"
-    menu += (" aria-current='page'" if secao == "resumo" else "") + ">"
-    menu += _store_nav_icon("resumo") + "<span>Visão geral</span></a>"
-    for icon, label, children in groups:
-        active = any(key == secao for key, _, _ in children)
-        menu += "<details class='ks-nav-group'" + (" open" if active else "") + ">"
-        menu += "<summary>" + _store_nav_icon(icon) + "<span>" + label + "</span>"
-        menu += "<svg class='ks-chevron' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' aria-hidden='true'><path d='m6 9 6 6 6-6'/></svg></summary>"
-        menu += "<div class='ks-nav-children'>"
-        for key, title, url in children:
-            active_item = secao == key
-            menu += "<a class='item" + (" atual" if active_item else "") + "' href='" + url + "'"
-            menu += (" aria-current='page'" if active_item else "") + "><span>" + title + "</span></a>"
-        menu += "</div></details>"
-    menu += "<div class='ks-nav-bottom'><a class='item perigo' href='/excluir/" + str(cid) + "'>"
-    menu += _store_nav_icon("excluir") + "<span>Excluir loja</span></a></div></nav>"
-    links = ""
-    links += "<a class='btn sair' href='/logout'>Sair</a></div>"
-    cab = "<!doctype html><html><head><meta charset='utf-8'>"
+    from store_sidebar import render_store_sidebar
+    sidebar = render_store_sidebar(cid, cliente, secao, admin=session.get("tipo") == "admin")
+    cab = "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS
-    cab += "<style>\nbody:has(.ks-store-nav){background:#f4f7fc}\nbody:has(.ks-store-nav) .layout{gap:24px;align-items:flex-start}\nbody:has(.ks-store-nav) .ks-store-nav{position:sticky;top:16px;flex:0 0 240px;width:240px;max-height:calc(100dvh - 32px);padding:18px 12px;background:linear-gradient(160deg,#0d192d,#142b4b);border:1px solid #2b4568;border-radius:16px;box-shadow:0 12px 36px #0b1b3024;scrollbar-width:thin;scrollbar-color:#42628a transparent}\n.ks-store-nav .ks-store-icon{width:19px;height:19px;flex:0 0 19px;margin-right:12px;opacity:.88}.ks-store-nav a.item.atual .ks-store-icon{opacity:1}\n.ks-store-nav .voltar{color:#d7e7ff!important;font-weight:750!important;padding:12px!important;border-radius:10px!important;background:#233c5e!important;text-decoration:none!important;margin-bottom:14px!important}\n.ks-store-nav .ks-store-caption{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#829fc4;padding:17px 11px 7px}\n.ks-store-nav a.item{display:flex!important;align-items:center;min-height:42px!important;padding:10px 12px!important;border-radius:10px!important;background:transparent!important;color:#c4d5ee!important;font-size:13px!important;font-weight:600!important;border:0!important;text-decoration:none!important;transition:background .16s,color .16s}\n.ks-store-nav a.item:hover{background:#274467!important;color:#fff!important}\n.ks-store-nav a.item.atual,.ks-store-nav a.item.atual:hover{background:#2a568c!important;color:#fff!important;box-shadow:inset 3px 0 #79b5ff}\n.ks-store-nav a.item.perigo{color:#ffa7ac!important;margin-top:8px}\n.ks-store-nav a.item.perigo:hover{background:#633040!important}\n.ks-store-nav a:focus-visible{outline:3px solid #8dc4ff;outline-offset:2px}\n\n.ks-store-nav .ks-nav-group{margin:2px 0}.ks-store-nav .ks-nav-group>summary{display:flex;align-items:center;list-style:none;cursor:pointer;padding:11px 12px;border-radius:10px;color:#c4d5ee;font-size:13px;font-weight:700;min-height:42px;box-sizing:border-box}.ks-store-nav .ks-nav-group>summary::-webkit-details-marker{display:none}.ks-store-nav .ks-nav-group>summary:hover,.ks-store-nav .ks-nav-group[open]>summary{background:#203c60;color:#fff}.ks-store-nav .ks-chevron{width:16px;height:16px;margin-left:auto;flex-shrink:0;transition:transform .18s}.ks-store-nav .ks-nav-group[open] .ks-chevron{transform:rotate(180deg)}.ks-store-nav .ks-nav-children{padding:3px 0 7px 28px;border-left:1px solid #335377;margin-left:21px}.ks-store-nav .ks-nav-children a.item{font-size:12px!important;padding:9px 10px!important;min-height:36px!important}.ks-store-nav .ks-nav-bottom{margin-top:16px;border-top:1px solid #314967;padding-top:10px}.ks-store-nav summary:focus-visible{outline:3px solid #8dc4ff;outline-offset:2px}\nbody:has(.ks-store-nav) .conteudo{min-width:0;flex:1}\n@media(max-width:820px){body:has(.ks-store-nav) .layout{gap:0}body:has(.ks-store-nav) .ks-store-nav{position:fixed;top:0;bottom:0;left:0;z-index:1102;width:min(290px,84vw)!important;max-height:100dvh;border-radius:0;flex:none;overflow-y:auto;transform:translateX(-105%);transition:transform .2s ease}body.sidebar-open .ks-store-nav{transform:translateX(0)}}\n</style>" + "</head><body><div class='top'>"
-    cab += "<div><h1>" + img_logo(34) + "Keiper Consultoria</h1></div>"
-    cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>"
-    cab += esc(str(cliente)) + "</div>"
-    cab += links
-    cab += ("<button type='button' class='sidebar-toggle' aria-label='Abrir menu lateral'"
-            " aria-expanded='false' onclick='alternarMenuLateral()'>☰ Menu</button>")
-    cab += ("<div class='sidebar-overlay' onclick='alternarMenuLateral(false)'"
-            " aria-hidden='true'></div>")
-    cab += "<div class='wrap'><div class='layout'>" + menu
-    cab += "<div class='conteudo'>" + corpo
-    cab += "</div></div></div>" + SCRIPT + "<script>\nfunction alternarMenuLateral(forcar) {\n  var aberto = typeof forcar === 'boolean'\n    ? forcar : !document.body.classList.contains('sidebar-open');\n  document.body.classList.toggle('sidebar-open', aberto);\n  var botao = document.querySelector('.sidebar-toggle');\n  if (botao) botao.setAttribute('aria-expanded', String(aberto));\n}\n\ndocument.querySelectorAll('.ks-store-nav .ks-nav-group').forEach(function(group){\n  group.addEventListener('toggle', function(){\n    if (!group.open) return;\n    document.querySelectorAll('.ks-store-nav .ks-nav-group').forEach(function(other){\n      if (other !== group) other.open = false;\n    });\n  });\n});\ndocument.addEventListener('keydown', function(e) {\n  if (e.key === 'Escape' && document.body.classList.contains('sidebar-open'))\n    alternarMenuLateral(false);\n});\n</script>" + "</body></html>"
-    return cab
+    cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS + "</head><body>"
+    cab += sidebar + "<header class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1></div>"
+    cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>" + esc(str(cliente)) + "</div>"
+    cab += "<a class='btn sair' href='/logout'>Sair</a></header>"
+    cab += "<div class='wrap'><div class='layout'><main class='conteudo'>" + corpo
+    return cab + "</main></div></div>" + SCRIPT + "</body></html>"
 
 
 FUSO_BR = datetime.timezone(datetime.timedelta(hours=-3))
@@ -3032,7 +2956,9 @@ def painel_ads(cid):
     if not pode_ver_loja(cid):
         return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
     from urllib.parse import urlencode
-    hoje = datetime.date.today()
+    from sales_metrics import reporting_today
+    from ads_overview_design import header, alert_card, daily_chart, ratio
+    hoje = reporting_today()
     dias = request.args.get("dias", "30")
     if dias not in ("7", "30", "90"):
         dias = "30"
@@ -3093,6 +3019,7 @@ def painel_ads(cid):
         if ativa and budget > 0 and dados_recentes:
             consumo = gasto_hoje / budget
             info = "R$ %.2f de R$ %.2f (%.0f%%)" % (gasto_hoje,budget,consumo*100)
+            info = info.replace(".", ",")
             if consumo >= 1:
                 alertas_orcamento.append((nome,info))
             elif consumo >= 0.8 and agora_local.hour < 18:
@@ -3105,16 +3032,13 @@ def painel_ads(cid):
         if camp["tem_ontem"] and float(camp["gasto_ontem"] or 0) > 0 and float(camp["fat_ontem"] or 0) == 0:
             alertas_sem_venda.append((nome,"R$ %.2f investidos ontem · nenhuma venda atribuída" %
                                      float(camp["gasto_ontem"] or 0)))
-    def quadro_alertas(titulo,descricao,itens,vazio):
-        return ("<section class='card'><h3>"+titulo+" ("+str(len(itens))+")</h3>"
-                "<p class='muted'>"+descricao+"</p>"
-                + ("<ol>"+"".join("<li><b>"+nome+"</b><div class='muted'>"+detalhe+"</div></li>"
-                                  for nome,detalhe in itens[:20])+"</ol>" if itens else "<p>"+vazio+"</p>")
-                + ("<p class='muted'>Primeiros 20 resultados.</p>" if len(itens)>20 else "")+"</section>")
-    alertas_html = ("<h2>Alertas de gestão de Ads</h2>"
+    def quadro_alertas(titulo, descricao, itens, vazio):
+        return alert_card(titulo, descricao, itens, vazio, opportunity='ROAS' in titulo)
+    alertas_html = ("<div class='ka-section-title'><h3>Oportunidades e atenção</h3><span>Leituras recentes de Ads</span></div>"
         + ("<div class='aviso'>Configuração de campanhas ainda não sincronizada nesta loja. "
            "Alertas de orçamento e ROAS objetivo ficam pendentes.</div>"
            if not campanhas_configuradas else "")
+        + "<div class='ka-alert-grid'>"
         + quadro_alertas("Orçamento diário esgotado",
             "Campanhas ativas cujo gasto observado hoje atingiu o orçamento diário; leitura recente (até 2h).",
             alertas_orcamento,"Nenhuma campanha com limite atingido e dados recentes.")
@@ -3127,8 +3051,9 @@ def painel_ads(cid):
             alertas_roas,"Nenhuma campanha identificada ou objetivo ainda não importado.")
         + quadro_alertas("Sem vendas de Ads ontem",
             "Campanhas com investimento ontem e nenhuma venda atribuída.",
-            alertas_sem_venda,"Nenhuma campanha nesta condição."))
+            alertas_sem_venda,"Nenhuma campanha nesta condição.") + "</div>")
     titulo = "Publicidade · Product Ads"
+    abertura = header(cid, lojas[0]["cliente"], inicio, fim)
     filtro = ("<section class='card'><h2>Filtros de publicidade</h2>"
              "<form method='get' action='/ads/" + str(cid) + "' "
              "style='display:flex;gap:10px;align-items:end;flex-wrap:wrap'>"
@@ -3138,16 +3063,16 @@ def painel_ads(cid):
              + "</select></label><label>De <input type='date' name='de' value='"
              + esc(de) + "'></label><label>Até <input type='date' name='ate' value='"
              + esc(ate) + "'></label><button class='btn' type='submit'>Aplicar filtros</button>"
-             "</form><p class='muted'>Período exibido: " + inicio.strftime("%d/%m/%Y")
-             + " a " + fim.strftime("%d/%m/%Y") + "</p></section>")
+             "</form><p class='muted'>Período exibido: " + inicio.strftime("%d/%m")
+             + " a " + fim.strftime("%d/%m") + "</p></section>")
     if not dias_ads:
-        corpo = ("<h2>" + titulo + "</h2>" + filtro + alertas_html
+        corpo = (abertura + filtro
                  + "<section class='card'><h3>Sem dados de publicidade para este período</h3>"
                  "<p>Confira se Product Ads está ativo, se a sincronização da loja terminou "
                  "e se existe investimento no intervalo selecionado.</p>"
                  "<p><a class='link' href='/campanhas/" + str(cid)
                  + "'>Ver campanhas e atualizar dados</a></p></section>")
-        return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo)
+        return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo + alertas_html + "</div>")
     def soma(campo):
         return sum(float(row[campo] or 0) for row in dias_ads)
     gasto = soma("gasto")
@@ -3283,9 +3208,9 @@ def painel_ads(cid):
             + "'>" + esc(nome) + "</a></td>"
             "<td data-label='Investimento'>" + brl(investimento) + "</td>"
             "<td data-label='Faturamento Ads'>" + brl(atribuida) + "</td>"
-            "<td data-label='ROAS'>" + ("%.2fx" % roas_camp if roas_camp is not None else "—") + "</td>"
-            "<td data-label='ACOS'>" + ("%.2f%%" % acos_camp if acos_camp is not None else "—") + "</td>"
-            "<td data-label='TACOS'>" + ("%.2f%%" % tacos_valor if tacos_valor is not None else "—")
+            "<td data-label='ROAS'>" + (ratio(roas_camp, "x") if roas_camp is not None else "—") + "</td>"
+            "<td data-label='ACOS'>" + (ratio(acos_camp, "%") if acos_camp is not None else "—") + "</td>"
+            "<td data-label='TACOS'>" + (ratio(tacos_valor, "%") if tacos_valor is not None else "—")
             + "</td></tr>")
     if not linhas_tacos:
         tacos_campanhas_html += "<tr><td colspan='6'>Nenhuma campanha atende aos filtros.</td></tr>"
@@ -3341,36 +3266,25 @@ def painel_ads(cid):
                 + "</div><div class='lab'>" + esc(t) + "</div>"
                 + ("<small class='muted'>" + esc(nota) + "</small>" if nota else "")
                 + "</div>")
-    corpo = ("<h2>" + titulo + "</h2>" + filtro + alertas_html
-             + "<div class='grid' style='margin:16px 0'>"
+    corpo = (abertura + filtro
+             + "<div class='ka-kpis'>"
              + card("Investimento", brl(gasto))
-             + card("Vendas atribuídas a Ads", brl(receita))
-             + card("ROAS", "%.2fx" % roas if roas is not None else "—")
-             + card("ACOS", "%.2f%%" % acos if acos is not None else "—")
-             + card("TACOS geral", "%.2f%%" % tacos_geral if tacos_geral is not None else "—", "Ads ÷ faturamento total da loja")
+             + card("Faturamento atribuído", brl(receita))
+             + card("ROAS", ratio(roas, "x") if roas is not None else "—")
+             + card("ACOS", ratio(acos, "%") if acos is not None else "—")
+             + card("TACOS geral", ratio(tacos_geral, "%") if tacos_geral is not None else "—", "Ads ÷ faturamento total da loja")
              + card("Impressões", f"{impressoes:,}".replace(",", "."))
              + card("Cliques", f"{cliques:,}".replace(",", "."))
-             + card("CTR", "%.2f%%" % ctr if ctr is not None else "—")
+             + card("CTR", ratio(ctr, "%") if ctr is not None else "—")
              + card("CPC médio", brl(cpc) if cpc is not None else "—")
              + "</div>")
-    corpo += tacos_campanhas_html
+    corpo += alertas_html + tacos_campanhas_html
     cobertura = (fim - inicio).days + 1
     if len(dias_ads) < cobertura:
         corpo += ("<div class='aviso'>Cobertura parcial: " + str(len(dias_ads)) + " de "
                   + str(cobertura) + " dias com registros de Ads. "
                   "Os totais abaixo representam somente os dias registrados.</div>")
-    corpo += ("<section class='card'><h3>Evolução diária</h3><p class='muted'>"
-              "Investimento e vendas atribuídas a Ads em cada data registrada.</p>"
-              "<div class='grafico-box'><canvas id='ads-historico'></canvas></div>"
-              "<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
-              "<script>new Chart(document.getElementById('ads-historico'),{type:'line',data:{labels:"
-              + json.dumps([r["data"] for r in reversed(dias_ads)])
-              + ",datasets:[{label:'Investimento (R$)',data:"
-              + json.dumps([float(r["gasto"] or 0) for r in reversed(dias_ads)])
-              + ",borderColor:'#2563eb',tension:.25},{label:'Vendas atribuídas (R$)',data:"
-              + json.dumps([float(r["faturamento"] or 0) for r in reversed(dias_ads)])
-              + ",borderColor:'#0f766e',tension:.25}]},"
-              "options:{responsive:true,maintainAspectRatio:false}});</script></section>")
+    corpo += daily_chart(dias_ads)
     try:
         por_pagina = int(request.args.get("por_pagina", 20))
     except (ValueError, TypeError):
@@ -3403,9 +3317,9 @@ def painel_ads(cid):
     for row in bloco:
         g = float(row["gasto"] or 0)
         f = float(row["faturamento"] or 0)
-        corpo += ("<tr><td>" + esc(row["data"]) + "</td><td>" + brl(g)
+        corpo += ("<tr><td>" + datetime.date.fromisoformat(str(row["data"])).strftime("%d/%m") + "</td><td>" + brl(g)
                   + "</td><td>" + brl(f) + "</td><td>"
-                  + ("%.2fx" % (f/g) if g > 0 else "—") + "</td><td>"
+                  + (ratio(f/g, "x") if g > 0 else "—") + "</td><td>"
                   + str(int(row["impressoes"] or 0)) + "</td><td>"
                   + str(int(row["cliques"] or 0)) + "</td></tr>")
     corpo += "</tbody></table></div><nav aria-label='Paginação de Ads'>"
@@ -3419,7 +3333,7 @@ def painel_ads(cid):
               "ROAS = vendas atribuídas ÷ investimento; ACOS = investimento ÷ vendas atribuídas.</p>"
               "<p><a class='link' href='/campanhas/" + str(cid)
               + "'>Ver campanhas detalhadas →</a></p></section>")
-    return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo)
+    return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo + "</div>")
 
 
 @app.route("/campanhas/<int:cid>")
