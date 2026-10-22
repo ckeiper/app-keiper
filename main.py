@@ -501,17 +501,22 @@ document.addEventListener("DOMContentLoaded", function () {
 """
 
 def pagina(titulo, corpo):
+    is_home = "<main class='kh-home'>" in corpo
     topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
     links = ""
-    if session.get("tipo") == "admin":
+    if session.get("tipo") == "admin" and not is_home:
         links += "<a class='btn' href='/seguranca'>Segurança</a>"
     links += "<a class='btn' href='/conectar'>+ Conectar loja</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
     cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS + "</head><body>"
     fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
-    return cab + topo + marca + links + fim
+    sidebar = ""
+    if is_home:
+        from home_sidebar import render_home_sidebar
+        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin")
+    return cab + sidebar + topo + marca + links + fim
 
 
 def pagina_loja(titulo, cid, cliente, secao, corpo):
