@@ -37,7 +37,8 @@ def test_ads_collects_only_ads_and_passes_selected_period():
 
 
 def test_each_scope_has_only_its_dependencies():
-    assert refresh.collector_names('anuncios') == ('puxar_anuncios',)
+    assert refresh.collector_names('anuncios') == ('puxar_anuncios','puxar_promocoes')
+    assert refresh.collector_names('demandas') == ('puxar_anuncios','puxar_promocoes')
     assert refresh.collector_names('promocoes') == ('puxar_promocoes',)
     assert refresh.collector_names('full') == ('puxar_full',)
     assert 'puxar_ads' not in refresh.collector_names('vendas')

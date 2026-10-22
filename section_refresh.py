@@ -17,10 +17,10 @@ SCOPES = {'ads': 'Ads', 'campanhas': 'Campanhas', 'anuncios': 'Anúncios',
 def collector_names(scope):
     return {
         'ads': ('puxar_ads',), 'campanhas': ('puxar_ads',),
-        'anuncios': ('puxar_anuncios',), 'promocoes': ('puxar_promocoes',),
+        'anuncios': ('puxar_anuncios', 'puxar_promocoes'), 'promocoes': ('puxar_promocoes',),
         'vendas': ('puxar_pedidos', 'puxar_envios'), 'full': ('puxar_full',),
         'custos': ('puxar_anuncios',), 'desempenho': ('puxar_anuncios',),
-        'demandas': ('puxar_anuncios', 'puxar_perguntas', 'puxar_envios'),
+        'demandas': ('puxar_anuncios', 'puxar_promocoes'),
     }[scope]
 
 
@@ -153,7 +153,7 @@ if(!response.ok||!response.headers.get('content-type')?.includes('application/js
 const state=await response.json();
 if(job&&state.id!==job){idle('Não foi possível acompanhar esta atualização. Recarregue a página.');return;}
 if(['aguardando','executando'].includes(state.status)){job=state.id;busy();message('Atualizando somente esta seção…');timer=setTimeout(()=>check(false),2000);return;}
-if(resume)return;
+if(resume){if(state.status==='concluida'&&state.fim_em)message('Última atualização: '+new Date(state.fim_em*1000).toLocaleString('pt-BR'));return;}
 if(state.status==='concluida'){message('Dados atualizados. Carregando resultados…');location.reload();return;}
 idle(state.mensagem||'Atualização não concluída. Tente novamente.');
 }catch(e){idle('Não foi possível acompanhar a atualização. Recarregue a página para conferir o resultado.');}}
