@@ -3637,7 +3637,7 @@ def promocoes(cid):
         if itens:
             corpo += ("<table><thead><tr><th>Anúncio</th><th>Preço normal</th>"
                       "<th>Preço promo</th><th>Desconto</th><th>Custo</th>"
-                      "<th>Margem na promo</th></tr></thead><tbody>")
+                      "<th>Contribuição estimada</th></tr></thead><tbody>")
             for it in itens:
                 preco = it["preco"] or 0
                 preco_promo = it["preco_promocional"]
@@ -3649,7 +3649,9 @@ def promocoes(cid):
                     desc_html = "<span class='tag sem'>—</span>"
                 if custo is not None and preco_promo is not None:
                     if preco_promo:
-                        margem = round((preco_promo - custo) * 100.0 / preco_promo, 1)
+                        imposto = float(c.get("aliquota_imposto") or 0) / 100
+                        comissao = float(c.get("comissao_pct") or 0) / 100
+                        margem = round((preco_promo - custo - preco_promo * (imposto + comissao)) * 100.0 / preco_promo, 1)
                     else:
                         margem = 0
                     if margem <= 0:
@@ -3689,8 +3691,10 @@ def promocoes(cid):
     corpo += ("<div class='muted'>Para o comparativo de margem, cadastre o "
               "<b>custo</b> dos anúncios na <a class='link' href='/custos/"
               + str(cid) + "'>tela de Custos</a> (individual ou por planilha). "
-              "O painel calcula o desconto aplicado e se a promoção ainda "
-              "deixa margem.</div>")
+              "O painel calcula uma contribuição estimada descontando custo, "
+              "imposto e comissão configurada. Frete, tarifa fixa, publicidade "
+              "e outros custos não estão incluídos; confira a rentabilidade "
+              "real antes de aderir a qualquer promoção.</div>")
     return pagina_loja("Promoções", cid, c["cliente"], "promocoes", corpo)
 
 
