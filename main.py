@@ -5043,16 +5043,19 @@ def puxar_ads(conexao_id, token, user_id):
                       cliques=EXCLUDED.cliques, atualizado_em=EXCLUDED.atualizado_em""",
                  (conexao_id, hoje, tot_g, tot_f, tot_i, tot_c, agora))
 
-    # 3) Backfill: enquanto a tabela tiver menos de 60 dias gravados,
-    #    busca os ultimos 90 dias (depois pula sozinho)
+    # 3) Fill the initial historical window and repair recent missing days
+    # after it has 60+ records. A missed daily collection must not become
+    # permanent. Keep API work bounded for established stores.
+    from ads_coverage import missing_days_to_fetch
     with banco() as conn:
-        reg = consultar(conn, "SELECT COUNT(*) AS n FROM ads_dia "
-                              "WHERE conexao_id=%s", (conexao_id,))
-    n_dias = int(reg[0].get("n") or 0) if reg else 0
-    if n_dias < 60:
-        for i in range(1, 90):
-            dia_b = (datetime.date.today()
-                     - datetime.timedelta(days=i)).isoformat()
+        reg = consultar(conn, "SELECT data FROM ads_dia WHERE conexao_id=%s AND data BETWEEN %s AND %s",
+                        (conexao_id, (datetime.date.today()-datetime.timedelta(days=89)).isoformat(),
+                         (datetime.date.today()-datetime.timedelta(days=1)).isoformat()))
+    days_to_fetch = missing_days_to_fetch(
+        [r["data"] for r in reg], datetime.date.today(),
+        initial=len(reg)<60, max_recent=3)
+    if days_to_fetch:
+        for dia_b in days_to_fetch:
             res = buscar_dia(dia_b)
             if res is None:
                 continue
