@@ -515,33 +515,8 @@ def pagina(titulo, corpo):
 
 
 def pagina_loja(titulo, cid, cliente, secao, corpo):
-    itens = [
-        ("resumo", "📊 Resumo", "/painel/" + str(cid)),
-        ("prioridades", "⭐ Minhas prioridades", "/prioridades/" + str(cid)),
-        ("anuncios", "📦 Anúncios", "/anuncios/" + str(cid)),
-        ("full", "Full e vendas", "/full/" + str(cid)),
-        ("desempenho", "📈 Desempenho", "/desempenho/" + str(cid)),
-        ("demandas", "🟡 Demandas", "/demandas/" + str(cid)),
-        ("promocoes", "🏷️ Promoções", "/promocoes/" + str(cid)),
-        ("ads", "📣 Ads", "/ads/" + str(cid)),
-        ("campanhas", "📢 Campanhas", "/campanhas/" + str(cid)),
-        ("custos", "💰 Custos", "/custos/" + str(cid)),
-        ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
-        ("auditoria_frete", "🚚 Auditoria de Frete", "/auditoria-frete/" + str(cid)),
-    ]
-    menu = "<div class='menu-lateral'>"
-    menu += "<a class='voltar' href='/painel'>← Todas as lojas</a>"
-    for chave, rotulo, href in itens:
-        classe = "item"
-        if secao == chave:
-            classe += " atual"
-        menu += "<a class='" + classe + "' href='" + href + "'>"
-        menu += rotulo + "</a>"
-    menu += "<a class='item' href='/atualizar?cid=" + str(cid) + "'>"
-    menu += "🔄 Atualizar dados</a>"
-    menu += "<a class='item' href='/diagnostico'>🔍 Diagnóstico</a>"
-    menu += "<a class='item perigo' href='/excluir/" + str(cid) + "'>"
-    menu += "🗑️ Excluir loja</a></div>"
+    from store_sidebar import render_store_sidebar
+    menu = render_store_sidebar(cid, secao)
     links = ""
     links += "<a class='btn sair' href='/logout'>Sair</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
