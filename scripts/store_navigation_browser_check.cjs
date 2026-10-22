@@ -23,7 +23,7 @@ const {chromium}=require('playwright');
       if(section!=='resumo')assert.ok(await page.locator('.ks-nav-group[open] [aria-current=page]').isVisible());
     }
     const expected=['/painel/5','/anuncios/5','/desempenho/5','/promocoes/5','/vendas/5','/full/5','/auditoria-frete/5','/ads/5','/campanhas/5','/prioridades/5','/demandas/5','/custos/5','/atualizar?cid=5','/diagnostico','/excluir/5'];
-    const routes=await page.locator('.ks-store-nav a').evaluateAll(a=>a.map(x=>x.getAttribute('href')));
+    const routes=await page.locator('.ks-sidebar a').evaluateAll(a=>a.map(x=>x.getAttribute('href')));
     for(const route of expected)assert.ok(routes.includes(route),'Missing route '+route);
     const publicity=page.locator('.ks-nav-group summary').filter({hasText:'Publicidade'});
     await publicity.click();await page.waitForTimeout(100);
@@ -36,20 +36,20 @@ const {chromium}=require('playwright');
     await page.screenshot({path:'visual-qa/store-nav-desktop.png',fullPage:true});
     for(const width of [390,320]){
       await page.setViewportSize({width,height:844});
-      await page.waitForTimeout(300);
-      const nav=page.locator('.ks-store-nav');
+      await page.reload();
+      const nav=page.locator('.ks-store-sidebar');
       const closed=await nav.boundingBox();
       assert.ok(closed.x+closed.width<=1,'Closed drawer must be entirely off screen');
       const before=await page.locator('.conteudo').boundingBox();
       assert.ok(before.y<250,'Closed drawer must not create blank vertical space');
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
-      await page.locator('.sidebar-toggle').click();await page.waitForTimeout(300);
+      await page.locator('.ks-mobile-toggle').click();await page.waitForTimeout(300);
       const open=await nav.boundingBox();
       assert.ok(Math.abs(open.x)<1 && Math.abs(open.y)<1,'Drawer must open at left edge');
-      assert.equal(await page.locator('.sidebar-toggle').getAttribute('aria-expanded'),'true');
+      assert.equal(await page.locator('.ks-mobile-toggle').getAttribute('aria-expanded'),'true');
       await page.screenshot({path:'visual-qa/store-nav-mobile-'+width+'.png',fullPage:true});
       await page.keyboard.press('Escape');await page.waitForTimeout(300);
-      assert.equal(await page.locator('.sidebar-toggle').getAttribute('aria-expanded'),'false');
+      assert.equal(await page.locator('.ks-mobile-toggle').getAttribute('aria-expanded'),'false');
       const after=await page.locator('.conteudo').boundingBox();assert.ok(Math.abs(before.y-after.y)<1);
     }
     assert.deepEqual(errors,[]);

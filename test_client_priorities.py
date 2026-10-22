@@ -40,7 +40,8 @@ class ClientPrioritiesTests(unittest.TestCase):
         self.assertIn("@admin_required\ndef acesso_prioridades_cliente",source)
         self.assertIn("secrets.compare_digest(expected,token)",source)
         self.assertIn('habilitado BOOLEAN NOT NULL DEFAULT FALSE',source)
-        self.assertIn('Minhas prioridades',source)
+        from store_sidebar import render_store_sidebar
+        self.assertIn("href='/prioridades/7' title='Minhas prioridades'",render_store_sidebar(7,'Loja','prioridades'))
 
 
 if __name__=='__main__':
