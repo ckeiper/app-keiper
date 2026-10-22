@@ -28,7 +28,8 @@ CSS="""<style>
 .k-camp .kc-section{background:white;border:1px solid #e2eaf3;border-radius:17px;padding:22px;margin:18px 0;box-shadow:0 7px 25px #223b5d08}
 .k-camp .kc-section h3{font-size:16px;color:#24395a;margin:0 0 8px}
 .k-camp .kc-layout{display:grid;grid-template-columns:1.3fr 1fr;gap:15px}
-.k-camp .kc-chart{position:relative;height:290px}.k-camp .kc-chart canvas{max-width:100%}
+.k-camp .kc-chart{position:relative;height:350px;margin-top:24px;padding:18px 10px 8px;border:1px solid #e8eef8;border-radius:16px;background:linear-gradient(180deg,#f8faff,#fff);box-sizing:border-box}.k-camp .kc-chart canvas{max-width:100%}
+@media(max-width:570px){.k-camp .kc-chart{height:310px;padding:12px 4px 4px}}
 .k-camp .kc-tasks{display:grid;gap:10px;margin-top:15px}
 .k-camp .kc-task{border-radius:12px;padding:16px;border:1px solid #e0e7f2;border-left:4px solid #4970e6;background:#f7f9ff}
 .k-camp .kc-task.warn{border-left-color:#f5a049;background:#fffaf1}.k-camp .kc-task.good{border-left-color:#18a889;background:#f3fbf8}
@@ -55,19 +56,6 @@ def metrics(rows):
     revenue=sum(float(x.get("faturamento") or 0) for x in rows)
     return {"spent":spent,"revenue":revenue,"roas":revenue/spent if spent>0 else None,
             "acos":100*spent/revenue if revenue>0 else None}
-
-def non_ads_estimate(dates, shop_daily, ads_total_daily):
-    """Residual store sales; not an official organic attribution measure."""
-    values = []
-    for day in dates:
-        total, ads = shop_daily.get(day), ads_total_daily.get(day)
-        if total is None or ads is None:
-            values.append(None)
-            continue
-        total, ads = float(total), float(ads)
-        values.append(round(total - ads, 2) if total >= ads >= 0 else None)
-    return values
-
 
 def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=None, ads_total_daily=None, changes=None):
     # One source of truth: campaign daily snapshots; never fabricate impressions,
@@ -119,26 +107,41 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
     out+="<div class='kc-kpi'><label>Gasto hoje</label><strong>"+(money(today_spent) if today_spent is not None else "—")+"</strong><small>Última coleta do dia, não em tempo real</small></div>"
     out+="<div class='kc-kpi'><label>Consumo orçamento hoje</label><strong>"+(num(consumption)+"%" if consumption is not None else "—")+"</strong><small>Sobre o orçamento diário cadastrado</small></div>"
     out+="<div class='kc-kpi'><label>Meta de ROAS</label><strong>"+(num(target)+"x" if target>0 else "—")+"</strong><small>Configurada na conta</small></div></div>"
-    # Residual whole-store estimate; campaign sales use their own snapshots.
+    # Official sales counts scoped to this campaign, never a whole-store residual.
     labels=[(selected_start+timedelta(days=i)).isoformat() for i in range(days)]
     campaign_days={row["data"]:row for row in current}
-    revenues=[float(campaign_days[day]["faturamento"] or 0) if day in campaign_days else None for day in labels]
+    from ads_official_metrics import value
+    attributed=[value(campaign_days.get(day, {}), 'vendas_atribuidas', integer=True) for day in labels]
     spends=[float(campaign_days[day]["gasto"] or 0) if day in campaign_days else None for day in labels]
-    organic=non_ads_estimate(labels,shop_daily or {},ads_total_daily or {})
-    available=sum(value is not None for value in organic)
-    out+="<section class='kc-section'><h3>Evolução diária da campanha e da loja</h3>"
-    out+="<p class='kc-sub'>Azul: vendas atribuídas a esta campanha. Turquesa: estimativa de vendas sem Ads da loja inteira. Laranja: investimento da campanha.</p>"
-    out+="<p class='kc-sub'>Estimativa sem Ads = vendas totais verificadas da loja menos faturamento atribuído a todas as campanhas de Ads. Não equivale a uma classificação oficial de vendas orgânicas.</p>"
+    organic=[value(campaign_days.get(day, {}), 'outras_vendas', integer=True) for day in labels]
+    available=sum(a is not None and b is not None for a,b in zip(attributed,organic))
+    out+="<section class='kc-section'><h3>Vendas e investimento da campanha</h3>"
+    out+="<p class='kc-sub'>Barras empilhadas: Vendas atribuídas e Outras vendas dos anúncios desta campanha, conforme informado pelo Mercado Livre. A linha mostra o investimento em reais.</p>"
+    out+="<p class='kc-sub'>Vendas em quantidade no eixo esquerdo; investimento no eixo direito. Cada produto diferente no carrinho conta como uma venda, independentemente das unidades.</p>"
     if available<days:
-        out+="<div class='kc-stale'>Estimativa sem Ads disponível em "+str(available)+" de "+str(days)+" dias. Datas sem cobertura de vendas, sem coleta de Ads ou com valores inconsistentes não aparecem como zero.</div>"
-    out+="<div class='kc-chart'><canvas id='kc-daily-chart' role='img' aria-label='Gráfico de vendas Ads por campanha, estimativa sem Ads da loja e investimento'></canvas></div></section>"
+        out+="<div class='kc-stale'>Métricas oficiais de vendas disponíveis em "+str(available)+" de "+str(days)+" dias. O histórico está sendo atualizado nas sincronizações. Dados não fornecidos aparecem como indisponíveis, sem estimativa e sem substituição por zero.</div>"
+    out+="<div class='kc-chart'><canvas id='kc-daily-chart' role='img' aria-label='Vendas atribuídas e Outras vendas da campanha empilhadas, com investimento em reais'></canvas></div></section>"
     datasets=[
-        {"type":"bar","label":"Vendas Ads · campanha","data":revenues,"backgroundColor":"#3f72e8b3","borderRadius":4},
-        {"type":"bar","label":"Sem Ads · loja (estim.)","data":organic,"backgroundColor":"#29bbbfaa","borderRadius":4},
-        {"type":"line","label":"Investimento · campanha","data":spends,"borderColor":"#f28b39","backgroundColor":"#f28b39","tension":0.3}
+        {"type":"bar","label":"Vendas atribuídas","data":attributed,"stack":"sales","backgroundColor":"#3483fa","borderRadius":4,"borderSkipped":False,"maxBarThickness":36,"categoryPercentage":0.7,"barPercentage":0.85,"order":2},
+        {"type":"bar","label":"Outras vendas","data":organic,"stack":"sales","backgroundColor":"#bdd7ff","borderRadius":4,"borderSkipped":False,"maxBarThickness":36,"categoryPercentage":0.7,"barPercentage":0.85,"order":3},
+        {"type":"line","label":"Investimento","data":spends,"yAxisID":"investment","borderColor":"#194579","backgroundColor":"#194579","tension":0.35,"borderWidth":3,"pointRadius":0,"pointHoverRadius":5,"pointHoverBackgroundColor":"#fff","pointHoverBorderWidth":3,"spanGaps":False,"order":1}
     ]
     out+="<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
-    out+="<script>(function(){var el=document.getElementById('kc-daily-chart');if(!el||typeof Chart==='undefined')return;new Chart(el,{data:{labels:"+json.dumps(labels)+",datasets:"+json.dumps(datasets)+"},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}})})();</script>"
+    display_labels=[date.fromisoformat(day).strftime('%d/%m') for day in labels]
+    out+="<script>(function(){var el=document.getElementById('kc-daily-chart');if(!el||typeof Chart==='undefined')return;var datasets="+json.dumps(datasets)+";"+"""
+var currency=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
+var compact=new Intl.NumberFormat('pt-BR',{notation:'compact',maximumFractionDigits:1});
+var quantity=new Intl.NumberFormat('pt-BR',{maximumFractionDigits:0});
+datasets.filter(function(d){return d.type==='bar'}).forEach(function(d){var color=d.backgroundColor;d.backgroundColor=function(context){var area=context.chart.chartArea;if(!area)return color;var gradient=context.chart.ctx.createLinearGradient(0,area.top,0,area.bottom);gradient.addColorStop(0,color);gradient.addColorStop(1,color+'80');return gradient;};});
+"""+"new Chart(el,{data:{labels:"+json.dumps(display_labels)+",datasets:datasets},"+"""options:{locale:'pt-BR',responsive:true,maintainAspectRatio:false,
+animation:matchMedia('(prefers-reduced-motion: reduce)').matches?false:{duration:450},
+interaction:{intersect:false,mode:'index'},layout:{padding:{top:8,right:8}},
+plugins:{legend:{position:'bottom',align:'start',labels:{color:'#526582',usePointStyle:true,pointStyle:'rectRounded',boxWidth:9,boxHeight:9,padding:18,font:{family:"Inter, 'Segoe UI', sans-serif",size:11}}},
+tooltip:{backgroundColor:'#14243b',titleColor:'#fff',bodyColor:'#dce8fb',borderColor:'#314b70',borderWidth:1,cornerRadius:12,padding:14,boxPadding:6,usePointStyle:true,titleMarginBottom:10,bodySpacing:7,titleFont:{size:13,weight:'bold'},bodyFont:{size:12},callbacks:{title:function(items){return items.length?items[0].label:'';},label:function(context){return context.dataset.label+': '+(context.dataset.yAxisID==='investment'?currency.format(context.parsed.y):quantity.format(context.parsed.y)+' vendas');}}}},
+scales:{x:{stacked:true,border:{display:false},grid:{display:false},ticks:{color:'#7b8ca6',maxRotation:0,minRotation:0,autoSkip:true,maxTicksLimit:el.clientWidth<500?5:10,font:{size:11},padding:10}},
+y:{stacked:true,beginAtZero:true,border:{display:false},title:{display:true,text:'Vendas',color:'#7b8ca6'},grid:{color:'#e9eef6',drawTicks:false},ticks:{precision:0,color:'#7b8ca6',maxTicksLimit:5,padding:8,font:{size:10},callback:function(value){return quantity.format(value);}}},
+investment:{position:'right',beginAtZero:true,border:{display:false},title:{display:true,text:'Investimento (R$)',color:'#7b8ca6'},grid:{drawOnChartArea:false,drawTicks:false},ticks:{color:'#7b8ca6',maxTicksLimit:5,padding:8,font:{size:10},callback:function(value){return 'R$ '+compact.format(value);}}}}}});
+})();</script>"""
     from ads_change_history import display_history
     out+=display_history(changes or [])
     out+="<div class='kc-layout'><section class='kc-section'><h3>O que merece atenção</h3><p class='kc-sub'>Sugestões de investigação, não mudanças automáticas de orçamento ou meta.</p><div class='kc-tasks'>"
@@ -161,7 +164,7 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
         suggestions.append(("good","Sem alerta crítico pelas regras atuais","Acompanhe ROAS, orçamento e margens. Ausência de alertas não garante lucro."))
     for typ,title,desc in suggestions:
         out+="<article class='kc-task "+typ+"'><strong>"+title+"</strong><p>"+desc+"</p></article>"
-    out+="</div></section><section class='kc-section'><h3>Comparação de períodos</h3><p class='kc-sub'>"+selected_start.strftime("%d/%m/%Y")+" a "+today.strftime("%d/%m/%Y")+" versus "+prev_start.strftime("%d/%m/%Y")+" a "+prev_end.strftime("%d/%m/%Y")+"</p>"
+    out+="</div></section><section class='kc-section'><h3>Comparação de períodos</h3><p class='kc-sub'>"+selected_start.strftime("%d/%m")+" a "+today.strftime("%d/%m")+" versus "+prev_start.strftime("%d/%m")+" a "+prev_end.strftime("%d/%m")+"</p>"
     if not complete:
         out+="<div class='kc-stale'>Cobertura diária incompleta em pelo menos um período. A comparação percentual fica indisponível para evitar conclusões enganosas.</div>"
     out+="<table class='kc-table'><thead><tr><th>Indicador</th><th>Atual</th><th>Anterior</th></tr></thead><tbody>"

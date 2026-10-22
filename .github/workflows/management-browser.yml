@@ -5,6 +5,13 @@ on:
       - 'crm.py'
       - 'crm_home.py'
       - 'home_theme.py'
+      - 'home_sidebar.py'
+      - 'test_home_sidebar.py'
+      - 'ads_campaign_detail.py'
+      - 'ads_official_metrics.py'
+      - 'test_ads_official_metrics.py'
+      - 'test_ads_campaign_detail.py'
+      - 'scripts/ads_chart*'
       - 'client_home.py'
       - 'scripts/crm_home*'
       - 'management*.py'
@@ -31,10 +38,12 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - run: python scripts/management_preview.py
       - run: python scripts/crm_home_preview.py
+      - run: python scripts/ads_chart_preview.py
       - run: npm install --no-save --no-package-lock playwright@1.51.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/management_browser_check.cjs
       - run: node scripts/crm_home_browser_check.cjs
+      - run: node scripts/ads_chart_browser_check.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
