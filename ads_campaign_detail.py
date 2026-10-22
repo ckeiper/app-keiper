@@ -28,7 +28,8 @@ CSS="""<style>
 .k-camp .kc-section{background:white;border:1px solid #e2eaf3;border-radius:17px;padding:22px;margin:18px 0;box-shadow:0 7px 25px #223b5d08}
 .k-camp .kc-section h3{font-size:16px;color:#24395a;margin:0 0 8px}
 .k-camp .kc-layout{display:grid;grid-template-columns:1.3fr 1fr;gap:15px}
-.k-camp .kc-chart{position:relative;height:290px}.k-camp .kc-chart canvas{max-width:100%}
+.k-camp .kc-chart{position:relative;height:350px;margin-top:24px;padding:18px 10px 8px;border:1px solid #e8eef8;border-radius:16px;background:linear-gradient(180deg,#f8faff,#fff);box-sizing:border-box}.k-camp .kc-chart canvas{max-width:100%}
+@media(max-width:570px){.k-camp .kc-chart{height:310px;padding:12px 4px 4px}}
 .k-camp .kc-tasks{display:grid;gap:10px;margin-top:15px}
 .k-camp .kc-task{border-radius:12px;padding:16px;border:1px solid #e0e7f2;border-left:4px solid #4970e6;background:#f7f9ff}
 .k-camp .kc-task.warn{border-left-color:#f5a049;background:#fffaf1}.k-camp .kc-task.good{border-left-color:#18a889;background:#f3fbf8}
@@ -133,12 +134,24 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
         out+="<div class='kc-stale'>Estimativa sem Ads disponível em "+str(available)+" de "+str(days)+" dias. Datas sem cobertura de vendas, sem coleta de Ads ou com valores inconsistentes não aparecem como zero.</div>"
     out+="<div class='kc-chart'><canvas id='kc-daily-chart' role='img' aria-label='Gráfico de vendas Ads por campanha, estimativa sem Ads da loja e investimento'></canvas></div></section>"
     datasets=[
-        {"type":"bar","label":"Vendas Ads · campanha","data":revenues,"backgroundColor":"#3f72e8b3","borderRadius":4},
-        {"type":"bar","label":"Sem Ads · loja (estim.)","data":organic,"backgroundColor":"#29bbbfaa","borderRadius":4},
-        {"type":"line","label":"Investimento · campanha","data":spends,"borderColor":"#f28b39","backgroundColor":"#f28b39","tension":0.3}
+        {"type":"bar","label":"Vendas Ads · campanha","data":revenues,"backgroundColor":"#527bef","borderRadius":6,"borderSkipped":False,"maxBarThickness":24,"categoryPercentage":0.7,"barPercentage":0.85,"order":2},
+        {"type":"bar","label":"Sem Ads · loja (estim.)","data":organic,"backgroundColor":"#35b8b1","borderRadius":6,"borderSkipped":False,"maxBarThickness":24,"categoryPercentage":0.7,"barPercentage":0.85,"order":3},
+        {"type":"line","label":"Investimento · campanha","data":spends,"borderColor":"#e99438","backgroundColor":"#e99438","tension":0.35,"borderWidth":3,"pointRadius":0,"pointHoverRadius":5,"pointHoverBackgroundColor":"#fff","pointHoverBorderWidth":3,"spanGaps":False,"order":1}
     ]
     out+="<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
-    out+="<script>(function(){var el=document.getElementById('kc-daily-chart');if(!el||typeof Chart==='undefined')return;new Chart(el,{data:{labels:"+json.dumps(labels)+",datasets:"+json.dumps(datasets)+"},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}})})();</script>"
+    display_labels=[date.fromisoformat(day).strftime('%d/%m') for day in labels]
+    out+="<script>(function(){var el=document.getElementById('kc-daily-chart');if(!el||typeof Chart==='undefined')return;var datasets="+json.dumps(datasets)+";"+"""
+var currency=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
+var compact=new Intl.NumberFormat('pt-BR',{notation:'compact',maximumFractionDigits:1});
+datasets.filter(function(d){return d.type==='bar'}).forEach(function(d){var color=d.backgroundColor;d.backgroundColor=function(context){var area=context.chart.chartArea;if(!area)return color;var gradient=context.chart.ctx.createLinearGradient(0,area.top,0,area.bottom);gradient.addColorStop(0,color);gradient.addColorStop(1,color+'80');return gradient;};});
+"""+"new Chart(el,{data:{labels:"+json.dumps(display_labels)+",datasets:datasets},"+"""options:{locale:'pt-BR',responsive:true,maintainAspectRatio:false,
+animation:matchMedia('(prefers-reduced-motion: reduce)').matches?false:{duration:450},
+interaction:{intersect:false,mode:'index'},layout:{padding:{top:8,right:8}},
+plugins:{legend:{position:'bottom',align:'start',labels:{color:'#526582',usePointStyle:true,pointStyle:'rectRounded',boxWidth:9,boxHeight:9,padding:18,font:{family:"Inter, 'Segoe UI', sans-serif",size:11}}},
+tooltip:{backgroundColor:'#14243b',titleColor:'#fff',bodyColor:'#dce8fb',borderColor:'#314b70',borderWidth:1,cornerRadius:12,padding:14,boxPadding:6,usePointStyle:true,titleMarginBottom:10,bodySpacing:7,titleFont:{size:13,weight:'bold'},bodyFont:{size:12},callbacks:{title:function(items){return items.length?items[0].label:'';},label:function(context){return context.dataset.label+': '+currency.format(context.parsed.y);}}}},
+scales:{x:{border:{display:false},grid:{display:false},ticks:{color:'#7b8ca6',maxRotation:0,minRotation:0,autoSkip:true,maxTicksLimit:el.clientWidth<500?5:10,font:{size:11},padding:10}},
+y:{beginAtZero:true,border:{display:false},grid:{color:'#e9eef6',drawTicks:false},ticks:{color:'#7b8ca6',maxTicksLimit:5,padding:12,font:{size:10},callback:function(value){return 'R$ '+compact.format(value);}}}}}});
+})();</script>"""
     from ads_change_history import display_history
     out+=display_history(changes or [])
     out+="<div class='kc-layout'><section class='kc-section'><h3>O que merece atenção</h3><p class='kc-sub'>Sugestões de investigação, não mudanças automáticas de orçamento ou meta.</p><div class='kc-tasks'>"
@@ -161,7 +174,7 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
         suggestions.append(("good","Sem alerta crítico pelas regras atuais","Acompanhe ROAS, orçamento e margens. Ausência de alertas não garante lucro."))
     for typ,title,desc in suggestions:
         out+="<article class='kc-task "+typ+"'><strong>"+title+"</strong><p>"+desc+"</p></article>"
-    out+="</div></section><section class='kc-section'><h3>Comparação de períodos</h3><p class='kc-sub'>"+selected_start.strftime("%d/%m/%Y")+" a "+today.strftime("%d/%m/%Y")+" versus "+prev_start.strftime("%d/%m/%Y")+" a "+prev_end.strftime("%d/%m/%Y")+"</p>"
+    out+="</div></section><section class='kc-section'><h3>Comparação de períodos</h3><p class='kc-sub'>"+selected_start.strftime("%d/%m")+" a "+today.strftime("%d/%m")+" versus "+prev_start.strftime("%d/%m")+" a "+prev_end.strftime("%d/%m")+"</p>"
     if not complete:
         out+="<div class='kc-stale'>Cobertura diária incompleta em pelo menos um período. A comparação percentual fica indisponível para evitar conclusões enganosas.</div>"
     out+="<table class='kc-table'><thead><tr><th>Indicador</th><th>Atual</th><th>Anterior</th></tr></thead><tbody>"
