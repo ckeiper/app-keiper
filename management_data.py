@@ -42,9 +42,10 @@ def reliable(summary):
 def advertising(rows, start, end):
     days = {(start+timedelta(days=i)).isoformat() for i in range((end-start).days+1)}
     by_day = {str(r['data']):r for r in rows if str(r['data']) in days}
+    missing=sorted(days-set(by_day))
     result = dict(spend=None,revenue=None,roas=None,acos=None,clicks=None,impressions=None,
-                  ctr=None,coverage=len(by_day),expected=len(days))
-    if set(by_day) != days:
+                  ctr=None,coverage=len(by_day),expected=len(days),missing_dates=missing)
+    if missing:
         return result
     for key,source in [('spend','gasto'),('revenue','faturamento'),('clicks','cliques'),('impressions','impressoes')]:
         numbers = [amount(row.get(source)) for row in by_day.values()]
