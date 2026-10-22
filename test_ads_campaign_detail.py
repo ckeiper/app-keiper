@@ -3,6 +3,14 @@ from datetime import date,timedelta
 from ads_campaign_detail import metrics,render
 
 class CampaignDetailTests(unittest.TestCase):
+    def test_chart_dates_use_day_month_and_keep_unknown_values(self):
+        today=date(2026,1,3)
+        html=render(7,{"campanha_id":"10"},[],7,today)
+        self.assertIn('labels:["28/12", "29/12", "30/12", "31/12", "01/01", "02/01", "03/01"]',html)
+        self.assertNotIn('2026-01-03',html)
+        self.assertIn('currency.format(context.parsed.y)',html)
+        self.assertIn('"data": [null, null, null, null, null, null, null]',html)
+
     def test_store_non_ads_estimate_keeps_missing_days_unknown(self):
         from ads_campaign_detail import non_ads_estimate
         dates=["2026-10-18","2026-10-19","2026-10-20"]
