@@ -143,6 +143,8 @@ scales:{x:{stacked:true,border:{display:false},grid:{display:false},ticks:{color
 y:{stacked:true,beginAtZero:true,border:{display:false},title:{display:true,text:'Vendas',color:'#7b8ca6'},grid:{color:'#e9eef6',drawTicks:false},ticks:{precision:0,color:'#7b8ca6',maxTicksLimit:5,padding:8,font:{size:10},callback:function(value){return quantity.format(value);}}},
 investment:{position:'right',beginAtZero:true,border:{display:false},title:{display:true,text:'Investimento (R$)',color:'#7b8ca6'},grid:{drawOnChartArea:false,drawTicks:false},ticks:{color:'#7b8ca6',maxTicksLimit:5,padding:8,font:{size:10},callback:function(value){return 'R$ '+compact.format(value);}}}}}});
 })();</script>"""
+    from ads_weekly_comparison import render_weekly
+    out+=render_weekly(history,today)
     from ads_change_history import display_history
     out+=display_history(changes or [])
     out+="<div class='kc-layout'><section class='kc-section'><h3>O que merece atenção</h3><p class='kc-sub'>Sugestões de investigação, não mudanças automáticas de orçamento ou meta.</p><div class='kc-tasks'>"
@@ -165,14 +167,7 @@ investment:{position:'right',beginAtZero:true,border:{display:false},title:{disp
         suggestions.append(("good","Sem alerta crítico pelas regras atuais","Acompanhe ROAS, orçamento e margens. Ausência de alertas não garante lucro."))
     for typ,title,desc in suggestions:
         out+="<article class='kc-task "+typ+"'><strong>"+title+"</strong><p>"+desc+"</p></article>"
-    out+="</div></section><section class='kc-section'><h3>Comparação de períodos</h3><p class='kc-sub'>"+selected_start.strftime("%d/%m")+" a "+today.strftime("%d/%m")+" versus "+prev_start.strftime("%d/%m")+" a "+prev_end.strftime("%d/%m")+"</p>"
-    if not complete:
-        out+="<div class='kc-stale'>Cobertura diária incompleta em pelo menos um período. A comparação percentual fica indisponível para evitar conclusões enganosas.</div>"
-    out+="<table class='kc-table'><thead><tr><th>Indicador</th><th>Atual</th><th>Anterior</th></tr></thead><tbody>"
-    out+="<tr><td>Investimento</td><td>"+money(m["spent"])+"</td><td>"+(money(pm["spent"]) if complete else "—")+"</td></tr>"
-    out+="<tr><td>Faturamento Ads</td><td>"+money(m["revenue"])+"</td><td>"+(money(pm["revenue"]) if complete else "—")+"</td></tr>"
-    out+="<tr><td>ROAS</td><td>"+(num(m["roas"])+"x" if m["roas"] is not None else "—")+"</td><td>"+(num(pm["roas"])+"x" if complete and pm["roas"] is not None else "—")+"</td></tr></tbody></table>"
-    out+="<p class='kc-sub' style='margin-top:14px'>Histórico de mudanças de orçamento e meta ainda não é registrado. Não inferimos alterações a partir de resultados.</p></section></div></div>"
+    out+="</div></section></div></div>"
     return out
 
 
