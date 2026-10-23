@@ -75,8 +75,7 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
     today_row=next((x for x in current if x["data"]==today.isoformat()),None)
     today_spent=float(today_row["gasto"] or 0) if today_row else None
     consumption=100*today_spent/budget if budget>0 and today_spent is not None else None
-    valid_tacos=store_revenue is not None and store_revenue>0
-    tacos=m["spent"]/store_revenue*100 if valid_tacos else None
+    # Campaign TACOS uses attributed + organic revenue from the same campaign.\n    from ads_official_metrics import value as official_value\n    organic_values=[official_value(row,"faturamento_sem_ads") for row in current]\n    organic_revenue=sum(organic_values) if current and all(v is not None for v in organic_values) else None\n    total_revenue=m["revenue"]+organic_revenue if organic_revenue is not None else None\n    tacos=100*m["spent"]/total_revenue if total_revenue is not None and total_revenue>0 else None
     def kpi(name,value,key,note=""):
         trend=""
         a=m.get(key)
@@ -104,7 +103,7 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
     out+=kpi("Investimento em Ads",money(m["spent"]),"spent")
     out+=kpi("ROAS realizado",num(m["roas"])+"x" if m["roas"] is not None else "—","roas")
     out+=kpi("ACOS",num(m["acos"])+"%" if m["acos"] is not None else "—","acos")
-    out+="<div class='kc-kpi'><label>TACOS da campanha</label><strong>"+(num(tacos)+"%" if tacos is not None else "—")+"</strong><small>"+("Gasto da campanha ÷ faturamento total da loja" if tacos is not None else "Vendas totais da loja ainda não validadas")+"</small></div>"
+    out+="<div class='kc-kpi'><label>TACOS da campanha</label><strong>"+(num(tacos)+"%" if tacos is not None else "—")+"</strong><small>"+("Gasto ÷ (faturamento Ads + orgânico da campanha)" if tacos is not None else "Faturamento orgânico oficial indisponível")+"</small></div>"\n    out+="<div class='kc-kpi'><label>Faturamento orgânico</label><strong>"+(money(organic_revenue) if organic_revenue is not None else "—")+"</strong><small>Vendas sem publicidade dos anúncios da campanha</small></div>"
     out+="<div class='kc-kpi'><label>Gasto hoje</label><strong>"+(money(today_spent) if today_spent is not None else "—")+"</strong><small>Última coleta do dia, não em tempo real</small></div>"
     out+="<div class='kc-kpi'><label>Consumo orçamento hoje</label><strong>"+(num(consumption)+"%" if consumption is not None else "—")+"</strong><small>Sobre o orçamento diário cadastrado</small></div>"
     out+="<div class='kc-kpi'><label>Meta de ROAS</label><strong>"+(num(target)+"x" if target>0 else "—")+"</strong><small>Configurada na conta</small></div></div>"
