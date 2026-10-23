@@ -103,7 +103,8 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
     out+=kpi("Investimento em Ads",money(m["spent"]),"spent")
     out+=kpi("ROAS realizado",num(m["roas"])+"x" if m["roas"] is not None else "—","roas")
     out+=kpi("ACOS",num(m["acos"])+"%" if m["acos"] is not None else "—","acos")
-    out+="<div class='kc-kpi'><label>TACOS da campanha</label><strong>"+(num(tacos)+"%" if tacos is not None else "—")+"</strong><small>"+("Gasto ÷ (faturamento Ads + orgânico da campanha)" if tacos is not None else "Faturamento orgânico oficial indisponível")+"</small></div>"\n    out+="<div class='kc-kpi'><label>Faturamento orgânico</label><strong>"+(money(organic_revenue) if organic_revenue is not None else "—")+"</strong><small>Vendas sem publicidade dos anúncios da campanha</small></div>"
+    out+="<div class='kc-kpi'><label>TACOS da campanha</label><strong>"+(num(tacos)+"%" if tacos is not None else "—")+"</strong><small>"+("Gasto ÷ (faturamento Ads + orgânico da campanha)" if tacos is not None else "Faturamento orgânico oficial indisponível")+"</small></div>"
+    out+="<div class='kc-kpi'><label>Faturamento orgânico</label><strong>"+(money(organic_revenue) if organic_revenue is not None else "—")+"</strong><small>Vendas sem publicidade dos anúncios da campanha</small></div>"
     out+="<div class='kc-kpi'><label>Gasto hoje</label><strong>"+(money(today_spent) if today_spent is not None else "—")+"</strong><small>Última coleta do dia, não em tempo real</small></div>"
     out+="<div class='kc-kpi'><label>Consumo orçamento hoje</label><strong>"+(num(consumption)+"%" if consumption is not None else "—")+"</strong><small>Sobre o orçamento diário cadastrado</small></div>"
     out+="<div class='kc-kpi'><label>Meta de ROAS</label><strong>"+(num(target)+"x" if target>0 else "—")+"</strong><small>Configurada na conta</small></div></div>"
