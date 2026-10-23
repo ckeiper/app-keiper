@@ -9,7 +9,6 @@ body:has(.kh-home) .kh-home{color:#e9f0ff}
 body:has(.kh-home) .kh-head{border-color:#293b56}
 body:has(.kh-home) .kh-home h2{color:#f2f6ff;display:flex;align-items:center;gap:15px;flex-wrap:wrap}
 body:has(.kh-home) .kh-eyebrow{color:#86adf0}
-body:has(.kh-home) .kh-description{color:#a4b6d0}
 body:has(.kh-home) .kh-count{background:#1a2b45;border-color:#334968;color:#a8bfdf;letter-spacing:0}
 body:has(.kh-home) .kh-store{background:linear-gradient(125deg,#192b45,#14233a);border-color:#2d425e;box-shadow:0 8px 24px #00000014}
 body:has(.kh-home) .kh-store:hover,body:has(.kh-home) .kh-store:focus-within{background:linear-gradient(125deg,#203858,#192d49);border-color:#557eb7;box-shadow:0 12px 28px #00000030}
@@ -25,8 +24,6 @@ body:has(.kh-home) .kh-menu{background:#1b2c46;border-color:#3b5476;box-shadow:0
 body:has(.kh-home) .kh-menu button,body:has(.kh-home) .kh-menu a{color:#e0eaff}
 body:has(.kh-home) .kh-menu button:hover,body:has(.kh-home) .kh-menu a:hover{background:#2c4568}
 body:has(.kh-home) .kh-menu .kh-danger{color:#ffa1ab}
-body:has(.kh-home) .kh-links{border-color:#293b56}
-body:has(.kh-home) .kh-links a{color:#a1bce5}body:has(.kh-home) .kh-links a:hover{color:#dfebff}
 body:has(.kh-home) .kh-empty{background:#15253d;border-color:#344e70;color:#a6bbd7}
 body:has(.kh-home) .kc-wrap{color:#dfebff}
 body:has(.kh-home) .kc-panel{background:linear-gradient(125deg,#1a2d49,#14243b 55%,#172a43);border-color:#304766;box-shadow:0 12px 36px #00000022}
@@ -58,4 +55,13 @@ body:has(.kh-home) .kc-loading{color:#a7bddb}
 body:has(.kh-home) .kc-foot{background:#112036;border-color:#314662}
 body:has(.kh-home) .kc-foot strong{color:#bfd2ef}body:has(.kh-home) .kc-foot-copy>svg{color:#a1bce3}
 body:has(.kh-home) .kc-foot .kc-button{background:#203751}
+body:has(.kh-home) .kh-health{background:linear-gradient(125deg,#192b45,#14233a);border-color:#2d425e;color:#edf3ff;box-shadow:0 8px 24px #00000014}
+body:has(.kh-home) .kh-health-head h3{color:#f2f6ff}
+body:has(.kh-home) .kh-health-head p,body:has(.kh-home) .kh-health-foot{color:#a4b6d0}
+body:has(.kh-home) .kh-health-eyebrow,body:has(.kh-home) .kh-health-head a{color:#94b5ed}
+body:has(.kh-home) .kh-health-item{background:#112139;border-color:#3b4e69;color:#edf3ff}
+body:has(.kh-home) .kh-health-item:hover{background:#203858;border-color:#557eb7}
+body:has(.kh-home) .kh-health-item span{color:#ffb0ac}
+body:has(.kh-home) .kh-health-item small{color:#aac8f6}
+body:has(.kh-home) .kh-health-empty{color:#72dfb5}
 </style>"""

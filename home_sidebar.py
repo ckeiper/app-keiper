@@ -3,8 +3,11 @@
 
 def render_home_sidebar(admin=False):
     security = "<footer class='ks-foot'><a href='/seguranca' title='Segurança'><span aria-hidden='true'>◇</span><span class='ks-label'>Segurança</span></a></footer>" if admin else ""
-    overview = "<a href='/painel/analise' title='Visão geral'><span aria-hidden='true'>▦</span><span class='ks-label'>Visão geral</span></a>" if admin else ""
-    crm = "<a href='/crm' title='CRM'><span aria-hidden='true'>◎</span><span class='ks-label'>CRM</span></a>" if admin else ""
+    overview = "<a href='/painel/analise' title='Relatórios consolidados'><span aria-hidden='true'>▦</span><span class='ks-label'>Relatórios consolidados</span></a>" if admin else ""
+    crm = "<a href='/crm' title='CRM e leads'><span aria-hidden='true'>◎</span><span class='ks-label'>CRM e leads</span></a>" if admin else ""
+    management = ("<a href='/usuarios' title='Usuários'><span aria-hidden='true'>♙</span><span class='ks-label'>Usuários</span></a>"
+                  "<a href='/diagnostico' title='Diagnóstico'><span aria-hidden='true'>⌕</span><span class='ks-label'>Diagnóstico</span></a>"
+                  "<a href='/prioridades' title='Central de prioridades'><span aria-hidden='true'>⚑</span><span class='ks-label'>Central de prioridades</span></a>") if admin else ""
     from navigation_shell import shell
-    navigation = overview + "<a href='/painel' aria-current='page' title='Minhas lojas'><span aria-hidden='true'>⌂</span><span class='ks-label'>Minhas lojas</span></a>" + crm
+    navigation = overview + "<a href='/painel' aria-current='page' title='Minhas lojas'><span aria-hidden='true'>⌂</span><span class='ks-label'>Minhas lojas</span></a>" + crm + management
     return shell(navigation, security)

@@ -13,9 +13,9 @@ def page(admin=True, home=True):
 def test_home_has_sidebar_and_security_only_in_footer():
     rendered = page()
     assert "aria-controls='ks-navigation'" in rendered
-    assert "href='/painel/analise' title='Visão geral'" in rendered
+    assert "href='/painel/analise' title='Relatórios consolidados'" in rendered
     assert "aria-current='page' title='Minhas lojas'" in rendered
-    assert "href='/crm' title='CRM'" in rendered
+    assert "href='/crm' title='CRM e leads'" in rendered
     assert rendered.count("href='/seguranca'") == 1
     assert "<footer class='ks-foot'><a href='/seguranca'" in rendered
     header = rendered.split("<div class='top'>", 1)[1].split("<div class='wrap'>", 1)[0]
