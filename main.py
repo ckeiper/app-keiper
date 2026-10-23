@@ -4506,6 +4506,22 @@ def var_html(hoje, ontem, fmt="R$"):
                 + " (" + br(pct, 1) + "%)</div>")
     return "<div class='var estavel'>— 0%</div>"
 
+@app.route('/kyra')
+@login_required
+@admin_required
+def kyra_central():
+    from kyra_central import central_rows, render_central
+    with banco() as conn:
+        shops = consultar(conn, "SELECT id,cliente FROM conexoes WHERE status='ativa' ORDER BY cliente,id")
+        runs = consultar(conn, """SELECT DISTINCT ON (conexao_id)
+            conexao_id,day,status,result FROM keiper_ai_runs
+            ORDER BY conexao_id,day DESC""")
+    body = render_central(central_rows(shops, runs))
+    response = Response(pagina('KYRA · Central de Inteligência', body), mimetype='text/html')
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
 @app.route('/ia-keiper/<int:cid>')
 @login_required
 def painel_ia_keiper(cid):
@@ -5854,4 +5870,3 @@ scheduler.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
-
