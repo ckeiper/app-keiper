@@ -799,6 +799,8 @@ def iniciar_banco():
         init_overview_schema(conn, executar)
         from keiper_ai_store import init_schema as init_keiper_ai
         init_keiper_ai(conn, executar)
+        from kyra_reviews import init_schema as init_kyra_reviews
+        init_kyra_reviews(conn, executar)
         init_crm_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro (
             usuario_id INTEGER PRIMARY KEY,
@@ -4522,6 +4524,33 @@ def kyra_central():
     return response
 
 
+@app.route('/kyra/revisar/<int:cid>', methods=['POST'])
+@login_required
+@admin_required
+def kyra_revisar(cid):
+    from hmac import compare_digest
+    from kyra_reviews import ALLOWED
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito', 403
+    csrf = request.form.get('csrf') or ''
+    if not csrf or not compare_digest(csrf, session.get('kyra_review_csrf') or ''):
+        return 'Solicitação inválida', 403
+    code = request.form.get('code') or ''
+    state = request.form.get('state') or ''
+    if not code or len(code) > 80 or state not in ALLOWED:
+        return 'Dados inválidos', 400
+    with banco() as conn:
+        rows = consultar(conn, '''SELECT result FROM keiper_ai_runs
+            WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
+        findings = (rows[0].get('result') or {}).get('recommendations', []) if rows else []
+        if code not in {str(f.get('code')) for f in findings if isinstance(f, dict)}:
+            return 'Recomendação não encontrada', 404
+        executar(conn, '''INSERT INTO kyra_reviews(conexao_id,code,state)
+            VALUES(%s,%s,%s) ON CONFLICT(conexao_id,code)
+            DO UPDATE SET state=EXCLUDED.state,updated_at=now()''', (cid,code,state))
+    return redirect('/ia-keiper/'+str(cid), code=303)
+
+
 @app.route('/ia-keiper/<int:cid>')
 @login_required
 def painel_ia_keiper(cid):
@@ -4535,10 +4564,11 @@ def painel_ia_keiper(cid):
         if not lojas:
             return 'Loja não encontrada', 404
         runs = consultar(conn, '''SELECT day,status,result,api_status FROM keiper_ai_runs
-            WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
+            WHERE conexao_id=%s ORDER BY day DESC LIMIT 30''', (cid,))
         campaign_runs = consultar(conn, '''SELECT day,status,result FROM keiper_ai_campaign_runs
             WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
         budget = budget_status(conn, consultar) if session.get('tipo') == 'admin' else None
+        saved_reviews = consultar(conn, 'SELECT code,state FROM kyra_reviews WHERE conexao_id=%s', (cid,)) if session.get('tipo') == 'admin' else []
         result = runs[0].get('result') if runs else None
         daily = consultar(conn, '''SELECT data,gasto,faturamento FROM ads_dia
             WHERE conexao_id=%s AND data BETWEEN %s AND %s ORDER BY data''',
@@ -4547,6 +4577,16 @@ def painel_ia_keiper(cid):
     corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget, cid=cid, daily=daily, campaign_run=campaign_runs[0] if campaign_runs else None)
     if run.get('status') in ('running', 'rules_ready'):
         corpo += "<p>Execução em andamento ou interrompida. A próxima análise ocorrerá no próximo dia de serviço ativo.</p>"
+    from kyra_history import render_history
+    corpo += render_history(runs)
+    if session.get('tipo') == 'admin':
+        from kyra_reviews import render_review
+        token = session.get('kyra_review_csrf')
+        if not token:
+            token = secrets.token_urlsafe(32)
+            session['kyra_review_csrf'] = token
+        findings = (run.get('result') or {}).get('recommendations') or []
+        corpo += render_review(cid, findings, {r['code']:r['state'] for r in saved_reviews}, token)
     return pagina_loja('KYRA', cid, lojas[0]['cliente'], 'ia', corpo)
 
 
