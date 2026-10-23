@@ -45,6 +45,7 @@ jobs:
       - run: python scripts/management_preview.py
       - run: python scripts/store_navigation_preview.py
       - run: python scripts/crm_home_preview.py
+      - run: python scripts/home_alerts_preview.py
       - run: python scripts/ads_chart_preview.py
       - run: python scripts/ads_overview_preview.py
       - run: npm install --no-save --no-package-lock playwright@1.51.1
@@ -52,6 +53,7 @@ jobs:
       - run: node scripts/management_browser_check.cjs
       - run: node scripts/store_navigation_browser_check.cjs
       - run: node scripts/crm_home_browser_check.cjs
+      - run: node scripts/home_alerts_browser_check.cjs
       - run: node scripts/ads_chart_browser_check.cjs
       - run: node scripts/ads_overview_browser_check.cjs
       - uses: actions/upload-artifact@v4

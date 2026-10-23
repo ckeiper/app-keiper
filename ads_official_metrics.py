@@ -17,6 +17,7 @@ def value(metrics, key, integer=False):
 
 def init_schema(conn, execute):
     execute(conn, """ALTER TABLE ads_campanha_dia
+        ADD COLUMN IF NOT EXISTS impressoes BIGINT,
         ADD COLUMN IF NOT EXISTS vendas_atribuidas INTEGER,
         ADD COLUMN IF NOT EXISTS outras_vendas INTEGER,
         ADD COLUMN IF NOT EXISTS faturamento_sem_ads DOUBLE PRECISION,
@@ -26,16 +27,17 @@ def init_schema(conn, execute):
 def save_day(conn, execute, cid, campaign_id, day, spend, revenue, metrics, observed):
     execute(conn, """INSERT INTO ads_campanha_dia
         (conexao_id, campanha_id, data, gasto, faturamento, atualizado_em,
-         vendas_atribuidas, outras_vendas, faturamento_sem_ads, metricas_vendas_coletadas_em)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+         vendas_atribuidas, outras_vendas, faturamento_sem_ads, metricas_vendas_coletadas_em, impressoes)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT (conexao_id, campanha_id, data) DO UPDATE SET
             gasto=EXCLUDED.gasto, faturamento=EXCLUDED.faturamento,
             atualizado_em=EXCLUDED.atualizado_em,
             vendas_atribuidas=EXCLUDED.vendas_atribuidas,
             outras_vendas=EXCLUDED.outras_vendas,
             faturamento_sem_ads=EXCLUDED.faturamento_sem_ads,
-            metricas_vendas_coletadas_em=EXCLUDED.metricas_vendas_coletadas_em""",
+            metricas_vendas_coletadas_em=EXCLUDED.metricas_vendas_coletadas_em,
+            impressoes=EXCLUDED.impressoes""",
         (cid, campaign_id, day, spend, revenue, observed,
          value(metrics, 'advertising_items_quantity', integer=True),
          value(metrics, 'organic_items_quantity', integer=True),
-         value(metrics, 'organic_units_amount'), observed))
+         value(metrics, 'organic_units_amount'), observed, value(metrics, 'prints', integer=True)))

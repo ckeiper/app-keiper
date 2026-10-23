@@ -2314,6 +2314,40 @@ def painel():
 
 
 
+@app.route('/painel/alertas/<int:cid>')
+@login_required
+def painel_alertas(cid):
+    if not pode_ver_loja(cid):
+        return jsonify(error='Acesso restrito'), 403
+    from home_alerts import load, LABELS, label
+    try:
+        groups, known = load(cid, banco, consultar)
+    except Exception:
+        app.logger.exception('Falha ao consultar alertas da loja %s', cid)
+        return jsonify(error='Alertas indisponíveis'), 503
+    response = jsonify(known=known, url='/painel/alertas/'+str(cid)+'/detalhes',
+        alerts=[dict(code=code, severity=LABELS[code][0], label=label(code,len(groups[code])))
+                for code in LABELS if groups.get(code)])
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.route('/painel/alertas/<int:cid>/detalhes')
+@login_required
+def painel_alertas_detalhes(cid):
+    if not pode_ver_loja(cid):
+        return pagina('Acesso negado', '<p>Acesso restrito</p>'), 403
+    from home_alerts import load, render
+    try:
+        groups, known = load(cid, banco, consultar)
+    except Exception:
+        app.logger.exception('Falha ao consultar detalhes de alertas da loja %s', cid)
+        return pagina('Alertas indisponíveis', '<p>Não foi possível consultar os alertas. Tente novamente.</p>'), 503
+    response = Response(pagina('Alertas da loja', render(groups, cid, known)), mimetype='text/html')
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
 def snapshot_saude_coletas():
     """A few bounded reads; no order load or marketplace API calls."""
     from collection_health import assess
@@ -5253,6 +5287,7 @@ def puxar_ads(conexao_id, token, user_id, refresh_range=None):
 
     # Current campaign configuration (budget and target ROAS) is separate
     # from the daily performance snapshot. Keep last known config if API fails.
+    config_complete = True
     try:
         campanhas_atuais = []
         deslocamento = 0
@@ -5301,6 +5336,7 @@ def puxar_ads(conexao_id, token, user_id, refresh_range=None):
                       campanha.get("date_created"), None, budget, target,
                       int(time.time())))
     except (requests.RequestException, ValueError, TypeError) as exc:
+        config_complete = False
         registrar_erro(conexao_id, "ads_config", "Campanhas: " + str(exc)[:140])
 
     # 2) Hoje (igual a antes)
@@ -5377,7 +5413,7 @@ def puxar_ads(conexao_id, token, user_id, refresh_range=None):
                               impressoes=EXCLUDED.impressoes,
                               cliques=EXCLUDED.cliques, atualizado_em=EXCLUDED.atualizado_em""",
                          (conexao_id, dia_b, g2, f2, i2, c2, agora))
-    return history_complete if refresh_range is not None else True
+    return (history_complete and config_complete) if refresh_range is not None else True
 
 def puxar_pedidos(conexao_id, token, user_id):
     return sync_orders(conexao_id, token, user_id, banco, consultar,
