@@ -780,6 +780,7 @@ def iniciar_banco():
             gasto REAL, faturamento REAL, impressoes INTEGER, cliques INTEGER, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, data)
         )""")
+        executar(conn, """CREATE TABLE IF NOT EXISTS ads_orcamento_esgotado (conexao_id INTEGER NOT NULL, campanha_id TEXT NOT NULL, data TEXT NOT NULL, detectado_em BIGINT NOT NULL, PRIMARY KEY(conexao_id,campanha_id,data))""")
         executar(conn, """CREATE TABLE IF NOT EXISTS ads_campanha_dia (
             conexao_id INTEGER, campanha_id TEXT, data TEXT,
             gasto REAL, faturamento REAL, atualizado_em BIGINT,
@@ -2992,6 +2993,7 @@ def painel_ads(cid):
             SELECT d.campanha_id,
                 COALESCE(NULLIF(c.nome,''), 'Campanha ' || d.campanha_id) AS nome,
                 c.status, c.orcamento, c.roas_objetivo,
+                (SELECT e.detectado_em FROM ads_orcamento_esgotado e WHERE e.conexao_id=d.conexao_id AND e.campanha_id=d.campanha_id AND e.data=%s) AS esgotado_em,
                 COALESCE(SUM(d.gasto) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS gasto_periodo,
                 COALESCE(SUM(d.faturamento) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS fat_periodo,
                 COALESCE(SUM(d.gasto) FILTER (WHERE d.data=%s),0) AS gasto_hoje,
@@ -3003,7 +3005,7 @@ def painel_ads(cid):
             LEFT JOIN ads_campanhas c ON c.conexao_id=d.conexao_id AND c.campanha_id=d.campanha_id
             WHERE d.conexao_id=%s AND d.data BETWEEN %s AND %s
             GROUP BY d.campanha_id,c.nome,c.status,c.orcamento,c.roas_objetivo
-        """, (inicio_iso,fim_iso,inicio_iso,fim_iso,hoje.isoformat(),
+        """, (hoje.isoformat(),inicio_iso,fim_iso,inicio_iso,fim_iso,hoje.isoformat(),
               hoje.isoformat(),ontem,ontem,ontem,
               cid,min(inicio_iso,ontem),max(fim_iso,hoje.isoformat())))
     alertas_orcamento, alertas_risco, alertas_roas, alertas_sem_venda = [], [], [], []
@@ -3204,7 +3206,7 @@ def painel_ads(cid):
         detalhe = "/ads/" + str(cid) + "/campanha/" + quote(camp_id, safe="")
         url_segura = esc(detalhe, quote=True)
         budget_row = budget_by_id.get(camp_id, {})
-        budget_html = budget_progress(budget_row.get("orcamento"), budget_row.get("gasto_hoje"), budget_row.get("hoje_atualizado"), time.time())
+        budget_html = budget_progress(budget_row.get("orcamento"), budget_row.get("gasto_hoje"), budget_row.get("hoje_atualizado"), time.time(), budget_row.get("esgotado_em"))
         tacos_campanhas_html += (
             "<tr class='kc-campaign-row' tabindex='0' role='link' data-href='"
             + url_segura + "' aria-label='Abrir campanha " + esc(nome,quote=True) + "'>"
@@ -5283,6 +5285,11 @@ def puxar_ads(conexao_id, token, user_id, refresh_range=None):
     with banco() as conn:
         for camp_id, g, f, metricas in linhas:
             save_day(conn, executar, conexao_id, camp_id, hoje, g, f, metricas, agora)
+            executar(conn, """INSERT INTO ads_orcamento_esgotado(conexao_id,campanha_id,data,detectado_em)
+                SELECT %s,%s,%s,%s FROM ads_campanhas WHERE conexao_id=%s AND campanha_id=%s
+                AND orcamento>0 AND %s>=orcamento
+                ON CONFLICT(conexao_id,campanha_id,data) DO NOTHING""",
+                (conexao_id,str(camp_id),hoje,agora,conexao_id,str(camp_id),g))
         executar(conn,
                  """INSERT INTO ads_dia
                     (conexao_id, data, gasto, faturamento, impressoes,
