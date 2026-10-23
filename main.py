@@ -4534,12 +4534,14 @@ def painel_ia_keiper(cid):
         if not lojas:
             return 'Loja não encontrada', 404
         runs = consultar(conn, '''SELECT day,status,result,api_status FROM keiper_ai_runs
-            WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
+            WHERE conexao_id=%s ORDER BY day DESC LIMIT 30''', (cid,))
         budget = budget_status(conn, consultar) if session.get('tipo') == 'admin' else None
     run = runs[0] if runs else {}
     corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget)
     if run.get('status') in ('running', 'rules_ready'):
         corpo += "<p>Execução em andamento ou interrompida. A próxima análise ocorrerá no próximo dia de serviço ativo.</p>"
+    from kyra_history import render_history
+    corpo += render_history(runs)
     return pagina_loja('KYRA', cid, lojas[0]['cliente'], 'ia', corpo)
 
 
