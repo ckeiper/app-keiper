@@ -4,7 +4,7 @@ from html import escape
 from ads_official_metrics import value
 
 STYLE = """<style>
-.k-camp .kw-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:15px}
+.k-camp .kw-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:15px}
 .k-camp .kw-card{min-width:0;border:1px solid #dfe8f5;border-radius:14px;padding:15px;background:linear-gradient(155deg,#f9fbff,#fff)}
 .k-camp .kw-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .k-camp .kw-title{font-weight:800;font-size:12px;color:#24395a}
@@ -18,7 +18,7 @@ STYLE = """<style>
 .k-camp .kw-track{height:9px;border-radius:8px;background:#e8eef6;overflow:hidden}
 .k-camp .kw-fill{height:100%;border-radius:8px;background:#8fa5c2}
 .k-camp .kw-fill.current{background:linear-gradient(90deg,#24b4c2,#178b9d)}
-.k-camp .kw-ratios{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.k-camp .kw-ratios{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
 .k-camp .kw-ratio{padding:13px 15px;border:1px solid #e1e9f5;border-radius:12px;background:#f8faff}
 .k-camp .kw-ratio strong{display:block;font-size:12px;color:#233956;margin-bottom:8px}
 .k-camp .kw-ratio-line{display:flex;gap:12px;justify-content:space-between;font-size:12px;color:#657995;flex-wrap:wrap}
@@ -42,12 +42,15 @@ def render_weekly(history,today):
         spent=sum(float(r.get("gasto") or 0) for r in rows)
         revenue=sum(float(r.get("faturamento") or 0) for r in rows)
         sales=[value(r,"vendas_atribuidas",integer=True) for r in rows]
-        return {"spent":spent,"revenue":revenue,"sales":sum(sales) if all(v is not None for v in sales) else None,
+        organic=[value(r,"faturamento_sem_ads") for r in rows]
+        organic_sum=sum(organic) if all(v is not None for v in organic) else None
+        combined=revenue+organic_sum if organic_sum is not None else None
+        return {"spent":spent,"revenue":revenue,"organic":organic_sum,"tacos":100*spent/combined if combined is not None and combined>0 else None,"sales":sum(sales) if all(v is not None for v in sales) else None,
                 "roas":revenue/spent if spent else None,"acos":spent/revenue*100 if revenue else None}
     old,now=map(total,weeks)
     def fmt(key,v):
         if v is None:return "—"
-        if key in ("spent","revenue"):return money(v)
+        if key in ("spent","revenue","organic"):return money(v)
         if key=="sales":return str(int(v))
         return num(v)+("x" if key=="roas" else "%")
     def delta(key):
@@ -55,13 +58,13 @@ def render_weekly(history,today):
         if a is None or b is None or a<=0:return "<span class='kw-delta'>—</span>"
         change=(b/a-1)*100
         positive=change>0
-        good=(positive and key in ("sales","revenue","roas")) or (change<0 and key=="acos")
+        good=(positive and key in ("sales","revenue","roas")) or (change<0 and key in ("acos","tacos"))
         bad=(change<0 and key in ("sales","revenue","roas")) or (positive and key=="acos")
         klass="good" if good else "bad" if bad else ""
         arrow="↗" if positive else "↘" if change<0 else "→"
         return "<span class='kw-delta "+klass+"'>"+arrow+" "+("+" if positive else "")+num(change)+"%</span>"
     out+="<div class='kw-grid'>"
-    for label,key in (("Vendas Ads","sales"),("Faturamento Ads","revenue"),("Investimento","spent")):
+    for label,key in (("Vendas Ads","sales"),("Faturamento Ads","revenue"),("Faturamento orgânico","organic"),("Investimento","spent")):
         out+="<article class='kw-card'><div class='kw-top'><span class='kw-title'>"+escape(label)+"</span>"+delta(key)+"</div>"
         a,b=old[key],now[key]
         if a is None or b is None:
@@ -73,6 +76,6 @@ def render_weekly(history,today):
                 out+="<div class='kw-row'><span class='kw-label'>"+title+"</span><div class='kw-track'><div class='kw-fill "+klass+"' style='width:"+str(width)+"%'></div></div><span class='kw-value'>"+fmt(key,amount)+"</span></div>"
         out+="</article>"
     out+="</div><div class='kw-ratios'>"
-    for label,key in (("ROAS","roas"),("ACOS","acos")):
+    for label,key in (("ROAS","roas"),("ACOS","acos"),("TACOS","tacos")):
         out+="<div class='kw-ratio'><div class='kw-top'><strong>"+label+"</strong>"+delta(key)+"</div><div class='kw-ratio-line'><span>Anterior: <b>"+fmt(key,old[key])+"</b></span><span>Atual: <b>"+fmt(key,now[key])+"</b></span></div></div>"
     return out+"</div><p class='kc-sub'>Barras cinzas: semana anterior · Verde-água: semana atual. Investimento maior não significa necessariamente melhora; avalie junto ao ROAS.</p></section>"
