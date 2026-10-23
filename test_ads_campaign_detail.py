@@ -53,7 +53,7 @@ class CampaignDetailTests(unittest.TestCase):
         html=render(7,campaign,[{"data":today.isoformat(),"gasto":10,"faturamento":20}],7,today)
         self.assertIn("TACOS da campanha",html)
         self.assertIn("Vendas totais da loja ainda não validadas",html)
-        self.assertIn("Cobertura diária incompleta",html)
+        self.assertIn("Comparação indisponível: histórico diário incompleto",html)
         self.assertIn("Campanha",html)
 
     def test_escapes_campaign_label_and_preserves_navigation(self):
@@ -69,7 +69,7 @@ class CampaignDetailTests(unittest.TestCase):
         campaign={"campanha_id":"10","nome":"Teste","status":"active"}
         rows=[{"data":(today-timedelta(days=i)).isoformat(),"gasto":10,"faturamento":20} for i in range(14)]
         html=render(7,campaign,rows,7,today)
-        self.assertNotIn("Cobertura diária incompleta",html)
+        self.assertNotIn("Comparação indisponível: histórico diário incompleto",html)
         self.assertIn("vs. período anterior",html)
 
 if __name__=="__main__":
