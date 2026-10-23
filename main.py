@@ -4536,13 +4536,15 @@ def painel_ia_keiper(cid):
             return 'Loja não encontrada', 404
         runs = consultar(conn, '''SELECT day,status,result,api_status FROM keiper_ai_runs
             WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
+        campaign_runs = consultar(conn, '''SELECT day,status,result FROM keiper_ai_campaign_runs
+            WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
         budget = budget_status(conn, consultar) if session.get('tipo') == 'admin' else None
         result = runs[0].get('result') if runs else None
         daily = consultar(conn, '''SELECT data,gasto,faturamento FROM ads_dia
             WHERE conexao_id=%s AND data BETWEEN %s AND %s ORDER BY data''',
             (cid, result['previous_start'], result['end'])) if result else []
     run = runs[0] if runs else {}
-    corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget, cid=cid, daily=daily)
+    corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget, cid=cid, daily=daily, campaign_run=campaign_runs[0] if campaign_runs else None)
     if run.get('status') in ('running', 'rules_ready'):
         corpo += "<p>Execução em andamento ou interrompida. A próxima análise ocorrerá no próximo dia de serviço ativo.</p>"
     return pagina_loja('KYRA', cid, lojas[0]['cliente'], 'ia', corpo)
@@ -5848,7 +5850,18 @@ def job_keiper_ai():
         app.logger.warning('keiper_ai_daily_unavailable')
 
 
+def job_kyra_campaigns():
+    try:
+        from kyra_campaign_store import run_one
+        run_one(banco, consultar, executar, app.logger)
+    except Exception:
+        app.logger.warning('kyra_campaign_daily_unavailable')
+
+
 scheduler = BackgroundScheduler()
+scheduler.add_job(job_kyra_campaigns, 'interval', minutes=1,
+                  next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30),
+                  id='kyra_campaign_daily', max_instances=1, coalesce=True)
 scheduler.add_job(job_keiper_ai, 'interval', minutes=1,
                   id='keiper_ai_daily', max_instances=1, coalesce=True)
 scheduler.add_job(job_token_encryption, "interval", minutes=1,
@@ -5870,3 +5883,4 @@ scheduler.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+

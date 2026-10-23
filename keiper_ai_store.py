@@ -24,6 +24,8 @@ def init_schema(conn, execute):
         input_tokens INTEGER, output_tokens INTEGER, status TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now())''')
     execute(conn, 'CREATE INDEX IF NOT EXISTS keiper_ai_usage_month ON keiper_ai_usage(month)')
+    from kyra_campaign_store import init_schema as init_campaign_schema
+    init_campaign_schema(conn, execute)
 
 
 def run_one(banco, query, execute, logger, now=None):
