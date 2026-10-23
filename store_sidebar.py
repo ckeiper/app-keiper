@@ -28,6 +28,7 @@ def render_store_sidebar(cid, cliente, secao, admin=False):
     nav=link('Todas as lojas','/painel','m14 6-6 6 6 6M8 12h13')
     items={item[0]:item for item in ITEMS}
     nav+=link('Visão geral','/painel/'+cid,items['resumo'][3],secao=='resumo')
+    nav+=link('IA Keiper','/ia-keiper/'+cid,items['prioridades'][3],secao=='ia')
     groups=[('anuncios','Anúncios',['anuncios','desempenho','promocoes']),
             ('vendas','Vendas',['vendas','full','auditoria_frete']),
             ('ads','Publicidade',['ads']),
