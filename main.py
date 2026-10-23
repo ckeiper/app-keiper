@@ -2993,7 +2993,7 @@ def painel_ads(cid):
             SELECT d.campanha_id,
                 COALESCE(NULLIF(c.nome,''), 'Campanha ' || d.campanha_id) AS nome,
                 c.status, c.orcamento, c.roas_objetivo,
-                (SELECT e.detectado_em FROM ads_orcamento_esgotado e WHERE e.conexao_id=d.conexao_id AND e.campanha_id=d.campanha_id AND e.data=%s) AS esgotado_em,
+                MAX(e.detectado_em) AS esgotado_em,
                 COALESCE(SUM(d.gasto) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS gasto_periodo,
                 COALESCE(SUM(d.faturamento) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS fat_periodo,
                 COALESCE(SUM(d.gasto) FILTER (WHERE d.data=%s),0) AS gasto_hoje,
@@ -3003,6 +3003,7 @@ def painel_ads(cid):
                 COUNT(*) FILTER (WHERE d.data=%s) AS tem_ontem
             FROM ads_campanha_dia d
             LEFT JOIN ads_campanhas c ON c.conexao_id=d.conexao_id AND c.campanha_id=d.campanha_id
+            LEFT JOIN ads_orcamento_esgotado e ON e.conexao_id=d.conexao_id AND e.campanha_id=d.campanha_id AND e.data=%s
             WHERE d.conexao_id=%s AND d.data BETWEEN %s AND %s
             GROUP BY d.campanha_id,c.nome,c.status,c.orcamento,c.roas_objetivo
         """, (hoje.isoformat(),inicio_iso,fim_iso,inicio_iso,fim_iso,hoje.isoformat(),
