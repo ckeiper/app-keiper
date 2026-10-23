@@ -41,7 +41,7 @@ def daily_chart(rows):
     return """<section class='card'><h3>Evolução diária</h3><p class='muted'>Faturamento atribuído e investimento em reais, nos dias com registros.</p><div class='grafico-box'><canvas id='ads-historico' role='img' aria-label='Evolução diária do faturamento atribuído e investimento em reais'></canvas></div>
 <script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script><script>(function(){if(typeof Chart==='undefined')return;var currency=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});new Chart(document.getElementById('ads-historico'),{type:'line',data:{labels:"""+json.dumps(labels)+",datasets:"+json.dumps(datasets)+"""},options:{locale:'pt-BR',responsive:true,maintainAspectRatio:false,animation:matchMedia('(prefers-reduced-motion:reduce)').matches?false:{duration:350},interaction:{intersect:false,mode:'index'},plugins:{legend:{position:'bottom',align:'start',labels:{usePointStyle:true,boxWidth:8,padding:20,color:'#657c9d',font:{size:11}}},tooltip:{backgroundColor:'#14243b',cornerRadius:10,padding:13,callbacks:{label:function(c){return c.dataset.label+': '+currency.format(c.parsed.y)}}}},scales:{x:{grid:{display:false},border:{display:false},ticks:{maxRotation:0,maxTicksLimit:7,color:'#8193ad',font:{size:10}}},y:{beginAtZero:true,border:{display:false},grid:{color:'#edf1f7'},ticks:{maxTicksLimit:5,color:'#8193ad',font:{size:10},callback:function(v){return currency.format(v)}}}}}});})();</script></section>"""
 
-def budget_progress(budget, spent, updated, now_ts):
+def budget_progress(budget, spent, updated, now_ts, exhausted_at=None):
     """Show observed daily spend only when the snapshot is recent."""
     import math
     try:
@@ -54,8 +54,17 @@ def budget_progress(budget, spent, updated, now_ts):
     tone = '#dc646d' if percent >= 100 else '#e2a646' if percent >= 80 else '#2da99d'
     width = min(100, round(percent, 1))
     label = ('%.0f%%' % percent)
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    exhausted_label = ""
+    if percent >= 100 and exhausted_at is not None:
+        try:
+            stamp = datetime.fromtimestamp(int(exhausted_at), ZoneInfo("America/Sao_Paulo")).strftime("%Hh%M")
+            exhausted_label = "<small>Limite detectado às "+stamp+"</small>"
+        except (ValueError, TypeError, OverflowError, OSError):
+            pass
     return ("<div class='ka-budget-mini' title='Gasto de hoje / orçamento diário'>"
             "<div class='ka-budget-head'><span>Orçamento hoje</span><b style='color:"+tone+"'>"+label+"</b></div>"
             "<div class='ka-budget-track' role='progressbar' aria-label='Consumo do orçamento diário' aria-valuemin='0' aria-valuemax='100' aria-valuenow='"+str(round(width))+"'>"
             "<span style='width:"+str(width)+"%;background:"+tone+"'></span></div>"
-            "<small>R$ "+format(spent,'.2f').replace('.',',')+" / R$ "+format(budget,'.2f').replace('.',',')+"</small></div>")
+            "<small>R$ "+format(spent,'.2f').replace('.',',')+" / R$ "+format(budget,'.2f').replace('.',',')+"</small>"+exhausted_label+"</div>")
