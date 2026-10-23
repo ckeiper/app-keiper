@@ -22,14 +22,8 @@ def render_client_home(shops, admin=False):
             "</a><button type='button' class='kh-more' aria-label='Opções de " + name + "' aria-expanded='false'>⋯</button>"
             "<div class='kh-menu' hidden><button type='button' data-act='rename'>Renomear</button>"
             "<a href='/excluir/" + str(cid) + "' class='kh-danger'>Excluir loja…</a></div>"
-            "<div class='kh-alerts' aria-live='polite'><span class='kh-alert-muted'>Atualizando Ads…</span></div></article>"
+            "<div class='kh-alerts' aria-live='polite'></div></article>"
         )
-    actions = ""  # The global page header already contains Conectar loja.
-    management = ("<nav class='kh-links' aria-label='Administração'>"
-                  "<a href='/crm'>CRM e leads</a><a href='/usuarios'>Usuários</a>"
-                  "<a href='/diagnostico'>Diagnóstico</a>"
-                  "<a href='/painel/analise'>Relatórios consolidados</a><a href='/prioridades'>Central de prioridades</a></nav>"
-                  if admin else "")
     empty = ("<div class='kh-empty'>Nenhuma loja disponível. "
              + ("Conecte a primeira loja para começar." if admin else "Contate o administrador.")
              + "</div>") if not cards else ""
@@ -39,7 +33,7 @@ def render_client_home(shops, admin=False):
 .kh-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:0 0 28px;padding:8px 0 20px;border-bottom:1px solid #e4eaf3}
 .kh-eyebrow{color:#5479bd;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
 .kh-home h2{font-size:clamp(30px,4vw,40px);line-height:1.15;letter-spacing:-1.35px;margin:9px 0 8px;font-weight:800;color:#172947}
-.kh-description{font-size:14px;color:#74839b;margin:0;line-height:1.5}
+.kh-ads-status{font-size:12px;color:#a4b6d0;margin:0 0 8px auto;line-height:1.5;text-align:right}.kh-alerts:empty{display:none}
 .kh-count{font-size:12px;color:#657892;white-space:nowrap;font-weight:750;background:#eaf0f8;border:1px solid #dce5f1;padding:9px 12px;border-radius:25px}
 .kh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:17px;align-items:stretch}
 .kh-store{position:relative;display:flex;flex-direction:column;align-items:stretch;min-width:0;min-height:104px;background:linear-gradient(145deg,#fff 0%,#fbfdff 100%);border:1px solid #dfe7f2;border-radius:17px;box-shadow:0 3px 7px #18335107,0 12px 29px #18335105;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;overflow:visible}
@@ -59,8 +53,6 @@ def render_client_home(shops, admin=False):
 .kh-menu{position:absolute;right:9px;top:48px;z-index:10;background:#fff;border:1px solid #d9e4f2;border-radius:12px;box-shadow:0 18px 40px #12274430;padding:5px;min-width:180px}
 .kh-menu[hidden]{display:none}.kh-menu button,.kh-menu a{width:100%;box-sizing:border-box;display:block;text-align:left;background:transparent;border:0;padding:11px;border-radius:8px;color:#253954;font:inherit;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer}
 .kh-menu button:hover,.kh-menu a:hover{background:#edf3fc}.kh-menu .kh-danger{color:#bd3642}
-.kh-links{display:flex;gap:9px 22px;flex-wrap:wrap;border-top:1px solid #e2e9f2;margin-top:34px;padding:23px 0 0}
-.kh-links a{color:#4e6d98;text-decoration:none;font-size:13px;font-weight:650}.kh-links a:hover{text-decoration:underline;color:#2859a7}
 .kh-empty{padding:38px;background:#fff;border:1px dashed #d5e1f0;border-radius:16px;color:#72839b}
 .kh-alerts{border-top:1px solid #e4eaf3;padding:11px 16px;font-size:12px;line-height:1.5;overflow-wrap:anywhere}.kh-alerts a{color:inherit;text-decoration:none;display:block}.kh-alerts a:hover{text-decoration:underline}.kh-alerts a:focus-visible{outline:3px solid #4b87eb;outline-offset:2px}.kh-alerts .critical{color:#b83240}.kh-alerts .warning{color:#966017}.kh-alerts .good{color:#14764e}.kh-alert-muted{color:#738197}.kh-alert-more{font-size:11px;margin-top:5px;color:#526b91!important}
 body:has(.kh-home) .kh-alerts{border-color:#2d425e}body:has(.kh-home) .kh-alerts .critical{color:#ff98a5}body:has(.kh-home) .kh-alerts .warning{color:#f5c783}body:has(.kh-home) .kh-alerts .good{color:#72dfb5}body:has(.kh-home) .kh-alert-muted{color:#a4b6d0}body:has(.kh-home) .kh-alert-more{color:#aac8f6!important}.kh-alerts button{background:transparent;border:1px solid #526b91;border-radius:7px;padding:7px;text-align:left;font:inherit;cursor:pointer}
@@ -68,14 +60,22 @@ body:has(.kh-home) .kh-alerts{border-color:#2d425e}body:has(.kh-home) .kh-alerts
 @media(prefers-reduced-motion:reduce){.kh-store,.kh-more{transition:none}.kh-store:hover{transform:none}}
 </style><main class='kh-home'>
 <section class='kh-head'><div><div class='kh-eyebrow'>Keiper · Workspace</div>
-<h2>Suas lojas <span class='kh-count' id='kh-count'>""" + count + """</span></h2><p class='kh-description'>Escolha um cliente para abrir seu painel.</p></div>""" + actions + """</section>
-<section id='kh-grid' class='kh-grid' aria-label='Lojas conectadas'>""" + "".join(cards) + """</section>""" + empty + management + """</main>
+<h2>Suas lojas <span class='kh-count' id='kh-count'>""" + count + """</span></h2></div><p class='kh-ads-status' id='kh-ads-status' role='status'>Atualizando Ads…</p></section>
+<section id='kh-grid' class='kh-grid' aria-label='Lojas conectadas'>""" + "".join(cards) + """</section>""" + empty + """</main>
 <script>
 (function(){
 const cards=[...document.querySelectorAll('#kh-grid .kh-store')];
 const grid=document.getElementById('kh-grid');
 // Load with bounded concurrency so a portfolio does not flood the database.
-let alertIndex=0;
+let alertIndex=0,finished=0,failures=0,lastUpdated=0;
+const adsStatus=document.getElementById('kh-ads-status');
+function updateAdsStatus(){
+ if(finished<cards.length){adsStatus.textContent='Atualizando Ads… '+finished+'/'+cards.length;return;}
+ if(!cards.length){adsStatus.textContent='';return;}
+ const time=lastUpdated?new Date(lastUpdated*1000).toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'}):'';
+ adsStatus.textContent=failures?(time?'Ads atualizados parcialmente às '+time:'Não foi possível atualizar os Ads'):'Ads atualizados às '+time;
+}
+updateAdsStatus();
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 async function refreshAds(id){
@@ -94,8 +94,8 @@ async function loadAlerts(){while(alertIndex<cards.length){
  try{const state=await refreshAds(card.dataset.id);const response=await fetch('/painel/alertas/'+encodeURIComponent(card.dataset.id),{credentials:'same-origin',cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();box.replaceChildren();
  if(data.alerts.length){const first=data.alerts[0];link(first.label,data.url+'#alert-'+first.code,first.severity);if(data.alerts.length>1)link('+'+(data.alerts.length-1)+(data.alerts.length===2?' alerta':' alertas'),data.url,'kh-alert-more');}
  else{link(data.known?'Nenhum alerta nos dados disponíveis':'Campanhas ainda não sincronizadas',data.url,'kh-alert-muted');}
- const updated=document.createElement('span');updated.className='kh-alert-muted';updated.style.display='block';updated.textContent='Ads atualizados às '+new Date(state.fim_em*1000).toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'});box.appendChild(updated);
- }catch(e){box.replaceChildren();const retry=document.createElement('button');retry.type='button';retry.textContent='Falha ao atualizar Ads · tentar novamente';retry.className='kh-alert-muted';retry.addEventListener('click',()=>location.reload());box.appendChild(retry);}
+ lastUpdated=Math.max(lastUpdated,Number(state.fim_em)||0);
+ }catch(e){failures++;box.replaceChildren();const retry=document.createElement('button');retry.type='button';retry.textContent='Falha ao atualizar Ads · tentar novamente';retry.className='kh-alert-muted';retry.addEventListener('click',()=>location.reload());box.appendChild(retry);}finally{finished++;updateAdsStatus();}
 }}
 Promise.all([loadAlerts(),loadAlerts()]);
 // Cards are server-rendered alphabetically and never reordered by performance.

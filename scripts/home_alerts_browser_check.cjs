@@ -34,7 +34,7 @@ const {chromium}=require('playwright');
    await page.getByText('3 campanhas sem orçamento disponível',{exact:true}).waitFor();
    assert.equal(posts,2);assert.equal(readBeforeComplete,false);
    assert.equal(await page.getByText('+1 alerta',{exact:true}).getAttribute('href'),'/painel/alertas/1/detalhes');
-   assert.equal(await page.getByText('Ads atualizados às',{exact:false}).count(),2);
+   assert.equal(await page.getByText('Ads atualizados às',{exact:false}).count(),1);
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
    await page.screenshot({path:'visual-qa/home-alerts-'+width+'.png',fullPage:true});
   }
