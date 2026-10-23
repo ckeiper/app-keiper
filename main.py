@@ -3006,8 +3006,8 @@ def painel_ads(cid):
             LEFT JOIN ads_orcamento_esgotado e ON e.conexao_id=d.conexao_id AND e.campanha_id=d.campanha_id AND e.data=%s
             WHERE d.conexao_id=%s AND d.data BETWEEN %s AND %s
             GROUP BY d.campanha_id,c.nome,c.status,c.orcamento,c.roas_objetivo
-        """, (hoje.isoformat(),inicio_iso,fim_iso,inicio_iso,fim_iso,hoje.isoformat(),
-              hoje.isoformat(),ontem,ontem,ontem,
+        """, (inicio_iso,fim_iso,inicio_iso,fim_iso,hoje.isoformat(),
+              hoje.isoformat(),ontem,ontem,ontem,hoje.isoformat(),
               cid,min(inicio_iso,ontem),max(fim_iso,hoje.isoformat())))
     alertas_orcamento, alertas_risco, alertas_roas, alertas_sem_venda = [], [], [], []
     campanhas_configuradas = sum(1 for camp in alert_rows if camp["status"] is not None)
