@@ -75,7 +75,12 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
     today_row=next((x for x in current if x["data"]==today.isoformat()),None)
     today_spent=float(today_row["gasto"] or 0) if today_row else None
     consumption=100*today_spent/budget if budget>0 and today_spent is not None else None
-    # Campaign TACOS uses attributed + organic revenue from the same campaign.\n    from ads_official_metrics import value as official_value\n    organic_values=[official_value(row,"faturamento_sem_ads") for row in current]\n    organic_revenue=sum(organic_values) if current and all(v is not None for v in organic_values) else None\n    total_revenue=m["revenue"]+organic_revenue if organic_revenue is not None else None\n    tacos=100*m["spent"]/total_revenue if total_revenue is not None and total_revenue>0 else None
+    # Campaign TACOS uses attributed + organic revenue from the same campaign.
+    from ads_official_metrics import value as official_value
+    organic_values=[official_value(row,"faturamento_sem_ads") for row in current]
+    organic_revenue=sum(organic_values) if current and all(v is not None for v in organic_values) else None
+    total_revenue=m["revenue"]+organic_revenue if organic_revenue is not None else None
+    tacos=100*m["spent"]/total_revenue if total_revenue is not None and total_revenue>0 else None
     def kpi(name,value,key,note=""):
         trend=""
         a=m.get(key)
