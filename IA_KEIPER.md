@@ -1,4 +1,6 @@
-# IA Keiper · primeira etapa
+# KYRA · primeira etapa
+
+KYRA é o nome **provisório** da IA proativa nível 2 do Dashboard Keiper, aguardando análise jurídica de marca. O nome não representa liberação ou registro de marca. Os nomes internos `keiper_ai_*`, a rota `/ia-keiper/<loja>` e as variáveis `KEIPER_AI_*` são mantidos para compatibilidade com armazenamento e configuração existentes.
 
 Regras determinísticas sobre dados já persistidos, sem coleta extra no Mercado Livre e sem alteração de campanhas. Compara sete dias encerrados com os sete anteriores (Brasília). Critérios v1: queda de receita ≥20% e R$100; pedidos ≥20% e cinco pedidos; ROAS ≥25% de queda com gasto ≥R$50 nos dois períodos; gasto ≥R$50 sem receita atribuída; TACOS +5 pontos com gasto ≥R$50. Receita de Ads tem janela de atribuição; evidências não estabelecem causalidade.
 

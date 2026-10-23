@@ -91,7 +91,8 @@ def evidence_text(evidence):
 
 
 def render(result, run_day=None, status=None, api_status=None, budget=None):
-    html = "<section class='card'><h2>IA Keiper · Recomendações do dia</h2>"
+    html = "<section class='card'><h2>KYRA · Recomendações do dia</h2>"
+    html += '<p>Nome provisório, aguardando análise jurídica de marca.</p>'
     html += '<p>Análise diária de dados existentes. Toda decisão exige revisão humana.</p>'
     if not result:
         return html + '<p>Análise ainda não disponível'+(' · '+escape(status) if status else '')+'.</p></section>'

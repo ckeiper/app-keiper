@@ -4490,7 +4490,7 @@ def painel_ia_keiper(cid):
     corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget)
     if run.get('status') in ('running', 'rules_ready'):
         corpo += "<p>Execução em andamento ou interrompida. A próxima análise ocorrerá no próximo dia de serviço ativo.</p>"
-    return pagina_loja('IA Keiper', cid, lojas[0]['cliente'], 'ia', corpo)
+    return pagina_loja('KYRA', cid, lojas[0]['cliente'], 'ia', corpo)
 
 
 @app.route("/painel/<int:cid>/operacao")
@@ -4740,7 +4740,7 @@ def painel_detalhe(cid):
              "'<p>Abra o ranking para consultar as quedas verificadas.</p>' +"
              "'<a href=\\'/ranking-anuncios/"+str(int(cid))+"?dias=7\\'>Ver ranking de anúncios</a></div>'})"
              "})();</script>") + corpo
-    corpo = ("<div class='card'><h3>IA Keiper</h3><p>Consulte as recomendações diárias e suas evidências.</p>"
+    corpo = ("<div class='card'><h3>KYRA</h3><p>Nome provisório, aguardando análise jurídica de marca.</p><p>Consulte as recomendações diárias e suas evidências.</p>"
              "<a href='/ia-keiper/"+str(int(cid))+"'>Ver recomendações</a></div>") + corpo
     return pagina_loja("Resumo", cid, c["cliente"], "resumo", corpo)
 @app.route("/atualizar/<tipo>/<int:cid>")
