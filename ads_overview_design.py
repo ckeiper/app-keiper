@@ -17,6 +17,7 @@ STYLE = """<style>
 .ka-ads .kc-campaigns .kc-campaign-table th{background:#f1f5fc;color:#7185a3;font-size:10px;text-transform:uppercase;padding:14px 12px}.ka-ads .kc-campaigns .kc-campaign-table td{padding:19px 12px}.ka-ads .kc-campaigns .kc-campaign-table td:nth-child(4){font-weight:800;color:#2c6e67}.ka-ads nav[aria-label^='Paginação']{font-size:11px;line-height:1.8;color:#7186a4;margin-top:15px}.ka-ads .grafico-box{height:300px;margin-top:24px;position:relative;min-width:0}.ka-ads .grafico-box canvas{max-width:100%}.ka-ads .aviso{background:#fff9ec;border-color:#f0dfbc;border-radius:11px;padding:13px;font-size:11px;color:#886d3b}.ka-ads table{font-variant-numeric:tabular-nums}.ka-ads table th{white-space:nowrap}
 @media(max-width:960px){.ka-hero{padding:24px}.ka-actions{width:100%}.ka-ads .stat .num{font-size:24px}}
 @media(max-width:640px){.ka-hero{padding:22px 18px;border-radius:16px;gap:15px}.ka-hero h2{font-size:25px}.ka-actions a{flex:1;text-align:center;padding:10px}.ka-ads .card{padding:17px}.ka-ads .ka-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.ka-ads .stat{padding:15px 12px}.ka-ads .stat .num{font-size:21px}.ka-ads .stat .lab{font-size:9px;letter-spacing:0}.ka-alert-grid{grid-template-columns:1fr}.ka-ads form>label{flex:1;min-width:115px}.ka-ads form>.btn{align-self:end}.ka-section-title{align-items:start}.ka-section-title span{max-width:100px;text-align:right}}
+.ka-ads .ka-budget-mini{margin-top:8px;max-width:210px;font-size:10px;color:#7186a4}.ka-ads .ka-budget-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:5px}.ka-ads .ka-budget-head b{font-weight:800}.ka-ads .ka-budget-track{height:6px;border-radius:8px;background:#e7edf6;overflow:hidden}.ka-ads .ka-budget-track span{display:block;height:100%;border-radius:8px}.ka-ads .ka-budget-mini small,.ka-ads .ka-budget-na{display:block;margin-top:5px;font-size:9px;color:#8b9ab0}
 </style>"""
 
 
@@ -39,3 +40,31 @@ def daily_chart(rows):
               dict(label='Investimento',data=[float(r['gasto'] or 0) for r in ordered],borderColor='#21a39d',borderDash=[5,4],tension=.3,borderWidth=2,pointRadius=0,pointHoverRadius=4)]
     return """<section class='card'><h3>Evolução diária</h3><p class='muted'>Faturamento atribuído e investimento em reais, nos dias com registros.</p><div class='grafico-box'><canvas id='ads-historico' role='img' aria-label='Evolução diária do faturamento atribuído e investimento em reais'></canvas></div>
 <script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script><script>(function(){if(typeof Chart==='undefined')return;var currency=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});new Chart(document.getElementById('ads-historico'),{type:'line',data:{labels:"""+json.dumps(labels)+",datasets:"+json.dumps(datasets)+"""},options:{locale:'pt-BR',responsive:true,maintainAspectRatio:false,animation:matchMedia('(prefers-reduced-motion:reduce)').matches?false:{duration:350},interaction:{intersect:false,mode:'index'},plugins:{legend:{position:'bottom',align:'start',labels:{usePointStyle:true,boxWidth:8,padding:20,color:'#657c9d',font:{size:11}}},tooltip:{backgroundColor:'#14243b',cornerRadius:10,padding:13,callbacks:{label:function(c){return c.dataset.label+': '+currency.format(c.parsed.y)}}}},scales:{x:{grid:{display:false},border:{display:false},ticks:{maxRotation:0,maxTicksLimit:7,color:'#8193ad',font:{size:10}}},y:{beginAtZero:true,border:{display:false},grid:{color:'#edf1f7'},ticks:{maxTicksLimit:5,color:'#8193ad',font:{size:10},callback:function(v){return currency.format(v)}}}}}});})();</script></section>"""
+
+def budget_progress(budget, spent, updated, now_ts, exhausted_at=None):
+    """Show observed daily spend only when the snapshot is recent."""
+    import math
+    try:
+        budget, spent, updated, now_ts = map(float, (budget, spent, updated, now_ts))
+    except (TypeError, ValueError, OverflowError):
+        return "<small class='ka-budget-na'>Consumo de hoje indisponível</small>"
+    if not all(map(math.isfinite, (budget, spent, updated, now_ts))) or budget <= 0 or spent < 0 or not 0 <= now_ts-updated <= 7200:
+        return "<small class='ka-budget-na'>Consumo de hoje indisponível</small>"
+    percent = spent / budget * 100
+    tone = '#dc646d' if percent >= 100 else '#e2a646' if percent >= 80 else '#2da99d'
+    width = min(100, round(percent, 1))
+    label = ('%.0f%%' % percent)
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    exhausted_label = ""
+    if percent >= 100 and exhausted_at is not None:
+        try:
+            stamp = datetime.fromtimestamp(int(exhausted_at), ZoneInfo("America/Sao_Paulo")).strftime("%Hh%M")
+            exhausted_label = "<small>Limite detectado às "+stamp+"</small>"
+        except (ValueError, TypeError, OverflowError, OSError):
+            pass
+    return ("<div class='ka-budget-mini' title='Gasto de hoje / orçamento diário'>"
+            "<div class='ka-budget-head'><span>Orçamento hoje</span><b style='color:"+tone+"'>"+label+"</b></div>"
+            "<div class='ka-budget-track' role='progressbar' aria-label='Consumo do orçamento diário' aria-valuemin='0' aria-valuemax='100' aria-valuenow='"+str(round(width))+"'>"
+            "<span style='width:"+str(width)+"%;background:"+tone+"'></span></div>"
+            "<small>R$ "+format(spent,'.2f').replace('.',',')+" / R$ "+format(budget,'.2f').replace('.',',')+"</small>"+exhausted_label+"</div>")
