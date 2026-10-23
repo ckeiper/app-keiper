@@ -52,9 +52,19 @@ class CampaignDetailTests(unittest.TestCase):
         campaign={"campanha_id":"C1","nome":"Teste","status":"active","orcamento":100,"roas_objetivo":5}
         html=render(7,campaign,[{"data":today.isoformat(),"gasto":10,"faturamento":20}],7,today)
         self.assertIn("TACOS da campanha",html)
-        self.assertIn("Vendas totais da loja ainda não validadas",html)
+        self.assertIn("Faturamento orgânico oficial indisponível",html)
         self.assertIn("Comparação indisponível: histórico diário incompleto",html)
         self.assertIn("Campanha",html)
+
+    def test_tacos_uses_attributed_plus_organic_revenue(self):
+        today=date(2026,10,20)
+        campaign={"campanha_id":"C1","nome":"Teste","status":"active"}
+        rows=[{"data":today.isoformat(),"gasto":10,"faturamento":100,
+               "faturamento_sem_ads":100}]
+        html=render(7,campaign,rows,1,today)
+        self.assertIn("TACOS da campanha</label><strong>5,00%",html)
+        self.assertIn("Faturamento orgânico</label><strong>R$ 100,00",html)
+        self.assertIn("Gasto ÷ (faturamento Ads + orgânico da campanha)",html)
 
     def test_escapes_campaign_label_and_preserves_navigation(self):
         today=date(2026,10,20)
