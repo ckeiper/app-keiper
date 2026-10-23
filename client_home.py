@@ -22,7 +22,7 @@ def render_client_home(shops, admin=False):
             "</a><button type='button' class='kh-more' aria-label='Opções de " + name + "' aria-expanded='false'>⋯</button>"
             "<div class='kh-menu' hidden><button type='button' data-act='rename'>Renomear</button>"
             "<a href='/excluir/" + str(cid) + "' class='kh-danger'>Excluir loja…</a></div>"
-            "</article>"
+            "<div class='kh-alerts' aria-live='polite'><span class='kh-alert-muted'>Atualizando Ads…</span></div></article>"
         )
     actions = ""  # The global page header already contains Conectar loja.
     management = ("<nav class='kh-links' aria-label='Administração'>"
@@ -62,6 +62,8 @@ def render_client_home(shops, admin=False):
 .kh-links{display:flex;gap:9px 22px;flex-wrap:wrap;border-top:1px solid #e2e9f2;margin-top:34px;padding:23px 0 0}
 .kh-links a{color:#4e6d98;text-decoration:none;font-size:13px;font-weight:650}.kh-links a:hover{text-decoration:underline;color:#2859a7}
 .kh-empty{padding:38px;background:#fff;border:1px dashed #d5e1f0;border-radius:16px;color:#72839b}
+.kh-alerts{border-top:1px solid #e4eaf3;padding:11px 16px;font-size:12px;line-height:1.5;overflow-wrap:anywhere}.kh-alerts a{color:inherit;text-decoration:none;display:block}.kh-alerts a:hover{text-decoration:underline}.kh-alerts a:focus-visible{outline:3px solid #4b87eb;outline-offset:2px}.kh-alerts .critical{color:#b83240}.kh-alerts .warning{color:#966017}.kh-alerts .good{color:#14764e}.kh-alert-muted{color:#738197}.kh-alert-more{font-size:11px;margin-top:5px;color:#526b91!important}
+body:has(.kh-home) .kh-alerts{border-color:#2d425e}body:has(.kh-home) .kh-alerts .critical{color:#ff98a5}body:has(.kh-home) .kh-alerts .warning{color:#f5c783}body:has(.kh-home) .kh-alerts .good{color:#72dfb5}body:has(.kh-home) .kh-alert-muted{color:#a4b6d0}body:has(.kh-home) .kh-alert-more{color:#aac8f6!important}.kh-alerts button{background:transparent;border:1px solid #526b91;border-radius:7px;padding:7px;text-align:left;font:inherit;cursor:pointer}
 @media(max-width:640px){.kh-home{padding:0 12px}.kh-grid{grid-template-columns:1fr;gap:12px}.kh-head{align-items:flex-start}.kh-store{min-height:96px}.kh-store-main{padding:18px 47px 18px 17px}.kh-store-icon{width:45px;height:45px}.kh-home h2{font-size:31px}.kh-head{margin-bottom:18px;padding-bottom:16px}}
 @media(prefers-reduced-motion:reduce){.kh-store,.kh-more{transition:none}.kh-store:hover{transform:none}}
 </style><main class='kh-home'>
@@ -72,6 +74,30 @@ def render_client_home(shops, admin=False):
 (function(){
 const cards=[...document.querySelectorAll('#kh-grid .kh-store')];
 const grid=document.getElementById('kh-grid');
+// Load with bounded concurrency so a portfolio does not flood the database.
+let alertIndex=0;
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+async function refreshAds(id){
+ const endpoint='/atualizacoes/'+encodeURIComponent(id)+'/ads?de='+today+'&ate='+today;
+ const response=await fetch(endpoint,{method:'POST',headers:{Accept:'application/json'}});
+ if(!response.ok)throw Error('refresh');const job=await response.json();
+ const deadline=Date.now()+600000;
+ while(Date.now()<deadline){await pause(1500);const r=await fetch(endpoint,{cache:'no-store',headers:{Accept:'application/json'}});if(!r.ok)throw Error('status');const state=await r.json();
+ if(state.id!==job.id)throw Error('changed');if(state.status==='concluida')return state;
+ if(!['aguardando','executando'].includes(state.status))throw Error('failed');}
+ throw Error('timeout');
+}
+async function loadAlerts(){while(alertIndex<cards.length){
+ const card=cards[alertIndex++],box=card.querySelector('.kh-alerts');
+ const link=(text,url,cls)=>{const a=document.createElement('a');a.textContent=text;a.href=url;a.className=cls;box.appendChild(a);};
+ try{const state=await refreshAds(card.dataset.id);const response=await fetch('/painel/alertas/'+encodeURIComponent(card.dataset.id),{credentials:'same-origin',cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();box.replaceChildren();
+ if(data.alerts.length){const first=data.alerts[0];link(first.label,data.url+'#alert-'+first.code,first.severity);if(data.alerts.length>1)link('+'+(data.alerts.length-1)+(data.alerts.length===2?' alerta':' alertas'),data.url,'kh-alert-more');}
+ else{link(data.known?'Nenhum alerta nos dados disponíveis':'Campanhas ainda não sincronizadas',data.url,'kh-alert-muted');}
+ const updated=document.createElement('span');updated.className='kh-alert-muted';updated.style.display='block';updated.textContent='Ads atualizados às '+new Date(state.fim_em*1000).toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'});box.appendChild(updated);
+ }catch(e){box.replaceChildren();const retry=document.createElement('button');retry.type='button';retry.textContent='Falha ao atualizar Ads · tentar novamente';retry.className='kh-alert-muted';retry.addEventListener('click',()=>location.reload());box.appendChild(retry);}
+}}
+Promise.all([loadAlerts(),loadAlerts()]);
 // Cards are server-rendered alphabetically and never reordered by performance.
 function closeMenus(){document.querySelectorAll('.kh-menu').forEach(m=>m.hidden=true);document.querySelectorAll('.kh-more').forEach(b=>b.setAttribute('aria-expanded','false'));}
 grid.addEventListener('click',async e=>{
