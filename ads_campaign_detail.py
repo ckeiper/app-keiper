@@ -143,6 +143,8 @@ scales:{x:{stacked:true,border:{display:false},grid:{display:false},ticks:{color
 y:{stacked:true,beginAtZero:true,border:{display:false},title:{display:true,text:'Vendas',color:'#7b8ca6'},grid:{color:'#e9eef6',drawTicks:false},ticks:{precision:0,color:'#7b8ca6',maxTicksLimit:5,padding:8,font:{size:10},callback:function(value){return quantity.format(value);}}},
 investment:{position:'right',beginAtZero:true,border:{display:false},title:{display:true,text:'Investimento (R$)',color:'#7b8ca6'},grid:{drawOnChartArea:false,drawTicks:false},ticks:{color:'#7b8ca6',maxTicksLimit:5,padding:8,font:{size:10},callback:function(value){return 'R$ '+compact.format(value);}}}}}});
 })();</script>"""
+    from ads_weekly_comparison import render_weekly
+    out+=render_weekly(history,today)
     from ads_change_history import display_history
     out+=display_history(changes or [])
     out+="<div class='kc-layout'><section class='kc-section'><h3>O que merece atenção</h3><p class='kc-sub'>Sugestões de investigação, não mudanças automáticas de orçamento ou meta.</p><div class='kc-tasks'>"
