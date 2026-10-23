@@ -796,6 +796,8 @@ def iniciar_banco():
         from section_refresh import init_schema as init_section_refresh
         init_section_refresh(conn, executar)
         init_overview_schema(conn, executar)
+        from keiper_ai_store import init_schema as init_keiper_ai
+        init_keiper_ai(conn, executar)
         init_crm_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro (
             usuario_id INTEGER PRIMARY KEY,
@@ -4469,6 +4471,28 @@ def var_html(hoje, ontem, fmt="R$"):
                 + " (" + br(pct, 1) + "%)</div>")
     return "<div class='var estavel'>— 0%</div>"
 
+@app.route('/ia-keiper/<int:cid>')
+@login_required
+def painel_ia_keiper(cid):
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito', 403
+    from contextlib import closing
+    from keiper_ai import render
+    from keiper_ai_budget import budget_status
+    with closing(banco()) as conn, conn:
+        lojas = consultar(conn, 'SELECT cliente FROM conexoes WHERE id=%s', (cid,))
+        if not lojas:
+            return 'Loja não encontrada', 404
+        runs = consultar(conn, '''SELECT day,status,result,api_status FROM keiper_ai_runs
+            WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
+        budget = budget_status(conn, consultar) if session.get('tipo') == 'admin' else None
+    run = runs[0] if runs else {}
+    corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget)
+    if run.get('status') in ('running', 'rules_ready'):
+        corpo += "<p>Execução em andamento ou interrompida. A próxima análise ocorrerá no próximo dia de serviço ativo.</p>"
+    return pagina_loja('KYRA', cid, lojas[0]['cliente'], 'ia', corpo)
+
+
 @app.route("/painel/<int:cid>/operacao")
 @login_required
 def painel_detalhe(cid):
@@ -4716,6 +4740,8 @@ def painel_detalhe(cid):
              "'<p>Abra o ranking para consultar as quedas verificadas.</p>' +"
              "'<a href=\\'/ranking-anuncios/"+str(int(cid))+"?dias=7\\'>Ver ranking de anúncios</a></div>'})"
              "})();</script>") + corpo
+    corpo = ("<div class='card'><h3>KYRA</h3><p>Nome provisório, aguardando análise jurídica de marca.</p><p>Consulte as recomendações diárias e suas evidências.</p>"
+             "<a href='/ia-keiper/"+str(int(cid))+"'>Ver recomendações</a></div>") + corpo
     return pagina_loja("Resumo", cid, c["cliente"], "resumo", corpo)
 @app.route("/atualizar/<tipo>/<int:cid>")
 @login_required
@@ -5757,7 +5783,17 @@ def job_token_encryption():
         app.logger.error("ml_token_encryption_failed")
 
 
+def job_keiper_ai():
+    try:
+        from keiper_ai_store import run_one
+        run_one(banco, consultar, executar, app.logger)
+    except Exception:
+        app.logger.warning('keiper_ai_daily_unavailable')
+
+
 scheduler = BackgroundScheduler()
+scheduler.add_job(job_keiper_ai, 'interval', minutes=1,
+                  id='keiper_ai_daily', max_instances=1, coalesce=True)
 scheduler.add_job(job_token_encryption, "interval", minutes=1,
                   next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=10),
                   max_instances=1, coalesce=True)
