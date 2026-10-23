@@ -532,7 +532,8 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
     cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>" + esc(str(cliente)) + "</div>"
     cab += "<a class='btn sair' href='/logout'>Sair</a></header>"
     cab += "<div class='wrap'><div class='layout'><main class='conteudo'>" + corpo
-    return cab + "</main></div></div>" + SCRIPT + "</body></html>"
+    from chart_personalization import CONTROLS as chart_controls
+    return cab + "</main></div></div>" + chart_controls + SCRIPT + "</body></html>"
 
 
 FUSO_BR = datetime.timezone(datetime.timedelta(hours=-3))
@@ -4520,8 +4521,12 @@ def painel_ia_keiper(cid):
         runs = consultar(conn, '''SELECT day,status,result,api_status FROM keiper_ai_runs
             WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
         budget = budget_status(conn, consultar) if session.get('tipo') == 'admin' else None
+        result = runs[0].get('result') if runs else None
+        daily = consultar(conn, '''SELECT data,gasto,faturamento FROM ads_dia
+            WHERE conexao_id=%s AND data BETWEEN %s AND %s ORDER BY data''',
+            (cid, result['previous_start'], result['end'])) if result else []
     run = runs[0] if runs else {}
-    corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget)
+    corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget, cid=cid, daily=daily)
     if run.get('status') in ('running', 'rules_ready'):
         corpo += "<p>Execução em andamento ou interrompida. A próxima análise ocorrerá no próximo dia de serviço ativo.</p>"
     return pagina_loja('KYRA', cid, lojas[0]['cliente'], 'ia', corpo)
@@ -5849,3 +5854,4 @@ scheduler.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+

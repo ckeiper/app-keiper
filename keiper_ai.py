@@ -90,24 +90,6 @@ def evidence_text(evidence):
                       for key,value in evidence.items())
 
 
-def render(result, run_day=None, status=None, api_status=None, budget=None):
-    html = "<section class='card'><h2>KYRA · Recomendações do dia</h2>"
-    html += '<p>Nome provisório, aguardando análise jurídica de marca.</p>'
-    html += '<p>Análise diária de dados existentes. Toda decisão exige revisão humana.</p>'
-    if not result:
-        return html + '<p>Análise ainda não disponível'+(' · '+escape(status) if status else '')+'.</p></section>'
-    html += '<p>Análise: '+escape(str(run_day))+' · Período: '+escape(result['start'])+' a '+escape(result['end'])
-    html += ' · Comparação: '+escape(result['previous_start'])+' a '+escape(result['previous_end'])+'</p>'
-    html += '<p>Qualidade: '+('com ressalvas' if result['quality'] else 'cobertura validada para as regras')+'</p>'
-    for item in result['recommendations']:
-        html += '<article><h3>'+escape(item['title'])+'</h3><p>'+escape(item['action'])+'</p>'
-        html += '<p>Evidências: '+escape(evidence_text(item['evidence']))+'</p></article>'
-    if not result['recommendations']:
-        html += '<p>Nenhuma anomalia atingiu os critérios nesta execução.</p>'
-    if result.get('interpretation'):
-        html += '<h3>Interpretação por IA · revisar</h3><p>'+escape(result['interpretation'])+'</p>'
-    html += '<p>API: '+escape(api_status or 'desabilitada')+'</p>'
-    if budget:
-        html += '<p>API no mês, todas as lojas: R$ '+escape(str(budget['used']))+' comprometidos de R$ '+escape(str(budget['limit']))+'. '
-        html += escape(budget['alert'])+' Valores estimados; não representam uma fatura fixa.</p>'
-    return html+'</section>'
+def render(result, run_day=None, status=None, api_status=None, budget=None, cid=None, daily=None):
+    from keiper_ai_view import render as render_observatory
+    return render_observatory(result, run_day, status, api_status, budget, cid, daily)
