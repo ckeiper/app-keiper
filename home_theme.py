@@ -64,4 +64,7 @@ body:has(.kh-home) .kh-health-item:hover{background:#203858;border-color:#557eb7
 body:has(.kh-home) .kh-health-item span{color:#ffb0ac}
 body:has(.kh-home) .kh-health-item small{color:#aac8f6}
 body:has(.kh-home) .kh-health-empty{color:#72dfb5}
+body:has(.kh-home) #kh-collection-health{max-width:1240px;margin:0 auto;padding:0 28px}
+body:has(.kh-home) #kh-collection-health .kh-health{max-width:none;margin:22px 0 32px}
+@media(max-width:640px){body:has(.kh-home) #kh-collection-health{padding:0 12px}body:has(.kh-home) #kh-collection-health .kh-health{margin:16px 0}}
 </style>"""
