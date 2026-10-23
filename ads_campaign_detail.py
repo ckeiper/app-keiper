@@ -167,14 +167,7 @@ investment:{position:'right',beginAtZero:true,border:{display:false},title:{disp
         suggestions.append(("good","Sem alerta crítico pelas regras atuais","Acompanhe ROAS, orçamento e margens. Ausência de alertas não garante lucro."))
     for typ,title,desc in suggestions:
         out+="<article class='kc-task "+typ+"'><strong>"+title+"</strong><p>"+desc+"</p></article>"
-    out+="</div></section><section class='kc-section'><h3>Comparação de períodos</h3><p class='kc-sub'>"+selected_start.strftime("%d/%m")+" a "+today.strftime("%d/%m")+" versus "+prev_start.strftime("%d/%m")+" a "+prev_end.strftime("%d/%m")+"</p>"
-    if not complete:
-        out+="<div class='kc-stale'>Cobertura diária incompleta em pelo menos um período. A comparação percentual fica indisponível para evitar conclusões enganosas.</div>"
-    out+="<table class='kc-table'><thead><tr><th>Indicador</th><th>Atual</th><th>Anterior</th></tr></thead><tbody>"
-    out+="<tr><td>Investimento</td><td>"+money(m["spent"])+"</td><td>"+(money(pm["spent"]) if complete else "—")+"</td></tr>"
-    out+="<tr><td>Faturamento Ads</td><td>"+money(m["revenue"])+"</td><td>"+(money(pm["revenue"]) if complete else "—")+"</td></tr>"
-    out+="<tr><td>ROAS</td><td>"+(num(m["roas"])+"x" if m["roas"] is not None else "—")+"</td><td>"+(num(pm["roas"])+"x" if complete and pm["roas"] is not None else "—")+"</td></tr></tbody></table>"
-    out+="<p class='kc-sub' style='margin-top:14px'>Histórico de mudanças de orçamento e meta ainda não é registrado. Não inferimos alterações a partir de resultados.</p></section></div></div>"
+    out+="</div></section></div></div>"
     return out
 
 
