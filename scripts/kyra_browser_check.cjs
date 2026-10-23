@@ -25,7 +25,12 @@ for(const width of [1440,820,390,320]){
  await page.locator('[data-ky-filter=quality]').click();assert.equal(await page.locator('.ky-finding:visible').count(),0);await page.locator('[data-filter-empty]').waitFor({state:'visible'});
  await page.locator('[data-ky-filter=all]').click();assert.equal(await page.locator('.ky-finding:visible').count(),3);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Overflow at '+width);
- if(width===1440){await page.locator('.ky-campaign-card').first().screenshot({path:'visual-qa/kyra-campaign-detail.png'});}
+ if(width===1440){
+  await page.locator('.ky-camp-bars').first().scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>document.querySelector('.ky-camp-bars').classList.contains('ky-visible'));
+  await page.waitForFunction(()=>document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).every(a=>a.playState==='finished'));
+  await page.locator('.ky-campaign-card').first().screenshot({path:'visual-qa/kyra-campaign-detail.png'});
+ }
  await page.locator('body').press('Control+Home');
  await page.waitForFunction(()=>document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).every(a=>a.playState==='finished'));
  await page.screenshot({path:'visual-qa/kyra-'+width+'.png',fullPage:true});
