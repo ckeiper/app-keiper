@@ -27,7 +27,18 @@ def preview(kind='ready'):
     if kind=='clean':
         result=dict(result, recommendations=[],quality=[])
     budget=dict(used=Decimal('0'),limit=Decimal('50'),alert='Dentro do limite.',blocked=False)
-    body="<p style='color:#a8b0c6;font-size:11px'>PRÉVIA DE DESIGN · DADOS FICTÍCIOS PARA TESTE</p>"+render(result,today,'completed' if result else None,'desabilitada',budget,cid=1,daily=rows)
+    from test_kyra_campaigns import CampaignRulesTests
+    campaign_fixture=CampaignRulesTests();campaign_fixture.setUp()
+    campaign_fixture.add('waste',revenue=0)
+    campaign_fixture.add('drop',revenue=600,old_revenue=1400)
+    campaign_fixture.add('scale',revenue=1500,old_revenue=1400,sales=5)
+    campaign_result=campaign_fixture.result()
+    if kind=='quality':
+        campaign_fixture.rows=[];campaign_result=campaign_fixture.result()
+    if kind=='clean':
+        campaign_result=dict(campaign_result,recommendations=[],flagged=0)
+    campaign_run=dict(day=today,status='completed',result=campaign_result) if kind!='empty' else None
+    body="<p style='color:#a8b0c6;font-size:11px'>PRÉVIA DE DESIGN · DADOS FICTÍCIOS PARA TESTE</p>"+render(result,today,'completed' if result else None,'desabilitada',budget,cid=1,daily=rows,campaign_run=campaign_run)
     tree=ast.parse(Path('main.py').read_text(encoding='utf-8'))
     css=next(ast.literal_eval(n.value) for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='CSS' for t in n.targets))
     env=dict(session={'tipo':'admin'},esc=html.escape,CSS=css,VISUAL_CSS=VISUAL_CSS,SCRIPT='',img_logo=lambda size:'')

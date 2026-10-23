@@ -25,6 +25,7 @@ on:
       - 'main.py'
       - 'keiper_ai*.py'
       - 'kyra_theme.py'
+      - 'kyra_campaign*.py'
       - 'chart_personalization.py'
       - 'scripts/kyra*'
       - 'test_management*.py'

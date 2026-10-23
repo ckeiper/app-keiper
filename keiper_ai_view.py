@@ -81,7 +81,7 @@ def chart(rows, end):
     return out+'</tbody></table></div></details>'
 
 
-def render(result, run_day=None, status=None, api_status=None, budget=None, cid=None, daily=None):
+def render(result, run_day=None, status=None, api_status=None, budget=None, cid=None, daily=None, campaign_run=None):
     from keiper_ai import evidence_text
     result = result or {}
     findings = result.get('recommendations', [])
@@ -94,12 +94,15 @@ def render(result, run_day=None, status=None, api_status=None, budget=None, cid=
     if cid:
         out += "<a class='ky-button secondary' href='/ads/"+cid+"'>Abrir publicidade <span aria-hidden='true'>↗</span></a>"
     out += "</div></div><div class='ky-orbit' aria-hidden='true'><svg viewBox='0 0 270 270'><circle cx='135' cy='135' r='125' fill='none' stroke='#baa0ff22' stroke-dasharray='2 8'/><ellipse cx='135' cy='135' rx='125' ry='77' fill='none' stroke='#bda3ff55' transform='rotate(-35 135 135)'/><circle class='ky-orbit-light' cx='238' cy='72' r='4' fill='#8ff2e1'/><circle cx='37' cy='207' r='3' fill='#c1a8ff'/><path d='M135 0v15M135 255v15M0 135h15M255 135h15' stroke='#c9b4ff66'/></svg><div class='ky-core'>K</div><span class='ky-orbit-caption'>OBSERVAR · ENTENDER · DECIDIR</span></div></header>"
-    out += "<nav class='ky-nav' aria-label='Seções da KYRA'><a href='#ky-overview'>Visão do dia</a><a href='#ky-signals'>Sinais de Ads</a><a href='#ky-recommendations'>Recomendações</a><a href='#ky-transparency'>Transparência</a></nav>"
+    out += "<nav class='ky-nav' aria-label='Seções da KYRA'><a href='#ky-overview'>Visão do dia</a><a href='#ky-signals'>Sinais de Ads</a><a href='#ky-campaigns'>Campanhas</a><a href='#ky-recommendations'>Sinais da loja</a><a href='#ky-transparency'>Transparência</a></nav>"
     out += "<section id='ky-overview' class='ky-section'><div class='ky-summary'><div class='ky-stat ky-reveal'><span class='ky-stat-label'>Prioridades identificadas</span><strong class='ky-purple'>"+str(len(findings)).zfill(2)+"</strong><small>Até três recomendações por análise</small></div><div class='ky-stat ky-reveal'><span class='ky-stat-label'>Qualidade dos dados</span><strong class='"+('ky-amber' if quality else 'ky-cyan')+"'>"+('Com ressalvas' if quality else ('Validada' if ready else 'Aguardando'))+"</strong><small>"+(str(len(quality))+' observações na análise' if quality else ('Para as regras desta execução' if ready else 'Sem classificação disponível'))+"</small></div><div class='ky-stat ky-reveal'><span class='ky-stat-label'>Última análise</span><strong>"+day(run_day)+"</strong><small>"+safe(run_label)+" · horário de Brasília</small></div></div></section>"
     out += "<section id='ky-signals' class='ky-section'><div class='ky-section-head'><div><p class='ky-overline'>01 / OBSERVAR</p><h2>O movimento por trás dos números</h2></div><span class='ky-tag'>HISTÓRICO ADS</span></div><div class='ky-main-grid'><div class='ky-panel'><div class='ky-panel-top'><h3>Receita × investimento</h3><span class='ky-muted'>7 dias encerrados</span></div>"+chart(daily or [], result.get('end'))+"</div><aside class='ky-panel'><p class='ky-overline'>ANTES DE DECIDIR</p><h3 class='ky-quality-title'>"+('Dados pedem atenção.' if quality else ('Base pronta para leitura.' if ready else 'Esperando o primeiro sinal.'))+"</h3><p class='ky-muted'>"+('A KYRA limita conclusões quando a base não sustenta uma comparação.' if quality else ('Cobertura validada para as regras da análise, sem garantia de resultado futuro.' if ready else 'A rotina diária prepara as evidências, sem depender desta página aberta.'))+"</p><ul class='ky-quality-list'>"
     for index, reason in enumerate(quality):
         out += '<li><span>'+str(index+1).zfill(2)+'</span><span>'+safe(reason)+'</span></li>'
     out += "</ul><p class='ky-quality-foot'>Dados ausentes não viram zero. Evidências não comprovam causalidade.</p></aside></div></section>"
+    if cid is not None:
+        from kyra_campaign_view import render as render_campaigns
+        out += render_campaigns(campaign_run, cid)
     out += "<section id='ky-recommendations' class='ky-section'><div class='ky-section-head'><div><p class='ky-overline'>02 / ENTENDER</p><h2>Sua próxima investigação começa aqui</h2></div><span class='ky-muted'>"+str(len(findings))+" recomendações</span></div>"
     if findings:
         out += "<div class='ky-filters' role='group' aria-label='Filtrar recomendações'>"+''.join("<button type='button' data-ky-filter='"+key+"' aria-pressed='"+('true' if key=='all' else 'false')+"'>"+label+"</button>" for key,label in [('all','Todas'),('ads','Publicidade'),('sales','Vendas'),('quality','Qualidade')])+"</div><div class='ky-findings'>"
@@ -116,7 +119,7 @@ def render(result, run_day=None, status=None, api_status=None, budget=None, cid=
         out += "<div class='ky-panel'><h3>"+('Nenhuma anomalia atingiu os critérios.' if ready else 'Análise ainda não disponível.')+"</h3><p class='ky-muted'>"+('Não há recomendações adicionais apenas para preencher o painel.' if ready else safe(run_label)+'. A próxima análise depende da rotina diária e do serviço ativo.')+"</p></div>"
     if result.get('interpretation'):
         out += "<div class='ky-panel' style='margin-top:16px'><p class='ky-overline'>INTERPRETAÇÃO POR IA · REVISAR</p><p class='ky-interpretation'>"+safe(result['interpretation'])+"</p></div>"
-    out += "</section><section id='ky-transparency' class='ky-section ky-bottom'><div class='ky-panel'><p class='ky-overline'>03 / DECIDIR COM CONTEXTO</p><h3 style='margin-top:9px'>Duas janelas. Uma comparação justa.</h3><div class='ky-period-grid'><div class='ky-period'><span>Período analisado</span><b>"+day(result.get('start'))+' — '+day(result.get('end'))+"</b></div><div class='ky-period previous'><span>Período anterior</span><b>"+day(result.get('previous_start'))+' — '+day(result.get('previous_end'))+"</b></div></div><p class='ky-table-note'>Regras determinísticas sobre dados persistidos da loja. A leitura atual é agregada; não constitui diagnóstico individual de campanhas.</p></div><div class='ky-panel'><p class='ky-overline'>CONTROLE DE INTERPRETAÇÃO</p><h3 style='margin-top:9px'>Você mantém o comando.</h3><p class='ky-muted' style='margin-top:10px'>API: "+safe(api_status or 'desabilitada')+"</p>"
+    out += "</section><section id='ky-transparency' class='ky-section ky-bottom'><div class='ky-panel'><p class='ky-overline'>03 / DECIDIR COM CONTEXTO</p><h3 style='margin-top:9px'>Duas janelas. Uma comparação justa.</h3><div class='ky-period-grid'><div class='ky-period'><span>Período analisado</span><b>"+day(result.get('start'))+' — '+day(result.get('end'))+"</b></div><div class='ky-period previous'><span>Período anterior</span><b>"+day(result.get('previous_start'))+' — '+day(result.get('previous_end'))+"</b></div></div><p class='ky-table-note'>Regras determinísticas sobre dados persistidos da loja. Esta seção reúne os sinais agregados da loja. As campanhas possuem uma análise separada nesta página.</p></div><div class='ky-panel'><p class='ky-overline'>CONTROLE DE INTERPRETAÇÃO</p><h3 style='margin-top:9px'>Você mantém o comando.</h3><p class='ky-muted' style='margin-top:10px'>API: "+safe(api_status or 'desabilitada')+"</p>"
     if budget is not None:
         used, cap = Decimal(str(budget['used'])), Decimal(str(budget['limit']))
         percent = min(max(float(used/cap*100),0),100) if cap>0 else 100
@@ -125,3 +128,4 @@ def render(result, run_day=None, status=None, api_status=None, budget=None, cid=
         out += "<p class='ky-table-note'>Nenhuma campanha é alterada automaticamente. As recomendações precisam da sua avaliação.</p>"
     out += "</div></section><footer class='ky-footer'><strong>KYRA / KEIPER</strong><span>Nome provisório, aguardando análise jurídica de marca.</span><span>Análise diária · Toda decisão exige revisão humana.</span></footer></div>"
     return out+SCRIPT
+

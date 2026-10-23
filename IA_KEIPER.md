@@ -48,3 +48,24 @@ Avaliar primeiro continuidade do banco (upgrade e backup) e serviço sempre ativ
 ## Validação e publicação
 
 `python -m unittest -v` roda regras, orçamento e testes PostgreSQL/Flask (estes exigem `KEIPER_TEST_DATABASE_URL`, banco descartável). Workflow existente `Sales tests` executa a suíte completa com PostgreSQL no PR. Nunca usar banco de produção para testes. Não mergear/publicar com CI falho. Piloto após revisão: API desligada, conferir evidências por loja, confirmar persistência e dia seguinte, medir carga e só então avaliar interpretação paga. Rollback: desativar `KEIPER_AI_DAILY_ENABLED` e `KEIPER_AI_PAID_ENABLED`; tabelas/uso permanecem para auditoria.
+
+
+## Campanhas individuais · campaign-v1
+
+A seção Campanhas da KYRA armazena uma análise diária independente em `keiper_ai_campaign_runs`, com restrição única loja/dia. A rotina local processa uma loja por tick após 08h de Brasília, reutiliza o PostgreSQL e o agendador e compartilha a trava 880145 com o analisador agregado. Não coleta na API, não usa LLM, não altera campanhas e não repete falhas automaticamente no mesmo dia. Na implantação, pode analisar as campanhas do dia mesmo que o resumo agregado já esteja pronto, sem refazer a análise anterior ou sua chamada opcional.
+
+São avaliadas campanhas ativas no cadastro lido, com metadados observados nas últimas 24h e sem timestamp futuro. O período atual contém sete dias encerrados e o anterior os sete anteriores. Cada dia usado exige valores monetários não negativos e finitos, leitura após o fechamento e atualizada nos últimos sete dias. Duplicatas ou lacunas invalidam o dia; não há preenchimento por zero. O status atual não comprova que a campanha esteve ativa durante toda a janela.
+
+Uma investigação principal por campanha, com até três campanhas no ranking por loja, priorizadas por risco e depois gasto atual. Critérios v1:
+
+- Gasto sem receita: sete dias atuais válidos, investimento >=R$50 e receita Ads zero; não exige comparação anterior.
+- Queda de ROAS: dois períodos válidos, investimento >=R$50 em cada, ROAS anterior positivo e queda >=25%.
+- Abaixo da meta: período atual válido, investimento >=R$50 e ROAS <=80% da meta atual. A meta pode ter mudado no período; não se presume meta histórica.
+- TACOS: aumento >=5 pontos percentuais, gasto atual >=R$50 e receita orgânica oficial válida nos dois períodos. Usa exclusivamente faturamento Ads + orgânico dos anúncios da mesma campanha, nunca o faturamento da loja.
+- Potencial de escala: dois períodos válidos, gasto >=R$50 em cada, ROAS >=130% da meta atual, pelo menos cinco vendas atribuídas oficiais na janela atual e sem queda de ROAS superior a 10%. Exige validação humana de margem, estoque e capacidade antes de qualquer teste manual; não promete rentabilidade.
+
+Contagens oficiais e receita orgânica exigem cobertura própria e timestamp `metricas_vendas_coletadas_em` válido; sua ausência pode bloquear apenas a regra que depende delas. Receita atribuída ainda pode mudar com a janela de atribuição. As evidências mostram valores atuais/anteriores, meta atual, períodos, ressalvas e link para a campanha. A página individual da campanha mantém seus próprios filtros de período; os números da evidência diária referem-se exclusivamente às datas indicadas na KYRA.
+
+Leitura limitada a 500 campanhas cadastradas e 7.000 registros diários por loja, com timeout SQL de 15s por consulta. Ao atingir o limite, suprime o ranking para não apresentar prioridades de uma carteira parcial. GET da KYRA apenas lê o resultado persistido; aplica a mesma autorização por loja. O orçamento global de API permanece separado e não recebe gastos deste motor.
+
+`KEIPER_AI_CAMPAIGNS_ENABLED=false` interrompe novas análises de campanhas; `KEIPER_AI_DAILY_ENABLED=false` também interrompe esta rotina. Ambos habilitados por padrão apenas para processamento local após implantação. Não há backfill de dias desligados nem garantia de horário exato. As primeiras análises de campanhas podem aparecer gradualmente, uma loja por minuto.

@@ -12,15 +12,25 @@ for(const width of [1440,820,390,320]){
  await page.getByRole('heading',{name:'KYRA',exact:true}).waitFor();
  await page.waitForFunction(()=>document.querySelector('.kyra').dataset.kyraReady==='true');
  assert.equal(await page.locator('.ky-chart-pick').count(),3);
+ assert.equal(await page.locator('.ky-campaign-card').count(),3);
+ assert.ok((await page.locator('.ky-campaign-card').first().innerText()).includes('Investigar gasto sem receita atribuída'));
+ assert.equal(await page.locator('.ky-campaign-card a').first().getAttribute('href'),'/ads/1/campanha/waste');
+
  await page.locator('[data-series-toggle=spend]').click();await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-series=spend]')).display==='none');assert.equal(await page.locator('[data-series-toggle=spend]').getAttribute('aria-pressed'),'false');
  await page.locator('[data-series-toggle=spend]').click();await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-series=spend]')).display!=='none');assert.equal(await page.locator('[data-series-toggle=spend]').getAttribute('aria-pressed'),'true');
- await page.locator('.ky-plot').scrollIntoViewIfNeeded();
+ await page.locator('.ky-plot').first().scrollIntoViewIfNeeded();
  await page.waitForFunction(()=>document.querySelector('.ky-plot').classList.contains('ky-visible'));
  await page.locator('.ky-hit').first().focus();await page.locator('.ky-chart-tip').waitFor({state:'visible'});
  assert.ok((await page.locator('.ky-chart-tip').innerText()).includes('Receita Ads'));
  await page.locator('[data-ky-filter=quality]').click();assert.equal(await page.locator('.ky-finding:visible').count(),0);await page.locator('[data-filter-empty]').waitFor({state:'visible'});
  await page.locator('[data-ky-filter=all]').click();assert.equal(await page.locator('.ky-finding:visible').count(),3);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Overflow at '+width);
+ if(width===1440){
+  await page.locator('.ky-camp-bars').first().scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>document.querySelector('.ky-camp-bars').classList.contains('ky-visible'));
+  await page.waitForFunction(()=>document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).every(a=>a.playState==='finished'));
+  await page.locator('.ky-campaign-card').first().screenshot({path:'visual-qa/kyra-campaign-detail.png'});
+ }
  await page.locator('body').press('Control+Home');
  await page.waitForFunction(()=>document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).every(a=>a.playState==='finished'));
  await page.screenshot({path:'visual-qa/kyra-'+width+'.png',fullPage:true});
