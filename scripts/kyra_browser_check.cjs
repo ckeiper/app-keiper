@@ -10,9 +10,10 @@ const base='http://127.0.0.1:'+server.address().port;
 for(const width of [1440,820,390,320]){
  await page.setViewportSize({width,height:1000});await page.goto(base);
  await page.getByRole('heading',{name:'KYRA',exact:true}).waitFor();
+ await page.waitForFunction(()=>document.querySelector('.kyra').dataset.kyraReady==='true');
  assert.equal(await page.locator('.ky-chart-pick').count(),3);
- await page.locator('[data-series-toggle=spend]').click();assert.equal(await page.locator('[data-series=spend]').isVisible(),false);
- await page.locator('[data-series-toggle=spend]').click();assert.equal(await page.locator('[data-series=spend]').isVisible(),true);
+ await page.locator('[data-series-toggle=spend]').click();await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-series=spend]')).display==='none');assert.equal(await page.locator('[data-series-toggle=spend]').getAttribute('aria-pressed'),'false');
+ await page.locator('[data-series-toggle=spend]').click();await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-series=spend]')).display!=='none');assert.equal(await page.locator('[data-series-toggle=spend]').getAttribute('aria-pressed'),'true');
  await page.locator('.ky-plot').scrollIntoViewIfNeeded();
  await page.waitForFunction(()=>document.querySelector('.ky-plot').classList.contains('ky-visible'));
  await page.locator('.ky-hit').first().focus();await page.locator('.ky-chart-tip').waitFor({state:'visible'});

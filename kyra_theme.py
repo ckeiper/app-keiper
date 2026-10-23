@@ -18,6 +18,7 @@ body:has(.kyra) .layout{background:transparent}body:has(.kyra) .conteudo{backgro
 SCRIPT = """<script type='module'>
 const root=document.querySelector('.kyra');
 if(root){
+root.dataset.kyraReady='true';
 const plots=root.querySelectorAll('.ky-plot');
 if('IntersectionObserver' in window){const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('ky-visible');observer.unobserve(entry.target);}}),{threshold:.25});plots.forEach(plot=>observer.observe(plot));}else plots.forEach(plot=>plot.classList.add('ky-visible'));
 root.querySelectorAll('[data-series-toggle]').forEach(button=>button.addEventListener('click',()=>{const on=button.getAttribute('aria-pressed')!=='true';button.setAttribute('aria-pressed',String(on));root.querySelectorAll('[data-series="'+button.dataset.seriesToggle+'"]').forEach(el=>{el.hidden=!on;el.style.display=on?'':'none';});root.querySelectorAll('.ky-chart-tip').forEach(el=>el.hidden=true);}));
