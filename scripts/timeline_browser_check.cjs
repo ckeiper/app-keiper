@@ -28,6 +28,7 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator(':focus').getAttribute('name'),'comparar_linha');
   assert.ok(await page.getByText('Queda confirmada: R$ 245,00',{exact:true}).isVisible());
   assert.ok(await page.locator('.evidence-next').getByText('Verificar reposição no Full',{exact:false}).isVisible());
+  assert.equal(await page.locator('.evidence-panel').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
   assert.equal(await page.locator('.evidence-source').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(20, 41, 64)');
   assert.equal(await page.locator('.evidence-source h4').first().evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
   await page.locator('.evidence-jump').focus();
