@@ -3,7 +3,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from listing_priority_evidence import enrich_priorities
-from listing_priority_queue import prioritize
+from listing_priority_queue import prioritize, render
 from listing_priority_sources import listing_signals
 
 
@@ -56,6 +56,20 @@ class PriorityEvidenceTests(unittest.TestCase):
         listings = [{"item_id": "MLB1", "quantidade": 0, "atualizado_em": 1000}]
         signals = listing_signals(listings, {"available": True}, 7, now=30000)
         self.assertFalse(signals["MLB1"]["stock_verified"])
+
+    def test_render_verified_evidence_and_escapes_markup(self):
+        queue = {"available": True, "items": [{
+            "item_id": "MLB1", "loss": Decimal("20"), "pct": -10,
+            "reasons": [], "action": "Revisar anúncio",
+            "coverage": None, "expected": None,
+            "additional_findings": [{"evidence": "<script>ruim</script>",
+                                      "action": "Conferir reposição"}],
+            "data_limitations": ["margem"]}],
+            "total": 1, "loss": Decimal("20")}
+        html = render(queue, [{"item_id": "MLB1", "titulo": "Produto"}], 10)
+        self.assertIn("Conferir reposição", html)
+        self.assertIn("&lt;script&gt;", html)
+        self.assertNotIn("<script>ruim</script>", html)
 
     def test_unavailable_queue_unchanged(self):
         queue = {"available": False, "reason": "Sem cobertura", "items": []}
