@@ -171,4 +171,6 @@ def render(data,cid,item_id,end,days=7,args=None):
     href='/anuncios/%s/concorrencia?' % int(cid)+urlencode({'meu_anuncio':item_id})
     out+="<p><a class='btn-acoes cinza' href='%s'>Vincular concorrente</a></p>" % escape(href,quote=True)
     out+="<p class='muted'>Comparações de preço próprio exigem leituras confirmadas separadas por até seis horas. Full do concorrente indica modalidade logística, não quantidade em estoque. Datas são de detecção, não o horário exato da mudança.</p></section>"
+    from listing_competitiveness import render as render_competitiveness
+    out+=render_competitiveness(data,end,days)
     return out+"<style>.offer-investigation{overflow-wrap:anywhere}.offer-event{padding:14px;background:#f2f6fb;border-left:3px solid #258e94;border-radius:9px;margin:10px 0}.offer-event p{font-size:12px;line-height:1.6}.offer-investigation h4{margin-top:20px}.offer-filter{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:15px 0}.offer-filter label{display:grid;gap:5px}.offer-filter select{padding:9px;border:1px solid #dce4ef;border-radius:8px}</style>"
