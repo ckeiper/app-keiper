@@ -15,6 +15,7 @@ from sales_view import fmt
 STATUS={'':'Todos os status','active':'Ativos','paused':'Pausados','closed':'Encerrados'}
 READING={'':'Todas as leituras','recente':'Catálogo lido há até 6 horas','antiga':'Leitura com mais de 6 horas','desconhecida':'Data ausente ou inválida'}
 STOCK={'':'Todo estoque','zero':'Zerado','baixo':'1 a 3 unidades','disponivel':'Com estoque','desconhecido':'Não verificado'}
+CAMPAIGNS={'':'Todas as consultas de campanhas','valida':'Campanhas: consulta válida','pendente':'Campanhas: conferir consulta','inaplicavel':'Campanhas: não aplicáveis'}
 PROMO={'':'Todas as condições','sim':'Com promoção registrada','nao':'Sem promoção registrada'}
 LOGISTICS={'':'Toda logística','full':'Full','outros':'Outras modalidades','desconhecido':'Não verificada'}
 FOCUS={'':'Todos os anúncios','atencao':'Revisar status ou estoque','fotos':'Menos de 5 fotos','sem_clip':'Sem clip registrado','sem_custo':'Sem custo cadastrado'}
@@ -37,6 +38,18 @@ def quantity(value):
 def displayed_price(row):
     offer=effective_promotion(read_json(row.get('promocoes_json'),{}))
     return number(offer['price'] if offer else row.get('preco'))
+
+
+def campaign_reading(row,now):
+    snapshot=read_json(row.get('promocoes_json'),{})
+    if not isinstance(snapshot,dict):return 'pendente'
+    stamp=snapshot.get('checked_at')
+    if type(stamp) not in (int,float) or not 0<stamp<=now or now-stamp>7200:return 'pendente'
+    if snapshot.get('not_applicable'):
+        return 'inaplicavel' if row.get('status') in ('closed','under_review') else 'pendente'
+    if snapshot.get('error') or not isinstance(snapshot.get('promotions'),list):return 'pendente'
+    if any(not isinstance(p,dict) for p in snapshot['promotions']):return 'pendente'
+    return 'valida'
 
 
 def promotion(row):
@@ -65,6 +78,7 @@ def filter_catalog(rows,args,now=None):
     result=[]
     for row in rows:
         if args.get('leitura') in READING and args.get('leitura') and freshness(row,now)!=args['leitura']:continue
+        if args.get('campanhas') in CAMPAIGNS and args.get('campanhas') and campaign_reading(row,now)!=args['campanhas']:continue
         status=str(row.get('status') or '').lower()
         stock=quantity(row.get('quantidade'))
         if query and query not in ' '.join(str(row.get(k) or '') for k in ('titulo','item_id','sku')).casefold(): continue
@@ -135,7 +149,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
     stale=sum(freshness(a,now)!='recente' for a in rows)
     if stale: body+="<div class='catalog-warning'>"+str(stale)+' anúncios com leitura antiga ou sem data confirmada. Atualize os dados antes de decidir sobre estoque e preço.</div>'
     body+="<section class='card'><form class='catalog-filter' method='get'><label>Buscar produto<input name='busca' maxlength='200' placeholder='Título, código MLB ou SKU' value='"+escape(str(args.get('busca',''))[:200],quote=True)+"'></label>"
-    for name,label,options in [('status','Status',STATUS),('leitura','Atualização do catálogo',READING),('estoque','Estoque',STOCK),('promocao','Promoção',PROMO),('logistica','Logística',LOGISTICS),('foco','Ponto de atenção',FOCUS),('ordem','Ordenar por',SORT),('por_pagina','Por página',{str(n):str(n) for n in (10,20,50,100)})]:
+    for name,label,options in [('status','Status',STATUS),('leitura','Atualização do catálogo',READING),('estoque','Estoque',STOCK),('promocao','Promoção',PROMO),('campanhas','Consulta de campanhas',CAMPAIGNS),('logistica','Logística',LOGISTICS),('foco','Ponto de atenção',FOCUS),('ordem','Ordenar por',SORT),('por_pagina','Por página',{str(n):str(n) for n in (10,20,50,100)})]:
         body+=select(name,label,options,dict(args,por_pagina=str(size),ordem=args.get('ordem','vendidos')))
     body+="<button class='btn-acoes'>Aplicar filtros</button><a href='"+path+"'>Limpar filtros</a></form><div class='catalog-toolbar'><h2>Seu catálogo</h2><span class='muted'>"+str(len(filtered))+' de '+str(len(rows))+" anúncios · venda acumulada no histórico</span></div>"
     if not visible:
@@ -154,7 +168,8 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
             tags=read_json(row.get('tags'),[])
             body+=escape(', '.join(str(t) for t in tags) if isinstance(tags,list) and tags else 'Sem tags registradas')+'</dd></dl></details></td>'
             offer=effective_promotion(read_json(row.get('promocoes_json'),{}))
-            body+="<td><div class='catalog-price'>"+escape(fmt(displayed_price(row),True))+"</div>"+("<small><s>"+escape(fmt(offer['original'],True))+"</s> · Promoção confirmada</small>" if offer else "<small>Preço do anúncio na última coleta</small>")+"<details class='catalog-details'><summary>"+('Promoção registrada' if promotion(row) else 'Consultar promoções')+'</summary>'+render_promotions(row.get('promocoes_json'))+'</details>'
+            campaign_state=campaign_reading(row,now)
+            body+="<td><div class='catalog-price'>"+escape(fmt(displayed_price(row),True))+"</div>"+("<small><s>"+escape(fmt(offer['original'],True))+"</s> · Promoção confirmada</small>" if offer else "<small>Preço do anúncio na última coleta</small>")+"<details class='catalog-details'><summary>"+('Promoção registrada' if promotion(row) else 'Consultar promoções')+'</summary>'+render_promotions(row.get('promocoes_json'))+'</details>'+badge(CAMPAIGNS[campaign_state], 'green' if campaign_state=='valida' else 'amber')
             if admin: body+="<a class='muted' href='/diagnostico/anuncios/"+str(cid)+'/'+escape(item,quote=True)+"'>Diagnosticar preço na API</a>"
             body+='</td><td>'
             status=str(row.get('status') or '')
@@ -174,10 +189,10 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
     body+="<nav class='catalog-pager' aria-label='Paginação dos anúncios'><span>"+f'Mostrando {(page-1)*size+1 if filtered else 0}–{min(page*size,len(filtered))} de {len(filtered)} anúncios · Página {page} de {pages}'+'</span>'
     for label,target in [('← Anterior',page-1),('Próxima →',page+1)]:
         if 1<=target<=pages:
-            params={k:str(args[k]) for k in ('busca','status','estoque','promocao','logistica','foco','ordem','leitura') if args.get(k)}
+            params={k:str(args[k]) for k in ('busca','status','estoque','promocao','logistica','foco','ordem','leitura','campanhas') if args.get(k)}
             params.update(por_pagina=str(size),pagina=str(target))
             body+="<a href='"+escape(path+'?'+urlencode(params),quote=True)+"'>"+label+'</a>'
-    body+='</nav></section><p class="muted">Leitura recente do catálogo não confirma a atualização de promoções ou Full, que têm fontes e datas próprias. Fotos abaixo de 5 são uma sugestão editorial, não uma regra do Mercado Livre. Full identifica a modalidade logística coletada; não comprova estoque no centro de distribuição. Frete esperado é uma estimativa pela tabela existente, não uma cotação.</p>'
+    body+='</nav></section><p class="muted">Consulta válida de campanhas não garante promoção ativa ou preço vencedor. O preço vencedor pode estar confirmado mesmo com pendência na consulta de campanhas. Leitura recente do catálogo não confirma a atualização de promoções ou Full, que têm fontes e datas próprias. Fotos abaixo de 5 são uma sugestão editorial, não uma regra do Mercado Livre. Full identifica a modalidade logística coletada; não comprova estoque no centro de distribuição. Frete esperado é uma estimativa pela tabela existente, não uma cotação.</p>'
     warnings=[e for e in errors if e.get('categoria')!='financeiro']
     if warnings: body+="<details class='catalog-warning'><summary>Avisos da sincronização · "+str(len(warnings))+'</summary>'+''.join('<p>'+escape(str(e.get('categoria') or ''))+': '+escape(str(e.get('mensagem') or ''))+'</p>' for e in warnings)+'</details>'
     return body+'''<div id='catalog-loading' hidden role='status'>Carregando anúncios…</div><script>
