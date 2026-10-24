@@ -4166,7 +4166,9 @@ def ranking_anuncios(cid):
     from sales_metrics import reporting_today
     fim_analise = reporting_today() - datetime.timedelta(days=1)
     inicio_sql, fim_sql, inicio_cobertura, fim_cobertura = ranking_query_bounds(int(dias), today=fim_analise)
+    sinais_financeiros = {}
     with banco() as conn:
+        executar(conn, 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
         lojas = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         if not lojas:
             return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
@@ -4201,10 +4203,14 @@ def ranking_anuncios(cid):
                 AND vendas_verificado_em IS NULL
             ) AS n
         """, (cid,))
-    resumo = ranking_metrics(
-        pedidos, itens, [r["dia"] for r in cobertura],
-        sorted({str(a["item_id"]) for a in anuncios_loja} | {str(i["item_id"]) for i in itens if i.get("item_id")}),
-        end=fim_analise, days=int(dias), pending=bool(pendentes and pendentes[0]["n"]))
+        resumo = ranking_metrics(
+            pedidos, itens, [r["dia"] for r in cobertura],
+            sorted({str(a["item_id"]) for a in anuncios_loja} | {str(i["item_id"]) for i in itens if i.get("item_id")}),
+            end=fim_analise, days=int(dias), pending=bool(pendentes and pendentes[0]["n"]))
+        if resumo['available'] and session.get('tipo') == 'admin':
+            from profitability_priority import load_signals as load_financial_signals
+            sinais_financeiros = load_financial_signals(
+                conn,consultar,cid,resumo,pedidos,itens,fim_analise,int(dias))
     corpo = ("<h2>Ranking de vendas por anúncio</h2>"
              "<p class='muted'>Últimos " + dias + " dias encerrados comparados aos " + dias + " anteriores. "
              "Somente pedidos pagos e aprovados com dados verificados. "
@@ -4232,6 +4238,8 @@ def ranking_anuncios(cid):
         evidencias_queda = load_bulk(conn, consultar, cid, resumo, fim_analise, days=int(dias))
     from listing_priority_sources import listing_signals
     sinais_verificados = listing_signals(anuncios_loja, resumo, int(dias))
+    for item_id, financial in sinais_financeiros.items():
+        sinais_verificados.setdefault(item_id, {}).update(financial)
     prioridades = render_priorities(prioritize_listings(
         resumo, evidencias_queda, verified_signals_by_item=sinais_verificados),
         anuncios_loja, cid, days=int(dias), compact=compact_priorities)

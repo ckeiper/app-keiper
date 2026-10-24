@@ -9,6 +9,9 @@ on:
       - 'test_automatic_history.py'
       - 'intervention_routes.py'
       - 'listing_diagnostic_design.py'
+      - 'listing_priority_evidence.py'
+      - 'listing_priority_queue.py'
+      - 'test_profitability_priority.py'
       - 'profitability_*.py'
       - 'listing_profitability.py'
       - 'test_profitability.py'
@@ -47,12 +50,14 @@ jobs:
       - run: python scripts/timeline_preview.py
       - run: python scripts/interventions_preview.py
       - run: python scripts/profitability_preview.py
+      - run: python scripts/profitability_priority_preview.py
       - run: npm install --no-save --no-package-lock playwright@1.51.1 chart.js@4.4.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/catalog_browser_check.cjs
       - run: node scripts/timeline_browser_check.cjs
       - run: node scripts/interventions_browser_check.cjs
       - run: node scripts/profitability_browser_check.cjs
+      - run: node scripts/profitability_priority_browser_check.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

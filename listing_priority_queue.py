@@ -45,6 +45,7 @@ def prioritize(ranking, evidence_by_item=None, limit=6, verified_signals_by_item
 STYLE = """<style>
 .kp-queue{margin:16px 0 24px;padding:23px;border-radius:18px;background:linear-gradient(135deg,#142943,#1d4269);color:#f7fbff;box-shadow:0 12px 32px #102b4420}
 .kp-queue h2{color:#fff;font-size:22px;margin:0 0 6px;letter-spacing:-.4px}
+body .conteudo section.kp-queue h2{color:#fff}
 .kp-queue p{color:#c6d5e8;font-size:12px;line-height:1.6;margin:7px 0}
 .kp-queue .kp-kicker{font-size:10px;font-weight:850;letter-spacing:1.5px;color:#85c8ec}
 .kp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:12px;margin-top:17px}
