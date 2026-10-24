@@ -10,6 +10,7 @@ const {chromium}=require('playwright');
    await page.setContent(fs.readFileSync('visual-qa/profitability-priorities.html','utf8'));
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
    const cards=page.locator('.kp-item');assert.equal(await cards.count(),3);
+   assert.equal(await page.locator('.kp-queue h2').evaluate(el=>getComputedStyle(el).color),'rgb(255, 255, 255)');
    assert.ok((await cards.nth(0).textContent()).includes('Contribuição documentada negativa: R$ -80,00'));
    assert.ok((await cards.nth(0).textContent()).includes('70,00% para -80,00%'));
    for(const index of [1,2]) {
