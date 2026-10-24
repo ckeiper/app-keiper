@@ -1,5 +1,7 @@
 """Financial evidence view; values are escaped and unknowns never become zero."""
 from html import escape
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from urllib.parse import urlencode
 from listing_profitability import COMPONENTS
 from freight_comparison import format_brl
@@ -9,6 +11,7 @@ CSS = '''<style>
 .pf .pf-hero,.pf .pf-card{background:#101f35;border:1px solid var(--pf-line);border-radius:16px;padding:24px;margin-bottom:18px}
 .pf .pf-hero{background:linear-gradient(120deg,#101f35,#193b60)}
 .pf h2,.pf h3,.pf strong,.pf label{color:#eff5ff}.pf h2{margin:8px 0;font-size:26px}
+.pf .pf-hero h2{color:#eff5ff}.pf .pf-table th{background:#1b3552;color:#dce9f7}
 .pf p,.pf small{color:var(--pf-muted);line-height:1.65}.pf a{color:#9cd9ff;text-decoration:none}
 .pf .pf-eyebrow{font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:#8ed8ef}
 .pf .pf-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
@@ -23,6 +26,16 @@ CSS = '''<style>
 .pf .pf-table{overflow-x:auto}.pf table{width:100%;border-collapse:collapse}.pf th,.pf td{padding:13px 10px;border-bottom:1px solid var(--pf-line);text-align:left;color:#dce9f7;overflow-wrap:anywhere}.pf th{font-size:12px;color:#b6c7dc}.pf details summary{cursor:pointer;font-weight:700;padding:8px 0}.pf .pf-source{max-width:480px;white-space:pre-wrap}
 @media(max-width:700px){.pf .pf-grid,.pf .pf-fields{grid-template-columns:1fr}.pf .pf-card,.pf .pf-hero{padding:18px}.pf h2{font-size:22px}.pf .pf-filter label{flex:1 1 130px}.pf .pf-filter button{width:100%}}
 </style>'''
+
+
+def stamp(value):
+    try:
+        parsed = value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+        if parsed.tzinfo is None:
+            return 'Data não verificável'
+        return parsed.astimezone(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y às %H:%M · Brasília')
+    except (ValueError,TypeError,OverflowError):
+        return 'Data não verificável'
 
 
 def render(cid, item_id, title, start, end, summary, result, record, history, csrf, key, values=None, message=''):
@@ -46,7 +59,7 @@ def render(cid, item_id, title, start, end, summary, result, record, history, cs
         out += '<p class="pf-alert">'+esc(result['reason'])+'</p>'
     out += '<p>Pedidos pagos e aprovados, cobertura diária completa e vínculo dos itens. Períodos encerrados em horário de Brasília. Despesas fixas e operacionais não estão incluídas. Não há rateio automático de frete, publicidade ou valores da conta.</p></section>'
     if record:
-        out += '<section class="pf-card"><h3>Composição e fontes · registro #'+str(record['id'])+'</h3><p>Informado pelo administrador em '+esc(record['created_at'])+'. As fontes são referências declaradas, sem validação automática de documentos.</p><div class="pf-table"><table><thead><tr><th>Componente</th><th>Total no período</th><th>Fonte informada</th></tr></thead><tbody>'
+        out += '<section class="pf-card"><h3>Composição e fontes · registro #'+str(record['id'])+'</h3><p>Informado pelo administrador em '+esc(stamp(record['created_at']))+'. As fontes são referências declaradas, sem validação automática de documentos.</p><div class="pf-table"><table><thead><tr><th>Componente</th><th>Total no período</th><th>Fonte informada</th></tr></thead><tbody>'
         for field, label in COMPONENTS.items():
             out += '<tr><td>'+label+'</td><td>'+format_brl(record['costs'].get(field))+'</td><td class="pf-source">'+esc(record['sources'].get(field,''))+'</td></tr>'
         out += '</tbody></table></div></section>'
@@ -58,5 +71,5 @@ def render(cid, item_id, title, start, end, summary, result, record, history, cs
     out += '<section class="pf-card"><h3>Últimos registros deste anúncio</h3>'
     for row in history:
         query = urlencode({'inicio':row['inicio'].isoformat(),'fim':row['fim'].isoformat()})
-        out += '<p><a href="?'+esc(query)+'">'+row['inicio'].strftime('%d/%m/%Y')+' a '+row['fim'].strftime('%d/%m/%Y')+'</a> · versão #'+str(row['id'])+' · '+esc(row['created_at'])+'</p>'
+        out += '<p><a href="?'+esc(query)+'">'+row['inicio'].strftime('%d/%m/%Y')+' a '+row['fim'].strftime('%d/%m/%Y')+'</a> · versão #'+str(row['id'])+' · '+esc(stamp(row['created_at']))+'</p>'
     return out + ('<p>Nenhum custo documentado registrado.</p>' if not history else '')+'</section></div>'

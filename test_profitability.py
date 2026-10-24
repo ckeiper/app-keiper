@@ -10,6 +10,7 @@ from web_security import install_security
 from listing_profitability import COMPONENTS, period_contribution
 from profitability_store import period, validate, result_for, load_sales, init_schema, save
 from profitability_routes import register_profitability
+from profitability_view import stamp
 
 DAY = date(2026,10,24)
 START, END = DAY-timedelta(days=7), DAY-timedelta(days=1)
@@ -35,6 +36,10 @@ def record():
 
 
 class FinancialEvidenceTests(unittest.TestCase):
+    def test_timestamps_use_brazilian_timezone_and_do_not_guess_naive_dates(self):
+        self.assertEqual(stamp(datetime(2026,10,24,tzinfo=timezone.utc)), '23/10/2026 às 21:00 · Brasília')
+        self.assertEqual(stamp(datetime(2026,10,24)), 'Data não verificável')
+
     def test_period_costs_use_total_products_and_include_adjustments(self):
         result = result_for(summary(),record())
         self.assertTrue(result['available'])

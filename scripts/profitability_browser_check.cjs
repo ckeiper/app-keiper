@@ -12,6 +12,7 @@ const {chromium}=require('playwright');
         await page.setContent(fs.readFileSync(`visual-qa/profitability-${state}.html`,'utf8'));
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${state} overflow at ${width}`);
         assert.equal(await page.locator('.pf-metric').count(),3);
+        assert.equal(await page.locator('.pf-hero h2').evaluate(el=>getComputedStyle(el).color),'rgb(239, 245, 255)');
         const figures=await page.locator('.pf-metric').allTextContents();
         assert.equal(figures.some(value=>value.includes('R$ 240,00')),state==='ready');
         await page.locator('.pf details summary').click();
