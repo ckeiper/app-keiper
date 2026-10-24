@@ -9,6 +9,7 @@ const {chromium}=require('playwright');
    await page.setViewportSize({width,height:900});
    await page.setContent(fs.readFileSync('visual-qa/profitability-priorities.html','utf8'));
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+   assert.equal(await page.locator('.fq h2').evaluate(el=>getComputedStyle(el).color),'rgb(239, 245, 255)');
    assert.equal(await page.locator('.fq-card').count(),1);
    assert.equal(await page.locator('.fq-card').getAttribute('href'),'/anuncios/42/MLB100/rentabilidade?inicio=2026-10-17&fim=2026-10-23');
    const cards=page.locator('.kp-item');assert.equal(await cards.count(),3);

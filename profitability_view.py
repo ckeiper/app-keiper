@@ -12,7 +12,7 @@ CSS = '''<style>
 .pf .pf-hero,.pf .pf-card{background:#101f35;border:1px solid var(--pf-line);border-radius:16px;padding:24px;margin-bottom:18px}
 .pf .pf-hero{background:linear-gradient(120deg,#101f35,#193b60)}
 .pf h2,.pf h3,.pf strong,.pf label{color:#eff5ff}.pf h2{margin:8px 0;font-size:26px}
-.conteudo .pf .pf-hero h2{color:#eff5ff}.conteudo .pf .pf-table th{background:#1b3552;color:#dce9f7}
+.conteudo .pf.fq h2{color:#eff5ff}.conteudo .pf .pf-hero h2{color:#eff5ff}.conteudo .pf .pf-table th{background:#1b3552;color:#dce9f7}
 .pf p,.pf small{color:var(--pf-muted);line-height:1.65}.pf a{color:#9cd9ff;text-decoration:none}
 .pf .pf-eyebrow{font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:#8ed8ef}
 .pf .pf-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
