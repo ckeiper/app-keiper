@@ -20,3 +20,7 @@ for name,args in [('catalog',{}),('catalog-filtered',{'status':'active','estoque
     body=render_catalog(1,rows,args,refresh="<a href='/atualizar/anuncios/1'>Atualizar agora</a> · Última leitura disponível",now=now,admin=True)
     (dest/(name+'.html')).write_text(page('Anúncios',1,'Loja de demonstração','anuncios',body),encoding='utf-8')
 print('Synthetic catalog previews rendered.')
+
+from listing_diagnostic_design import hero,priorities
+checks=[dict(priority='alta',title='Conferir disponibilidade',evidence='Leitura sintética de estoque zero.',action='Conferir reposição e a leitura mais recente.'),dict(priority='revisar',title='Revisar oferta',evidence='Alteração sintética de preço.',action='Conferir fontes e condições comerciais.')]
+(dest/'diagnostic-navy.html').write_text(page('Diagnóstico do anúncio',1,'Loja de demonstração','anuncios',hero(dict(titulo='Produto de demonstração'),1,'MLB100',checks)+priorities(checks)),encoding='utf-8')

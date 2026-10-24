@@ -37,6 +37,16 @@ const {chromium}=require('playwright');
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('.ks-mobile-toggle').getAttribute('aria-expanded'),'false');
     await page.screenshot({path:'visual-qa/catalog-mobile.png',fullPage:true});
+    for(const width of [1440,390,320]){
+      await page.setViewportSize({width,height:900});
+      await page.setContent(fs.readFileSync('visual-qa/diagnostic-navy.html','utf8'));
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+      assert.equal(await page.locator('.diag-action').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(20, 41, 64)');
+      assert.equal(await page.locator('.diag-action h3').first().evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
+      await page.locator('.diag-summary a').first().focus();
+      assert.equal(await page.locator(':focus').getAttribute('href'),'#diag-acoes');
+      await page.screenshot({path:`visual-qa/diagnostic-navy-${width}.png`,fullPage:true});
+    }
     assert.deepEqual(errors,[]);
     console.log('Catalog desktop/mobile layout, five-column table, technical disclosure and GET filters passed.');
   }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
