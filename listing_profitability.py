@@ -18,7 +18,10 @@ def amount(value):
 
 def contribution(revenue, units, unit_cost=None, marketplace_fees=None,
                  seller_shipping=None, taxes=None, advertising=None):
-    """Return verified components and a contribution only when all costs are known."""
+    """Return verified components and a contribution only when all costs are known.
+
+    Missing fields are not interpreted as zero, including advertising.
+    """
     revenue = amount(revenue)
     units = amount(units)
     inputs = dict(unit_cost=unit_cost, marketplace_fees=marketplace_fees,
