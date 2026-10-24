@@ -6,6 +6,7 @@ from decimal import Decimal
 from html import escape
 
 from sales_decline import investigate
+from listing_priority_evidence import enrich_priorities
 
 LABELS = {
     'full': ('Full zerado observado', 'Checar estoque Full e reposição por variação'),
@@ -16,7 +17,7 @@ LABELS = {
 }
 
 
-def prioritize(ranking, evidence_by_item=None, limit=6):
+def prioritize(ranking, evidence_by_item=None, limit=6, verified_signals_by_item=None):
     analysis = investigate(ranking)
     if not analysis['available']:
         return {'available':False, 'reason':analysis.get('reason') or 'Dados não verificados.', 'items':[], 'total':0}
@@ -36,8 +37,9 @@ def prioritize(ranking, evidence_by_item=None, limit=6):
                             coverage=evidence.get('visits_days'),
                             expected=evidence.get('expected')))
     results.sort(key=lambda r:(-r['loss'],r['item_id']))
-    return dict(available=True, items=results[:limit], total=len(results),
-                loss=analysis['lost'])
+    queue = dict(available=True, items=results[:limit], total=len(results),
+                 loss=analysis['lost'])
+    return enrich_priorities(queue, verified_signals_by_item) if verified_signals_by_item is not None else queue
 
 
 STYLE = """<style>
@@ -78,6 +80,11 @@ def render(result, listings, cid, days=7, compact=False):
         out+='<span class="kp-pill">%+.1f%% no faturamento</span>' % r['pct']
         for reason in r['reasons']:
             out+='<span class="kp-pill">'+escape(reason)+'</span>'
+        for finding in r.get('additional_findings', []):
+            out+='<p><b>Sinal verificado:</b> '+escape(finding['evidence'])+'</p>'
+            out+='<p><b>Ação sugerida:</b> '+escape(finding['action'])+'</p>'
+        if r.get('data_limitations'):
+            out+='<p>Sem evidência suficiente: '+escape(', '.join(r['data_limitations']))+'.</p>'
         out+='<p><b>Por onde começar:</b> '+escape(r['action'])+'</p>'
         if r['coverage'] is not None and r['coverage'] < r['expected']:
             out+='<p>Cobertura de visitas: %s/%s dias; sinais adicionais podem estar ausentes.</p>' % (r['coverage'],r['expected'])
