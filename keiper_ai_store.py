@@ -70,6 +70,19 @@ def run_one(banco, query, execute, logger, now=None):
                     WHERE conexao_id=%s AND data BETWEEN %s AND %s ORDER BY data''',
                     (shop['id'], (end-timedelta(days=13)).isoformat(), end.isoformat()))
             result = recommendations(report, ads, today, now)
+            # Private deterministic evidence never enters the public findings
+            # or the optional provider payload. Failure cannot erase good
+            # public sales/Ads output or be interpreted as zero costs.
+            from kevia_finance import load_snapshot,empty_snapshot
+            try:
+                with closing(banco()) as conn, conn:
+                    execute(conn, 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+                    execute(conn, "SET LOCAL statement_timeout='10s'")
+                    financial = load_snapshot(conn,query,shop['id'],end,now)
+            except Exception:
+                financial = empty_snapshot(end,now,status='failed')
+                logger.warning('kevia_financial_unavailable run_id=%s',run_id)
+            result['financial'] = financial
             # Persist useful deterministic output before optional paid work.
             with closing(banco()) as conn, conn:
                 execute(conn, "UPDATE keiper_ai_runs SET result=%s::jsonb,status='rules_ready' WHERE id=%s",

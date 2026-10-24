@@ -15,7 +15,7 @@ def init_schema(conn, execute):
 
 
 def render_review(cid, findings, saved, csrf):
-    html = '<section class="card"><h2>Acompanhamento das recomendações</h2><p>O status é manual e permanece associado ao tipo de recomendação desta loja.</p>'
+    html = '<section class="card"><h2>Acompanhamento das recomendações</h2><p>O status é manual. Sinais financeiros são acompanhados por anúncio e período; os demais permanecem associados ao tipo de recomendação da loja.</p>'
     for finding in findings:
         if not isinstance(finding, dict):
             continue

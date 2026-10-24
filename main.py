@@ -825,7 +825,7 @@ def admin_required(f):
         if "usuario_id" not in session:
             return redirect("/login")
         if session.get("tipo") != "admin":
-            return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
+            return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>"), 403
         return f(*args, **kwargs)
     return wrapper
 
@@ -4546,7 +4546,8 @@ def kyra_revisar(cid):
     with banco() as conn:
         rows = consultar(conn, '''SELECT result FROM keiper_ai_runs
             WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
-        findings = (rows[0].get('result') or {}).get('recommendations', []) if rows else []
+        from kevia_finance import review_findings
+        findings = review_findings(rows[0].get('result')) if rows else []
         if code not in {str(f.get('code')) for f in findings if isinstance(f, dict)}:
             return 'Recomendação não encontrada', 404
         executar(conn, '''INSERT INTO kyra_reviews(conexao_id,code,state)
@@ -4569,6 +4570,9 @@ def painel_ia_keiper(cid):
             return 'Loja não encontrada', 404
         runs = consultar(conn, '''SELECT day,status,result,api_status FROM keiper_ai_runs
             WHERE conexao_id=%s ORDER BY day DESC LIMIT 30''', (cid,))
+        from kevia_finance import visible_result
+        runs = [dict(row,result=visible_result(row.get('result'),admin=session.get('tipo')=='admin'))
+                for row in runs]
         campaign_runs = consultar(conn, '''SELECT day,status,result FROM keiper_ai_campaign_runs
             WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
         budget = budget_status(conn, consultar) if session.get('tipo') == 'admin' else None
@@ -4578,18 +4582,19 @@ def painel_ia_keiper(cid):
             WHERE conexao_id=%s AND data BETWEEN %s AND %s ORDER BY data''',
             (cid, result['previous_start'], result['end'])) if result else []
     run = runs[0] if runs else {}
-    corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget, cid=cid, daily=daily, campaign_run=campaign_runs[0] if campaign_runs else None)
+    corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget, cid=cid, daily=daily, campaign_run=campaign_runs[0] if campaign_runs else None,admin_financial=session.get('tipo')=='admin')
     if run.get('status') in ('running', 'rules_ready'):
         corpo += "<p>Execução em andamento ou interrompida. A próxima análise ocorrerá no próximo dia de serviço ativo.</p>"
     from kyra_history import render_history
-    corpo += render_history(runs)
+    corpo += render_history(runs,admin_financial=session.get('tipo')=='admin')
     if session.get('tipo') == 'admin':
         from kyra_reviews import render_review
         token = session.get('kyra_review_csrf')
         if not token:
             token = secrets.token_urlsafe(32)
             session['kyra_review_csrf'] = token
-        findings = (run.get('result') or {}).get('recommendations') or []
+        from kevia_finance import review_findings
+        findings = review_findings(run.get('result'))
         corpo += render_review(cid, findings, {r['code']:r['state'] for r in saved_reviews}, token)
     return pagina_loja('KEVIA', cid, lojas[0]['cliente'], 'ia', corpo)
 

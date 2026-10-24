@@ -1,6 +1,6 @@
-# KYRA · primeira etapa
+# KEVIA · primeira etapa
 
-KYRA é o nome **provisório** da IA proativa nível 2 do Dashboard Keiper, aguardando análise jurídica de marca. O nome não representa liberação ou registro de marca. Os nomes internos `keiper_ai_*`, a rota `/ia-keiper/<loja>` e as variáveis `KEIPER_AI_*` são mantidos para compatibilidade com armazenamento e configuração existentes.
+KEVIA é o nome **provisório** da IA proativa nível 2 do Dashboard Keiper, aguardando análise jurídica de marca. O nome não representa liberação ou registro de marca. Os nomes internos `keiper_ai_*`, a rota `/ia-keiper/<loja>` e as variáveis `KEIPER_AI_*` são mantidos para compatibilidade com armazenamento e configuração existentes.
 
 Regras determinísticas sobre dados já persistidos, sem coleta extra no Mercado Livre e sem alteração de campanhas. Compara sete dias encerrados com os sete anteriores (Brasília). Critérios v1: queda de receita ≥20% e R$100; pedidos ≥20% e cinco pedidos; ROAS ≥25% de queda com gasto ≥R$50 nos dois períodos; gasto ≥R$50 sem receita atribuída; TACOS +5 pontos com gasto ≥R$50. Receita de Ads tem janela de atribuição; evidências não estabelecem causalidade.
 
@@ -52,7 +52,7 @@ Avaliar primeiro continuidade do banco (upgrade e backup) e serviço sempre ativ
 
 ## Campanhas individuais · campaign-v1
 
-A seção Campanhas da KYRA armazena uma análise diária independente em `keiper_ai_campaign_runs`, com restrição única loja/dia. A rotina local processa uma loja por tick após 08h de Brasília, reutiliza o PostgreSQL e o agendador e compartilha a trava 880145 com o analisador agregado. Não coleta na API, não usa LLM, não altera campanhas e não repete falhas automaticamente no mesmo dia. Na implantação, pode analisar as campanhas do dia mesmo que o resumo agregado já esteja pronto, sem refazer a análise anterior ou sua chamada opcional.
+A seção Campanhas da KEVIA armazena uma análise diária independente em `keiper_ai_campaign_runs`, com restrição única loja/dia. A rotina local processa uma loja por tick após 08h de Brasília, reutiliza o PostgreSQL e o agendador e compartilha a trava 880145 com o analisador agregado. Não coleta na API, não usa LLM, não altera campanhas e não repete falhas automaticamente no mesmo dia. Na implantação, pode analisar as campanhas do dia mesmo que o resumo agregado já esteja pronto, sem refazer a análise anterior ou sua chamada opcional.
 
 São avaliadas campanhas ativas no cadastro lido, com metadados observados nas últimas 24h e sem timestamp futuro. O período atual contém sete dias encerrados e o anterior os sete anteriores. Cada dia usado exige valores monetários não negativos e finitos, leitura após o fechamento e atualizada nos últimos sete dias. Duplicatas ou lacunas invalidam o dia; não há preenchimento por zero. O status atual não comprova que a campanha esteve ativa durante toda a janela.
 
@@ -64,8 +64,13 @@ Uma investigação principal por campanha, com até três campanhas no ranking p
 - TACOS: aumento >=5 pontos percentuais, gasto atual >=R$50 e receita orgânica oficial válida nos dois períodos. Usa exclusivamente faturamento Ads + orgânico dos anúncios da mesma campanha, nunca o faturamento da loja.
 - Potencial de escala: dois períodos válidos, gasto >=R$50 em cada, ROAS >=130% da meta atual, pelo menos cinco vendas atribuídas oficiais na janela atual e sem queda de ROAS superior a 10%. Exige validação humana de margem, estoque e capacidade antes de qualquer teste manual; não promete rentabilidade.
 
-Contagens oficiais e receita orgânica exigem cobertura própria e timestamp `metricas_vendas_coletadas_em` válido; sua ausência pode bloquear apenas a regra que depende delas. Receita atribuída ainda pode mudar com a janela de atribuição. As evidências mostram valores atuais/anteriores, meta atual, períodos, ressalvas e link para a campanha. A página individual da campanha mantém seus próprios filtros de período; os números da evidência diária referem-se exclusivamente às datas indicadas na KYRA.
+Contagens oficiais e receita orgânica exigem cobertura própria e timestamp `metricas_vendas_coletadas_em` válido; sua ausência pode bloquear apenas a regra que depende delas. Receita atribuída ainda pode mudar com a janela de atribuição. As evidências mostram valores atuais/anteriores, meta atual, períodos, ressalvas e link para a campanha. A página individual da campanha mantém seus próprios filtros de período; os números da evidência diária referem-se exclusivamente às datas indicadas na KEVIA.
 
-Leitura limitada a 500 campanhas cadastradas e 7.000 registros diários por loja, com timeout SQL de 15s por consulta. Ao atingir o limite, suprime o ranking para não apresentar prioridades de uma carteira parcial. GET da KYRA apenas lê o resultado persistido; aplica a mesma autorização por loja. O orçamento global de API permanece separado e não recebe gastos deste motor.
+Leitura limitada a 500 campanhas cadastradas e 7.000 registros diários por loja, com timeout SQL de 15s por consulta. Ao atingir o limite, suprime o ranking para não apresentar prioridades de uma carteira parcial. GET da KEVIA apenas lê o resultado persistido; aplica a mesma autorização por loja. O orçamento global de API permanece separado e não recebe gastos deste motor.
 
 `KEIPER_AI_CAMPAIGNS_ENABLED=false` interrompe novas análises de campanhas; `KEIPER_AI_DAILY_ENABLED=false` também interrompe esta rotina. Ambos habilitados por padrão apenas para processamento local após implantação. Não há backfill de dias desligados nem garantia de horário exato. As primeiras análises de campanhas podem aparecer gradualmente, uma loja por minuto.
+
+
+## Evidências financeiras privadas — 24/10/2026
+
+A rotina existente passa a salvar um bloco financeiro com base em custos documentados e vendas verificadas. O bloco, seus sinais e o histórico financeiro são exclusivos do administrador e não são enviados à interpretação paga. Execuções antigas são preservadas; dados da próxima execução aparecem com data, período, cobertura e link para revalidação. Não há mudança de orçamento ou chamada adicional ao provedor. Ver `KEVIA_FINANCEIRO.md`.

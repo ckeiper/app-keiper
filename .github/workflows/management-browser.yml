@@ -24,6 +24,9 @@ on:
       - 'visual_theme.py'
       - 'main.py'
       - 'keiper_ai*.py'
+      - 'kevia_finance*.py'
+      - 'test_kevia_finance*.py'
+      - 'scripts/kevia_finance*'
       - 'kyra_theme.py'
       - 'kyra_campaign*.py'
       - 'chart_personalization.py'
@@ -54,6 +57,7 @@ jobs:
       - run: python scripts/ads_chart_preview.py
       - run: python scripts/ads_overview_preview.py
       - run: python scripts/kyra_preview.py
+      - run: python scripts/kevia_finance_preview.py
       - run: npm install --no-save --no-package-lock playwright@1.51.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/management_browser_check.cjs
@@ -63,6 +67,7 @@ jobs:
       - run: node scripts/ads_chart_browser_check.cjs
       - run: node scripts/ads_overview_browser_check.cjs
       - run: node scripts/kyra_browser_check.cjs
+      - run: node scripts/kevia_finance_browser_check.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

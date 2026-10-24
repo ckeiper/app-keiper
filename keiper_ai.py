@@ -90,6 +90,6 @@ def evidence_text(evidence):
                       for key,value in evidence.items())
 
 
-def render(result, run_day=None, status=None, api_status=None, budget=None, cid=None, daily=None, campaign_run=None):
+def render(result, run_day=None, status=None, api_status=None, budget=None, cid=None, daily=None, campaign_run=None, admin_financial=False):
     from keiper_ai_view import render as render_observatory
-    return render_observatory(result, run_day, status, api_status, budget, cid, daily, campaign_run)
+    return render_observatory(result, run_day, status, api_status, budget, cid, daily, campaign_run, admin_financial)
