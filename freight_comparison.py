@@ -56,10 +56,21 @@ def render_freight_comparison_demo():
                     + format_brl(result["expected"]) + "</td><td>"
                     + format_brl(result["difference"]) + "</td><td>"
                     + escape(labels[result["status"]]) + "</td></tr>")
+    report = summarize_freight_orders([
+        {"order_id": name, "charged": charged, "expected": expected}
+        for name, charged, expected in examples
+    ])
+    summary = ("<p><strong>Resumo ficticio:</strong> "
+               + str(report["total_orders"]) + " pedidos; "
+               + str(report["counts"]["acima"]) + " acima; "
+               + str(report["counts"]["abaixo"]) + " abaixo; "
+               + str(report["counts"]["dentro_tolerancia"]) + " dentro da tolerancia. "
+               + "Total acima: " + format_brl(report["excess_charges"])
+               + "; total abaixo: " + format_brl(report["below_expected"]) + ".</p>")
     return ("<section class='card'><h3>Demonstracao de divergencias de frete</h3>"
             "<p><strong>Dados ficticios.</strong> Os valores abaixo sao exemplos "
             "para validar a apresentacao. Nao representam cobrancas de nenhuma loja.</p>"
-            "<div style='overflow-x:auto'><table><thead><tr><th>Exemplo</th>"
+            + summary + "<div style='overflow-x:auto'><table><thead><tr><th>Exemplo</th>"
             "<th>Cobrado</th><th>Esperado</th><th>Diferenca</th><th>Situacao</th>"
             "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>"
             "<p>Tolerancia ilustrativa: R$ 0,01. Nenhuma conciliacao real foi "
