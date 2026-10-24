@@ -58,7 +58,7 @@ const {chromium}=require('playwright');
       await page.locator('.ledger-check details summary').click();
       assert.ok((await page.locator('.ledger-check details').innerText()).includes('Linha 6'));
       assert.equal(await page.locator('.ledger-groups th').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(24, 46, 73)');
-      assert.equal(await page.locator('.ledger-check h3').evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
+      assert.deepEqual(await page.locator('.ledger-check h3').evaluateAll(els=>els.map(el=>getComputedStyle(el).color)),['rgb(234, 242, 255)','rgb(234, 242, 255)']);
       assert.ok((await page.locator('.ledger-check').innerText()).includes('1 com diferença'));
       await page.screenshot({path:`visual-qa/ledger-${width}.png`,fullPage:true});
     }
