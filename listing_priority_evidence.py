@@ -3,7 +3,7 @@
 Pure functions: no database access, API requests, or marketplace writes.
 Never infer missing margin, stock or operational data as zero.
 """
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_DOWN, localcontext
 
 
 def number(value):
@@ -20,6 +20,24 @@ def number(value):
 def nonnegative(value):
     result = number(value)
     return result if result is not None and result >= 0 else None
+
+
+def coverage_evidence(stock, velocity, coverage, signals):
+    # Truncate for display so a value below seven never appears as 7.00 days.
+    def observed(value):
+        with localcontext() as context:
+            context.rounding = ROUND_DOWN
+            rounded = format(value, '.2f')
+        return '<0,01' if 0 < value < Decimal('0.01') else rounded.replace('.', ',')
+    evidence = ('Cobertura estimada inferior a 7 dias: ' + observed(coverage) +
+                ' dias, com ' + str(int(stock)) + ' unidades registradas e média observada de ' +
+                observed(velocity) + ' unidades/dia.')
+    units = nonnegative(signals.get('velocity_units'))
+    days = signals.get('velocity_days')
+    if (units is not None and units == units.to_integral_value() and
+            type(days) is int and days > 0 and units / days == velocity):
+        evidence += ' Base: ' + str(int(units)) + ' unidades vendidas em ' + str(days) + ' dias encerrados.'
+    return evidence + ' Referência pelo ritmo passado, sem previsão de demanda ou confirmação de estoque Full.'
 
 
 def enrich_priorities(queue, signals_by_item=None):
@@ -54,13 +72,13 @@ def enrich_priorities(queue, signals_by_item=None):
             if stock is not None and stock == stock.to_integral_value():
                 if stock == 0:
                     findings.append({"code": "stockout", "urgency": "alta",
-                                     "evidence": "Estoque confirmado em zero",
+                                     "evidence": "Estoque confirmado em zero na leitura recente do catálogo; não comprova saldo no Full.",
                                      "action": "Conferir reposição e disponibilidade logística"})
                 elif velocity is not None and velocity > 0:
                     coverage = stock / velocity
                     if coverage < 7:
                         findings.append({"code": "stock_coverage", "urgency": "alta",
-                                         "evidence": "Cobertura estimada inferior a 7 dias com velocidade observada",
+                                         "evidence": coverage_evidence(stock, velocity, coverage, signals),
                                          "action": "Verificar reposição e prazo de abastecimento"})
         contribution = number(signals.get("contribution_current"))
         if (signals.get("margin_documented") is True and signals.get("contribution_verified") is True

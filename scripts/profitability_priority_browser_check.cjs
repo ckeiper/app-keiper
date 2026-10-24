@@ -32,6 +32,18 @@ const {chromium}=require('playwright');
    await page.evaluate(()=>window.scrollTo(0,0));
    await page.screenshot({path:`visual-qa/profitability-priorities-${width}.png`,fullPage:true});
   }
+  for(const width of [1440,390,320]) {
+   await page.setViewportSize({width,height:900});
+   await page.setContent(fs.readFileSync('visual-qa/stock-priorities.html','utf8'));
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+   const card=page.locator('.kp-item').first();
+   for(const selector of ['.kp-evidence','.kp-plan']) {
+    const text=await card.locator(selector).textContent();
+    for(const phrase of ['4,00 dias','12 unidades registradas','21 unidades vendidas em 7 dias encerrados','sem previsão de demanda']) assert.ok(text.includes(phrase));
+   }
+   await card.focus();assert.equal(await page.locator(':focus').getAttribute('href'),'/diagnostico/42/MLB100');
+   await page.screenshot({path:`visual-qa/stock-priorities-${width}.png`,fullPage:true});
+  }
   assert.deepEqual(errors,[]);console.log('Financial priority cards: verified negative evidence, stale/missing suppression, desktop/mobile and keyboard passed.');
  } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1});
