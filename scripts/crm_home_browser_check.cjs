@@ -14,7 +14,7 @@ const {chromium}=require('playwright');
   res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(fs.readFileSync('visual-qa/crm-home.html'));
  });
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
- const browser=await chromium.launch();const page=await browser.newPage();const errors=[];
+ const browser=await chromium.launch(process.env.PLAYWRIGHT_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH}:{});const page=await browser.newPage();const errors=[];
  page.on('pageerror',e=>errors.push(e.message));const url='http://127.0.0.1:'+server.address().port;
  try{
   for(const [name,width,height] of [['desktop',1440,1050],['mobile',390,844],['small-mobile',320,780]]){
@@ -22,6 +22,16 @@ const {chromium}=require('playwright');
    await page.locator('.kc-panel[aria-busy=false]').waitFor();
    assert.equal(await page.locator('input[type=search]').count(),0);
    assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(11, 20, 38)');
+   const toggle=page.locator('.ks-toggle');
+   assert.equal(await toggle.getAttribute('aria-expanded'),width<=640?'false':'true');
+   await toggle.click();
+   assert.equal(await toggle.getAttribute('aria-expanded'),width<=640?'true':'false');
+   if(width<=640)await toggle.click();
+   else{await toggle.click();assert.equal(await toggle.getAttribute('aria-expanded'),'true');}
+   assert.equal(await page.locator('.ks-foot a').getAttribute('href'),'/seguranca');
+   assert.equal(await page.locator('.top a[href="/seguranca"]').count(),0);
+   assert.equal(await page.locator('.kh-store-main').first().getAttribute('href'),'/painel/1');
+   assert.deepEqual(await page.locator('.kh-client-label').allTextContents(),['ABM VEDAÇÕES','Copas Ind']);
    await page.locator('.kh-more').first().click();
    assert.equal(await page.locator('.kh-menu').first().isVisible(),true);
    await page.keyboard.press('Escape');

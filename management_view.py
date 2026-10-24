@@ -104,7 +104,7 @@ def render_management(cid,report,args):
                +f"<p>Dados coletados em {ad['coverage']} de {ad['expected']} dias. "
                +"Faltam: "+escape(dates)+". Investimento, ROAS, ACOS e TACOS "
                +"aguardam a recuperação automática; não tratamos lacunas como gasto zero.</p>"
-               +f"<a class='btn-acoes cinza' href='/atualizar/campanhas/{int(cid)}'>Sincronizar Ads agora</a></div>")
+               +f"<a class='btn-acoes cinza' href='/ads/{int(cid)}'>Sincronizar Ads agora</a></div>")
     body+="<nav class='mgmt-links' aria-label='Análises detalhadas'>"+''.join("<a class='btn-acoes cinza' href='"+escape(url,quote=True)+"'>"+label+'</a>' for url,label in [(sales_url,'Analisar vendas'),(ads_url,'Ads e alertas de campanhas'),(f'/anuncios/{cid}/concorrencia','Concorrência'),(f'/custos/{cid}','Custos e margens'),(f'/full/{cid}','Full e vendas')])+'</nav>'
     body+=priorities(cid,report,args)
     # The current store home is /painel/<cid>; the legacy /operacao page is

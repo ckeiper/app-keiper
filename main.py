@@ -501,65 +501,39 @@ document.addEventListener("DOMContentLoaded", function () {
 """
 
 def pagina(titulo, corpo):
+    is_home = "<main class='kh-home'>" in corpo
     topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
     links = ""
-    if session.get("tipo") == "admin":
+    if session.get("tipo") == "admin" and not is_home:
         links += "<a class='btn' href='/seguranca'>Segurança</a>"
     links += "<a class='btn' href='/conectar'>+ Conectar loja</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
     cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS + "</head><body>"
     fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
-    return cab + topo + marca + links + fim
+    sidebar = ""
+    if is_home:
+        from home_sidebar import render_home_sidebar
+        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin")
+    return cab + sidebar + topo + marca + links + fim
 
 
 def pagina_loja(titulo, cid, cliente, secao, corpo):
-    itens = [
-        ("resumo", "📊 Resumo", "/painel/" + str(cid)),
-        ("prioridades", "⭐ Minhas prioridades", "/prioridades/" + str(cid)),
-        ("anuncios", "📦 Anúncios", "/anuncios/" + str(cid)),
-        ("full", "Full e vendas", "/full/" + str(cid)),
-        ("desempenho", "📈 Desempenho", "/desempenho/" + str(cid)),
-        ("demandas", "🟡 Demandas", "/demandas/" + str(cid)),
-        ("promocoes", "🏷️ Promoções", "/promocoes/" + str(cid)),
-        ("ads", "📣 Ads", "/ads/" + str(cid)),
-        ("campanhas", "📢 Campanhas", "/campanhas/" + str(cid)),
-        ("custos", "💰 Custos", "/custos/" + str(cid)),
-        ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
-        ("auditoria_frete", "🚚 Auditoria de Frete", "/auditoria-frete/" + str(cid)),
-    ]
-    menu = "<div class='menu-lateral'>"
-    menu += "<a class='voltar' href='/painel'>← Todas as lojas</a>"
-    for chave, rotulo, href in itens:
-        classe = "item"
-        if secao == chave:
-            classe += " atual"
-        menu += "<a class='" + classe + "' href='" + href + "'>"
-        menu += rotulo + "</a>"
-    menu += "<a class='item' href='/atualizar?cid=" + str(cid) + "'>"
-    menu += "🔄 Atualizar dados</a>"
-    menu += "<a class='item' href='/diagnostico'>🔍 Diagnóstico</a>"
-    menu += "<a class='item perigo' href='/excluir/" + str(cid) + "'>"
-    menu += "🗑️ Excluir loja</a></div>"
-    links = ""
-    links += "<a class='btn sair' href='/logout'>Sair</a></div>"
-    cab = "<!doctype html><html><head><meta charset='utf-8'>"
+    from section_refresh import SCOPES, render as render_refresh
+    if secao in SCOPES and "class='k-refresh'" not in corpo:
+        corpo = render_refresh(cid, secao) + corpo
+    from store_sidebar import render_store_sidebar
+    sidebar = render_store_sidebar(cid, cliente, secao, admin=session.get("tipo") == "admin")
+    cab = "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS
-    cab += "</head><body><div class='top'>"
-    cab += "<div><h1>" + img_logo(34) + "Keiper Consultoria</h1></div>"
-    cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>"
-    cab += esc(str(cliente)) + "</div>"
-    cab += links
-    cab += ("<button type='button' class='sidebar-toggle' aria-label='Abrir menu lateral'"
-            " aria-expanded='false' onclick='alternarMenuLateral()'>☰ Menu</button>")
-    cab += ("<div class='sidebar-overlay' onclick='alternarMenuLateral(false)'"
-            " aria-hidden='true'></div>")
-    cab += "<div class='wrap'><div class='layout'>" + menu
-    cab += "<div class='conteudo'>" + corpo
-    cab += "</div></div></div>" + SCRIPT + "<script>\nfunction alternarMenuLateral(forcar) {\n  var aberto = typeof forcar === 'boolean'\n    ? forcar : !document.body.classList.contains('sidebar-open');\n  document.body.classList.toggle('sidebar-open', aberto);\n  var botao = document.querySelector('.sidebar-toggle');\n  if (botao) botao.setAttribute('aria-expanded', String(aberto));\n}\ndocument.addEventListener('keydown', function(e) {\n  if (e.key === 'Escape' && document.body.classList.contains('sidebar-open'))\n    alternarMenuLateral(false);\n});\n</script>" + "</body></html>"
-    return cab
+    cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS + "</head><body>"
+    cab += sidebar + "<header class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1></div>"
+    cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>" + esc(str(cliente)) + "</div>"
+    cab += "<a class='btn sair' href='/logout'>Sair</a></header>"
+    cab += "<div class='wrap'><div class='layout'><main class='conteudo'>" + corpo
+    from chart_personalization import CONTROLS as chart_controls
+    return cab + "</main></div></div>" + chart_controls + SCRIPT + "</body></html>"
 
 
 FUSO_BR = datetime.timezone(datetime.timedelta(hours=-3))
@@ -573,6 +547,9 @@ def hora_br(ts):
 
 
 def barra_atualizar(cid, ultima, tipo="resumo"):
+    from section_refresh import SCOPES, render as render_refresh
+    if tipo in SCOPES:
+        return render_refresh(cid, tipo, hora_br(ultima))
     ult_txt = hora_br(ultima)
     return ("<div style='display:flex;gap:12px;align-items:center;"
             "flex-wrap:wrap;margin-bottom:14px'>"
@@ -701,6 +678,8 @@ def iniciar_banco():
             PRIMARY KEY (conexao_id, pedido_id, item_id)
         )""")
         init_sales_schema(conn, executar)
+        from profitability_store import init_schema as init_profitability
+        init_profitability(conn, executar)
         init_full_schema(conn, executar)
         init_competitor_schema(conn, executar)
         from offer_history import init_schema as init_offer_history
@@ -804,6 +783,7 @@ def iniciar_banco():
             gasto REAL, faturamento REAL, impressoes INTEGER, cliques INTEGER, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, data)
         )""")
+        executar(conn, """CREATE TABLE IF NOT EXISTS ads_orcamento_esgotado (conexao_id INTEGER NOT NULL, campanha_id TEXT NOT NULL, data TEXT NOT NULL, detectado_em BIGINT NOT NULL, PRIMARY KEY(conexao_id,campanha_id,data))""")
         executar(conn, """CREATE TABLE IF NOT EXISTS ads_campanha_dia (
             conexao_id INTEGER, campanha_id TEXT, data TEXT,
             gasto REAL, faturamento REAL, atualizado_em BIGINT,
@@ -814,7 +794,15 @@ def iniciar_banco():
             PRIMARY KEY (conexao_id, categoria)
         )""")
         executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
+        from ads_official_metrics import init_schema as init_ads_sales_schema
+        init_ads_sales_schema(conn, executar)
+        from section_refresh import init_schema as init_section_refresh
+        init_section_refresh(conn, executar)
         init_overview_schema(conn, executar)
+        from keiper_ai_store import init_schema as init_keiper_ai
+        init_keiper_ai(conn, executar)
+        from kyra_reviews import init_schema as init_kyra_reviews
+        init_kyra_reviews(conn, executar)
         init_crm_schema(conn, executar)
         executar(conn, """CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro (
             usuario_id INTEGER PRIMARY KEY,
@@ -2331,6 +2319,40 @@ def painel():
 
 
 
+@app.route('/painel/alertas/<int:cid>')
+@login_required
+def painel_alertas(cid):
+    if not pode_ver_loja(cid):
+        return jsonify(error='Acesso restrito'), 403
+    from home_alerts import load, LABELS, label
+    try:
+        groups, known = load(cid, banco, consultar)
+    except Exception:
+        app.logger.exception('Falha ao consultar alertas da loja %s', cid)
+        return jsonify(error='Alertas indisponíveis'), 503
+    response = jsonify(known=known, url='/painel/alertas/'+str(cid)+'/detalhes',
+        alerts=[dict(code=code, severity=LABELS[code][0], label=label(code,len(groups[code])))
+                for code in LABELS if groups.get(code)])
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.route('/painel/alertas/<int:cid>/detalhes')
+@login_required
+def painel_alertas_detalhes(cid):
+    if not pode_ver_loja(cid):
+        return pagina('Acesso negado', '<p>Acesso restrito</p>'), 403
+    from home_alerts import load, render
+    try:
+        groups, known = load(cid, banco, consultar)
+    except Exception:
+        app.logger.exception('Falha ao consultar detalhes de alertas da loja %s', cid)
+        return pagina('Alertas indisponíveis', '<p>Não foi possível consultar os alertas. Tente novamente.</p>'), 503
+    response = Response(pagina('Alertas da loja', render(groups, cid, known)), mimetype='text/html')
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
 def snapshot_saude_coletas():
     """A few bounded reads; no order load or marketplace API calls."""
     from collection_health import assess
@@ -2949,7 +2971,8 @@ def painel_ads_campanha(cid, campanha_id):
         camp = consultar(conn, """SELECT campanha_id,nome,status,orcamento,roas_objetivo,tipo,atualizado_em
             FROM ads_campanhas WHERE conexao_id=%s AND campanha_id=%s""", (cid,campanha_id))
         if loja and camp:
-            diario = consultar(conn, """SELECT data,gasto,faturamento,atualizado_em
+            diario = consultar(conn, """SELECT data,gasto,faturamento,atualizado_em,
+                vendas_atribuidas,outras_vendas,faturamento_sem_ads
                 FROM ads_campanha_dia WHERE conexao_id=%s AND campanha_id=%s
                 AND data BETWEEN %s AND %s ORDER BY data""",
                 (cid,campanha_id,inicio,hoje.isoformat()))
@@ -2957,36 +2980,13 @@ def painel_ads_campanha(cid, campanha_id):
                 valor_novo,observado_em,origem FROM ads_campanha_alteracoes
                 WHERE conexao_id=%s AND campanha_id=%s ORDER BY observado_em DESC,id DESC LIMIT 50""",
                 (cid,campanha_id))
-            ads_loja = consultar(conn, """SELECT data,faturamento
-                FROM ads_dia WHERE conexao_id=%s
-                AND data BETWEEN %s AND %s ORDER BY data""",
-                (cid,(hoje-datetime.timedelta(days=int(dias)-1)).isoformat(),
-                 hoje.isoformat()))
     if not loja:
         return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
     if not camp:
         return pagina_loja("Campanha não encontrada", cid, loja[0]["cliente"],
             "ads", "<div class='card'>Campanha não encontrada para esta loja.</div>"), 404
-    # Whole-store daily revenue is independently classified from approved
-    # paid orders. Null means that date is not safe to plot as zero.
-    loja_diaria = {}
-    try:
-        from overview import load_overview
-        data_inicio = (hoje-datetime.timedelta(days=int(dias)-1)).isoformat()
-        overview = load_overview(
-            [{"id": cid, "cliente": loja[0]["cliente"], "status": "ativa"}],
-            {"periodo":"personalizado","inicio":data_inicio,"fim":hoje.isoformat()},
-            banco, consultar)
-        validado = overview["reports"][0]["current"]
-        if not validado["invalid"] and not validado["unallocated_dates"]:
-            loja_diaria = dict(zip(validado["days"], validado["daily"]))
-    except Exception:
-        app.logger.exception("ads_campaign_nonads_sales_unavailable cid=%s", cid)
-    ads_diaria = {r["data"]:float(r["faturamento"]) for r in ads_loja
-                  if r["faturamento"] is not None}
     from ads_campaign_detail import render
     corpo = render(cid, camp[0], diario, int(dias), hoje,
-                   shop_daily=loja_diaria, ads_total_daily=ads_diaria,
                    changes=historico_alteracoes)
     return pagina_loja("Campanha Ads", cid, loja[0]["cliente"], "ads", corpo)
 
@@ -2998,7 +2998,9 @@ def painel_ads(cid):
     if not pode_ver_loja(cid):
         return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
     from urllib.parse import urlencode
-    hoje = datetime.date.today()
+    from sales_metrics import reporting_today
+    from ads_overview_design import header, alert_card, daily_chart, ratio, budget_progress
+    hoje = reporting_today()
     dias = request.args.get("dias", "30")
     if dias not in ("7", "30", "90"):
         dias = "30"
@@ -3032,6 +3034,7 @@ def painel_ads(cid):
             SELECT d.campanha_id,
                 COALESCE(NULLIF(c.nome,''), 'Campanha ' || d.campanha_id) AS nome,
                 c.status, c.orcamento, c.roas_objetivo,
+                MAX(e.detectado_em) AS esgotado_em,
                 COALESCE(SUM(d.gasto) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS gasto_periodo,
                 COALESCE(SUM(d.faturamento) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS fat_periodo,
                 COALESCE(SUM(d.gasto) FILTER (WHERE d.data=%s),0) AS gasto_hoje,
@@ -3041,10 +3044,11 @@ def painel_ads(cid):
                 COUNT(*) FILTER (WHERE d.data=%s) AS tem_ontem
             FROM ads_campanha_dia d
             LEFT JOIN ads_campanhas c ON c.conexao_id=d.conexao_id AND c.campanha_id=d.campanha_id
+            LEFT JOIN ads_orcamento_esgotado e ON e.conexao_id=d.conexao_id AND e.campanha_id=d.campanha_id AND e.data=%s
             WHERE d.conexao_id=%s AND d.data BETWEEN %s AND %s
             GROUP BY d.campanha_id,c.nome,c.status,c.orcamento,c.roas_objetivo
         """, (inicio_iso,fim_iso,inicio_iso,fim_iso,hoje.isoformat(),
-              hoje.isoformat(),ontem,ontem,ontem,
+              hoje.isoformat(),ontem,ontem,ontem,hoje.isoformat(),
               cid,min(inicio_iso,ontem),max(fim_iso,hoje.isoformat())))
     alertas_orcamento, alertas_risco, alertas_roas, alertas_sem_venda = [], [], [], []
     campanhas_configuradas = sum(1 for camp in alert_rows if camp["status"] is not None)
@@ -3059,6 +3063,7 @@ def painel_ads(cid):
         if ativa and budget > 0 and dados_recentes:
             consumo = gasto_hoje / budget
             info = "R$ %.2f de R$ %.2f (%.0f%%)" % (gasto_hoje,budget,consumo*100)
+            info = info.replace(".", ",")
             if consumo >= 1:
                 alertas_orcamento.append((nome,info))
             elif consumo >= 0.8 and agora_local.hour < 18:
@@ -3071,16 +3076,13 @@ def painel_ads(cid):
         if camp["tem_ontem"] and float(camp["gasto_ontem"] or 0) > 0 and float(camp["fat_ontem"] or 0) == 0:
             alertas_sem_venda.append((nome,"R$ %.2f investidos ontem · nenhuma venda atribuída" %
                                      float(camp["gasto_ontem"] or 0)))
-    def quadro_alertas(titulo,descricao,itens,vazio):
-        return ("<section class='card'><h3>"+titulo+" ("+str(len(itens))+")</h3>"
-                "<p class='muted'>"+descricao+"</p>"
-                + ("<ol>"+"".join("<li><b>"+nome+"</b><div class='muted'>"+detalhe+"</div></li>"
-                                  for nome,detalhe in itens[:20])+"</ol>" if itens else "<p>"+vazio+"</p>")
-                + ("<p class='muted'>Primeiros 20 resultados.</p>" if len(itens)>20 else "")+"</section>")
-    alertas_html = ("<h2>Alertas de gestão de Ads</h2>"
+    def quadro_alertas(titulo, descricao, itens, vazio):
+        return alert_card(titulo, descricao, itens, vazio, opportunity='ROAS' in titulo)
+    alertas_html = ("<div class='ka-section-title'><h3>Oportunidades e atenção</h3><span>Leituras recentes de Ads</span></div>"
         + ("<div class='aviso'>Configuração de campanhas ainda não sincronizada nesta loja. "
            "Alertas de orçamento e ROAS objetivo ficam pendentes.</div>"
            if not campanhas_configuradas else "")
+        + "<div class='ka-alert-grid'>"
         + quadro_alertas("Orçamento diário esgotado",
             "Campanhas ativas cujo gasto observado hoje atingiu o orçamento diário; leitura recente (até 2h).",
             alertas_orcamento,"Nenhuma campanha com limite atingido e dados recentes.")
@@ -3093,8 +3095,9 @@ def painel_ads(cid):
             alertas_roas,"Nenhuma campanha identificada ou objetivo ainda não importado.")
         + quadro_alertas("Sem vendas de Ads ontem",
             "Campanhas com investimento ontem e nenhuma venda atribuída.",
-            alertas_sem_venda,"Nenhuma campanha nesta condição."))
+            alertas_sem_venda,"Nenhuma campanha nesta condição.") + "</div>")
     titulo = "Publicidade · Product Ads"
+    abertura = header(cid, lojas[0]["cliente"], inicio, fim)
     filtro = ("<section class='card'><h2>Filtros de publicidade</h2>"
              "<form method='get' action='/ads/" + str(cid) + "' "
              "style='display:flex;gap:10px;align-items:end;flex-wrap:wrap'>"
@@ -3104,16 +3107,15 @@ def painel_ads(cid):
              + "</select></label><label>De <input type='date' name='de' value='"
              + esc(de) + "'></label><label>Até <input type='date' name='ate' value='"
              + esc(ate) + "'></label><button class='btn' type='submit'>Aplicar filtros</button>"
-             "</form><p class='muted'>Período exibido: " + inicio.strftime("%d/%m/%Y")
-             + " a " + fim.strftime("%d/%m/%Y") + "</p></section>")
+             "</form><p class='muted'>Período exibido: " + inicio.strftime("%d/%m")
+             + " a " + fim.strftime("%d/%m") + "</p></section>")
     if not dias_ads:
-        corpo = ("<h2>" + titulo + "</h2>" + filtro + alertas_html
+        corpo = (abertura + filtro
                  + "<section class='card'><h3>Sem dados de publicidade para este período</h3>"
                  "<p>Confira se Product Ads está ativo, se a sincronização da loja terminou "
                  "e se existe investimento no intervalo selecionado.</p>"
-                 "<p><a class='link' href='/campanhas/" + str(cid)
-                 + "'>Ver campanhas e atualizar dados</a></p></section>")
-        return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo)
+                 "<p>Use Atualizar Ads acima para carregar as campanhas e os resultados.</p></section>")
+        return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo + alertas_html + "</div>")
     def soma(campo):
         return sum(float(row[campo] or 0) for row in dias_ads)
     gasto = soma("gasto")
@@ -3157,7 +3159,7 @@ def painel_ads(cid):
     # Filter and page campaign comparisons without changing the sales baseline.
     filtro_nome = (request.args.get("campanha", "") or "").strip()[:80]
     situacao = request.args.get("situacao", "todas")
-    if situacao not in ("todas", "com_gasto", "sem_vendas", "com_vendas"):
+    if situacao not in ("todas", "com_gasto", "sem_vendas", "com_vendas", "ativas_sem_vendas"):
         situacao = "todas"
     ordem_camp = request.args.get("ordem_campanha", "gasto")
     if ordem_camp not in ("gasto", "faturamento", "roas", "acos", "tacos"):
@@ -3168,6 +3170,8 @@ def painel_ads(cid):
         investimento = float(camp["gasto_periodo"] or 0)
         atribuida = float(camp["fat_periodo"] or 0)
         if filtro_nome and filtro_nome.casefold() not in nome.casefold():
+            continue
+        if situacao == "ativas_sem_vendas" and (str(camp["status"] or "").lower() not in ("active", "running") or atribuida > 0):
             continue
         if situacao == "com_gasto" and investimento <= 0:
             continue
@@ -3202,7 +3206,7 @@ def painel_ads(cid):
     linhas_tacos_pagina = linhas_tacos[
         (pagina_tacos - 1) * tamanho_tacos:pagina_tacos * tamanho_tacos]
     tacos_campanhas_html = (
-        "<section class='card kc-campaigns'><h3>Desempenho por campanha</h3>"
+        "<section id='ka-campaign-list' class='card kc-campaigns'><h3>Desempenho por campanha</h3>"
         "<p class='muted'>Compare investimento, retorno e participação no faturamento total da loja.</p>"
         "<form method='get' action='/ads/" + str(cid) + "' "
         "style='display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:14px 0'>"
@@ -3215,7 +3219,7 @@ def painel_ads(cid):
         + "".join("<option value='" + valor + "'" + (" selected" if situacao == valor else "")
             + ">" + rotulo + "</option>" for valor,rotulo in (
                 ("todas","Todas"),("com_gasto","Com investimento"),
-                ("sem_vendas","Com gasto e sem vendas"),("com_vendas","Com vendas")))
+                ("sem_vendas","Com gasto e sem vendas"),("com_vendas","Com vendas"),("ativas_sem_vendas","Ativas sem vendas")))
         + "</select></label>"
         + "<label>Ordenar por <select name='ordem_campanha'>"
         + "".join("<option value='" + valor + "'" + (" selected" if ordem_camp == valor else "")
@@ -3239,19 +3243,22 @@ def painel_ads(cid):
         "<th>Campanha</th><th>Investimento</th><th>Faturamento Ads</th>"
         "<th>ROAS</th><th>ACOS</th><th>TACOS</th></tr></thead><tbody>")
     from urllib.parse import quote
+    budget_by_id = {str(c["campanha_id"]): c for c in alert_rows}
     for nome, investimento, atribuida, roas_camp, acos_camp, tacos_valor, camp_id in linhas_tacos_pagina:
         detalhe = "/ads/" + str(cid) + "/campanha/" + quote(camp_id, safe="")
         url_segura = esc(detalhe, quote=True)
+        budget_row = budget_by_id.get(camp_id, {})
+        budget_html = budget_progress(budget_row.get("orcamento"), budget_row.get("gasto_hoje"), budget_row.get("hoje_atualizado"), time.time(), budget_row.get("esgotado_em"))
         tacos_campanhas_html += (
             "<tr class='kc-campaign-row' tabindex='0' role='link' data-href='"
             + url_segura + "' aria-label='Abrir campanha " + esc(nome,quote=True) + "'>"
             "<td data-label='Campanha'><a class='kc-campaign-name' href='" + url_segura
-            + "'>" + esc(nome) + "</a></td>"
+            + "'>" + esc(nome) + "</a>" + budget_html + "</td>"
             "<td data-label='Investimento'>" + brl(investimento) + "</td>"
             "<td data-label='Faturamento Ads'>" + brl(atribuida) + "</td>"
-            "<td data-label='ROAS'>" + ("%.2fx" % roas_camp if roas_camp is not None else "—") + "</td>"
-            "<td data-label='ACOS'>" + ("%.2f%%" % acos_camp if acos_camp is not None else "—") + "</td>"
-            "<td data-label='TACOS'>" + ("%.2f%%" % tacos_valor if tacos_valor is not None else "—")
+            "<td data-label='ROAS'>" + (ratio(roas_camp, "x") if roas_camp is not None else "—") + "</td>"
+            "<td data-label='ACOS'>" + (ratio(acos_camp, "%") if acos_camp is not None else "—") + "</td>"
+            "<td data-label='TACOS'>" + (ratio(tacos_valor, "%") if tacos_valor is not None else "—")
             + "</td></tr>")
     if not linhas_tacos:
         tacos_campanhas_html += "<tr><td colspan='6'>Nenhuma campanha atende aos filtros.</td></tr>"
@@ -3307,36 +3314,25 @@ def painel_ads(cid):
                 + "</div><div class='lab'>" + esc(t) + "</div>"
                 + ("<small class='muted'>" + esc(nota) + "</small>" if nota else "")
                 + "</div>")
-    corpo = ("<h2>" + titulo + "</h2>" + filtro + alertas_html
-             + "<div class='grid' style='margin:16px 0'>"
+    corpo = (abertura + filtro
+             + "<div class='ka-kpis'>"
              + card("Investimento", brl(gasto))
-             + card("Vendas atribuídas a Ads", brl(receita))
-             + card("ROAS", "%.2fx" % roas if roas is not None else "—")
-             + card("ACOS", "%.2f%%" % acos if acos is not None else "—")
-             + card("TACOS geral", "%.2f%%" % tacos_geral if tacos_geral is not None else "—", "Ads ÷ faturamento total da loja")
+             + card("Faturamento atribuído", brl(receita))
+             + card("ROAS", ratio(roas, "x") if roas is not None else "—")
+             + card("ACOS", ratio(acos, "%") if acos is not None else "—")
+             + card("TACOS geral", ratio(tacos_geral, "%") if tacos_geral is not None else "—", "Ads ÷ faturamento total da loja")
              + card("Impressões", f"{impressoes:,}".replace(",", "."))
              + card("Cliques", f"{cliques:,}".replace(",", "."))
-             + card("CTR", "%.2f%%" % ctr if ctr is not None else "—")
+             + card("CTR", ratio(ctr, "%") if ctr is not None else "—")
              + card("CPC médio", brl(cpc) if cpc is not None else "—")
              + "</div>")
-    corpo += tacos_campanhas_html
+    corpo += alertas_html + tacos_campanhas_html
     cobertura = (fim - inicio).days + 1
     if len(dias_ads) < cobertura:
         corpo += ("<div class='aviso'>Cobertura parcial: " + str(len(dias_ads)) + " de "
                   + str(cobertura) + " dias com registros de Ads. "
                   "Os totais abaixo representam somente os dias registrados.</div>")
-    corpo += ("<section class='card'><h3>Evolução diária</h3><p class='muted'>"
-              "Investimento e vendas atribuídas a Ads em cada data registrada.</p>"
-              "<div class='grafico-box'><canvas id='ads-historico'></canvas></div>"
-              "<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
-              "<script>new Chart(document.getElementById('ads-historico'),{type:'line',data:{labels:"
-              + json.dumps([r["data"] for r in reversed(dias_ads)])
-              + ",datasets:[{label:'Investimento (R$)',data:"
-              + json.dumps([float(r["gasto"] or 0) for r in reversed(dias_ads)])
-              + ",borderColor:'#2563eb',tension:.25},{label:'Vendas atribuídas (R$)',data:"
-              + json.dumps([float(r["faturamento"] or 0) for r in reversed(dias_ads)])
-              + ",borderColor:'#0f766e',tension:.25}]},"
-              "options:{responsive:true,maintainAspectRatio:false}});</script></section>")
+    corpo += daily_chart(dias_ads)
     try:
         por_pagina = int(request.args.get("por_pagina", 20))
     except (ValueError, TypeError):
@@ -3369,9 +3365,9 @@ def painel_ads(cid):
     for row in bloco:
         g = float(row["gasto"] or 0)
         f = float(row["faturamento"] or 0)
-        corpo += ("<tr><td>" + esc(row["data"]) + "</td><td>" + brl(g)
+        corpo += ("<tr><td>" + datetime.date.fromisoformat(str(row["data"])).strftime("%d/%m") + "</td><td>" + brl(g)
                   + "</td><td>" + brl(f) + "</td><td>"
-                  + ("%.2fx" % (f/g) if g > 0 else "—") + "</td><td>"
+                  + (ratio(f/g, "x") if g > 0 else "—") + "</td><td>"
                   + str(int(row["impressoes"] or 0)) + "</td><td>"
                   + str(int(row["cliques"] or 0)) + "</td></tr>")
     corpo += "</tbody></table></div><nav aria-label='Paginação de Ads'>"
@@ -3383,209 +3379,28 @@ def painel_ads(cid):
     corpo += ("</nav><p class='muted'>Indicadores de Product Ads importados da API. "
               "Vendas atribuídas não representam o faturamento total da loja. "
               "ROAS = vendas atribuídas ÷ investimento; ACOS = investimento ÷ vendas atribuídas.</p>"
-              "<p><a class='link' href='/campanhas/" + str(cid)
-              + "'>Ver campanhas detalhadas →</a></p></section>")
-    return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo)
+              "<p><a class='link' href='#ka-campaign-list'>Escolher uma campanha para abrir sua análise →</a></p></section>")
+    return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo + "</div>")
 
 
 @app.route("/campanhas/<int:cid>")
 @login_required
 def campanhas(cid):
+    """Compatibility link: Publicidade is the only campaign list."""
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado",
-                      "<div class='card'><h2>Acesso restrito</h2></div>")
-    hoje = datetime.date.today().isoformat()
-    sem_vendas = request.args.get("sem_vendas", type=int, default=0)
-    with banco() as conn:
-        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        c = c[0] if c else None
-        if c:
-            campanhas = consultar(conn, "SELECT * FROM ads_campanhas "
-                                        "WHERE conexao_id=%s ORDER BY data_inicio DESC", (cid,))
-            gastos = consultar(conn, """SELECT campanha_id, COALESCE(SUM(gasto),0) AS gasto
-                                        FROM ads_metricas WHERE conexao_id=%s
-                                        GROUP BY campanha_id""", (cid,))
-            camp_dia = consultar(conn, "SELECT * FROM ads_campanha_dia WHERE conexao_id=%s", (cid,))
-            ads_dia = consultar(conn, "SELECT * FROM ads_dia WHERE conexao_id=%s "
-                                      "AND data >= %s ORDER BY data",
-                                (cid, (datetime.date.today()
-                                       - datetime.timedelta(days=6)).isoformat()))
-            filtro_ativo = sem_vendas > 0
-            if filtro_ativo:
-                data_limite = (datetime.date.today()
-                               - datetime.timedelta(days=sem_vendas)).isoformat()
-                fat_janela = consultar(conn, """SELECT campanha_id,
-                    COALESCE(SUM(faturamento),0) AS fat
-                    FROM ads_campanha_dia
-                    WHERE conexao_id=%s AND data >= %s
-                    GROUP BY campanha_id""", (cid, data_limite))
-    if not c:
-        return pagina("Não encontrada",
-                      "<div class='card'><h2>Loja não encontrada</h2></div>")
-    ultima = ultima_atualizacao(cid)
-    if filtro_ativo:
-        fat_por_camp = {r["campanha_id"]: (r["fat"] or 0) for r in fat_janela}
-        campanhas = [c2 for c2 in campanhas
-                     if str(c2["status"]) in ("active", "ACTIVE", "running")
-                     and fat_por_camp.get(c2["campanha_id"], 0) <= 0]
-    gasto_por_camp = {g["campanha_id"]: g["gasto"] for g in gastos}
-    camp_dia_map = {}
-    for r in camp_dia:
-        camp_dia_map[(r["campanha_id"], r["data"])] = r
-    ads_map = {r["data"]: r for r in ads_dia}
-    ad_hoje = ads_map.get(hoje)
-    gasto_total = ad_hoje["gasto"] if ad_hoje and ad_hoje["gasto"] is not None else None
-    fat_total = ad_hoje["faturamento"] if ad_hoje and ad_hoje["faturamento"] is not None else None
-    roas_total = (fat_total / gasto_total) if (gasto_total and fat_total
-                                               is not None and gasto_total > 0) else None
-    corpo = "<h2 style='margin-bottom:10px'>Campanhas Ads</h2>" \
-        + barra_atualizar(cid, ultima, "campanhas")
-    filtros = [("", "Todas"), (3, "3 dias sem vender"), (7, "7 dias sem vender"),
-               (15, "15 dias sem vender"), (30, "30 dias sem vender")]
-    corpo += ("<div class='card no-print'><h2>Filtro: X dias sem vendas</h2>"
-              "<div class='sub'>Mostra apenas campanhas <b>ativas</b> sem "
-              "faturamento de Ads nos últimos X dias</div>"
-              "<div style='display:flex;flex-wrap:wrap;gap:8px'>")
-    for val, rotulo in filtros:
-        classe = "filtro"
-        if (val == 0 and not filtro_ativo) or (val != 0 and sem_vendas == val):
-            classe += " filtro-btn"
-        if val == 0:
-            href = "/campanhas/" + str(cid)
-        else:
-            href = "/campanhas/" + str(cid) + "?sem_vendas=" + str(val)
-        corpo += "<a class='" + classe + "' href='" + href \
-            + "' style='text-decoration:none'>" + rotulo + "</a>"
-    corpo += "</div></div>"
-    if not campanhas:
-        if filtro_ativo:
-            titulo_v = ("Nenhuma campanha ativa sem vendas nos últimos "
-                        + str(sem_vendas) + " dias")
-            sub_v = "Nenhuma campanha ativa ficou sem faturamento de Ads nesse período."
-        else:
-            titulo_v = "Nenhuma campanha carregada ainda"
-            sub_v = "Use 'Atualizar agora' acima para buscar as campanhas de Mercado Ads."
-        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
-                  "<h2>" + titulo_v + "</h2><div class='sub'>" + sub_v + "</div></div>")
-        return pagina_loja("Campanhas", cid, c["cliente"], "campanhas", corpo)
-    if roas_total is not None:
-        roas_html = "<span class='alerta ok'>%.1f</span>" % roas_total
-    else:
-        roas_html = "<span class='tag sem'>—</span>"
-    corpo += ("<div class='grid' style='margin-bottom:18px'>"
-              "<div class='stat'><div class='num'>"
-              + (("R$ %.2f" % gasto_total) if gasto_total is not None
-                 else "<span class='tag sem'>—</span>")
-              + "</div><div class='lab'>Gasto Ads hoje</div></div>"
-              "<div class='stat'><div class='num'>"
-              + (("R$ %.2f" % fat_total) if fat_total is not None
-                 else "<span class='tag sem'>—</span>")
-              + "</div><div class='lab'>Faturamento Ads hoje</div></div>"
-              "<div class='stat'><div class='num'>" + roas_html
-              + "</div><div class='lab'>ROAS real (faturamento ÷ gasto)</div></div>"
-              "</div>")
-    corpo += ("<div class='card'><h2>Campanhas <span class='badge'>"
-              + str(len(campanhas)) + "</span></h2>"
-              "<div class='sub'>Defina o <b>ROAS objetivo</b> de cada campanha "
-              "(clique no valor). O painel alerta quando o orçamento acabou "
-              "e compara o ROAS real com o objetivo.</div>")
-    for camp in campanhas:
-        cid_camp = camp["campanha_id"]
-        st = str(camp["status"])
-        if st in ("active", "ACTIVE", "running"):
-            tag, st_txt = "tag ativa", "ativa"
-        elif st in ("paused", "PAUSED"):
-            tag, st_txt = "tag expirada", "pausada"
-        elif st in ("finished", "FINISHED", "ended"):
-            tag, st_txt = "tag normal", "finalizada"
-        else:
-            tag, st_txt = "tag normal", st
-        orcamento = camp["orcamento"]
-        gasto = gasto_por_camp.get(cid_camp, 0)
-        pct = (gasto * 100.0 / orcamento) if orcamento else 0
-        roas_obj = camp["roas_objetivo"]
-        camp_hoje = camp_dia_map.get((cid_camp, hoje))
-        camp_gasto = camp_hoje["gasto"] if camp_hoje else None
-        camp_fat = camp_hoje["faturamento"] if camp_hoje else None
-        roas_real = (camp_fat / camp_gasto) if (camp_gasto and camp_fat
-                                                is not None and camp_gasto > 0) else None
-        if orcamento is not None:
-            orc_txt = "R$ %.2f" % orcamento
-        else:
-            orc_txt = "<span class='tag sem'>—</span>"
-        gasto_txt = "R$ %.2f" % gasto
-        pct_html = ""
-        if orcamento:
-            if pct >= 100:
-                pct_html = "<span class='alerta urgente'>%.0f%% consumido</span>" % pct
-            elif pct >= 80:
-                pct_html = "<span class='alerta atencao'>%.0f%% consumido</span>" % pct
-            else:
-                pct_html = "<span class='alerta ok'>%.0f%% consumido</span>" % pct
-        if roas_obj is not None:
-            roas_obj_html = ("<span id='roas-" + str(cid) + "-" + str(cid_camp)
-                             + "'>%.1f</span>" % roas_obj)
-        else:
-            roas_obj_html = ("<a class='link' href='#' onclick='editarRoas("
-                             + str(cid) + ", \"" + str(cid_camp)
-                             + "\"); return false;'>+ definir</a>")
-        if roas_real is not None:
-            if roas_obj is not None:
-                if roas_real < roas_obj:
-                    roas_real_html = ("<span class='alerta urgente'>%.1f "
-                                      "(abaixo do objetivo)</span>" % roas_real)
-                else:
-                    roas_real_html = ("<span class='alerta ok'>%.1f "
-                                      "(acima do objetivo)</span>" % roas_real)
-            else:
-                roas_real_html = ("<span class='alerta atencao'>%.1f</span>" % roas_real)
-        else:
-            roas_real_html = "<span class='tag sem'>sem dados</span>"
-        corpo += ("<div class='campanha-item'>"
-                  "<div class='titulo'>"
-                  + esc(camp["nome"] or ("Campanha " + str(cid_camp)))
-                  + " <span class='" + tag + "'>" + st_txt + "</span></div>"
-                  "<div class='meta'>Tipo: " + esc(str(camp["tipo"] or "-"))
-                  + " · Início: " + esc(str(camp["data_inicio"] or "-")[:10])
-                  + " · Fim: " + esc(str(camp["data_fim"] or "-")[:10]) + "</div>"
-                  "<table><thead><tr><th>Orçamento</th><th>Gasto</th>"
-                  "<th>Consumo</th><th>ROAS objetivo</th><th>ROAS real</th>"
-                  "</tr></thead><tbody>"
-                  "<tr><td>" + orc_txt + "</td><td>" + gasto_txt + "</td>"
-                  "<td>" + pct_html + "</td>"
-                  "<td>" + roas_obj_html + "</td><td>" + roas_real_html + "</td>"
-                  "</tr></tbody></table>")
-        alertas = []
-        if orcamento and gasto >= orcamento:
-            alertas.append(("urgente",
-                            "Orçamento totalmente consumido (gasto R$ %.2f ≥ "
-                            "orçamento R$ %.2f). Considere liberar mais verba."
-                            % (gasto, orcamento)))
-        elif orcamento and pct >= 80:
-            alertas.append(("atencao",
-                            "Orçamento quase no limite (%.0f%% consumido). "
-                            "Avalie se vale liberar mais verba." % pct))
-        if roas_real is not None and roas_obj is not None:
-            if roas_real < roas_obj:
-                alertas.append(("urgente",
-                                "ROAS real (%.1f) está ABAIXO do objetivo (%.1f). "
-                                "Revise anúncios, lance ou segmentação."
-                                % (roas_real, roas_obj)))
-            else:
-                alertas.append(("ok",
-                                "ROAS real (%.1f) está ACIMA do objetivo (%.1f). "
-                                "Campanha saudável — pode valer aumentar verba."
-                                % (roas_real, roas_obj)))
-        for grav, msg in alertas:
-            corpo += ("<div class='alerta " + grav
-                      + "' style='margin-top:8px;display:block'>" + msg + "</div>")
-        corpo += "</div>"
-    corpo += ("<div class='muted'>ROAS = retorno sobre o investimento em anúncios "
-              "(faturamento gerado ÷ gasto). O ROAS objetivo é uma meta definida "
-              "aqui no painel — não altera a campanha no Mercado Livre. Ajustes "
-              "reais (orçamento, lance) são feitos na Central de Vendedores.</div>")
-    corpo += "</div>"
-    return pagina_loja("Campanhas", cid, c["cliente"], "campanhas", corpo)
+        return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
+    from urllib.parse import urlencode
+    from sales_metrics import reporting_today
+    params = request.args.to_dict(flat=True)
+    raw = params.pop("sem_vendas", "0")
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        days = 0
+    if 0 < days < 90:
+        today = reporting_today()
+        params.update(situacao="ativas_sem_vendas", de=(today-datetime.timedelta(days=days)).isoformat(), ate=today.isoformat())
+    return redirect("/ads/" + str(cid) + ("?"+urlencode(params) if params else ""))
 
 
 @app.route("/promocoes/meta/<int:cid>",methods=["POST"])
@@ -4372,7 +4187,7 @@ def ranking_anuncios(cid):
         if not lojas:
             return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
         anuncios_loja = consultar(conn, """
-            SELECT item_id, titulo, status, quantidade FROM anuncios
+            SELECT item_id, titulo, status, quantidade, atualizado_em FROM anuncios
             WHERE conexao_id=%s ORDER BY item_id
         """, (cid,))
         pedidos = consultar(conn, """
@@ -4431,8 +4246,11 @@ def ranking_anuncios(cid):
     from investigation_evidence import load_bulk
     with banco() as conn:
         evidencias_queda = load_bulk(conn, consultar, cid, resumo, fim_analise, days=int(dias))
-    prioridades = render_priorities(prioritize_listings(resumo, evidencias_queda),
-                                   anuncios_loja, cid, days=int(dias), compact=compact_priorities)
+    from listing_priority_sources import listing_signals
+    sinais_verificados = listing_signals(anuncios_loja, resumo, int(dias))
+    prioridades = render_priorities(prioritize_listings(
+        resumo, evidencias_queda, verified_signals_by_item=sinais_verificados),
+        anuncios_loja, cid, days=int(dias), compact=compact_priorities)
     if compact_priorities:
         response = Response(prioridades, mimetype="text/html")
         response.headers["Cache-Control"] = "private, max-age=60"
@@ -4702,6 +4520,88 @@ def var_html(hoje, ontem, fmt="R$"):
                 + " (" + br(pct, 1) + "%)</div>")
     return "<div class='var estavel'>— 0%</div>"
 
+@app.route('/kyra')
+@login_required
+@admin_required
+def kyra_central():
+    from kyra_central import central_rows, render_central
+    with banco() as conn:
+        shops = consultar(conn, "SELECT id,cliente FROM conexoes WHERE status='ativa' ORDER BY cliente,id")
+        runs = consultar(conn, """SELECT DISTINCT ON (conexao_id)
+            conexao_id,day,status,result FROM keiper_ai_runs
+            ORDER BY conexao_id,day DESC""")
+    body = render_central(central_rows(shops, runs))
+    response = Response(pagina('KEVIA · Central de Inteligência', body), mimetype='text/html')
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.route('/kyra/revisar/<int:cid>', methods=['POST'])
+@login_required
+@admin_required
+def kyra_revisar(cid):
+    from hmac import compare_digest
+    from kyra_reviews import ALLOWED
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito', 403
+    csrf = request.form.get('csrf') or ''
+    if not csrf or not compare_digest(csrf, session.get('kyra_review_csrf') or ''):
+        return 'Solicitação inválida', 403
+    code = request.form.get('code') or ''
+    state = request.form.get('state') or ''
+    if not code or len(code) > 80 or state not in ALLOWED:
+        return 'Dados inválidos', 400
+    with banco() as conn:
+        rows = consultar(conn, '''SELECT result FROM keiper_ai_runs
+            WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
+        findings = (rows[0].get('result') or {}).get('recommendations', []) if rows else []
+        if code not in {str(f.get('code')) for f in findings if isinstance(f, dict)}:
+            return 'Recomendação não encontrada', 404
+        executar(conn, '''INSERT INTO kyra_reviews(conexao_id,code,state)
+            VALUES(%s,%s,%s) ON CONFLICT(conexao_id,code)
+            DO UPDATE SET state=EXCLUDED.state,updated_at=now()''', (cid,code,state))
+    return redirect('/ia-keiper/'+str(cid), code=303)
+
+
+@app.route('/ia-keiper/<int:cid>')
+@login_required
+def painel_ia_keiper(cid):
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito', 403
+    from contextlib import closing
+    from keiper_ai import render
+    from keiper_ai_budget import budget_status
+    with closing(banco()) as conn, conn:
+        lojas = consultar(conn, 'SELECT cliente FROM conexoes WHERE id=%s', (cid,))
+        if not lojas:
+            return 'Loja não encontrada', 404
+        runs = consultar(conn, '''SELECT day,status,result,api_status FROM keiper_ai_runs
+            WHERE conexao_id=%s ORDER BY day DESC LIMIT 30''', (cid,))
+        campaign_runs = consultar(conn, '''SELECT day,status,result FROM keiper_ai_campaign_runs
+            WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
+        budget = budget_status(conn, consultar) if session.get('tipo') == 'admin' else None
+        saved_reviews = consultar(conn, 'SELECT code,state FROM kyra_reviews WHERE conexao_id=%s', (cid,)) if session.get('tipo') == 'admin' else []
+        result = runs[0].get('result') if runs else None
+        daily = consultar(conn, '''SELECT data,gasto,faturamento FROM ads_dia
+            WHERE conexao_id=%s AND data BETWEEN %s AND %s ORDER BY data''',
+            (cid, result['previous_start'], result['end'])) if result else []
+    run = runs[0] if runs else {}
+    corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget, cid=cid, daily=daily, campaign_run=campaign_runs[0] if campaign_runs else None)
+    if run.get('status') in ('running', 'rules_ready'):
+        corpo += "<p>Execução em andamento ou interrompida. A próxima análise ocorrerá no próximo dia de serviço ativo.</p>"
+    from kyra_history import render_history
+    corpo += render_history(runs)
+    if session.get('tipo') == 'admin':
+        from kyra_reviews import render_review
+        token = session.get('kyra_review_csrf')
+        if not token:
+            token = secrets.token_urlsafe(32)
+            session['kyra_review_csrf'] = token
+        findings = (run.get('result') or {}).get('recommendations') or []
+        corpo += render_review(cid, findings, {r['code']:r['state'] for r in saved_reviews}, token)
+    return pagina_loja('KEVIA', cid, lojas[0]['cliente'], 'ia', corpo)
+
+
 @app.route("/painel/<int:cid>/operacao")
 @login_required
 def painel_detalhe(cid):
@@ -4949,6 +4849,8 @@ def painel_detalhe(cid):
              "'<p>Abra o ranking para consultar as quedas verificadas.</p>' +"
              "'<a href=\\'/ranking-anuncios/"+str(int(cid))+"?dias=7\\'>Ver ranking de anúncios</a></div>'})"
              "})();</script>") + corpo
+    corpo = ("<div class='card'><h3>KEVIA</h3><p>Nome provisório, aguardando análise jurídica de marca.</p><p>Consulte as recomendações diárias e suas evidências.</p>"
+             "<a href='/ia-keiper/"+str(int(cid))+"'>Ver recomendações</a></div>") + corpo
     return pagina_loja("Resumo", cid, c["cliente"], "resumo", corpo)
 @app.route("/atualizar/<tipo>/<int:cid>")
 @login_required
@@ -4956,58 +4858,14 @@ def atualizar_tipo(tipo, cid):
     if not pode_ver_loja(cid):
         return pagina("Acesso negado",
                       "<div class='card'><h2>Acesso restrito</h2></div>")
-    # Full order history sync can take minutes; never run it in an HTTP worker.
-    if tipo in ("resumo", "vendas") or loja_habilitada_fila_persistente(cid):
-        enfileirar_atualizacao(cid)
-        destino = "/painel/" if tipo == "resumo" else "/" + tipo + "/"
-        return redirect(destino + str(cid))
-    with banco() as conn:
-        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        c = c[0] if c else None
-    if not c:
-        return pagina("Sem loja",
-                      "<div class='card'><h2>Nenhuma loja conectada</h2></div>")
-    token = token_atual(c)
-    if not token:
-        return pagina("Erro",
-                      "<div class='card'><h2>Falha ao renovar o token</h2></div>")
-    user_id = c["user_id"]
-    if tipo in ("anuncios", "promocoes") and user_id:
-        with LOCK_ATUALIZACAO:
-            if cid not in ATUALIZANDO:
-                ATUALIZANDO.add(cid)
-                threading.Thread(target=atualizar_anuncios_bg,
-                                 args=(cid, token, user_id, tipo), daemon=True).start()
-        return redirect("/" + tipo + "/" + str(cid))
-    if user_id:
-        if tipo in ("resumo", "vendas"):
-            puxar_pedidos(c["id"], token, user_id)
-            puxar_envios(c["id"], token, user_id)
-        if tipo in ("resumo", "anuncios", "desempenho",
-                    "demandas", "custos"):
-            puxar_anuncios(c["id"], token, user_id)
-            puxar_metricas(c["id"], token)
-            puxar_promocoes(c["id"], token, user_id)
-        if tipo == "resumo":
-            puxar_perguntas(c["id"], token, user_id)
-            try:
-                puxar_ads(c["id"], token, user_id)
-            except Exception:
-                pass
-        if tipo == "promocoes":
-            puxar_promocoes(c["id"], token, user_id)
-        if tipo == "campanhas":
-            try:
-                puxar_ads(c["id"], token, user_id)
-            except Exception:
-                pass
-    if tipo in ("resumo", "desempenho"):
-        gravar_historico(c["id"])
-    if tipo == "resumo":
-        destino = "/painel/" + str(cid)
-    else:
-        destino = "/" + tipo + "/" + str(cid)
-    return redirect(destino)
+    from section_refresh import SCOPES
+    if tipo in SCOPES:
+        # Opening a legacy refresh URL only displays the explicit POST button.
+        return redirect(("/ads/" if tipo == "campanhas" else "/" + tipo + "/") + str(cid))
+    if tipo != "resumo":
+        return pagina("Seção inválida", "<div class='card'>Seção inválida</div>"), 400
+    enfileirar_atualizacao(cid)
+    return redirect("/painel/" + str(cid))
 
 
 @app.route("/atualizar")
@@ -5406,8 +5264,30 @@ def diagnostico_anuncio(cid, item_id):
     return jsonify(inspect_listing(token, conta["user_id"], item_id, requests.get))
 
 
-def puxar_ads(conexao_id, token, user_id):
+def coletar_secao(cid, secao, periodo=None):
+    """Run only the collectors required by the requested page."""
+    with banco() as conn:
+        rows = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+    if not rows:
+        return False
+    conta = rows[0]
+    token = token_atual(conta)
+    user_id = conta.get("user_id")
+    if not token or not user_id:
+        return False
+    from section_refresh import collector_names
+    for name in collector_names(secao):
+        collector = globals()[name]
+        result = (collector(cid, token, user_id, refresh_range=periodo)
+                  if name == "puxar_ads" else collector(cid, token, user_id))
+        if result is False:
+            return False
+    return True
+
+
+def puxar_ads(conexao_id, token, user_id, refresh_range=None):
     from sales_metrics import reporting_today
+    from ads_official_metrics import save_day
     # Use the same Brazilian reporting day as the dashboards, even after
     # midnight UTC. Freeze it for this entire collection.
     reporting_day = reporting_today()
@@ -5451,7 +5331,8 @@ def puxar_ads(conexao_id, token, user_id):
                                  params={"limit": 50, "offset": offset,
                                          "date_from": dia, "date_to": dia,
                                          "metrics": "clicks,prints,cost,"
-                                                    "total_amount"},
+                                                    "total_amount,advertising_items_quantity,"
+                                                    "organic_items_quantity,organic_units_amount"},
                                  timeout=30)
             except Exception as e:
                 registrar_erro(conexao_id, "ads",
@@ -5472,7 +5353,7 @@ def puxar_ads(conexao_id, token, user_id):
                 tot_c += int(m.get("clicks") or 0)
                 tot_g += g
                 tot_f += f
-                linhas.append((str(c.get("id")), g, f))
+                linhas.append((str(c.get("id")), g, f, m))
             offset += 50
             total = (dados.get("paging") or {}).get("total") or 0
             if not resultados or offset >= total:
@@ -5481,6 +5362,7 @@ def puxar_ads(conexao_id, token, user_id):
 
     # Current campaign configuration (budget and target ROAS) is separate
     # from the daily performance snapshot. Keep last known config if API fails.
+    config_complete = True
     try:
         campanhas_atuais = []
         deslocamento = 0
@@ -5529,6 +5411,7 @@ def puxar_ads(conexao_id, token, user_id):
                       campanha.get("date_created"), None, budget, target,
                       int(time.time())))
     except (requests.RequestException, ValueError, TypeError) as exc:
+        config_complete = False
         registrar_erro(conexao_id, "ads_config", "Campanhas: " + str(exc)[:140])
 
     # 2) Hoje (igual a antes)
@@ -5538,16 +5421,13 @@ def puxar_ads(conexao_id, token, user_id):
     _, tot_g, tot_f, tot_i, tot_c, linhas = res_hoje
     agora = int(time.time())
     with banco() as conn:
-        for camp_id, g, f in linhas:
-            executar(conn,
-                     """INSERT INTO ads_campanha_dia
-                        (conexao_id, campanha_id, data, gasto, faturamento,
-                         atualizado_em)
-                        VALUES (%s,%s,%s,%s,%s,%s)
-                        ON CONFLICT (conexao_id, campanha_id, data)
-                        DO UPDATE SET gasto=EXCLUDED.gasto,
-                          faturamento=EXCLUDED.faturamento, atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, camp_id, hoje, g, f, agora))
+        for camp_id, g, f, metricas in linhas:
+            save_day(conn, executar, conexao_id, camp_id, hoje, g, f, metricas, agora)
+            executar(conn, """INSERT INTO ads_orcamento_esgotado(conexao_id,campanha_id,data,detectado_em)
+                SELECT %s,%s,%s,%s FROM ads_campanhas WHERE conexao_id=%s AND campanha_id=%s
+                AND orcamento>0 AND %s>=orcamento
+                ON CONFLICT(conexao_id,campanha_id,data) DO NOTHING""",
+                (conexao_id,str(camp_id),hoje,agora,conexao_id,str(camp_id),g))
         executar(conn,
                  """INSERT INTO ads_dia
                     (conexao_id, data, gasto, faturamento, impressoes,
@@ -5571,23 +5451,32 @@ def puxar_ads(conexao_id, token, user_id):
     days_to_fetch = daily_days_to_fetch(
         [r["data"] for r in reg], reporting_day,
         initial=len(reg)<60, max_recent=3)
+    # Enrich old snapshots gradually without an unbounded API backfill.
+    # Mark an attempted successful response even if a metric is unavailable.
+    with banco() as conn:
+        pending = consultar(conn, """SELECT DISTINCT data FROM ads_campanha_dia
+            WHERE conexao_id=%s AND data BETWEEN %s AND %s
+            AND metricas_vendas_coletadas_em IS NULL ORDER BY data DESC LIMIT 3""",
+            (conexao_id, (reporting_day-datetime.timedelta(days=89)).isoformat(),
+             (reporting_day-datetime.timedelta(days=1)).isoformat()))
+    days_to_fetch = list(dict.fromkeys(days_to_fetch + [r['data'] for r in pending]))
+    if refresh_range is not None:
+        # Explicit refresh repairs the period visible on the Ads page only.
+        start, end = refresh_range
+        days_to_fetch = [(end-datetime.timedelta(days=i)).isoformat()
+                         for i in range((end-start).days+1)
+                         if (end-datetime.timedelta(days=i)).isoformat() != hoje]
+    history_complete = True
     if days_to_fetch:
         for dia_b in days_to_fetch:
             res = buscar_dia(dia_b)
             if res is None:
+                history_complete = False
                 continue
             _, g2, f2, i2, c2, linhas2 = res
             with banco() as conn:
-                for camp_id, g, f in linhas2:
-                    executar(conn,
-                             """INSERT INTO ads_campanha_dia
-                                (conexao_id, campanha_id, data, gasto,
-                                 faturamento, atualizado_em)
-                                VALUES (%s,%s,%s,%s,%s,%s)
-                                ON CONFLICT (conexao_id, campanha_id, data)
-                                DO UPDATE SET gasto=EXCLUDED.gasto,
-                                  faturamento=EXCLUDED.faturamento, atualizado_em=EXCLUDED.atualizado_em""",
-                             (conexao_id, camp_id, dia_b, g, f, agora))
+                for camp_id, g, f, metricas in linhas2:
+                    save_day(conn, executar, conexao_id, camp_id, dia_b, g, f, metricas, agora)
                 executar(conn,
                          """INSERT INTO ads_dia
                             (conexao_id, data, gasto, faturamento, impressoes,
@@ -5599,7 +5488,7 @@ def puxar_ads(conexao_id, token, user_id):
                               impressoes=EXCLUDED.impressoes,
                               cliques=EXCLUDED.cliques, atualizado_em=EXCLUDED.atualizado_em""",
                          (conexao_id, dia_b, g2, f2, i2, c2, agora))
-    return True
+    return (history_complete and config_complete) if refresh_range is not None else True
 
 def puxar_pedidos(conexao_id, token, user_id):
     return sync_orders(conexao_id, token, user_id, banco, consultar,
@@ -5712,8 +5601,13 @@ register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagi
 register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
 from intervention_routes import register_interventions
 register_interventions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from profitability_routes import register_profitability
+register_profitability(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
                     is_updating=lambda cid: cid in ATUALIZANDO)
+
+from section_refresh import register as register_section_refresh
+register_section_refresh(app, login_required, pode_ver_loja, banco, consultar, executar, coletar_secao)
 
 iniciar_banco()
 
@@ -6002,7 +5896,28 @@ def job_token_encryption():
         app.logger.error("ml_token_encryption_failed")
 
 
+def job_keiper_ai():
+    try:
+        from keiper_ai_store import run_one
+        run_one(banco, consultar, executar, app.logger)
+    except Exception:
+        app.logger.warning('keiper_ai_daily_unavailable')
+
+
+def job_kyra_campaigns():
+    try:
+        from kyra_campaign_store import run_one
+        run_one(banco, consultar, executar, app.logger)
+    except Exception:
+        app.logger.warning('kyra_campaign_daily_unavailable')
+
+
 scheduler = BackgroundScheduler()
+scheduler.add_job(job_kyra_campaigns, 'interval', minutes=1,
+                  next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30),
+                  id='kyra_campaign_daily', max_instances=1, coalesce=True)
+scheduler.add_job(job_keiper_ai, 'interval', minutes=1,
+                  id='keiper_ai_daily', max_instances=1, coalesce=True)
 scheduler.add_job(job_token_encryption, "interval", minutes=1,
                   next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=10),
                   max_instances=1, coalesce=True)
@@ -6022,5 +5937,3 @@ scheduler.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
-
-

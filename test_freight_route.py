@@ -59,7 +59,7 @@ class FreightRouteTests(unittest.TestCase):
         self.assertEqual(response.headers['Cache-Control'], 'no-store')
         body = response.get_data(as_text=True)
         self.assertIn('Loja sintética &lt;teste&gt;', body)
-        self.assertIn("class='item atual' href='/auditoria-frete/5'", body)
+        self.assertIn("href='/auditoria-frete/5' title='Auditoria de Frete' aria-current='page'", body)
         self.assertIn("name='csrf_token'", body)
         self.query.assert_called_once_with(None,
             'SELECT cliente FROM conexoes WHERE id=%s', (5,))
