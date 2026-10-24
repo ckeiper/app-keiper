@@ -30,7 +30,7 @@ CSS = """<style>
 @media(max-width:650px){.listing-diag .diag-summary{grid-template-columns:1fr 1fr}.listing-diag .diag-summary>a{padding:13px}.listing-diag .diag-hero{padding:20px}.listing-diag .diag-hero h2{font-size:19px}}
 @media(prefers-reduced-motion:reduce){.listing-diag .diag-summary>a{transition:none}.listing-diag .diag-summary>a:hover{transform:none}}
 body .conteudo .listing-diag .diag-summary>a,body .conteudo .listing-diag .diag-action,body .conteudo .listing-diag .diag-actions-empty{background:#142940;color:#eaf2ff}
-body .conteudo .listing-diag h2,body .conteudo .listing-diag h3,body .conteudo .listing-diag strong{color:#eaf2ff}
+body .conteudo .listing-diag #diag-acoes{background:#102238;padding:20px;border:1px solid #34516e;border-radius:14px}body .conteudo .listing-diag h2,body .conteudo .listing-diag h3,body .conteudo .listing-diag strong{color:#eaf2ff}
 body .conteudo .listing-diag .diag-action p,body .conteudo .listing-diag .diag-priority,body .conteudo .listing-diag .diag-hint{color:#bdcce1}
 body .conteudo .listing-diag .diag-next{background:#1c3552;color:#dcecff}
 body .conteudo .listing-diag .diag-hint>a{background:#1c3552!important;color:#b9e5ff!important;border-color:#426184!important}

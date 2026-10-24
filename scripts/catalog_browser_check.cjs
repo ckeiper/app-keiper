@@ -41,6 +41,7 @@ const {chromium}=require('playwright');
       await page.setViewportSize({width,height:900});
       await page.setContent(fs.readFileSync('visual-qa/diagnostic-navy.html','utf8'));
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+      assert.equal(await page.locator('#diag-acoes').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
       assert.equal(await page.locator('.diag-action').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(20, 41, 64)');
       assert.equal(await page.locator('.diag-action h3').first().evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
       await page.locator('.diag-summary a').first().focus();
