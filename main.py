@@ -4178,7 +4178,7 @@ def ranking_anuncios(cid):
         if not lojas:
             return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
         anuncios_loja = consultar(conn, """
-            SELECT item_id, titulo, status, quantidade FROM anuncios
+            SELECT item_id, titulo, status, quantidade, atualizado_em FROM anuncios
             WHERE conexao_id=%s ORDER BY item_id
         """, (cid,))
         pedidos = consultar(conn, """
@@ -4237,8 +4237,11 @@ def ranking_anuncios(cid):
     from investigation_evidence import load_bulk
     with banco() as conn:
         evidencias_queda = load_bulk(conn, consultar, cid, resumo, fim_analise, days=int(dias))
-    prioridades = render_priorities(prioritize_listings(resumo, evidencias_queda),
-                                   anuncios_loja, cid, days=int(dias), compact=compact_priorities)
+    from listing_priority_sources import listing_signals
+    sinais_verificados = listing_signals(anuncios_loja, resumo, int(dias))
+    prioridades = render_priorities(prioritize_listings(
+        resumo, evidencias_queda, verified_signals_by_item=sinais_verificados),
+        anuncios_loja, cid, days=int(dias), compact=compact_priorities)
     if compact_priorities:
         response = Response(prioridades, mimetype="text/html")
         response.headers["Cache-Control"] = "private, max-age=60"
