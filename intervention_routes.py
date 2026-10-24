@@ -66,6 +66,8 @@ def register_interventions(app, login_required, can_view, bank, query, execute, 
         elif request.args.get('salvo')=='1':
             message='Registro atualizado.'
         with bank() as conn:
+            if request.method=='GET':
+                execute(conn,'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
             total=query(conn,'SELECT COUNT(*) AS n FROM '+HISTORY+' WHERE conexao_id=%s AND item_id=%s',(cid,item_id))[0]['n']
             pages=max(1,(total+9)//10)
             try:
@@ -88,7 +90,7 @@ def register_interventions(app, login_required, can_view, bank, query, execute, 
                 if not found:
                     return 'Registro não encontrado nesta loja e anúncio.',404
                 selected=found[0]
-            result=load_comparison(conn,query,cid,item_id,selected['event_date'],day) if selected and selected['void_at'] is None else None
+            result=load_comparison(conn,query,cid,item_id,selected['event_date'],day,financial=admin and selected.get('kind')=='preco' and request.method=='GET') if selected and selected['void_at'] is None else None
         def hidden():
             return "<input type='hidden' name='csrf_token' value='"+escape(token,quote=True)+"'>"
         body=CSS+"<div class='interventions'><header class='iv-head'><h2>Histórico automático do anúncio</h2><p>"+escape(stores[0]['titulo'] or item_id)+' · '+escape(item_id)+"</p><p>Alterações detectadas nas coletas, sem preencher formulários. A primeira leitura cria a referência; falhas e campos ausentes não geram alterações.</p><a class='iv-btn' href='/diagnostico/"+str(cid)+'/'+item_id+"'>Voltar ao diagnóstico</a></header>"
@@ -106,6 +108,10 @@ def register_interventions(app, login_required, can_view, bank, query, execute, 
             body+=detail_html(selected)
             body+='<p class="iv-meta">Registrado em '+datetime.fromtimestamp(selected['created_at'],BR).strftime('%d/%m/%Y %H:%M')+('. Detecção automática nas coletas.' if selected.get('source')=='automatic' else '. Data da ação informada pelo administrador.')+'</p></section>'
             body+=comparison_html(result,selected) if result else "<p class='iv-status warn'>Registro desconsiderado. Ele permanece no histórico e não entra na comparação.</p>"
+            if admin and result and 'financial' in result:
+                from profitability_action import render as render_financial
+                body+=render_financial(result['financial'],cid,item_id,result['periods'],day)
+
         body+="<section aria-label='Histórico de ações'><h3>Histórico · %s registros</h3>" % total
         for row in rows:
             body+="<article class='iv-card%s'><span class='iv-meta'>" % (' iv-void' if row['void_at'] is not None else '')+('Automático' if row.get('source')=='automatic' else 'Observação manual')+'</span><br><b>'+row['event_date'].strftime('%d/%m/%Y')+' · '+escape(KINDS[row['kind']])+"</b><p class='iv-note'>"+escape(row['note'])+'</p>'

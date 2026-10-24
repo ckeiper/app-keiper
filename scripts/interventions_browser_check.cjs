@@ -38,6 +38,18 @@ const {chromium}=require('playwright');
   await page.screenshot({path:'visual-qa/interventions-mobile.png',fullPage:true});
   await page.goto('http://127.0.0.1:'+server.address().port+'/anuncios/1/MLB100/acoes?vazio=1');
   assert.ok(await page.getByText('Ainda não há alterações detectadas. O histórico será preenchido automaticamente pelas próximas coletas; a primeira leitura é a referência.',{exact:true}).isVisible());
+  for(const state of ['ready','negative','missing','waiting']) {
+   for(const width of [1440,390,320]) {
+    await page.setViewportSize({width,height:900});
+    await page.setContent(fs.readFileSync(`visual-qa/interventions-finance-${state}.html`,'utf8'));
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    assert.equal(await page.locator('.action-finance h3').evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
+    assert.equal(await page.locator('.action-finance table').count(),['ready','negative'].includes(state)?1:0);
+    if(state==='ready')assert.ok((await page.locator('.action-finance').textContent()).includes('R$ 1.340,00'));
+    if(state==='negative')assert.ok((await page.locator('.action-finance').textContent()).includes('R$ -400,00'));
+    if(state==='ready')await page.screenshot({path:`visual-qa/action-finance-${width}.png`,fullPage:true});
+   }
+  }
   assert.deepEqual(errors,[]);
   console.log('Action form, comparison, overlap notice, pagination, empty state and mobile layout passed.');
  }finally{await browser.close();await new Promise(r=>server.close(r));}

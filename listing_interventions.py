@@ -71,7 +71,7 @@ def compare(item_id, action_day, orders, items, covered, visits, today, pending=
     return result
 
 
-def load_comparison(conn, query, cid, item_id, action_day, today):
+def load_comparison(conn, query, cid, item_id, action_day, today, financial=False):
     # One comparison per page, never one set of queries per history row. Use the
     # established store-wide classifier so broken item mapping cannot hide sales.
     start_day,end_day = action_day-timedelta(days=7),action_day+timedelta(days=14)
@@ -100,6 +100,9 @@ def load_comparison(conn, query, cid, item_id, action_day, today):
     result['other_actions']=max(0,overlaps-1)
     from intervention_followup import assess
     result['followup'] = assess(item_id,action_day,today,orders,items,[r['dia'] for r in coverage],traffic,result,pending)
+    if financial:
+        from profitability_action import load as load_financial
+        result['financial']=load_financial(conn,query,cid,item_id,result['periods'],orders,items,today)
     return result
 
 
