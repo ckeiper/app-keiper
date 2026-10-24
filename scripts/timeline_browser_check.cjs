@@ -20,6 +20,12 @@ const {chromium}=require('playwright');
  try{
   await page.goto('http://127.0.0.1:'+server.address().port+'/diagnostico/1/MLB100000');await ready();
   assert.ok(await page.getByText('Linha do tempo do anúncio',{exact:true}).isVisible());
+  assert.equal(await page.locator('.item-timeline').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
+  assert.equal(await page.locator('.item-timeline h3').evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
+  assert.equal(await page.locator('.timeline-pages a').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(28, 53, 82)');
+  assert.equal(await page.evaluate(()=>Object.values(Chart.instances)[0].options.plugins.legend.labels.color),'#bdcce1');
+  await page.locator('select[name=comparar_linha]').focus();
+  assert.equal(await page.locator(':focus').getAttribute('name'),'comparar_linha');
   assert.ok(await page.getByText('Queda confirmada: R$ 245,00',{exact:true}).isVisible());
   assert.ok(await page.locator('.evidence-next').getByText('Verificar reposição no Full',{exact:false}).isVisible());
   assert.ok(await page.locator('.evidence-action').filter({hasText:'Revisar aumento de preço observado'}).getByText('Como acompanhar:',{exact:true}).isVisible());

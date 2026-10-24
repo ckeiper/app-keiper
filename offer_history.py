@@ -57,6 +57,33 @@ def grouped_readings(rows):
     return sorted(groups.items())
 
 
+def period_readings(rows,end,days):
+    start=int(datetime.combine(end-timedelta(days=days-1),datetime.min.time(),BR).timestamp())
+    stop=int(datetime.combine(end+timedelta(days=1),datetime.min.time(),BR).timestamp())
+    return [row for stamp,group in grouped_readings(rows) if start<=stamp<stop for row in group]
+
+
+def daily_readings(rows):
+    """Latest timestamp per day, keeping ambiguous or invalid readings as gaps."""
+    latest={}
+    for stamp,group in grouped_readings(rows):
+        try:day=datetime.fromtimestamp(stamp,BR).date().isoformat()
+        except (ValueError,OverflowError,OSError):continue
+        latest[day]=group[0] if len(group)==1 else dict(observed_at=stamp,confirmed=False,price=None)
+    return latest
+
+
+def continuous_price_since(rows,since):
+    previous=None
+    for stamp,group in grouped_readings(rows):
+        if stamp<since:continue
+        if previous is None and stamp!=since:return False
+        if len(group)!=1 or confirmed_price(group[0]) is None:return False
+        if previous is not None and stamp-previous>6*3600:return False
+        previous=stamp
+    return previous is not None
+
+
 def price_events(rows):
     """Compare unique, explicitly confirmed cent prices; failures break continuity."""
     previous = None
