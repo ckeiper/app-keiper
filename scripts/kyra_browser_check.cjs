@@ -15,6 +15,9 @@ for(const width of [1440,820,390,320]){
  await page.waitForFunction(()=>document.querySelector('.kyra').dataset.kyraReady==='true');
  assert.equal(await page.locator('.ky-chart-pick').count(),3);
  assert.equal(await page.locator('.ky-campaign-card').count(),3);
+ assert.equal(await page.locator('.ky-sale-efficiency').count(),3);
+ assert.ok((await page.locator('.ky-sale-efficiency').first().innerText()).includes('Não é custo de aquisição'));
+ assert.equal(await page.locator('.ky-sale-efficiency table tbody tr').count(),6);
  assert.ok((await page.locator('.ky-campaign-card').first().innerText()).includes('Investigar gasto sem receita atribuída'));
  assert.equal(await page.locator('.ky-campaign-card a').first().getAttribute('href'),'/ads/1/campanha/waste');
 
