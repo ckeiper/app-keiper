@@ -101,13 +101,13 @@ def inspect_sales_reconciliation(filename, payload, bundle=False):
         dates = set()
         daily = {}
         seen = set()
-        for row in ws.iter_rows(min_row=4, max_row=MAX_LEDGER_ROWS + 4,
-                                max_col=45, values_only=True):
+        for line_number,row in enumerate(ws.iter_rows(min_row=4, max_row=MAX_LEDGER_ROWS + 4,
+                                max_col=45, values_only=True),start=4):
             if all(v is None or v == '' for v in row):
                 continue
             result['rows'] += 1
             if gross_column is not None:
-                accumulate(result['financial'],row[gross_column],row[columns['total_fees']],row[columns['net_after_fees']])
+                accumulate(result['financial'],row[gross_column],row[columns['total_fees']],row[columns['net_after_fees']],row[columns['operation_type']],line_number)
             if result['rows'] > MAX_LEDGER_ROWS:
                 raise PreviewError('Relatório excede o limite de lançamentos.')
             if bundle:

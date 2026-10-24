@@ -33,7 +33,7 @@ print('Synthetic management preview rendered.')
 
 from ledger_arithmetic import empty,accumulate,render as render_ledger
 ledger=empty(True)
-accumulate(ledger,100,10,90)
-accumulate(ledger,-100,-10,-90)
-accumulate(ledger,100,10,'89.99')
+accumulate(ledger,100,10,90,'Venda',4)
+accumulate(ledger,-100,-10,-90,'Venda',5)
+accumulate(ledger,100,10,'89.99','Anúncios MClicks',6)
 (destination/'ledger-preview.html').write_text(page('Conferência financeira',1,'Loja de demonstração','resumo',render_ledger(ledger)),encoding='utf-8')
