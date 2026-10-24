@@ -6,6 +6,7 @@ on:
       - 'listing_competitiveness.py'
       - 'offer_history.py'
       - 'test_offer_reading_coverage.py'
+      - 'test_diagnostic_source_continuity.py'
       - 'test_listing_competitiveness.py'
       - 'listing_timeline.py'
       - 'listing_interventions.py'

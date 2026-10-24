@@ -6,8 +6,7 @@ from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 from listing_full_sales_chart import daily_sales,daily_full_status
 from investigation_evidence import window
-from competitor_monitor import money
-from offer_history import price_events
+from offer_history import price_events, confirmed_price, daily_readings, period_readings
 
 BR=ZoneInfo('America/Sao_Paulo')
 
@@ -18,15 +17,12 @@ def build(item_id,orders,items,coverage,full,visits,offers,end,days=14,pending=F
     for day in dates:
         reading=window(visits,[day],['visitas'],'dia')
         traffic.append(int(reading['totals']['visitas']) if reading['complete'] else None)
-    latest={}
-    for row in offers:
-        day=datetime.fromtimestamp(row['observed_at'],BR).date().isoformat()
-        if day in dates and (day not in latest or row['observed_at']>latest[day]['observed_at']):
-            latest[day]=row
+    offers=period_readings(offers,end,days+1)
+    latest=daily_readings(offers)
     prices=[]
     for day in dates:
         row=latest.get(day)
-        price=money(row.get('price')) if row and row.get('confirmed') else None
+        price=confirmed_price(row) if row else None
         prices.append(float(price) if price is not None else None)
     events=[]
     for event in price_events(offers):
@@ -48,6 +44,15 @@ def render(item_id,orders,items,coverage,full,visits,offers,end,*,pending=False,
     data=build(item_id,orders,items,coverage,full,visits,offers,end,days=days,pending=pending)
     out="""<style>
 .item-timeline{min-width:0;max-width:100%;box-sizing:border-box;border:1px solid #dce6f1;border-radius:15px;background:#fff;padding:22px;margin:18px 0;color:#213b56}.item-timeline h3{margin:0 0 8px}.timeline-filter{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:15px 0}.timeline-filter label{display:grid;gap:5px;font-size:12px}.timeline-filter select{padding:9px;border:1px solid #dce6ef;border-radius:8px}.timeline-chart{height:330px;position:relative;width:100%;min-width:0;max-width:100%;overflow:hidden}.timeline-chart canvas{max-width:100%}.timeline-meta{font-size:11px;color:#6d7f94;line-height:1.6}.timeline-coverage{display:flex;flex-wrap:wrap;gap:8px;margin:13px 0}.timeline-coverage span{padding:6px 9px;background:#f0f5fa;border-radius:7px;font-size:11px}.item-timeline summary{padding:12px 0;cursor:pointer;font-size:12px;font-weight:650}.timeline-pages{display:flex;gap:12px;align-items:center;margin-top:12px;font-size:12px}.timeline-table{overflow:auto;min-width:0;max-width:100%}.timeline-table table{width:100%;border-collapse:collapse;font-size:12px}.timeline-table td,.timeline-table th{padding:9px;border-bottom:1px solid #e8eef5;text-align:left;white-space:nowrap}@media(max-width:600px){.item-timeline{padding:14px}.timeline-chart{height:290px}}
+body .conteudo section.item-timeline{background:#102238;color:#eaf2ff;border-color:#34516e}
+body .conteudo .item-timeline h3,body .conteudo .item-timeline summary{color:#eaf2ff}
+body .conteudo .item-timeline .timeline-meta,body .conteudo .item-timeline .timeline-pages{color:#bdcce1}
+body .conteudo .item-timeline .timeline-coverage span,body .conteudo .item-timeline table th,body .conteudo .item-timeline table td{background:#182e49;color:#eaf2ff;border-color:#426184}
+body .conteudo .item-timeline select{background:#0b192c;color:#eaf2ff;border-color:#426184}
+body .conteudo .item-timeline a{color:#b9e5ff}
+body .conteudo .item-timeline .timeline-pages a.filtro{background:#1c3552;color:#b9e5ff!important;border-color:#426184}
+body .conteudo .item-timeline label,body .conteudo .item-timeline .timeline-chart p{color:#bdcce1}
+body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline:3px solid #85c8ec;outline-offset:3px}
 </style><section class='item-timeline'><h3>Linha do tempo do anúncio</h3>"""
     out+='<p class="timeline-meta">Vendas verificadas e sinais observados nas mesmas datas · %s dias encerrados até %s. Os pontos de Full mostram a última leitura de cada dia, não a duração do estoque.</p>' % (days,end.strftime('%d/%m/%Y'))
     out+="<form class='timeline-filter' method='get'>"
@@ -81,8 +86,8 @@ def render(item_id,orders,items,coverage,full,visits,offers,end,*,pending=False,
     datasets.append(dict(type='line',label='Mudança de preço detectada',data=event_points,eventNotes=event_notes,showLine=False,pointRadius=6,pointStyle='triangle',backgroundColor='#db9a39',borderColor='#db9a39',yAxisID='extra' if mode=='preco' else 'markers',isEvent=True,order=0))
     payload=json.dumps(dict(labels=data['dates'],datasets=datasets),ensure_ascii=False).replace('<','\\u003c').replace('>','\\u003e').replace('&','\\u0026')
     out+="<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
-    out+="<script>(function(){var el=document.getElementById("+json.dumps(identifier)+");if(!el)return;if(typeof Chart==='undefined'){document.getElementById(el.id+'-notice').hidden=false;el.hidden=true;return;}new Chart(el,{data:"+payload+",options:{locale:'pt-BR',animation:false,responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:function(c){if(c.dataset.isFull)return c.dataset.label;if(c.dataset.isEvent)return c.dataset.eventNotes[c.dataIndex]||'Mudança detectada';return c.dataset.label+': '+c.formattedValue;}}}},scales:{x:{ticks:{callback:function(v){var s=this.getLabelForValue(v);return s.slice(8)+'/'+s.slice(5,7);}}},sales:{beginAtZero:true,position:'left',title:{display:true,text:'Vendas (R$)'}},extra:{display:"+('false' if mode=='nenhum' else 'true')+",beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:"+json.dumps('Preço observado (R$)' if mode=='preco' else 'Visitas')+"}},markers:{display:false,min:0,max:1.3}}}})})();</script>"
-    out+='<p class="timeline-meta">Posição dos marcadores Full serve apenas para visualizar o estado. A marca de preço mostra a última mudança detectada no dia, não o horário exato da alteração. Dados ausentes permanecem como lacunas.</p>'
+    out+="<script>(function(){var el=document.getElementById("+json.dumps(identifier)+");if(!el)return;if(typeof Chart==='undefined'){document.getElementById(el.id+'-notice').hidden=false;el.hidden=true;return;}new Chart(el,{data:"+payload+",options:{locale:'pt-BR',animation:false,responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom',labels:{color:'#bdcce1'}},tooltip:{callbacks:{label:function(c){if(c.dataset.isFull)return c.dataset.label;if(c.dataset.isEvent)return c.dataset.eventNotes[c.dataIndex]||'Mudança detectada';return c.dataset.label+': '+c.formattedValue;}}}},scales:{x:{grid:{color:'#34516e'},ticks:{color:'#bdcce1',callback:function(v){var s=this.getLabelForValue(v);return s.slice(8)+'/'+s.slice(5,7);}}},sales:{beginAtZero:true,position:'left',ticks:{color:'#bdcce1'},grid:{color:'#34516e'},title:{display:true,color:'#bdcce1',text:'Vendas (R$)'}},extra:{display:"+('false' if mode=='nenhum' else 'true')+",beginAtZero:true,position:'right',ticks:{color:'#bdcce1'},grid:{drawOnChartArea:false},title:{display:true,color:'#bdcce1',text:"+json.dumps('Preço observado (R$)' if mode=='preco' else 'Visitas')+"}},markers:{display:false,min:0,max:1.3}}}})})();</script>"
+    out+='<p class="timeline-meta">Posição dos marcadores Full serve apenas para visualizar o estado. A marca de preço mostra a última mudança detectada no dia, não o horário exato da alteração. Preço diário usa a última leitura única e explicitamente confirmada; duplicidades e falhas permanecem como lacunas, sem recuperar preço anterior.</p>'
     try:
         page=max(1,int(args.get('pagina_linha',1)))
     except (TypeError,ValueError):
