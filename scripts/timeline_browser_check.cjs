@@ -67,6 +67,16 @@ const {chromium}=require('playwright');
   assert.ok(await page.getByText('Gráfico indisponível. Confira os dados diários abaixo.',{exact:true}).isVisible());
   await page.locator('.item-timeline details summary').click();
   assert.ok(await page.locator('.timeline-table tbody tr').first().isVisible());
+  for(const width of [1440,390,320]) {
+   await page.setViewportSize({width,height:900});
+   await page.setContent(fs.readFileSync('visual-qa/competitiveness-preview.html','utf8'));
+   assert.equal(await page.locator('.price-comparison tbody tr').count(),1);
+   assert.ok((await page.locator('.price-comparison').textContent()).includes('Aumentou: 10,00 p.p.'));
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+   assert.equal(await page.locator('.price-comparison h3').evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
+   assert.ok(await page.locator('.price-comparison>div').evaluate(el=>el.scrollWidth>=el.clientWidth));
+   await page.screenshot({path:`visual-qa/competitiveness-${width}.png`,fullPage:true});
+  }
   assert.deepEqual(errors,[]);
   console.log('Timeline chart, sparse event alignment, metric switch, pagination and mobile layout passed.');
  }finally{await browser.close();await new Promise(r=>server.close(r));}

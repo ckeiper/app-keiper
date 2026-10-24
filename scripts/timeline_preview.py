@@ -33,3 +33,9 @@ panel=render_evidence(build_evidence(ranked,'MLB100000',complete_visits,full,[],
 body='<p>Dados fictícios para validação automática.</p>'+panel+render('MLB100000',orders,items,covered,full,complete_visits,offers,end)
 (dest/'timeline-drivers.html').write_text(page('Fatores do faturamento',1,'Loja de demonstração','desempenho',body),encoding='utf-8')
 print('Synthetic timeline previews rendered.')
+
+from offer_history import render as render_offers
+from test_listing_competitiveness import data as competitive_data,END as competitive_end
+fixture=competitive_data()
+fixture.update(current=None,targets_limited=False,history_limited=False)
+(dest/'competitiveness-preview.html').write_text(page('Competitividade observada',1,'Loja de demonstração','anuncios','<p>Dados fictícios para teste.</p>'+render_offers(fixture,1,'MLB100',competitive_end)),encoding='utf-8')
