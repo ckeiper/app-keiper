@@ -4248,6 +4248,12 @@ def ranking_anuncios(cid):
         response.headers["Cache-Control"] = "private, max-age=60"
         return response
     corpo += prioridades
+    if session.get('tipo') == 'admin':
+        from financial_priority_queue import render as render_financial_queue
+        from profitability_view import CSS as profitability_css
+        corpo += profitability_css + render_financial_queue(
+            sinais_financeiros, anuncios_loja, cid,
+            fim_analise-datetime.timedelta(days=int(dias)-1), fim_analise)
     corpo += render_decline(resumo, anuncios_loja, cid, request.args, fim_analise,
                             days=int(dias), evidence_by_item=evidencias_queda)
     kpis = listing_kpis(resumo["rows"])
