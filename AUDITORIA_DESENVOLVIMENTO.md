@@ -1,7 +1,31 @@
 # Dashboard Keiper — auditoria e execução
 
-Auditoria em 24/10/2026. Base: `main` em `09f056dccc63334778ba79621dc6267d3e65ad3d`.
-Render confirmado nessa revisão: serviço `app-keiper`, commit base `live`, deploy automático por commit na `main`.
+Estado consolidado em 24/10/2026, após #241. Base de produção: `70c7e60a721378f588d08fce94adbf577c355226`.
+Render: `dep-dbeck3mk1f9s73f63hg0`, confirmado live em 24/10/2026 às 12:10:18 (Brasília). Suíte: 733 testes sem skips com PostgreSQL em Python 3.12 e 3.14; checks de navegador aprovados. Isso não comprova validação financeira de todas as contas reais.
+
+## Entregas consolidadas
+
+| Entrega | Estado verificado | Evidência |
+|---|---|---|
+| Rentabilidade por anúncio com versões e fontes | Integrada e publicada | #235 |
+| Identidade pública KEVIA | Integrada; wordmark corrigido na etapa financeira | #228, #238 |
+| Histórico de participação em promoções e correção do deadlock de startup | Integrados e publicados | #205 |
+| Comparação histórica de contribuição e margem | Integrada e publicada | #236 |
+| Evidências financeiras em prioridades administrativas | Integradas e publicadas | #237 |
+| KEVIA financeira privada, cobertura e acompanhamento | Integrada e publicada; primeiro retrato depende da rotina diária da loja | #238 |
+| Plano de revisão da margem documentada | Integrado e publicado | #239 |
+| Comparação histórica de volume e médias por unidade | Integrada e publicada | #240 |
+| Leitura limitada de pedidos no acompanhamento de ações | Integrada e publicada; ganho de latência não medido | #241 |
+
+## Pendências reais
+
+- Documento integral dos 90 requisitos: ainda não recuperado; impede contar ou certificar a conclusão da lista literal.
+- Coleta automática completa de custos por anúncio e período: pendente. Os registros atuais são documentados pelo administrador.
+- Conciliação bancária integral (#201): pendente; a importação de conciliação de vendas/frete existente não equivale à conciliação com extrato bancário.
+- Ingestão periódica de transcrições do Gmail: pendente no aplicativo; a importação manual existente não é automação de e-mail.
+- Uniformização de telas legadas e validação de fontes/dados por conta continuam trabalhos de evolução, sem alegação de conclusão global.
+
+As seções a partir da matriz abaixo preservam a auditoria inicial e o registro cronológico. Referências a PRs abertos e próximos passos nessas seções são históricas; o estado atual é o consolidado acima.
 
 ## Escopo e critério de conclusão
 
@@ -9,7 +33,7 @@ A lista literal numerada das 90 melhorias não está versionada no repositório 
 
 “Implementado” significa código integrado na base auditada e cobertura automatizada identificada. “Parcial” significa que existe implementação, mas falta uma fonte, integração ou parte do fluxo. Não significa validação de todas as contas e dados reais em produção.
 
-## Matriz do código existente
+## Matriz inicial do código — registro histórico
 
 | Área | Implementado na base | Parcial ou pendente | Evidências principais |
 |---|---|---|---|
@@ -27,7 +51,7 @@ A lista literal numerada das 90 melhorias não está versionada no repositório 
 | KEVIA | Regras diárias, evidências, central, histórico, revisão manual e controle de orçamento opcional de API | Parte da interface ainda se chama KYRA; #228 está aberto. API paga depende de configuração explícita; nenhum treinamento personalizado foi presumido | `keiper_ai.py`, `keiper_ai_store.py`, `keiper_ai_budget.py`, `kyra_*.py`, `test_keiper_ai*.py`, `IA_KEIPER.md` |
 | Segurança e desempenho | Sessões revogáveis, CSRF/origem, permissões por loja, MFA opcional, suporte à criptografia de tokens, locks e sincronização incremental, caches/índices | Presença de código não comprova ativação de segredos/MFA em produção; nenhuma configuração secreta foi lida nesta auditoria | `web_security.py`, `session_security.py`, `account_mfa.py`, `ml_token_crypto.py`, `overview_read.py`, `sync_runner.py`, testes correspondentes |
 
-## PRs abertos e reaproveitamento
+## PRs abertos na auditoria inicial — registro histórico
 
 - #235: continuar neste PR; transformar a calculadora em fluxo utilizável com fontes explícitas e sem lucro presumido.
 - #228: identidade pública KEVIA; aproveitar o PR existente após testes na base atual. Identificadores internos/URLs/tabelas permanecem compatíveis.
@@ -46,7 +70,7 @@ A lista literal numerada das 90 melhorias não está versionada no repositório 
 - Alteração na base de vendas invalida o cálculo até revisão dos custos; versões antigas permanecem rastreáveis.
 - Nenhuma alteração de preço, campanha, pedido, importação ou saldo em produção.
 
-## Próximas etapas verificáveis
+## Etapas propostas na auditoria inicial — registro histórico
 
 1. Finalizar #235 com suíte completa, integração PostgreSQL e QA visual desktop/mobile; integrar apenas com CI aprovado e confirmar commit `live` no Render.
 2. Aproveitar #228 para concluir o nome público KEVIA e #205 para o histórico de promoções, após validar seus diffs contra a `main` atual.
