@@ -53,6 +53,11 @@ STYLE = """<style>
 .kp-item:focus-visible{outline:3px solid #81b9ff}
 .kp-title{display:block;font-size:13px;font-weight:800;overflow-wrap:anywhere;color:#223957}
 .kp-loss{font-size:23px;font-weight:850;letter-spacing:-.6px;color:#bb4654;margin:9px 0 6px}
+.kp-evidence{margin:10px 0;padding:10px 12px;border:1px solid #d8e6f3;border-radius:10px;background:#f5f9ff}
+.kp-evidence strong{display:block;font-size:10px;letter-spacing:.6px;color:#285b86;text-transform:uppercase;margin-bottom:5px}
+.kp-evidence p{margin:5px 0!important;color:#314965!important}
+.kp-evidence .kp-next{font-weight:650}
+.kp-limitations{font-size:10px!important;color:#687a90!important}
 .kp-pill{display:inline-block;background:#f2f5fa;border-radius:6px;font-size:10px;font-weight:700;color:#51647d;padding:5px 7px;margin:3px 4px 3px 0}
 .kp-item p{font-size:11px;color:#586c86;line-height:1.6}
 .kp-foot{display:block;font-size:11px;font-weight:750;color:#35629b;margin-top:11px}
@@ -80,11 +85,15 @@ def render(result, listings, cid, days=7, compact=False):
         out+='<span class="kp-pill">%+.1f%% no faturamento</span>' % r['pct']
         for reason in r['reasons']:
             out+='<span class="kp-pill">'+escape(reason)+'</span>'
-        for finding in r.get('additional_findings', []):
-            out+='<p><b>Sinal verificado:</b> '+escape(finding['evidence'])+'</p>'
-            out+='<p><b>Ação sugerida:</b> '+escape(finding['action'])+'</p>'
+        findings = r.get('additional_findings', [])
+        if findings:
+            out+='<div class="kp-evidence"><strong>↗ Evidências adicionais</strong>'
+            for finding in findings:
+                out+='<p>'+escape(finding['evidence'])+'</p>'
+                out+='<p class="kp-next">Próxima ação: '+escape(finding['action'])+'</p>'
+            out+='</div>'
         if r.get('data_limitations'):
-            out+='<p>Sem evidência suficiente: '+escape(', '.join(r['data_limitations']))+'.</p>'
+            out+='<p class="kp-limitations">Dados ainda não confirmados: '+escape(', '.join(r['data_limitations']))+'.</p>'
         out+='<p><b>Por onde começar:</b> '+escape(r['action'])+'</p>'
         if r['coverage'] is not None and r['coverage'] < r['expected']:
             out+='<p>Cobertura de visitas: %s/%s dias; sinais adicionais podem estar ausentes.</p>' % (r['coverage'],r['expected'])
