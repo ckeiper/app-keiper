@@ -15,6 +15,8 @@ def central_rows(shops, runs):
         if not isinstance(items, list):
             items = []
         items = [i for i in items if isinstance(i, dict)]
+        from kevia_finance import central_findings
+        items += central_findings(result.get('financial'))
         items.sort(key=lambda i: -int(i.get('priority') or 0))
         quality = bool(result.get('quality'))
         output.append(dict(id=cid, name=str(shop['cliente']), status=(run or {}).get('status'),

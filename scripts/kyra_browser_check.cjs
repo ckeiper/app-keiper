@@ -9,7 +9,9 @@ const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(
 const base='http://127.0.0.1:'+server.address().port;
 for(const width of [1440,820,390,320]){
  await page.setViewportSize({width,height:1000});await page.goto(base);
- await page.getByRole('heading',{name:'KYRA',exact:true}).waitFor();
+ await page.getByRole('heading',{name:'KEVIA',exact:true}).waitFor();
+ assert.ok(await page.locator('.ky-wordmark').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=56),'Wordmark must keep its size in the store shell');
+ assert.equal(await page.locator('.ky-wordmark').evaluate(el=>getComputedStyle(el).color),'rgb(246, 240, 255)');
  await page.waitForFunction(()=>document.querySelector('.kyra').dataset.kyraReady==='true');
  assert.equal(await page.locator('.ky-chart-pick').count(),3);
  assert.equal(await page.locator('.ky-campaign-card').count(),3);

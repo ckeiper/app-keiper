@@ -15,12 +15,16 @@ def load_signals(conn,query,cid,ranking,orders,items,end,days):
     start=end-timedelta(days=days-1)
     previous_end=start-timedelta(days=1)
     previous_start=previous_end-timedelta(days=days-1)
-    records=query(conn,'''SELECT DISTINCT ON (item_id,inicio,fim) *
+    records=load_records(conn,query,cid,start,end,previous_start,previous_end)
+    return build_signals(cid,ranking,orders,items,records,start,end,previous_start,previous_end)
+
+
+def load_records(conn,query,cid,start,end,previous_start,previous_end):
+    return query(conn,'''SELECT DISTINCT ON (item_id,inicio,fim) *
         FROM listing_profitability_records
         WHERE conexao_id=%s AND ((inicio=%s AND fim=%s) OR (inicio=%s AND fim=%s))
         ORDER BY item_id,inicio,fim,id DESC''',
         (cid,start,end,previous_start,previous_end))
-    return build_signals(cid,ranking,orders,items,records,start,end,previous_start,previous_end)
 
 
 def build_signals(cid,ranking,orders,items,records,start,end,previous_start,previous_end):

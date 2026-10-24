@@ -86,3 +86,8 @@ Lote sobre `ac991cd`: evolução da contribuição e margem por anúncio, compos
 #236 integrado em `36df005`, com 688 testes aprovados em Python 3.12/3.14 e QA de navegador. Deploy `dep-dbeb7115efls73ar0go0` confirmado `live`.
 
 Próximo lote liga custos documentados aos cards existentes de anúncios com perda bruta. Para o administrador, acrescenta contribuição atual negativa e comparação de margem, inclusive quando negativa, sem mudar a ordem bruta ou os critérios de acesso dos clientes. Uma leitura financeira adicional por loja, com reaproveitamento das vendas e fingerprint compartilhado; sem chamada ao marketplace e sem nova migração. Especificação em `PRIORIDADES_FINANCEIRAS.md`. Publicação condicionada aos testes desta revisão.
+
+
+## Continuação — KEVIA com evidências financeiras privadas
+
+Base `8e738e4` (#237), publicada com 700 testes aprovados em Python 3.12/3.14. A rotina diária passa a salvar um retrato financeiro privado com fonte documental e vínculo verificado às vendas, cobertura explícita, sinais por anúncio e acompanhamento manual por período. A central e o histórico administrativo passam a usar esses sinais. O campo é filtrado para clientes e não entra no payload pago; análises antigas não são reescritas. Aguardando a primeira execução, o bloco mostra pendência em vez de zero. Detalhes em `KEVIA_FINANCEIRO.md`. Corrigido também o nome antigo que ainda aparecia no título gráfico como HTML fragmentado, com teste de texto renderizado, tamanho e contraste. Integração/publicação condicionadas aos testes desta revisão.

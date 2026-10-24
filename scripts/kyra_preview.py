@@ -42,7 +42,7 @@ def preview(kind='ready'):
     tree=ast.parse(Path('main.py').read_text(encoding='utf-8'))
     css=next(ast.literal_eval(n.value) for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='CSS' for t in n.targets))
     env=dict(session={'tipo':'admin'},esc=html.escape,CSS=css,VISUAL_CSS=VISUAL_CSS,SCRIPT='',img_logo=lambda size:'')
-    return main_function('pagina_loja',env)('KYRA',1,'Loja de demonstração','ia',body)
+    return main_function('pagina_loja',env)('KEVIA',1,'Loja de demonstração','ia',body)
 
 
 if __name__=='__main__':
