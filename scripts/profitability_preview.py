@@ -14,6 +14,7 @@ print('Synthetic profitability previews rendered.')
 
 from test_profitability_comparison import pair_records
 from profitability_comparison import compare
+from profitability_units import render_unit_comparison
 from profitability_comparison_view import render_comparison
 from decimal import Decimal
 for mode in ['ready','negative','missing','stale']:
@@ -25,6 +26,7 @@ for mode in ['ready','negative','missing','stale']:
     if mode=='stale':previous['sales_fingerprint']='b'*64
     result=compare(pair['current'],pair['previous'],current,previous)
     comparison_html=render_comparison(result,START,END,pair['previous_start'],pair['previous_end'],current,previous)
+    comparison_html += render_unit_comparison(result)
     body=render(42,'MLB100','Produto de demonstração',START,END,pair['current'],result['current'],current,[current],'preview-only','x'*32,comparison_html=comparison_html)
     (dest/('profitability-comparison-'+mode+'.html')).write_text(page('Rentabilidade por anúncio',42,'Loja de demonstração','anuncios',body),encoding='utf-8')
 print('Synthetic financial comparison previews rendered.')

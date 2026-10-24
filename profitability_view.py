@@ -25,6 +25,7 @@ CSS = '''<style>
 .pf input[type=checkbox]{display:inline;width:auto;margin-right:8px}.pf button,.pf .pf-button{display:inline-block;background:#287ac1;color:white;border:0;padding:12px 18px;border-radius:9px;font-weight:700;cursor:pointer}
 .pf :focus-visible{outline:3px solid #91d9fa;outline-offset:3px}.pf .pf-filter{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-top:18px}
 .pf .pf-alert{background:#322c20;border:1px solid #836b34;padding:16px;border-radius:12px;color:#ffe1a1;margin:16px 0}
+.pf .pf-unit-table{min-width:650px}.pf .pf-unit-table caption{text-align:left;color:#b6c7dc;padding:12px 0}
 .pf .pf-table{overflow-x:auto}.pf table{width:100%;border-collapse:collapse}.pf th,.pf td{padding:13px 10px;border-bottom:1px solid var(--pf-line);text-align:left;color:#dce9f7;overflow-wrap:anywhere}.pf th{font-size:12px;color:#b6c7dc}.pf details summary{cursor:pointer;font-weight:700;padding:8px 0}.pf .pf-source{max-width:480px;white-space:pre-wrap}
 @media(max-width:700px){.pf .pf-grid,.pf .pf-fields{grid-template-columns:1fr}.pf .pf-card,.pf .pf-hero{padding:18px}.pf h2{font-size:22px}.pf .pf-filter label{flex:1 1 130px}.pf .pf-filter button{width:100%}}
 </style>'''
