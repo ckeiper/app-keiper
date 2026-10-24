@@ -12,6 +12,9 @@ const {chromium}=require('playwright');
   try{
     await page.goto('http://127.0.0.1:'+server.address().port+'/anuncios/1');
     assert.equal(await page.locator('.catalog-summary .stat').count(),4);
+    assert.equal(await page.locator('select[name=leitura]').count(),1);
+    assert.equal(await page.locator('.catalog-dashboard').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
+    assert.ok((await page.locator('.catalog-table th,.catalog-table td').evaluateAll(els=>els.map(el=>getComputedStyle(el).backgroundColor))).every(c=>c==='rgb(20, 41, 64)'));
     assert.equal(await page.locator('.catalog-table tbody tr').count(),20);
     assert.equal(await page.locator('.catalog-table th').count(),5);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
