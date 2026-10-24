@@ -45,3 +45,60 @@ class CompetitivenessTests(unittest.TestCase):
   html=render(d,END);self.assertNotIn('<script>',html);self.assertIn('&lt;script&gt;',html)
   self.assertIn('não comprova equivalência',html);self.assertIn('não atribui causalidade',html)
   self.assertIn('Histórico limitado',html)
+
+class CompetitivenessPeriodTests(unittest.TestCase):
+ def test_periods_count_valid_above_equal_below_and_failures(self):
+  d=data();d['own']=[];d['competitors']=[]
+  for offset,own_price,competitor_price in [(-7*86400,90,100),(-7*86400+3600,100,100),(0,110,100),(3600,100,100),(7200,90,100)]:
+   stamp=STAMP+offset
+   d['own'].append(dict(observed_at=stamp,price=own_price,confirmed=True))
+   d['competitors'].append(dict(target_id=1,observed_at=stamp,price=competitor_price))
+  d['competitors'].append(dict(target_id=1,observed_at=STAMP+10800,error='failed'))
+  r=build(d,END)[0]
+  self.assertEqual(r['periods']['previous'],dict(observed=2,valid=2,above=0,equal=1,below=1))
+  self.assertEqual(r['periods']['current'],dict(observed=4,valid=3,above=1,equal=1,below=1))
+  self.assertIsNone(r['latest'])
+  self.assertEqual(r['valid'],3)
+  html=render(d,END)
+  self.assertIn('3/4 pares válidos / leituras',html)
+  self.assertIn('Próprio acima: 1 · igual: 1 · abaixo: 1',html)
+  self.assertIn('Atual: 17/10 a 23/10/2026',html)
+  self.assertIn('Anterior: 10/10 a 16/10/2026',html)
+
+ def test_duplicate_observations_count_as_reads_but_never_valid_pairs(self):
+  d=data();d['competitors'].append(dict(d['competitors'][-1]))
+  r=build(d,END)[0]['periods']['current']
+  self.assertEqual(r,dict(observed=3,valid=1,above=0,equal=1,below=0))
+
+ def test_missing_previous_period_is_not_zero_price_or_stability(self):
+  d=data();r=build(d,END)[0]
+  self.assertEqual(r['periods']['previous'],dict(observed=0,valid=0,above=0,equal=0,below=0))
+  html=render(d,END)
+  self.assertIn('Sem leituras no período',html)
+  self.assertIn('Sem leituras não significa preço estável',html)
+  self.assertIn('sem ponderação por tempo ou vendas',html)
+
+ def test_invalid_own_read_between_valid_pairs_breaks_delta(self):
+  for invalid in [dict(confirmed=False,price=None),dict(confirmed=True,price=0),dict(confirmed=True,price='NaN')]:
+   d=data();d['own'].append(dict(observed_at=STAMP-900,**invalid))
+   row=build(d,END)[0]
+   self.assertEqual(row['valid'],2)
+   self.assertEqual(row['latest']['gap'],10)
+   self.assertIsNone(row['latest']['delta_pp'])
+
+ def test_duplicate_own_read_between_valid_pairs_breaks_delta(self):
+  d=data();d['own'] += [dict(observed_at=STAMP-900,price=100,confirmed=True)]*2
+  row=build(d,END)[0]
+  self.assertEqual(row['valid'],2)
+  self.assertIsNone(row['latest']['delta_pp'])
+
+ def test_window_boundary_and_target_samples_stay_separate(self):
+  d=data();boundary=int(datetime(2026,10,17,tzinfo=SAO_PAULO).timestamp())
+  d['own']=[dict(observed_at=boundary-1,price=100,confirmed=True),dict(observed_at=boundary,price=110,confirmed=True)]
+  d['targets'].append(dict(id=2,item_id='MLB3',label='Outro'))
+  d['competitors']=[dict(target_id=1,observed_at=boundary-1,price=100),dict(target_id=1,observed_at=boundary,price=100),dict(target_id=2,observed_at=boundary,price=120)]
+  first,second=build(d,END)
+  self.assertEqual(first['periods']['previous']['equal'],1)
+  self.assertEqual(first['periods']['current']['above'],1)
+  self.assertEqual(second['periods']['current']['below'],1)
+  self.assertEqual(second['periods']['previous']['observed'],0)
