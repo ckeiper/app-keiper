@@ -16,6 +16,7 @@ for(const width of [1440,820,390,320]){
  assert.equal(await page.locator('.ky-chart-pick').count(),3);
  assert.equal(await page.locator('.ky-campaign-card').count(),3);
  assert.equal(await page.locator('.ky-sale-efficiency').count(),3);
+ assert.equal(await page.locator('.ky-sale-efficiency th').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(27, 43, 68)');
  assert.ok((await page.locator('.ky-sale-efficiency').first().innerText()).includes('Não é custo de aquisição'));
  assert.equal(await page.locator('.ky-sale-efficiency table tbody tr').count(),6);
  assert.ok((await page.locator('.ky-campaign-card').first().innerText()).includes('Investigar gasto sem receita atribuída'));

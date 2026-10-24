@@ -30,7 +30,7 @@ def comparison(current,previous):
 
 def render(current,previous):
     result=comparison(current,previous)
-    out='<section class="ky-sale-efficiency" aria-label="Eficiência por venda atribuída"><h4>Investimento e receita por venda atribuída</h4><p>Médias dos períodos encerrados, com a contagem oficial de vendas atribuídas da campanha.</p>'
+    out='<style>.conteudo .kyra .ky-sale-efficiency th{background:#1b2b44;color:#dce8fb}.kyra .ky-sale-efficiency caption{color:#acbad1;padding:10px}</style><section class="ky-sale-efficiency" aria-label="Eficiência por venda atribuída"><h4>Investimento e receita por venda atribuída</h4><p>Médias dos períodos encerrados, com a contagem oficial de vendas atribuídas da campanha.</p>'
     if not result['available']:
         for label,key in [('Atual','current'),('Anterior','previous')]:
             if not result[key]['available']:
@@ -42,5 +42,5 @@ def render(current,previous):
             label='Investimento médio' if row['key']=='cost' else 'Receita atribuída média'
             pct='Sem base percentual anterior' if row['percent'] is None else format(row['percent'],'.2f').replace('.',',')+'%'
             out+='<tr><th scope="row">'+label+'</th><td>'+format_brl(row['previous'])+'</td><td>'+format_brl(row['current'])+'</td><td>'+format_brl(row['delta'])+' ('+pct+')</td></tr>'
-        out+='</tbody></table></div><p>Vendas atribuídas oficiais: '+str(result['previous']['count'])+' → '+str(result['current']['count'])+'.</p>'
+        out+='</tbody></table></div><p>Vendas atribuídas oficiais: '+str(int(result['previous']['count']))+' → '+str(int(result['current']['count']))+'.</p>'
     return out+'<p class="ky-camp-caveat">Não é custo de aquisição de cliente novo, ticket por pedido ou lucro. Atribuição pode mudar; mix de anúncios e condições de venda alteram as médias. Antes de rever orçamento, confira anúncios atendidos, maturação da atribuição, estoque e custos documentados. A comparação não comprova causalidade nem prevê resultado.</p></section>'
