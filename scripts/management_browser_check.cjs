@@ -49,6 +49,15 @@ const {chromium}=require('playwright');
     await page.getByText('Ver todas as oportunidades').click();
     assert.equal(await page.locator('#mgmt-panel-actions').isVisible(),true);
     assert.equal(await page.locator('#mgmt-tab-actions').getAttribute('aria-selected'),'true');
+    for(const width of [1440,390,320]) {
+      await page.setViewportSize({width,height:900});
+      await page.setContent(fs.readFileSync('visual-qa/ledger-preview.html','utf8'));
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+      assert.equal(await page.locator('.ledger-check .frete-metrica').count(),3);
+      assert.equal(await page.locator('.ledger-check h3').evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
+      assert.ok((await page.locator('.ledger-check').innerText()).includes('1 com diferença'));
+      await page.screenshot({path:`visual-qa/ledger-${width}.png`,fullPage:true});
+    }
     assert.deepEqual(errors,[]);
     console.log('Desktop/mobile width, tabs, keyboard navigation, filter state and priority shortcuts passed.');
   }finally{
