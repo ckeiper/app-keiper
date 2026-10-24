@@ -28,3 +28,17 @@ def test_order_preserved_and_no_negative_stock():
 def test_unavailable_queue_is_unchanged():
     queue = {"available": False, "reason": "Sem cobertura", "items": []}
     assert enrich_priorities(queue) == queue
+
+
+def test_queue_optional_enrichment_preserves_legacy_call(monkeypatch):
+    import listing_priority_queue as queue_module
+    monkeypatch.setattr(queue_module, "investigate", lambda ranking: {
+        "available": True, "rows": [
+            {"item_id": "MLB1", "loss": Decimal("30"),
+             "percent": Decimal("-10"), "share": Decimal("1")}],
+        "lost": Decimal("30")})
+    legacy = queue_module.prioritize({}, limit=1)
+    assert "additional_findings" not in legacy["items"][0]
+    enriched = queue_module.prioritize({}, limit=1, verified_signals_by_item={
+        "MLB1": {"stock_verified": True, "stock": 0}})
+    assert enriched["items"][0]["additional_findings"][0]["code"] == "stockout"
