@@ -11,3 +11,11 @@ Preço após desconto arredondado HALF_UP a centavos antes da multiplicação pe
 Onze testes novos verificam identidade financeira, arredondamento, comparação de mesma quantidade, negativos, cinco faixas, ausência/inválidos, progressividade, preço zero, confirmação, escape, permissões, escopo, CSRF e ausência de escrita/rede. Navegador cobre formulário vazio, cenário e erro em 1440/390/320 px. Fixtures sintéticas identificadas como demonstração, sem dados de produção.
 
 Mercado Pago e conciliação bancária continuam adiados expressamente na issue #201. Não pertencem ao lote de anúncios.
+
+## Meta de margem informada pelo administrador
+
+Campo opcional, sem valor recomendado ou preenchimento presumido. Quando informado, compara cada faixa com a contribuição necessária sobre seu bruto e mostra a distância positiva para a meta. Meta zero é explícita; contribuição negativa não a atinge. Sem campo, nenhuma classificação por meta é gerada.
+
+Contribuição necessária arredondada para cima a centavos: evita declarar atingimento por arredondamento visual da margem. Distância é diferença aritmética sob as mesmas premissas, não economia disponível, preço sugerido ou garantia de recuperação. Não é meta de lucro líquido. Mesmas permissões, CSRF, ausência de gravação e de publicação no marketplace.
+
+Quatro testes adicionais de ausência, meta/gap exatos, zero/negativo, precisão e limites inválidos. Navegador confere resultado abaixo da meta na fixture sintética.

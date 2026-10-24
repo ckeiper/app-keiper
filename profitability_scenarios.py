@@ -1,7 +1,7 @@
 """Explicit hypothetical discount tiers; no marketplace writes or saved evidence."""
 import re
 import secrets
-from decimal import Decimal,InvalidOperation,ROUND_HALF_UP
+from decimal import Decimal,InvalidOperation,ROUND_HALF_UP,ROUND_CEILING
 from html import escape
 from flask import request,session
 from profitability_view import CSS
@@ -55,12 +55,18 @@ def simulate(form):
         value=gross-costs
         return dict(price=price,gross=gross,costs=costs,product=product,fees=fees,taxes=taxes,
                     contribution=value,margin=value*100/gross)
+    target_text=str(form.get('target_margin') or '').strip()
+    target=number(target_text,'a meta de margem',Decimal('100')) if target_text else None
     rows=[]
     for q,d in tiers:
         row=order(q,d);base=order(q,Decimal(0))
         rows.append(dict(row,quantity=q,discount=d,baseline=base['contribution'],
                          delta=row['contribution']-base['contribution']))
-    return dict(inputs=inputs,rows=rows)
+    if target is not None:
+        for row in rows:
+            required=(row['gross']*target/100).quantize(CENT,rounding=ROUND_CEILING)
+            row.update(target_contribution=required,target_gap=max(required-row['contribution'],Decimal(0)),target_met=row['contribution']>=required)
+    return dict(inputs=inputs,rows=rows,target_margin=target)
 
 
 def render(cid,item_id,title,csrf,values=None,result=None,error=''):
@@ -70,6 +76,7 @@ def render(cid,item_id,title,csrf,values=None,result=None,error=''):
     out+='<section class="pf-card"><h3>Premissas do pedido simulado</h3><p>Preencha todos os custos, inclusive zero. Percentuais incidem sobre o valor bruto simulado. Tarifas fixas, frete, publicidade e ajustes são totais por pedido; custo do produto é por unidade.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'">'
     for key,label in FIELDS.items():
         out+='<label>'+label+'<input name="'+key+'" inputmode="decimal" maxlength="9" required value="'+esc(values.get(key,''))+'"></label>'
+    out+='<label>Meta de margem de contribuição (%) · opcional<input name="target_margin" inputmode="decimal" maxlength="6" value="'+esc(values.get('target_margin',''))+'"></label><p>Meta definida por você, sem percentual recomendado pelo sistema. Não representa lucro líquido.</p>'
     out+='<h3>Faixas propostas</h3><p>Até cinco faixas em ordem crescente de quantidade e desconto não decrescente. Cada linha representa um pedido com aquela quantidade exata; não prevê o comportamento do comprador.</p><div class="pf-table"><table class="scenario-tiers"><thead><tr><th>Quantidade</th><th>Desconto (%)</th></tr></thead><tbody>'
     for i in range(5):
         out+='<tr><td><input aria-label="Quantidade faixa '+str(i+1)+'" name="qty_'+str(i)+'" inputmode="numeric" maxlength="5" value="'+esc(values.get('qty_'+str(i),''))+'"></td><td><input aria-label="Desconto faixa '+str(i+1)+'" name="discount_'+str(i)+'" inputmode="decimal" maxlength="5" value="'+esc(values.get('discount_'+str(i),''))+'"></td></tr>'
@@ -83,7 +90,13 @@ def render(cid,item_id,title,csrf,values=None,result=None,error=''):
         out+='</tbody></table></div><details><summary>Conferir composição de cada pedido</summary>'
         for r in result['rows']:
             out+='<p>'+str(r['quantity'])+' unidades: produtos '+format_brl(r['product'])+'; tarifas '+format_brl(r['fees'])+'; impostos '+format_brl(r['taxes'])+'; frete '+format_brl(result['inputs']['shipping'])+'; publicidade '+format_brl(result['inputs']['ads'])+'; ajustes '+format_brl(result['inputs']['adjustments'])+'.</p>'
-        out+='</details></section>'
+        out+='</details>'
+        if result.get('target_margin') is not None:
+            out+='<h3>Conferência da meta informada</h3><p>Meta: '+format(result['target_margin'],'.2f').replace('.',',')+'%. Comparação aritmética nas premissas do pedido, sem garantia de resultado.</p><ul class="scenario-target">'
+            for row in result['rows']:
+                out+='<li>'+str(row['quantity'])+' unidades: '+('atinge a meta nas premissas' if row['target_met'] else 'abaixo da meta nas premissas')+'. Contribuição necessária: '+format_brl(row['target_contribution'])+'; distância para a meta: '+format_brl(row['target_gap'])+'.</li>'
+            out+='</ul><p>A distância não é economia disponível, preço recomendado ou promessa de recuperação. Contribuição necessária arredondada para cima a centavos para não aprovar margem abaixo da meta.</p>'
+        out+='</section>'
     return out+'<section class="pf-card"><p>Contribuição simulada não é lucro líquido nem previsão de vendas. Despesas fixas não incluídas. Preço unitário arredondado a centavos antes de multiplicar pela quantidade; tarifas percentuais e impostos arredondados por pedido. O modelo não reproduz regras específicas de tarifas mínimas, faixas logísticas, cupons cumulativos ou financiamento do marketplace. Ajuste as premissas para cada contexto. Não há recomendação automática de melhor faixa ou garantia de demanda.</p></section></div>'
 
 
