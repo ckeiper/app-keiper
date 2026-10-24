@@ -58,3 +58,21 @@ A lista literal numerada das 90 melhorias não está versionada no repositório 
 - Base #235 antes desta implementação: 649 testes locais, sucesso, 90 integrações ignoradas sem PostgreSQL isolado.
 - Após integração inicial da rentabilidade: 663 testes locais, sucesso, 91 integrações ignoradas sem PostgreSQL isolado.
 - CI existente executa PostgreSQL 16 isolado. Resultados finais de CI e deploy devem ser conferidos no PR/Render; não inferidos destes resultados locais.
+
+## Registro de execução — 24/10/2026
+
+- #235 integrado em `f79dcf7`. CI: **664 testes aprovados sem skips**, PostgreSQL 16, configuração Gunicorn e dois workflows de navegador aprovados. Capturas desktop/mobile revisadas; corrigidos contraste e datas. Deploy `dep-dbeameajnfac73djmjeg` confirmado `live`. Verificação HTTP: login 200; nova rota sem sessão 302 para login; `DENY` e `no-store` presentes. Nenhum erro de aplicação retornado pela consulta de logs do intervalo da publicação. Não foi criada nem alterada informação financeira real para testar.
+- #228 atualizado sobre #235, com teste da identidade renderizada, três workflows aprovados e integração em `335930c`. Mantém histórico e URLs anteriores.
+- #205 recuperado e atualizado sobre #228: histórico das últimas 100 solicitações de participação, estados e atalho de reconciliação sem reenviar adesões. Acrescentados testes para autorização/escopo SQL, XSS, URL encoding, datas brasileiras, números ausentes/não finitos e limitação do resumo à janela exibida. Estimativa de MC identificada como histórica e incompleta para lucro líquido. Nenhuma chamada ao marketplace no carregamento do histórico. Publicação condicionada ao CI desta revisão.
+
+Permanecem pendentes a lista literal dos 90 requisitos, a coleta automática completa de custos por anúncio/período, a conciliação bancária integral da issue #201 e a ingestão periódica de transcrições via Gmail. A importação manual de relatórios/transcrições já existente não foi renomeada como automação bancária ou de e-mail.
+
+### Falha real de deploy diagnosticada antes de liberar o lote seguinte
+
+O deploy `dep-dbeao86q1p3s73e1recg` de #228 falhou em `init_competitor_schema`, com `DeadlockDetected` durante `ALTER TABLE competitor_targets ADD COLUMN IF NOT EXISTS own_item_id`. A versão de #235 continuou `live`. Não foi atribuído esse erro aos textos da KEVIA.
+
+Correção incluída na revisão de #205: consultar o catálogo do PostgreSQL antes de executar ADD COLUMN já existente, evitando lock exclusivo sem alteração real; remover seis blocos que ocultavam exceções de ALTER e deixavam a transação abortada; repetir a transação completa de inicialização somente para SQLSTATE transitório (deadlock, lock indisponível ou falha de serialização), com quatro tentativas e espera limitada. Falhas permanentes continuam impedindo uma inicialização incompleta. Nenhum processo de produção foi encerrado e nenhuma coleta/dado foi apagado.
+
+Regressão PostgreSQL isolada: manter uma leitura concorrente, provocar lock timeout após INSERT, liberar o bloqueio e verificar que a transação foi revertida e repetida inteira, sem perder a linha original nem duplicar a inserção. Verificar também que coluna já existente não solicita lock exclusivo. Suíte local desta revisão: 674 testes, sucesso, 92 integrações reservadas ao CI.
+
+Os logs do Render também mostraram Python 3.14 em produção, enquanto o CI cobria apenas 3.12. O workflow de testes passa a validar ambas as versões, cada uma com PostgreSQL isolado, antes do merge deste lote.

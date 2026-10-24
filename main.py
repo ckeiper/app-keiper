@@ -593,9 +593,11 @@ def executar(conn, sql, params=None):
 
 
 def iniciar_banco():
+    from startup_schema import schema_executor
+    execute = schema_executor(executar)
     with banco() as conn:
-        init_security_schema(conn, executar)
-        executar(conn, """CREATE TABLE IF NOT EXISTS conexoes (
+        init_security_schema(conn, execute)
+        execute(conn, """CREATE TABLE IF NOT EXISTS conexoes (
             id SERIAL PRIMARY KEY,
             cliente TEXT NOT NULL,
             user_id BIGINT,
@@ -604,14 +606,11 @@ def iniciar_banco():
             expires_at BIGINT,
             status TEXT DEFAULT 'ativa'
         )""")
-        try:
-            executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS aliquota_imposto REAL DEFAULT 0")
-            executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS comissao_pct REAL DEFAULT 12")
-            executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS mc_meta_pct REAL")
-            executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS mc_meta_atualizada_em BIGINT")
-        except Exception:
-            pass
-        executar(conn, """CREATE TABLE IF NOT EXISTS usuarios (
+        execute(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS aliquota_imposto REAL DEFAULT 0")
+        execute(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS comissao_pct REAL DEFAULT 12")
+        execute(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS mc_meta_pct REAL")
+        execute(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS mc_meta_atualizada_em BIGINT")
+        execute(conn, """CREATE TABLE IF NOT EXISTS usuarios (
             id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             senha_hash TEXT NOT NULL,
@@ -620,32 +619,29 @@ def iniciar_banco():
             conexao_id INTEGER,
             criado_em BIGINT
         )""")
-        try:
-            executar(conn, "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email TEXT")
-        except Exception:
-            pass
-        init_session_schema(conn, executar)
-        init_mfa_schema(conn, executar)
+        execute(conn, "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email TEXT")
+        init_session_schema(conn, execute)
+        init_mfa_schema(conn, execute)
         admin = consultar(conn, "SELECT id FROM usuarios WHERE username=%s", ("admin",))
         if not admin:
             # Existing accounts are untouched. New installations require a secret.
             bootstrap_password = os.getenv("KEIPER_ADMIN_INITIAL_PASSWORD", "")
             if len(bootstrap_password) >= 16:
-                executar(conn, "INSERT INTO usuarios (username, senha_hash, nome, tipo, criado_em) VALUES (%s,%s,%s,%s,%s)",
+                execute(conn, "INSERT INTO usuarios (username, senha_hash, nome, tipo, criado_em) VALUES (%s,%s,%s,%s,%s)",
                          ("admin", generate_password_hash(bootstrap_password), "Administrador", "admin", int(time.time())))
             else:
                 app.logger.error("Admin bootstrap skipped: configure KEIPER_ADMIN_INITIAL_PASSWORD (16+ chars).")
-        executar(conn, """CREATE TABLE IF NOT EXISTS reset_tokens (
+        execute(conn, """CREATE TABLE IF NOT EXISTS reset_tokens (
             token_hash TEXT PRIMARY KEY,
             usuario_id INTEGER,
             expira_em BIGINT
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS dados_conta (
+        execute(conn, """CREATE TABLE IF NOT EXISTS dados_conta (
             conexao_id INTEGER PRIMARY KEY,
             user_id BIGINT, nickname TEXT, nome TEXT, sobrenome TEXT,
             reputacao TEXT, pontos INTEGER, atualizado_em BIGINT
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS anuncios (
+        execute(conn, """CREATE TABLE IF NOT EXISTS anuncios (
             id SERIAL PRIMARY KEY,
             conexao_id INTEGER, item_id TEXT, titulo TEXT, preco REAL,
             quantidade INTEGER, status TEXT, vendidos INTEGER, atualizado_em BIGINT,
@@ -653,98 +649,92 @@ def iniciar_banco():
             custo REAL, sku TEXT,
             UNIQUE(conexao_id, item_id)
         )""")
-        try:
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS fotos INTEGER DEFAULT 0")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS clips INTEGER DEFAULT 0")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS tags TEXT")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS peso REAL")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS custo REAL")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS sku TEXT")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS original_price REAL")
-        except Exception:
-            pass
-        executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS thumbnail TEXT")
-        executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pesos_json TEXT")
-        executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS promocoes_json TEXT")
-        executar(conn, """CREATE TABLE IF NOT EXISTS pedidos (
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS fotos INTEGER DEFAULT 0")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS clips INTEGER DEFAULT 0")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS tags TEXT")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS peso REAL")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS custo REAL")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS sku TEXT")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS original_price REAL")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS thumbnail TEXT")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pesos_json TEXT")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS promocoes_json TEXT")
+        execute(conn, """CREATE TABLE IF NOT EXISTS pedidos (
             id SERIAL PRIMARY KEY,
             conexao_id INTEGER, pedido_id TEXT, status TEXT,
             total REAL, moeda TEXT, fechado_em TEXT, atualizado_em BIGINT,
             UNIQUE(conexao_id, pedido_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS pedidos_itens (
+        execute(conn, """CREATE TABLE IF NOT EXISTS pedidos_itens (
             conexao_id INTEGER, pedido_id TEXT, item_id TEXT,
             quantidade INTEGER, preco_unitario REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, pedido_id, item_id)
         )""")
-        init_sales_schema(conn, executar)
+        init_sales_schema(conn, execute)
         from profitability_store import init_schema as init_profitability
-        init_profitability(conn, executar)
-        init_full_schema(conn, executar)
-        init_competitor_schema(conn, executar)
+        init_profitability(conn, execute)
+        init_full_schema(conn, execute)
+        init_competitor_schema(conn, execute)
         from offer_history import init_schema as init_offer_history
-        init_offer_history(conn, executar)
+        init_offer_history(conn, execute)
         from listing_interventions import init_schema as init_interventions
-        init_interventions(conn, executar)
+        init_interventions(conn, execute)
         from automatic_history import init_schema as init_automatic_history
-        init_automatic_history(conn, executar)
+        init_automatic_history(conn, execute)
         from automatic_history import seed_existing
         # Backfilling legacy observations is optional. It must not prevent
         # Gunicorn from booting when a live collector holds conflicting locks.
         # Savepoints keep the rest of the schema transaction healthy after a
         # PostgreSQL deadlock or lock timeout.
-        executar(conn, "SAVEPOINT automatic_history_backfill")
+        execute(conn, "SAVEPOINT automatic_history_backfill")
         try:
-            executar(conn, "SET LOCAL lock_timeout = '3s'")
+            execute(conn, "SET LOCAL lock_timeout = '3s'")
             lock = consultar(conn, "SELECT pg_try_advisory_xact_lock(783420, 1) AS acquired")
             if lock and lock[0]["acquired"]:
-                seed_existing(conn, executar)
+                seed_existing(conn, execute)
             else:
                 app.logger.warning("automatic_history_seed_skipped concurrent_migration")
-            executar(conn, "SET LOCAL lock_timeout = DEFAULT")
+            execute(conn, "SET LOCAL lock_timeout = DEFAULT")
         except (psycopg2.errors.DeadlockDetected,
                 psycopg2.errors.LockNotAvailable,
                 psycopg2.errors.QueryCanceled) as exc:
-            executar(conn, "ROLLBACK TO SAVEPOINT automatic_history_backfill")
+            execute(conn, "ROLLBACK TO SAVEPOINT automatic_history_backfill")
             app.logger.warning("automatic_history_seed_deferred error=%s", type(exc).__name__)
         finally:
-            executar(conn, "RELEASE SAVEPOINT automatic_history_backfill")
-        init_freight_schema(conn, executar)
-        executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
+            execute(conn, "RELEASE SAVEPOINT automatic_history_backfill")
+        init_freight_schema(conn, execute)
+        execute(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
             visitas INTEGER, conversao REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, item_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS desempenho_historico (
+        execute(conn, """CREATE TABLE IF NOT EXISTS desempenho_historico (
             conexao_id INTEGER, item_id TEXT, data TEXT,
             visitas INTEGER DEFAULT 0, vendidos INTEGER DEFAULT 0, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, item_id, data)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS perguntas (
+        execute(conn, """CREATE TABLE IF NOT EXISTS perguntas (
             conexao_id INTEGER, pergunta_id TEXT, item_id TEXT, texto TEXT,
             status TEXT, resposta TEXT, data TEXT, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, pergunta_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS envios (
+        execute(conn, """CREATE TABLE IF NOT EXISTS envios (
             conexao_id INTEGER, envio_id TEXT, status TEXT, tracking TEXT,
             pedido_id TEXT, data TEXT, custo_frete REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, envio_id)
         )""")
-        try:
-            executar(conn, "ALTER TABLE envios ADD COLUMN IF NOT EXISTS custo_frete REAL")
-        except Exception:
-            pass
-        executar(conn, """CREATE TABLE IF NOT EXISTS promocoes (
+        execute(conn, "ALTER TABLE envios ADD COLUMN IF NOT EXISTS custo_frete REAL")
+        execute(conn, """CREATE TABLE IF NOT EXISTS promocoes (
             conexao_id INTEGER, promocao_id TEXT, tipo TEXT, nome TEXT,
             status TEXT, inicio TEXT, fim TEXT, qtd_itens INTEGER, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, promocao_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS promocoes_itens (
+        execute(conn, """CREATE TABLE IF NOT EXISTS promocoes_itens (
             conexao_id INTEGER, item_id TEXT, promocao_id TEXT,
             preco_promocional REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, item_id, promocao_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS promocoes_adesoes (
+        execute(conn, """CREATE TABLE IF NOT EXISTS promocoes_adesoes (
             conexao_id INTEGER NOT NULL,
             promocao_id TEXT NOT NULL,
             item_id TEXT NOT NULL,
@@ -757,68 +747,62 @@ def iniciar_banco():
             resposta TEXT,
             PRIMARY KEY(conexao_id,promocao_id,item_id)
         )""")
-        try:
-            executar(conn, "ALTER TABLE promocoes_itens ADD COLUMN IF NOT EXISTS preco_promocional REAL")
-        except Exception:
-            pass
-        executar(conn, """CREATE TABLE IF NOT EXISTS ads_campanhas (
+        execute(conn, "ALTER TABLE promocoes_itens ADD COLUMN IF NOT EXISTS preco_promocional REAL")
+        execute(conn, """CREATE TABLE IF NOT EXISTS ads_campanhas (
             conexao_id INTEGER, campanha_id TEXT, nome TEXT, status TEXT,
             tipo TEXT, data_inicio TEXT, data_fim TEXT, orcamento REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, campanha_id)
         )""")
-        try:
-            executar(conn, "ALTER TABLE ads_campanhas ADD COLUMN IF NOT EXISTS roas_objetivo REAL")
-        except Exception:
-            pass
+        execute(conn, "ALTER TABLE ads_campanhas ADD COLUMN IF NOT EXISTS roas_objetivo REAL")
         from ads_change_history import CREATE_SQL, INDEX_SQL
-        executar(conn, CREATE_SQL)
-        executar(conn, INDEX_SQL)
-        executar(conn, """CREATE TABLE IF NOT EXISTS ads_metricas (
+        execute(conn, CREATE_SQL)
+        execute(conn, INDEX_SQL)
+        execute(conn, """CREATE TABLE IF NOT EXISTS ads_metricas (
             conexao_id INTEGER, ad_id TEXT, campanha_id TEXT, item_id TEXT,
             impressoes INTEGER, cliques INTEGER, ctr REAL, gasto REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, ad_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS ads_dia (
+        execute(conn, """CREATE TABLE IF NOT EXISTS ads_dia (
             conexao_id INTEGER, data TEXT,
             gasto REAL, faturamento REAL, impressoes INTEGER, cliques INTEGER, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, data)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS ads_orcamento_esgotado (conexao_id INTEGER NOT NULL, campanha_id TEXT NOT NULL, data TEXT NOT NULL, detectado_em BIGINT NOT NULL, PRIMARY KEY(conexao_id,campanha_id,data))""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS ads_campanha_dia (
+        execute(conn, """CREATE TABLE IF NOT EXISTS ads_orcamento_esgotado (conexao_id INTEGER NOT NULL, campanha_id TEXT NOT NULL, data TEXT NOT NULL, detectado_em BIGINT NOT NULL, PRIMARY KEY(conexao_id,campanha_id,data))""")
+        execute(conn, """CREATE TABLE IF NOT EXISTS ads_campanha_dia (
             conexao_id INTEGER, campanha_id TEXT, data TEXT,
             gasto REAL, faturamento REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, campanha_id, data)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS erros (
+        execute(conn, """CREATE TABLE IF NOT EXISTS erros (
             conexao_id INTEGER, categoria TEXT, mensagem TEXT, quando BIGINT,
             PRIMARY KEY (conexao_id, categoria)
         )""")
-        executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
+        execute(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
         from ads_official_metrics import init_schema as init_ads_sales_schema
-        init_ads_sales_schema(conn, executar)
+        init_ads_sales_schema(conn, execute)
         from section_refresh import init_schema as init_section_refresh
-        init_section_refresh(conn, executar)
-        init_overview_schema(conn, executar)
+        init_section_refresh(conn, execute)
+        init_overview_schema(conn, execute)
         from keiper_ai_store import init_schema as init_keiper_ai
-        init_keiper_ai(conn, executar)
+        init_keiper_ai(conn, execute)
         from kyra_reviews import init_schema as init_kyra_reviews
-        init_kyra_reviews(conn, executar)
-        init_crm_schema(conn, executar)
-        executar(conn, """CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro (
+        init_kyra_reviews(conn, execute)
+        init_crm_schema(conn, execute)
+        execute(conn, """CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro (
             usuario_id INTEGER PRIMARY KEY,
             conexao_id INTEGER NOT NULL,
             custos_importados_em BIGINT,
             imposto_confirmado_em BIGINT,
             concluido_em BIGINT
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS cliente_prioridades_acessos (
+        execute(conn, """CREATE TABLE IF NOT EXISTS cliente_prioridades_acessos (
             conexao_id INTEGER PRIMARY KEY,
             habilitado BOOLEAN NOT NULL DEFAULT FALSE,
             atualizado_em BIGINT NOT NULL
         )""")
         # Existing clients are enrolled when the portal is explicitly enabled;
         # this avoids abruptly locking long-standing accounts before rollout.
-        executar(conn, """INSERT INTO cliente_onboarding_financeiro(usuario_id,conexao_id)
+        execute(conn, """INSERT INTO cliente_onboarding_financeiro(usuario_id,conexao_id)
             SELECT u.id,u.conexao_id FROM usuarios u
             JOIN cliente_prioridades_acessos a ON a.conexao_id=u.conexao_id
             WHERE u.tipo='cliente' AND a.habilitado=TRUE
@@ -3616,6 +3600,11 @@ def promocoes(cid):
         if c:
             promos = consultar(conn, "SELECT * FROM promocoes "
                                      "WHERE conexao_id=%s ORDER BY fim DESC", (cid,))
+            historico_adesoes = consultar(conn, """
+                SELECT h.*,a.titulo FROM promocoes_adesoes h
+                LEFT JOIN anuncios a ON a.conexao_id=h.conexao_id AND a.item_id=h.item_id
+                WHERE h.conexao_id=%s ORDER BY h.criado_em DESC LIMIT 100
+            """, (cid,))
             itens_promo = consultar(conn, """
                 SELECT pi.promocao_id, pi.item_id, pi.preco_promocional,
                        a.titulo, a.preco, a.custo, a.quantidade, a.status
@@ -3646,6 +3635,8 @@ def promocoes(cid):
         <input id='mc_meta' name='mc_meta' type='number' step='0.01' min='0' max='100'
         required class='filtro' style='width:110px' value='""" + meta_txt + """'>
         <button type='submit' class='filtro-btn'>Salvar meta</button></form></div>""")
+    from promo_history import render_history
+    corpo += render_history(historico_adesoes,cid)
     if request.args.get("meta_erro"):
         corpo += "<div class='aviso'>Informe uma meta de MC entre 0% e 100%.</div>"
     if request.args.get("meta_ok"):
@@ -5602,7 +5593,8 @@ register_management(app, login_required, pode_ver_loja, banco, consultar, pagina
 from section_refresh import register as register_section_refresh
 register_section_refresh(app, login_required, pode_ver_loja, banco, consultar, executar, coletar_secao)
 
-iniciar_banco()
+from startup_schema import initialize_with_retry
+initialize_with_retry(iniciar_banco, app.logger)
 
 # Official item visits: unique item/day records, initialized without backfilling
 # or inventing missing days. Collection is activated separately.
