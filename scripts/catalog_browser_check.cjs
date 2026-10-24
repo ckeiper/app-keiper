@@ -51,6 +51,9 @@ const {chromium}=require('playwright');
       assert.equal(await page.locator(':focus').getAttribute('href'),'#diag-acoes');
       await page.screenshot({path:`visual-qa/diagnostic-navy-${width}.png`,fullPage:true});
     }
+    await page.setContent(fs.readFileSync('visual-qa/catalog-price-sort.html','utf8'));
+    assert.deepEqual(await page.locator('.catalog-price').allTextContents(),['R$ 100,00','R$ 80,00']);
+    assert.equal(await page.locator('select[name=ordem]').inputValue(),'preco');
     assert.deepEqual(errors,[]);
     console.log('Catalog desktop/mobile layout, five-column table, technical disclosure and GET filters passed.');
   }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

@@ -18,7 +18,7 @@ STOCK={'':'Todo estoque','zero':'Zerado','baixo':'1 a 3 unidades','disponivel':'
 PROMO={'':'Todas as condições','sim':'Com promoção registrada','nao':'Sem promoção registrada'}
 LOGISTICS={'':'Toda logística','full':'Full','outros':'Outras modalidades','desconhecido':'Não verificada'}
 FOCUS={'':'Todos os anúncios','atencao':'Revisar status ou estoque','fotos':'Menos de 5 fotos','sem_clip':'Sem clip registrado','sem_custo':'Sem custo cadastrado'}
-SORT={'vendidos':'Mais vendidos no histórico','titulo':'Título A–Z','estoque':'Menor estoque','preco':'Maior preço','recentes':'Atualização mais recente'}
+SORT={'vendidos':'Mais vendidos no histórico','titulo':'Título A–Z','estoque':'Menor estoque','preco':'Maior preço exibido','recentes':'Atualização mais recente'}
 
 
 def number(value):
@@ -32,6 +32,11 @@ def number(value):
 def quantity(value):
     n=number(value)
     return n if n is not None and n==n.to_integral_value() else None
+
+
+def displayed_price(row):
+    offer=effective_promotion(read_json(row.get('promocoes_json'),{}))
+    return number(offer['price'] if offer else row.get('preco'))
 
 
 def promotion(row):
@@ -83,7 +88,7 @@ def filter_catalog(rows,args,now=None):
     def key(row):
         if order=='titulo': return (str(row.get('titulo') or '').casefold(),str(row['item_id']))
         field={'estoque':'quantidade','preco':'preco','recentes':'atualizado_em'}.get(order,'vendidos')
-        n=quantity(row.get(field)) if field in ('quantidade','vendidos') else number(row.get(field))
+        n=displayed_price(row) if field=='preco' else quantity(row.get(field)) if field in ('quantidade','vendidos') else number(row.get(field))
         return (n is None,n if field=='quantidade' and n is not None else -(n or 0),str(row['item_id']))
     return sorted(result,key=key)
 
@@ -149,7 +154,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
             tags=read_json(row.get('tags'),[])
             body+=escape(', '.join(str(t) for t in tags) if isinstance(tags,list) and tags else 'Sem tags registradas')+'</dd></dl></details></td>'
             offer=effective_promotion(read_json(row.get('promocoes_json'),{}))
-            body+="<td><div class='catalog-price'>"+escape(fmt(offer['price'] if offer else number(row.get('preco')),True))+"</div>"+("<small><s>"+escape(fmt(offer['original'],True))+"</s> · Promoção confirmada</small>" if offer else "<small>Preço do anúncio na última coleta</small>")+"<details class='catalog-details'><summary>"+('Promoção registrada' if promotion(row) else 'Consultar promoções')+'</summary>'+render_promotions(row.get('promocoes_json'))+'</details>'
+            body+="<td><div class='catalog-price'>"+escape(fmt(displayed_price(row),True))+"</div>"+("<small><s>"+escape(fmt(offer['original'],True))+"</s> · Promoção confirmada</small>" if offer else "<small>Preço do anúncio na última coleta</small>")+"<details class='catalog-details'><summary>"+('Promoção registrada' if promotion(row) else 'Consultar promoções')+'</summary>'+render_promotions(row.get('promocoes_json'))+'</details>'
             if admin: body+="<a class='muted' href='/diagnostico/anuncios/"+str(cid)+'/'+escape(item,quote=True)+"'>Diagnosticar preço na API</a>"
             body+='</td><td>'
             status=str(row.get('status') or '')

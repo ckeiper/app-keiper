@@ -211,23 +211,31 @@ def promotion_status(promotion):
     return status
 
 
+def recent_promotion_snapshot(stamp):
+    now=time.time()
+    return type(stamp) in (int,float) and 0<stamp<=now and now-stamp<=7200
+
+
 def active_promotions(snapshot):
-    if not snapshot or snapshot.get('error'):
+    if not isinstance(snapshot,dict) or not snapshot or snapshot.get('error'):
         return []
     # Old snapshots must never silently keep an expired promotion active.
-    if time.time() - snapshot.get('checked_at', 0) > 7200:
+    if not recent_promotion_snapshot(snapshot.get('checked_at')):
         return []
-    return [p for p in snapshot.get('promotions', []) if promotion_status(p) == 'active']
+    rows=snapshot.get('promotions')
+    return [p for p in rows if isinstance(p,dict) and promotion_status(p)=='active'] if isinstance(rows,list) else []
 
 
 def effective_promotion(snapshot):
-    if not snapshot or snapshot.get('not_applicable'):
+    if not isinstance(snapshot,dict) or not snapshot or snapshot.get('not_applicable'):
         return None
     price = snapshot.get('sale_price') or {}
-    if time.time() - price.get('checked_at', 0) > 7200 or price.get('error'):
+    if not isinstance(price,dict) or not recent_promotion_snapshot(price.get('checked_at')) or price.get('error'):
         return None
     data = price.get('data') or {}
+    if not isinstance(data,dict):return None
     metadata = data.get('metadata') or {}
+    if not isinstance(metadata,dict):return None
     original, amount = positive(data.get('regular_amount')), positive(data.get('amount'))
     # Only the official sale_price response with promotional metadata proves
     # the effective offer. Never infer from items.price or pick the lowest campaign.
