@@ -65,7 +65,8 @@ PERIOD_ROWS_SQL = """SELECT conexao_id, pedido_id, status, total, moeda,
       AND LEFT(criado_em, 10) BETWEEN %s AND %s"""
 
 DAILY_SQL = '''WITH candidates AS MATERIALIZED (
-    SELECT conexao_id, keiper_overview_day_v1(criado_em) AS dia,
+    SELECT conexao_id, ((criado_em::timestamptz AT TIME ZONE 'UTC')
+           - INTERVAL '3 hours')::date AS dia,
            status, total, moeda, unidades,
            CASE WHEN jsonb_typeof(pagamentos_json) = 'array'
                 THEN pagamentos_json ELSE '[]'::jsonb END AS payments,
@@ -73,7 +74,7 @@ DAILY_SQL = '''WITH candidates AS MATERIALIZED (
     FROM pedidos WHERE conexao_id = ANY(%s) AND vendas_verificado_em IS NOT NULL
       AND keiper_overview_day_v1(criado_em) IS NOT NULL
       AND keiper_overview_day_v1(criado_em) BETWEEN %s AND %s
-), payment_checks AS (
+), payment_checks AS MATERIALIZED (
     SELECT *, bad_shape OR jsonb_array_length(payments) = 0 OR EXISTS (
         SELECT 1 FROM jsonb_array_elements(payments) AS p
         WHERE jsonb_typeof(p) <> 'object' OR NOT (p ? 'status')
