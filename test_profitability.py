@@ -17,7 +17,14 @@ START, END = DAY-timedelta(days=7), DAY-timedelta(days=1)
 
 
 def summary():
-    return dict(orders=2, units=3, gross_items=Decimal('300'), fingerprint='a'*64)
+    return dict(orders=2, units=3, gross_items=Decimal('300'), fingerprint='a'*64, start=START.isoformat(), end=END.isoformat())
+
+
+
+def fixture_pair():
+    previous_start,previous_end=START-timedelta(days=7),START-timedelta(days=1)
+    return dict(current=summary(), previous=dict(summary(),start=previous_start.isoformat(),end=previous_end.isoformat()),
+                previous_start=previous_start,previous_end=previous_end)
 
 
 def form():
@@ -134,7 +141,7 @@ class ProfitabilityRouteTests(unittest.TestCase):
         self.client=self.app.test_client();self.path='/anuncios/42/MLB100/rentabilidade'
         with self.client.session_transaction() as state:
             state.update(usuario_id=7,tipo='admin',_csrf='test-token')
-        self.loader=patch('profitability_routes.load_sales',return_value=summary())
+        self.loader=patch('profitability_routes.load_pair',side_effect=lambda *args: fixture_pair())
         self.loader.start();self.addCleanup(self.loader.stop)
 
     def read(self,conn,sql,params):
@@ -150,7 +157,7 @@ class ProfitabilityRouteTests(unittest.TestCase):
         self.assertIn('Não representa lucro líquido',response.text)
         self.assertIn('&lt;script&gt;',response.text)
         self.assertNotIn('<script>alert(1)</script>',response.text)
-        self.execute.assert_not_called()
+        self.execute.assert_called_once_with(None, 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
         self.assertEqual(response.headers['Cache-Control'],'no-store')
 
     def test_login_client_other_tenant_and_unknown_item_are_blocked(self):
@@ -187,7 +194,7 @@ class ProfitabilityRouteTests(unittest.TestCase):
         self.assertNotIn('R$ 240,00',self.client.get(self.path).text)
 
     def test_no_record_or_cost_write_for_unverified_sales_or_unknown_item(self):
-        with patch('profitability_routes.load_sales',return_value=dict(summary(),orders=None,reason='Sem cobertura')):
+        with patch('profitability_routes.load_pair',return_value=dict(fixture_pair(),current=dict(summary(),orders=None,reason='Sem cobertura'))):
             self.assertEqual(self.client.post(self.path,data=form()).status_code,400)
         self.found=False
         self.assertEqual(self.client.post(self.path,data=form()).status_code,404)
@@ -217,7 +224,7 @@ class ProfitabilityDatabaseTests(unittest.TestCase):
                 self.assertFalse(main.consultar(conn,'SELECT * FROM listing_profitability_records WHERE conexao_id=%s',(-cid,)))
             client=main.app.test_client()
             with database_session(client) as state:state.update(usuario_id=1,tipo='admin')
-            with patch('profitability_routes.load_sales',return_value=summary()),patch('main.requests.get',side_effect=AssertionError('remote read during render')):
+            with patch('profitability_routes.load_pair',side_effect=lambda *args: fixture_pair()),patch('main.requests.get',side_effect=AssertionError('remote read during render')):
                 response=client.get(f'/anuncios/{cid}/MLB100/rentabilidade?inicio={START}&fim={END}')
             self.assertEqual(response.status_code,200)
             self.assertIn('R$ 240,00',response.text)

@@ -11,3 +11,20 @@ for name,entry in [('profitability-ready',record()),('profitability-missing',Non
     body=render(42,'MLB100','Produto de demonstração',START,END,summary(),result_for(summary(),entry),entry,[entry] if entry else [],'preview-only','x'*32)
     (dest/(name+'.html')).write_text(page('Rentabilidade por anúncio',42,'Loja de demonstração','anuncios',body),encoding='utf-8')
 print('Synthetic profitability previews rendered.')
+
+from test_profitability_comparison import pair_records
+from profitability_comparison import compare
+from profitability_comparison_view import render_comparison
+from decimal import Decimal
+for mode in ['ready','negative','missing','stale']:
+    pair,current,previous=pair_records()
+    pair['previous'].update(gross_items=Decimal('200'));previous.update(gross_items=Decimal('200'))
+    current['costs']=dict(current['costs'],advertising=Decimal('100'))
+    if mode=='negative':current['costs']={k:Decimal('100') for k in current['costs']}
+    if mode=='missing':previous=None
+    if mode=='stale':previous['sales_fingerprint']='b'*64
+    result=compare(pair['current'],pair['previous'],current,previous)
+    comparison_html=render_comparison(result,START,END,pair['previous_start'],pair['previous_end'],current,previous)
+    body=render(42,'MLB100','Produto de demonstração',START,END,pair['current'],result['current'],current,[current],'preview-only','x'*32,comparison_html=comparison_html)
+    (dest/('profitability-comparison-'+mode+'.html')).write_text(page('Rentabilidade por anúncio',42,'Loja de demonstração','anuncios',body),encoding='utf-8')
+print('Synthetic financial comparison previews rendered.')
