@@ -6,7 +6,7 @@ from html import escape
 from urllib.parse import urlencode
 
 from competitor_routes import tabs
-from listing_details import active_promotions, effective_promotion, read_json, render_promotions, render_weight_column
+from listing_details import active_promotions, effective_promotion, read_json, render_promotions, render_weight_column, valid_promotion_record
 from listing_health import diagnose_listing
 from management_design import STYLE, metric_card, product
 from sales_metrics import SAO_PAULO
@@ -48,7 +48,7 @@ def campaign_reading(row,now):
     if snapshot.get('not_applicable'):
         return 'inaplicavel' if row.get('status') in ('closed','under_review') else 'pendente'
     if snapshot.get('error') or not isinstance(snapshot.get('promotions'),list):return 'pendente'
-    if any(not isinstance(p,dict) for p in snapshot['promotions']):return 'pendente'
+    if any(not valid_promotion_record(p) for p in snapshot['promotions']):return 'pendente'
     return 'valida'
 
 
