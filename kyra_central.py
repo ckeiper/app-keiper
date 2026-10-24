@@ -1,4 +1,4 @@
-"""Admin-only, read-only consolidated KYRA snapshot. No marketplace or paid API calls."""
+"""Admin-only, read-only consolidated KEVIA snapshot. No marketplace or paid API calls."""
 from html import escape
 
 
@@ -32,7 +32,7 @@ def render_central(rows):
     .kyra-shop h3{margin:0 0 6px}.kyra-muted{opacity:.75;font-size:.9rem}
     .kyra-shop a{display:inline-block;margin-top:12px;color:inherit;text-decoration:underline;text-underline-offset:3px}
     .kyra-finding{border-top:1px solid var(--border,#334155);padding-top:10px;margin-top:10px}
-    </style><section class="card"><div class="kyra-head"><div><h2>KYRA · Central de Inteligência</h2>
+    </style><section class="card"><div class="kyra-head"><div><h2>KEVIA · Central de Inteligência</h2>
     <p>Nome provisório. Diagnósticos diários para revisão humana; nenhuma campanha é alterada.</p></div></div>"""
     html += '<p>'+str(len(rows))+' lojas · '+str(count)+' com recomendações no último diagnóstico disponível.</p></section>'
     html += '<div class="kyra-grid">'

@@ -1,9 +1,9 @@
-"""Read-only history of KYRA daily runs; no extra data collection."""
+"""Read-only history of KEVIA daily runs; no extra data collection."""
 from html import escape
 
 
 def render_history(runs):
-    html = '<section class="card"><h2>Histórico da KYRA</h2><p>Até 30 análises mais recentes, incluindo falhas e dias sem recomendações.</p>'
+    html = '<section class="card"><h2>Histórico da KEVIA</h2><p>Até 30 análises mais recentes, incluindo falhas e dias sem recomendações.</p>'
     if not runs:
         return html + '<p>Nenhuma análise registrada.</p></section>'
     html += '<div style="overflow-x:auto"><table><thead><tr><th>Dia</th><th>Execução</th><th>Recomendações</th><th>Qualidade</th></tr></thead><tbody>'

@@ -4524,7 +4524,7 @@ def kyra_central():
             conexao_id,day,status,result FROM keiper_ai_runs
             ORDER BY conexao_id,day DESC""")
     body = render_central(central_rows(shops, runs))
-    response = Response(pagina('KYRA · Central de Inteligência', body), mimetype='text/html')
+    response = Response(pagina('KEVIA · Central de Inteligência', body), mimetype='text/html')
     response.headers['Cache-Control'] = 'no-store'
     return response
 
@@ -4592,7 +4592,7 @@ def painel_ia_keiper(cid):
             session['kyra_review_csrf'] = token
         findings = (run.get('result') or {}).get('recommendations') or []
         corpo += render_review(cid, findings, {r['code']:r['state'] for r in saved_reviews}, token)
-    return pagina_loja('KYRA', cid, lojas[0]['cliente'], 'ia', corpo)
+    return pagina_loja('KEVIA', cid, lojas[0]['cliente'], 'ia', corpo)
 
 
 @app.route("/painel/<int:cid>/operacao")
@@ -4842,7 +4842,7 @@ def painel_detalhe(cid):
              "'<p>Abra o ranking para consultar as quedas verificadas.</p>' +"
              "'<a href=\\'/ranking-anuncios/"+str(int(cid))+"?dias=7\\'>Ver ranking de anúncios</a></div>'})"
              "})();</script>") + corpo
-    corpo = ("<div class='card'><h3>KYRA</h3><p>Nome provisório, aguardando análise jurídica de marca.</p><p>Consulte as recomendações diárias e suas evidências.</p>"
+    corpo = ("<div class='card'><h3>KEVIA</h3><p>Nome provisório, aguardando análise jurídica de marca.</p><p>Consulte as recomendações diárias e suas evidências.</p>"
              "<a href='/ia-keiper/"+str(int(cid))+"'>Ver recomendações</a></div>") + corpo
     return pagina_loja("Resumo", cid, c["cliente"], "resumo", corpo)
 @app.route("/atualizar/<tipo>/<int:cid>")
