@@ -234,5 +234,6 @@ body .conteudo .offer-investigation .muted{color:#bdcce1}
 body .conteudo .offer-investigation .offer-event,body .conteudo .offer-investigation table th,body .conteudo .offer-investigation table td{background:#182e49;color:#eaf2ff;border-color:#426184}
 body .conteudo .offer-investigation select{background:#0b192c;color:#eaf2ff;border-color:#426184;max-width:100%}
 body .conteudo .offer-investigation a{color:#b9e5ff}
+body .conteudo .offer-investigation a.btn-acoes.cinza{background:#1c3552;color:#b9e5ff!important;border:1px solid #426184}
 body .conteudo .offer-investigation :is(a,button,select,summary):focus-visible{outline:3px solid #85c8ec;outline-offset:3px}
 </style>"""

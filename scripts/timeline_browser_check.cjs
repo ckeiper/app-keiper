@@ -72,6 +72,8 @@ const {chromium}=require('playwright');
    await page.setContent(fs.readFileSync('visual-qa/competitiveness-preview.html','utf8'));
    assert.equal(await page.locator('.price-comparison tbody tr').count(),1);
    assert.ok((await page.locator('.price-comparison th,.price-comparison td').evaluateAll(els=>els.map(el=>getComputedStyle(el).backgroundColor))).every(color=>color==='rgb(24, 46, 73)'));
+   assert.equal(await page.locator('.offer-investigation a.btn-acoes').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(28, 53, 82)');
+   assert.equal(await page.locator('.offer-investigation a.btn-acoes').evaluate(el=>getComputedStyle(el).color),'rgb(185, 229, 255)');
    assert.equal(await page.locator('.offer-coverage article').count(),2);
    assert.ok((await page.locator('.offer-coverage').textContent()).includes('2 de 2'));
    assert.ok((await page.locator('.offer-coverage').textContent()).includes('Sem leituras no período'));
