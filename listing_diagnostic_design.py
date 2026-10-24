@@ -2,7 +2,7 @@
 from html import escape
 
 CSS = """<style>
-.listing-diag{--dink:#27324b;--dmuted:#7a879c;--dline:#e6ebf4;color:var(--dink)}
+.listing-diag{--dink:#eaf2ff;--dmuted:#bdcce1;--dline:#34516e;color:var(--dink)}
 .listing-diag .diag-hero{background:linear-gradient(115deg,#1b2647,#343b78);color:white;border-radius:18px;padding:26px;margin:0 0 20px}
 .listing-diag .diag-eyebrow{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.7px;color:#bdc9ee}
 .listing-diag .diag-hero h2{font-size:23px;line-height:1.4;color:white;margin:10px 0}
@@ -29,6 +29,12 @@ CSS = """<style>
 .listing-diag .diag-hint{margin:0 0 18px;color:#8290a5;font-size:11px}
 @media(max-width:650px){.listing-diag .diag-summary{grid-template-columns:1fr 1fr}.listing-diag .diag-summary>a{padding:13px}.listing-diag .diag-hero{padding:20px}.listing-diag .diag-hero h2{font-size:19px}}
 @media(prefers-reduced-motion:reduce){.listing-diag .diag-summary>a{transition:none}.listing-diag .diag-summary>a:hover{transform:none}}
+body .conteudo .listing-diag .diag-summary>a,body .conteudo .listing-diag .diag-action,body .conteudo .listing-diag .diag-actions-empty{background:#142940;color:#eaf2ff}
+body .conteudo .listing-diag #diag-acoes{background:#102238;padding:20px;border:1px solid #34516e;border-radius:14px}body .conteudo .listing-diag h2,body .conteudo .listing-diag h3,body .conteudo .listing-diag strong{color:#eaf2ff}
+body .conteudo .listing-diag .diag-action p,body .conteudo .listing-diag .diag-priority,body .conteudo .listing-diag .diag-hint{color:#bdcce1}
+body .conteudo .listing-diag .diag-next{background:#1c3552;color:#dcecff}
+body .conteudo .listing-diag .diag-hint>a{background:#1c3552!important;color:#b9e5ff!important;border-color:#426184!important}
+body .conteudo .listing-diag a:focus-visible{outline:3px solid #91d9fa;outline-offset:3px}
 </style>"""
 
 def hero(item, cid, item_id, results):

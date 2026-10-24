@@ -66,6 +66,12 @@ body .conteudo section.kp-queue h2{color:#fff}
 .kp-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
 .kp-footer a{color:#9fd7ff!important;font-size:12px;font-weight:750}
 @media(max-width:600px){.kp-queue{padding:17px;border-radius:15px}.kp-grid{grid-template-columns:1fr}.kp-queue h2{font-size:20px}}
+body .conteudo .kp-queue .kp-item{background:#142940;color:#eaf2ff!important;border-color:#34516e}
+body .conteudo .kp-queue .kp-title,body .conteudo .kp-queue .kp-plan b{color:#eaf2ff}
+body .conteudo .kp-queue .kp-item p,body .conteudo .kp-queue .kp-plan li,body .conteudo .kp-queue .kp-limitations{color:#bdcce1!important}
+body .conteudo .kp-queue .kp-evidence,body .conteudo .kp-queue .kp-plan,body .conteudo .kp-queue .kp-pill{background:#1c3552;border-color:#426184;color:#dcecff}
+body .conteudo .kp-queue .kp-evidence strong,body .conteudo .kp-queue .kp-plan>strong,body .conteudo .kp-queue .kp-foot{color:#b9e5ff}
+body .conteudo .kp-queue .kp-loss{color:#ffb3b7}
 </style>"""
 
 
