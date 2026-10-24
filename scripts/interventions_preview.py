@@ -40,3 +40,17 @@ response=client.get('/anuncios/1/MLB100/acoes')
 assert response.status_code==200
 (dest/'interventions-empty.html').write_text(response.text,encoding='utf-8')
 print('Synthetic action history previews rendered.')
+
+from test_profitability_action import fixture,TODAY
+from profitability_action import load as load_financial,render as render_financial
+from unittest.mock import Mock
+from listing_interventions import CSS
+from decimal import Decimal
+for state in ['ready','negative','missing','waiting']:
+    periods,source_orders,source_items,cost_records=fixture()
+    if state=='negative':cost_records[-1]['costs']={k:Decimal(300) for k in cost_records[-1]['costs']}
+    if state=='missing':cost_records=[]
+    day=DAY if state=='waiting' else TODAY
+    finance=load_financial(None,Mock(return_value=cost_records),1,ITEM,periods,source_orders,source_items,day)
+    body=CSS+'<div class="interventions"><p>Dados fictícios para teste.</p>'+render_financial(finance,1,ITEM,periods,day)+'</div>'
+    (dest/('interventions-finance-'+state+'.html')).write_text(page('Conferência financeira da alteração',1,'Loja de demonstração','anuncios',body),encoding='utf-8')
