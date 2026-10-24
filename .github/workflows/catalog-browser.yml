@@ -28,6 +28,8 @@ on:
       - 'test_listing_interventions.py'
       - 'scripts/interventions*'
       - 'investigation_evidence.py'
+      - 'investigation_cross_signals.py'
+      - 'test_diagnostic_navigation.py'
       - 'investigation_triage.py'
       - 'sales_drivers.py'
       - 'test_sales_drivers.py'

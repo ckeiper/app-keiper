@@ -130,6 +130,19 @@ def load(conn, query, cid, item_id, end, days=7):
 
 CSS = """<style>
 .evidence-panel{margin:20px 0;color:#243651}.evidence-heading{background:#1c3554;color:#fff;padding:22px;border-radius:15px}.evidence-heading h3{color:#fff;margin:0 0 8px}.evidence-heading p{color:#cfdee9;font-size:12px;line-height:1.6;margin:0}.evidence-sources{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0}.evidence-source{background:#fff;border:1px solid #dfe7f1;border-radius:13px;padding:18px;overflow-wrap:anywhere}.evidence-source h4{margin:8px 0 12px;font-size:15px}.evidence-source p,.evidence-action p{font-size:12px;line-height:1.6}.evidence-badge{display:inline-block;border-radius:6px;padding:4px 7px;font-size:10px;background:#e5f5ef;color:#23775b}.evidence-badge.partial{background:#fff2df;color:#916020}.evidence-badge.context{background:#e9eef9;color:#48618d}.evidence-action{border-left:4px solid #1d9d96;background:#fff;padding:17px;border-radius:10px;margin:10px 0}.evidence-action h4{margin:0 0 8px;color:#245168}.evidence-meta{color:#6b7c92;font-size:11px;line-height:1.6}.evidence-table{width:100%;border-collapse:collapse;font-size:12px}.evidence-table th,.evidence-table td{padding:9px;text-align:left;border-bottom:1px solid #e7edf5}.evidence-next{border:1px solid #c9d8ed;border-radius:13px;background:#eef4ff;padding:18px;margin:14px 0;overflow-wrap:anywhere}.evidence-next h4{margin:0 0 8px;color:#213e68}.evidence-next p{font-size:12px;line-height:1.6;margin:7px 0}.evidence-gaps{background:#fff8ec;border:1px solid #f0dfbb;border-radius:10px;padding:0 14px;margin:12px 0;overflow-wrap:anywhere}.evidence-gaps ul{padding-left:18px;font-size:12px;line-height:1.7}.evidence-panel summary{cursor:pointer;font-size:12px;font-weight:600;padding:12px 0}
+body .conteudo .evidence-panel{color:#eaf2ff}
+body .conteudo .evidence-panel :is(.evidence-source,.evidence-action,.evidence-next,.cross-reading,.evidence-drivers){background:#142940;color:#eaf2ff;border-color:#34516e}
+body .conteudo .evidence-panel :is(h3,h4,summary,b){color:#eaf2ff}
+body .conteudo .evidence-panel :is(p,small,.evidence-meta,.drivers-method,.drivers-hint){color:#bdcce1}
+body .conteudo .evidence-panel :is(.cross-facts span,.evidence-table th,.evidence-table td,.drivers-table th,.drivers-table td){background:#1c3552;color:#eaf2ff;border-color:#426184}
+body .conteudo .evidence-panel .drivers-table .negative{color:#ffb3b7}
+body .conteudo .evidence-panel .drivers-table .positive{color:#8ae2c3}
+body .conteudo .evidence-panel .cross-label{color:#b9e5ff}
+body .conteudo .evidence-panel .evidence-gaps{background:#3b3020;color:#ffe3ac;border-color:#836b34}
+body .conteudo .evidence-panel .evidence-gaps summary{color:#ffe3ac}
+body .conteudo .evidence-panel .evidence-jump{display:inline-block;color:#b9e5ff;text-decoration:none;background:#1c3552;border:1px solid #426184;border-radius:9px;padding:10px 12px}
+.evidence-action h4{scroll-margin-top:24px}.evidence-action-details{border-top:1px solid #34516e;margin-top:10px}.evidence-action-details summary{color:#b9e5ff}
+body .conteudo .evidence-panel :is(a,summary,h4):focus-visible{outline:3px solid #85c8ec;outline-offset:3px}
 </style>"""
 
 
@@ -161,7 +174,7 @@ def render(evidence, cid, end, days=7):
             out+='<p><b>Primeira verificação sugerida:</b> validar cobertura e pedidos dos dois períodos. As observações abaixo continuam disponíveis como sinais independentes.</p>'
         elif e['actions']:
             first=e['actions'][0]
-            out+='<p><b>Primeira verificação sugerida:</b> '+escape(first['title'])+'</p><p>'+escape(first['action'])+'</p>'
+            out+='<p><b>Primeira verificação sugerida:</b> <a class="evidence-jump" href="#evidence-action-1">'+escape(first['title'])+' ↘</a></p>'
         else:
             out+='<p>Nenhum sinal atingiu as regras de triagem. Confira as lacunas e a linha do tempo antes de escolher uma intervenção.</p>'
         out+='<p class="evidence-meta">A ordem prioriza verificações operacionais do anúncio e deixa Ads da loja como contexto. Não classifica causas comprovadas nem garante impacto em vendas.</p></div>'
@@ -170,7 +183,7 @@ def render(evidence, cid, end, days=7):
             out+=''.join('<li>'+escape(gap)+'</li>' for gap in triage['gaps'])+'</ul></details>'
     from investigation_cross_signals import assess as assess_cross, render as render_cross, CSS as cross_css
     sales = e.get('sales_for_cross')
-    out += cross_css + render_cross(assess_cross(e, sales))
+    out += cross_css + render_cross(assess_cross(e, sales, days=days),days=days)
     if e.get('drivers'):
         from sales_drivers import render as render_drivers
         out+=render_drivers(e['drivers'])
@@ -200,16 +213,16 @@ def render(evidence, cid, end, days=7):
     out+='<p class="evidence-meta">Ainda não há histórico diário de Ads por anúncio. Os números da loja não são atribuídos a este produto.</p></div></div>'
     if e['actions']:
         for i,action in enumerate(e['actions'],1):
-            out+="<article class='evidence-action'><h4>%s. %s</h4><p><b>Evidência:</b> %s</p><p><b>Ação:</b> %s</p><p class='evidence-meta'>%s</p>" % (i,escape(action['title']),escape(action['evidence']),escape(action['action']),escape(action['scope']))
+            out+="<article class='evidence-action'><h4 id='evidence-action-%s' tabindex='-1'>%s. %s</h4><p><b>Ação:</b> %s</p><details class='evidence-action-details'><summary>Evidência e acompanhamento</summary><p><b>Evidência:</b> %s</p><p class='evidence-meta'>%s</p>" % (i,i,escape(action['title']),escape(action['action']),escape(action['evidence']),escape(action['scope']))
             if action.get('follow_up'):
                 out+='<p><b>Como acompanhar:</b> '+escape(action['follow_up'])+'</p>'
-            out+='</article>'
+            out+='</details></article>'
     else:
         out+='<p class="evidence-meta">Nenhum sinal atingiu as regras de triagem com os dados disponíveis. Revise a cobertura antes de concluir que não há problemas.</p>'
     if stock['transitions']:
         out+='<p class="evidence-meta">Mudança de Full disponível para zerado entre dias consecutivos com leitura: '+escape(', '.join(stock['transitions']))+'. Data de observação, não horário exato da ruptura.</p>'
     # Every date stays visible, including gaps, so partial history is inspectable.
-    out+="<details><summary>Conferir visitas diárias e lacunas (14 dias)</summary><table class='evidence-table'><thead><tr><th>Data</th><th>Visitas registradas</th></tr></thead><tbody>"
+    out+="<details><summary>Conferir visitas diárias e lacunas (%s dias)</summary><table class='evidence-table'><thead><tr><th>Data</th><th>Visitas registradas</th></tr></thead><tbody>" % (2*days)
     for d in e['dates']:
         reading=window(e['visits_rows'],[d],['visitas'],'dia')
         v=reading['totals']['visitas'] if reading['complete'] else None
