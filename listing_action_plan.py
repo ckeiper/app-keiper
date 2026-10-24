@@ -28,6 +28,8 @@ def build(row):
         if code not in codes:continue
         title,evidence,action,follow_up=STEPS[code]
         finding=findings.get(code) or {}
+        if code in ('stockout','stock_coverage') and finding.get('evidence'):
+            evidence=finding['evidence']
         if evidence is None:
             evidence=finding.get('evidence')
             if not evidence:continue

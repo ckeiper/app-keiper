@@ -13,6 +13,8 @@ on:
       - 'intervention_routes.py'
       - 'listing_diagnostic_design.py'
       - 'listing_priority_evidence.py'
+      - 'listing_priority_sources.py'
+      - 'test_stock_priority_details.py'
       - 'listing_priority_queue.py'
       - 'listing_action_plan.py'
       - 'test_listing_action_plan.py'
