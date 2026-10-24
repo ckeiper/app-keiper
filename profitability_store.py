@@ -43,7 +43,7 @@ def period(args, today):
     return start, end
 
 
-def load_sales(conn, query, cid, item_id, start, end):
+def read_sales_context(conn, query, cid, start, end):
     # Match existing strict listing-sales gates; no remote API or writes.
     bounds = (cid,(start-timedelta(days=1)).isoformat(),
               (end+timedelta(days=1)).isoformat(),start.isoformat(),end.isoformat())
@@ -63,9 +63,15 @@ def load_sales(conn, query, cid, item_id, start, end):
         (cid,start.isoformat(),end.isoformat()))
     pending = query(conn, '''SELECT EXISTS(SELECT 1 FROM pedidos
         WHERE conexao_id=%s AND vendas_verificado_em IS NULL) AS pending''', (cid,))
-    summary = listing_sales_summary(orders, items, [r['dia'] for r in coverage],
+    return dict(orders=orders, items=items, coverage=[r['dia'] for r in coverage],
+                pending=bool(pending and pending[0]['pending']))
+
+
+def summarize_context(context, cid, item_id, start, end):
+    orders, items = context['orders'], context['items']
+    summary = listing_sales_summary(orders, items, context['coverage'],
                                    item_id, end=end, days=(end-start).days+1)
-    if pending and pending[0]['pending']:
+    if context['pending']:
         summary.update(orders=None, units=None, gross_items=None,
                        reason='Há pedidos ainda não verificados nesta loja.')
     # Retain only this listing's period basis; changes to status, quantity,
@@ -83,6 +89,28 @@ def load_sales(conn, query, cid, item_id, start, end):
         [cid,item_id,start.isoformat(),end.isoformat(),canonical(selected_orders),canonical(selected_items)],
         ensure_ascii=True).encode()).hexdigest()
     return summary
+
+
+
+def load_sales(conn, query, cid, item_id, start, end):
+    return summarize_context(read_sales_context(conn, query, cid, start, end),
+                             cid, item_id, start, end)
+
+
+def load_pair(conn, query, cid, item_id, start, end, earliest=None):
+    """Two equal adjacent periods, sharing four store-scoped reads."""
+    days = (end-start).days+1
+    previous_end = start-timedelta(days=1)
+    previous_start = previous_end-timedelta(days=days-1)
+    previous_allowed = earliest is None or previous_start >= earliest
+    context = read_sales_context(conn, query, cid, previous_start if previous_allowed else start, end)
+    previous = (summarize_context(context,cid,item_id,previous_start,previous_end)
+        if previous_allowed else dict(orders=None,units=None,gross_items=None,ticket=None,
+            start=previous_start.isoformat(),end=previous_end.isoformat(),outside_window=True,
+            reason='Período anterior fora da janela permitida dos últimos 366 dias.'))
+    return dict(current=summarize_context(context,cid,item_id,start,end),
+                previous=previous,
+                previous_start=previous_start, previous_end=previous_end)
 
 
 def validate(form):

@@ -23,6 +23,25 @@ const {chromium}=require('playwright');
         if(state==='ready')await page.screenshot({path:`visual-qa/profitability-${width}.png`,fullPage:true});
       }
     }
+    for(const state of ['ready','negative','missing','stale']) {
+      for(const width of [1440,390]) {
+        await page.setViewportSize({width,height:900});
+        await page.setContent(fs.readFileSync(`visual-qa/profitability-comparison-${state}.html`,'utf8'));
+        const available=['ready','negative'].includes(state);
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Comparison ${state} body overflow at ${width}`);
+        assert.equal(await page.locator('.pf-comparison-table').count(),available?1:0);
+        assert.equal(await page.locator('.pf-delta').count(),available?3:0);
+        assert.equal(await page.locator('.pf-source-link').getAttribute('href'),'?inicio=2026-10-10&fim=2026-10-16');
+        assert.equal(await page.locator('#pf-comparacao').getByText('Margem documentada menor',{exact:true}).count(),available?1:0);
+        if(available)assert.equal(await page.locator('.pf-comparison-table tbody tr').count(),8);
+        if(state==='ready') {
+          assert.ok((await page.locator('.pf-deltas').textContent()).includes('+ R$ 10,00'));
+          assert.ok((await page.locator('.pf-deltas').textContent()).includes('-20,00 p.p.'));
+          if(width===390)assert.ok(await page.locator('.pf-table').first().evaluate(el=>el.scrollWidth>el.clientWidth));
+          await page.screenshot({path:`visual-qa/profitability-comparison-${width}.png`,fullPage:true});
+        }
+      }
+    }
     assert.deepEqual(errors,[]);
     console.log('Profitability: desktop/mobile, unknown/stale values, form confirmation and layout passed.');
   } finally { await browser.close(); }

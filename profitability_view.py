@@ -38,7 +38,7 @@ def stamp(value):
         return 'Data não verificável'
 
 
-def render(cid, item_id, title, start, end, summary, result, record, history, csrf, key, values=None, message=''):
+def render(cid, item_id, title, start, end, summary, result, record, history, csrf, key, values=None, message='', comparison_html=''):
     values = values or {}
     esc = lambda value: escape(str(value), quote=True)
     out = CSS + '<div class="pf"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Evidências financeiras</span><h2>Rentabilidade por anúncio</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="/diagnostico/'+str(cid)+'/'+esc(item_id)+'">← Diagnóstico do anúncio</a><p>Contribuição sobre o valor bruto dos itens vendidos, após os custos documentados abaixo. Não representa lucro líquido nem repasse bancário.</p>'
@@ -58,13 +58,14 @@ def render(cid, item_id, title, start, end, summary, result, record, history, cs
     if not result['available']:
         out += '<p class="pf-alert">'+esc(result['reason'])+'</p>'
     out += '<p>Pedidos pagos e aprovados, cobertura diária completa e vínculo dos itens. Períodos encerrados em horário de Brasília. Despesas fixas e operacionais não estão incluídas. Não há rateio automático de frete, publicidade ou valores da conta.</p></section>'
+    out += comparison_html
     if record:
         out += '<section class="pf-card"><h3>Composição e fontes · registro #'+str(record['id'])+'</h3><p>Informado pelo administrador em '+esc(stamp(record['created_at']))+'. As fontes são referências declaradas, sem validação automática de documentos.</p><div class="pf-table"><table><thead><tr><th>Componente</th><th>Total no período</th><th>Fonte informada</th></tr></thead><tbody>'
         for field, label in COMPONENTS.items():
             out += '<tr><td>'+label+'</td><td>'+format_brl(record['costs'].get(field))+'</td><td class="pf-source">'+esc(record['sources'].get(field,''))+'</td></tr>'
         out += '</tbody></table></div></section>'
     if verified:
-        out += '<section class="pf-card"><details'+(' open' if values else '')+'><summary>Registrar custos documentados do período</summary><p>Informe totais exclusivos deste anúncio, das unidades e das datas selecionadas. Zero também exige uma fonte. Se algum custo não é conhecido, aguarde a conferência. Não use o custo atual para representar custos históricos diferentes.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="submission_key" value="'+esc(key)+'"><input type="hidden" name="basis" value="'+esc(summary['fingerprint'])+'">'
+        out += '<section class="pf-card" id="pf-fontes"><details'+(' open' if values else '')+'><summary>Registrar custos documentados do período</summary><p>Informe totais exclusivos deste anúncio, das unidades e das datas selecionadas. Zero também exige uma fonte. Se algum custo não é conhecido, aguarde a conferência. Não use o custo atual para representar custos históricos diferentes.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="submission_key" value="'+esc(key)+'"><input type="hidden" name="basis" value="'+esc(summary['fingerprint'])+'">'
         for field, label in COMPONENTS.items():
             out += '<div class="pf-fields"><label>'+label+' (R$)<input name="'+field+'" inputmode="decimal" required maxlength="15" value="'+esc(values.get(field,''))+'" placeholder="Total do período"></label><label>Fonte e abrangência<input name="'+field+'_source" required minlength="5" maxlength="500" value="'+esc(values.get(field+'_source',''))+'" placeholder="Documento ou relatório, datas e critério"></label></div>'
         out += '<p>Descontos, devoluções e ajustes: inclua somente reduções adicionais ainda não refletidas no preço dos itens, sem duplicar valores. Não há sincronização automática de todos os ajustes financeiros.</p><label><input type="checkbox" name="confirmed" value="yes" required>Conferi as fontes, o período, todas as unidades e os custos deste anúncio, inclusive valores zero. Não incluí custos de outras lojas ou anúncios nem contei ajustes duas vezes.</label><p><button>Salvar nova versão</button></p><small>Cada versão preserva a anterior. Nenhum anúncio, preço ou campanha será alterado.</small></form></details></section>'

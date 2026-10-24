@@ -76,3 +76,7 @@ Correção incluída na revisão de #205: consultar o catálogo do PostgreSQL an
 Regressão PostgreSQL isolada: manter uma leitura concorrente, provocar lock timeout após INSERT, liberar o bloqueio e verificar que a transação foi revertida e repetida inteira, sem perder a linha original nem duplicar a inserção. Verificar também que coluna já existente não solicita lock exclusivo. Suíte local desta revisão: 674 testes, sucesso, 92 integrações reservadas ao CI.
 
 Os logs do Render também mostraram Python 3.14 em produção, enquanto o CI cobria apenas 3.12. O workflow de testes passa a validar ambas as versões, cada uma com PostgreSQL isolado, antes do merge deste lote.
+
+## Continuação — comparação histórica de rentabilidade
+
+Lote sobre `ac991cd`: evolução da contribuição e margem por anúncio, composição aritmética da diferença, participação dos componentes e pontos de conferência com fontes. Leitura das duas janelas em lote, snapshot consistente e sem escrita em GET. Sem dados completos nos dois períodos, a comparação é indisponível; custo atual não substitui histórico. Especificação e limites em `RENTABILIDADE_HISTORICA.md`. Integração e publicação condicionadas ao CI desta revisão.
