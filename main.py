@@ -678,6 +678,8 @@ def iniciar_banco():
             PRIMARY KEY (conexao_id, pedido_id, item_id)
         )""")
         init_sales_schema(conn, executar)
+        from profitability_store import init_schema as init_profitability
+        init_profitability(conn, executar)
         init_full_schema(conn, executar)
         init_competitor_schema(conn, executar)
         from offer_history import init_schema as init_offer_history
@@ -5592,6 +5594,8 @@ register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagi
 register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
 from intervention_routes import register_interventions
 register_interventions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from profitability_routes import register_profitability
+register_profitability(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
                     is_updating=lambda cid: cid in ATUALIZANDO)
 
