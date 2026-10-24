@@ -65,15 +65,22 @@ PERIOD_ROWS_SQL = """SELECT conexao_id, pedido_id, status, total, moeda,
       AND LEFT(criado_em, 10) BETWEEN %s AND %s"""
 
 DAILY_SQL = '''WITH candidates AS MATERIALIZED (
-    SELECT conexao_id, keiper_overview_day_v1(criado_em) AS dia,
+    SELECT ids.conexao_id, days.dia::date AS dia,
            status, total, moeda, unidades,
            CASE WHEN jsonb_typeof(pagamentos_json) = 'array'
                 THEN pagamentos_json ELSE '[]'::jsonb END AS payments,
            jsonb_typeof(pagamentos_json) IS DISTINCT FROM 'array' AS bad_shape
-    FROM pedidos WHERE conexao_id = ANY(%s) AND vendas_verificado_em IS NOT NULL
-      AND keiper_overview_day_v1(criado_em) IS NOT NULL
-      AND keiper_overview_day_v1(criado_em) BETWEEN %s AND %s
-), payment_checks AS (
+    FROM unnest(%s::integer[]) AS ids(conexao_id)
+    CROSS JOIN generate_series(%s::timestamp, %s::timestamp, interval '1 day') AS days(dia)
+    CROSS JOIN LATERAL (
+        SELECT status, total, moeda, unidades, pagamentos_json
+        FROM pedidos WHERE conexao_id = ids.conexao_id
+          AND vendas_verificado_em IS NOT NULL
+          AND keiper_overview_day_v1(criado_em) IS NOT NULL
+          AND keiper_overview_day_v1(criado_em) BETWEEN days.dia::date AND days.dia::date
+        OFFSET 0
+    ) AS matching
+), payment_checks AS MATERIALIZED (
     SELECT *, bad_shape OR jsonb_array_length(payments) = 0 OR EXISTS (
         SELECT 1 FROM jsonb_array_elements(payments) AS p
         WHERE jsonb_typeof(p) <> 'object' OR NOT (p ? 'status')
@@ -84,7 +91,7 @@ DAILY_SQL = '''WITH candidates AS MATERIALIZED (
             WHERE p->'status' = '"approved"'::jsonb) AS approved,
     COALESCE(total >= 0 AND total < 'Infinity'::real, false) AS valid_total
     FROM candidates
-), qualified AS (
+), qualified AS MATERIALIZED (
     SELECT *, status = 'paid' AND NOT bad_payments AND approved
               AND moeda = 'BRL' AND valid_total AS good,
            status = 'paid' AND (bad_payments OR (approved AND
