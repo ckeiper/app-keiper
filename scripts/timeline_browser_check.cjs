@@ -71,6 +71,7 @@ const {chromium}=require('playwright');
    await page.setViewportSize({width,height:900});
    await page.setContent(fs.readFileSync('visual-qa/competitiveness-preview.html','utf8'));
    assert.equal(await page.locator('.price-comparison tbody tr').count(),1);
+   assert.ok((await page.locator('.price-comparison th,.price-comparison td').evaluateAll(els=>els.map(el=>getComputedStyle(el).backgroundColor))).every(color=>color==='rgb(24, 46, 73)'));
    assert.ok((await page.locator('.price-comparison').textContent()).includes('Aumentou: 10,00 p.p.'));
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
    assert.equal(await page.locator('.price-comparison h3').evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
