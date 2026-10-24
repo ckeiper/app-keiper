@@ -72,6 +72,8 @@ const {chromium}=require('playwright');
    await page.setContent(fs.readFileSync('visual-qa/competitiveness-preview.html','utf8'));
    assert.equal(await page.locator('.price-comparison tbody tr').count(),1);
    assert.ok((await page.locator('.price-comparison th,.price-comparison td').evaluateAll(els=>els.map(el=>getComputedStyle(el).backgroundColor))).every(color=>color==='rgb(24, 46, 73)'));
+   const sample=page.locator('.price-comparison tbody tr td').first();
+   for(const phrase of ['Atual: 17/10 a 23/10/2026','Anterior: 10/10 a 16/10/2026','2/2 pares válidos / leituras','Próprio acima: 1 · igual: 1 · abaixo: 0','Sem leituras no período']) assert.ok((await sample.textContent()).includes(phrase));
    assert.ok((await page.locator('.price-comparison').textContent()).includes('Aumentou: 10,00 p.p.'));
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
    assert.equal(await page.locator('.price-comparison h3').evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
