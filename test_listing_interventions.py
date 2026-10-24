@@ -88,6 +88,21 @@ class InterventionMetricsTests(unittest.TestCase):
             self.assertEqual(call.args[2][0],42)
         self.assertIn('item_id=%s',query.call_args_list[3].args[1])
 
+    def test_sales_reads_bound_three_weeks_with_timezone_buffer_and_date_fallback(self):
+        query=Mock(side_effect=[[],[],[],[],[dict(pending=False)],[dict(n=0)]])
+        load_comparison(None,query,42,ITEM,DAY,TODAY)
+        expected=(42,(DAY-timedelta(days=8)).isoformat(),
+            (DAY+timedelta(days=15)).isoformat(),
+            (DAY-timedelta(days=7)).isoformat(),(DAY+timedelta(days=14)).isoformat())
+        for call in query.call_args_list[:2]:
+            self.assertEqual(call.args[2],expected)
+            self.assertIn('vendas_dia_coleta BETWEEN',call.args[1])
+            self.assertIn('LEFT(',call.args[1])
+        # All item mappings in the interval are required, even for other MLBs.
+        self.assertNotIn('item_id=%s',query.call_args_list[1].args[1])
+        self.assertEqual(query.call_args_list[4].args[2],(42,))
+        self.assertNotIn('BETWEEN',query.call_args_list[4].args[1])
+
     def test_comparison_discloses_manual_record_overlap_and_causal_limits(self):
         result=compare(ITEM,DAY,*sample(),TODAY);result['other_actions']=2
         output=comparison_html(result,dict(event_date=DAY))
@@ -201,6 +216,46 @@ class InterventionDatabaseTests(unittest.TestCase):
         with self.m.banco() as conn:rows=self.m.consultar(conn,'SELECT * FROM listing_interventions WHERE conexao_id=%s',(self.cid,))
         self.assertEqual(len(rows),1);self.assertIsNotNone(rows[0]['void_at'])
         self.assertIn('Registro desconsiderado',self.client.get(self.path+'?acao='+str(aid)).text)
+
+    def test_bounded_reads_preserve_timezone_invalid_dates_and_pending_gates(self):
+        day=DAY
+        start,end=day-timedelta(days=7),day+timedelta(days=14)
+        rows=[('old','2020-01-01T12:00:00-03:00','2020-01-01'),
+              ('inside',start.isoformat()+'T12:00:00-03:00',start.isoformat()),
+              ('boundary',(start+timedelta(days=1)).isoformat()+'T01:00:00+00:00',start.isoformat()),
+              ('bad','invalid',start.isoformat()),
+              ('after',(end+timedelta(days=1)).isoformat()+'T01:00:00+00:00',end.isoformat())]
+        try:
+            with self.m.banco() as conn:
+                for oid,stamp,collected in rows:
+                    self.m.executar(conn,"""INSERT INTO pedidos(conexao_id,pedido_id,status,total,moeda,criado_em,pagamentos_json,unidades,vendas_verificado_em,vendas_dia_coleta)
+                        VALUES(%s,%s,'paid',100,'BRL',%s,'[{"status":"approved"}]'::jsonb,1,1,%s)""",(self.cid,oid,stamp,collected))
+                    self.m.executar(conn,'INSERT INTO pedidos_itens(conexao_id,pedido_id,item_id,quantidade,preco_unitario) VALUES(%s,%s,%s,1,100)',(self.cid,oid,ITEM))
+                for i in range(22):
+                    self.m.executar(conn,'INSERT INTO vendas_cobertura(conexao_id,dia,atualizado_em) VALUES(%s,%s,1)',(self.cid,(start+timedelta(days=i)).isoformat()))
+            captured=[]
+            def read(conn,sql,params):
+                result=self.m.consultar(conn,sql,params)
+                if 'FROM pedidos' in sql and 'EXISTS' not in sql:captured.extend(result)
+                return result
+            with self.m.banco() as conn:
+                result=load_comparison(conn,read,self.cid,ITEM,day,day+timedelta(days=15))
+            self.assertEqual({r['pedido_id'] for r in captured},{'inside','boundary','bad','after'})
+            self.assertIsNone(result['delta']) # malformed in-window date remains blocking
+            with self.m.banco() as conn:
+                self.m.executar(conn,"DELETE FROM pedidos_itens WHERE conexao_id=%s AND pedido_id='bad'",(self.cid,))
+                self.m.executar(conn,"DELETE FROM pedidos WHERE conexao_id=%s AND pedido_id='bad'",(self.cid,))
+                result=load_comparison(conn,self.m.consultar,self.cid,ITEM,day,day+timedelta(days=15))
+                self.assertEqual(result['periods'][0]['sales']['orders'],2)
+                self.assertEqual(result['followup']['orders'],1)
+                self.m.executar(conn,"UPDATE pedidos SET vendas_verificado_em=NULL WHERE conexao_id=%s AND pedido_id='old'",(self.cid,))
+                blocked=load_comparison(conn,self.m.consultar,self.cid,ITEM,day,day+timedelta(days=15))
+                self.assertIsNone(blocked['delta'])
+                self.assertEqual(blocked['followup']['state'],'indisponivel')
+        finally:
+            with self.m.banco() as conn:
+                for table in ['pedidos_itens','pedidos','vendas_cobertura']:
+                    self.m.executar(conn,'DELETE FROM '+table+' WHERE conexao_id=%s',(self.cid,))
 
     def test_customer_cannot_create_and_other_listing_cannot_read_record(self):
         from sales_metrics import reporting_today

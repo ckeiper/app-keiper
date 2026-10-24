@@ -74,13 +74,22 @@ def compare(item_id, action_day, orders, items, covered, visits, today, pending=
 def load_comparison(conn, query, cid, item_id, action_day, today):
     # One comparison per page, never one set of queries per history row. Use the
     # established store-wide classifier so broken item mapping cannot hide sales.
-    orders = query(conn, '''SELECT conexao_id,pedido_id,status,total,moeda,criado_em,
+    start_day,end_day = action_day-timedelta(days=7),action_day+timedelta(days=14)
+    start,end = start_day.isoformat(),end_day.isoformat()
+    # Date text gets a one-day timezone buffer; collection-day fallback retains
+    # malformed timestamps that could invalidate this reporting interval.
+    bounds=(cid,(start_day-timedelta(days=1)).isoformat(),
+            (end_day+timedelta(days=1)).isoformat(),start,end)
+    orders = query(conn, """SELECT conexao_id,pedido_id,status,total,moeda,criado_em,
         pagamentos_json,unidades,vendas_dia_coleta FROM pedidos
-        WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL''',(cid,))
-    items = query(conn, '''SELECT pi.conexao_id,pi.pedido_id,pi.item_id,pi.quantidade,pi.preco_unitario
+        WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL
+          AND (LEFT(criado_em,10) BETWEEN %s AND %s
+               OR vendas_dia_coleta BETWEEN %s AND %s)""",bounds)
+    items = query(conn, """SELECT pi.conexao_id,pi.pedido_id,pi.item_id,pi.quantidade,pi.preco_unitario
         FROM pedidos_itens pi JOIN pedidos p ON p.conexao_id=pi.conexao_id AND p.pedido_id=pi.pedido_id
-        WHERE pi.conexao_id=%s AND p.vendas_verificado_em IS NOT NULL''',(cid,))
-    start,end = (action_day-timedelta(days=7)).isoformat(),(action_day+timedelta(days=14)).isoformat()
+        WHERE pi.conexao_id=%s AND p.vendas_verificado_em IS NOT NULL
+          AND (LEFT(p.criado_em,10) BETWEEN %s AND %s
+               OR p.vendas_dia_coleta BETWEEN %s AND %s)""",bounds)
     coverage = query(conn,'SELECT dia FROM vendas_cobertura WHERE conexao_id=%s AND dia BETWEEN %s AND %s',(cid,start,end))
     traffic = query(conn,'SELECT dia,visitas FROM item_visits_daily WHERE conexao_id=%s AND item_id=%s AND dia BETWEEN %s AND %s',(cid,item_id,start,end))
     pending = query(conn,'SELECT EXISTS(SELECT 1 FROM pedidos WHERE conexao_id=%s AND vendas_verificado_em IS NULL) AS pending',(cid,))[0]['pending']
