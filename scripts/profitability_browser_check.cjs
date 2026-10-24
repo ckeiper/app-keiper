@@ -56,6 +56,7 @@ const {chromium}=require('playwright');
         await page.setContent(fs.readFileSync(`visual-qa/profitability-scenario-${state}.html`,'utf8'));
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Scenario ${state} overflow ${width}`);
         assert.equal(await page.locator('input[name=price]').count(),1);
+        assert.ok((await page.locator('.scenario-tiers tbody td').evaluateAll(els=>els.map(el=>getComputedStyle(el).backgroundColor))).every(color=>color==='rgb(16, 34, 56)'));
         assert.equal(await page.locator('input[name=_csrf]').count(),1);
         assert.equal(await page.locator('input[name=assumptions]').isChecked(),state!=='blank');
         assert.equal(await page.locator('#discount-results').count(),state==='ready'?1:0);
