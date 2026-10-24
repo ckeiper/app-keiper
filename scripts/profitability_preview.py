@@ -30,3 +30,11 @@ for mode in ['ready','negative','missing','stale']:
     body=render(42,'MLB100','Produto de demonstração',START,END,pair['current'],result['current'],current,[current],'preview-only','x'*32,comparison_html=comparison_html)
     (dest/('profitability-comparison-'+mode+'.html')).write_text(page('Rentabilidade por anúncio',42,'Loja de demonstração','anuncios',body),encoding='utf-8')
 print('Synthetic financial comparison previews rendered.')
+
+from profitability_scenarios import render as render_scenario,simulate
+from test_profitability_scenarios import form as scenario_form
+for mode in ['blank','ready','error']:
+    values=scenario_form() if mode!='blank' else {}
+    scenario=simulate(values) if mode=='ready' else None
+    body=render_scenario(42,'MLB100','Produto de demonstração','preview-only',values,scenario,'Informe publicidade por pedido.' if mode=='error' else '')
+    (dest/('profitability-scenario-'+mode+'.html')).write_text(page('Simular descontos progressivos',42,'Loja de demonstração','anuncios',body),encoding='utf-8')

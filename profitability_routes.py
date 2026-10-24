@@ -13,6 +13,9 @@ from profitability_view import render
 
 
 def register_profitability(app, login_required, can_view, bank, query, execute, shop_page, today=reporting_today):
+    from profitability_scenarios import register as register_scenarios
+    register_scenarios(app,login_required,can_view,bank,query,shop_page)
+
     @app.route('/anuncios/<int:cid>/<item_id>/rentabilidade', methods=['GET','POST'])
     @login_required
     def listing_profitability(cid, item_id):

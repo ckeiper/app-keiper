@@ -50,6 +50,24 @@ const {chromium}=require('playwright');
         }
       }
     }
+    for(const state of ['blank','ready','error']) {
+      for(const width of [1440,390,320]) {
+        await page.setViewportSize({width,height:900});
+        await page.setContent(fs.readFileSync(`visual-qa/profitability-scenario-${state}.html`,'utf8'));
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Scenario ${state} overflow ${width}`);
+        assert.equal(await page.locator('input[name=price]').count(),1);
+        assert.equal(await page.locator('input[name=_csrf]').count(),1);
+        assert.equal(await page.locator('input[name=assumptions]').isChecked(),state!=='blank');
+        assert.equal(await page.locator('#discount-results').count(),state==='ready'?1:0);
+        if(state==='ready') {
+          assert.ok((await page.locator('#discount-results').textContent()).includes('R$ 89,50'));
+          assert.equal(await page.locator('form').evaluate(form=>form.checkValidity()),true);
+          await page.screenshot({path:`visual-qa/discount-scenarios-${width}.png`,fullPage:true});
+        }
+        if(state==='blank')assert.equal(await page.locator('form').evaluate(form=>form.checkValidity()),false);
+        if(state==='error')assert.equal(await page.getByRole('alert').count(),1);
+      }
+    }
     assert.deepEqual(errors,[]);
     console.log('Profitability: desktop/mobile, unknown/stale values, form confirmation and layout passed.');
   } finally { await browser.close(); }
