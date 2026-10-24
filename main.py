@@ -825,7 +825,7 @@ def admin_required(f):
         if "usuario_id" not in session:
             return redirect("/login")
         if session.get("tipo") != "admin":
-            return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
+            return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>"), 403
         return f(*args, **kwargs)
     return wrapper
 
