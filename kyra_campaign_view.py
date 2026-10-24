@@ -3,6 +3,7 @@ from html import escape
 from urllib.parse import quote
 
 from keiper_ai_view import day, money, safe
+from ads_sale_efficiency import render as render_sale_efficiency
 
 
 STYLE = """<style>
@@ -49,6 +50,7 @@ def render(run, cid):
             for label,value,extra in [('Atual',current['roas'],''),('Anterior',previous['roas'],' previous')]:
                 out += "<div class='ky-cbar-row'><span>"+label+"</span><div class='ky-cbar-track'><div class='ky-cbar"+extra+"' style='--bar:"+format(value/maximum*100,'.2f')+"%'></div></div><span>"+safe(number(value))+"</span></div>"
             out += '</div>'
+        out += render_sale_efficiency(current, previous)
         out += "<h4>Por que entrou na fila</h4><p class='ky-campaign-why'>"+safe(item['why'])+"</p><h4>O que fazer agora</h4><p>"+safe(item['action'])+"</p>"
         if item.get('target_roas') is not None:
             out += "<div class='ky-campaign-meta'><span class='ky-tag'>Meta atual cadastrada: "+safe(number(item['target_roas']))+"</span></div>"
