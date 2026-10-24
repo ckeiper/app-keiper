@@ -219,5 +219,15 @@ td {padding:9px 10px;}
   .card {padding:12px;}
   .stat {padding:12px;}
 }
+/* Refinamento de cards por loja */
+body:has(.ks-store-sidebar) .conteudo .stat{padding:19px;border-radius:14px;border-color:#dfe7f3;box-shadow:0 5px 18px rgba(16,31,55,.045)}
+body:has(.ks-store-sidebar) .conteudo .stat .num{font-size:clamp(23px,2.3vw,30px);font-weight:750;line-height:1.18;color:#182f57}
+body:has(.ks-store-sidebar) .conteudo .stat .lab{font-size:12px;font-weight:600;color:#60718c}
+body:has(.ks-store-sidebar) .conteudo .card{padding:clamp(16px,1.8vw,24px);border-radius:14px;border-color:#e1e8f2}
+body:has(.ks-store-sidebar) .conteudo h2{font-size:clamp(18px,1.7vw,23px);font-weight:750;color:#192e50}
+body:has(.ks-store-sidebar) .conteudo th{font-size:11px;background:#f2f6fc;color:#526783;padding:12px}
+body:has(.ks-store-sidebar) .conteudo td{padding:12px;border-bottom-color:#e9eef6}
+@media(max-width:640px){body:has(.ks-store-sidebar) .conteudo .stat,body:has(.ks-store-sidebar) .conteudo .card{padding:14px}body:has(.ks-store-sidebar) .conteudo th,body:has(.ks-store-sidebar) .conteudo td{padding:9px}}
+
 </style>
 """
