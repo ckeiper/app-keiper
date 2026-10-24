@@ -7,6 +7,7 @@ from flask import request, session, redirect
 from sales_metrics import reporting_today
 from profitability_store import period, load_pair, validate, result_for, save
 from profitability_comparison import compare
+from profitability_units import render_unit_comparison
 from profitability_comparison_view import render_comparison
 from profitability_view import render
 
@@ -62,6 +63,7 @@ def register_profitability(app, login_required, can_view, bank, query, execute, 
         comparison_html = render_comparison(comparison,start,end,pair['previous_start'],
                                             pair['previous_end'],record,prior_record,
                                             previous_accessible=not pair['previous'].get('outside_window'))
+        comparison_html += render_unit_comparison(comparison)
         if request.args.get('salvo') == '1' and not message:
             message = 'Nova versão registrada. Histórico preservado.'
         body = render(cid,item_id,shops[0]['titulo'],start,end,summary,result,record,history,
