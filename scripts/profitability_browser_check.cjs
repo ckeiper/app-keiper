@@ -62,6 +62,8 @@ const {chromium}=require('playwright');
         assert.equal(await page.locator('#discount-results').count(),state==='ready'?1:0);
         if(state==='ready') {
           assert.ok((await page.locator('#discount-results').textContent()).includes('R$ 89,50'));
+          assert.ok((await page.locator('.scenario-target').textContent()).includes('R$ 18,50'));
+          assert.ok((await page.locator('.scenario-target').textContent()).includes('abaixo da meta'));
           assert.equal(await page.locator('form').evaluate(form=>form.checkValidity()),true);
           await page.screenshot({path:`visual-qa/discount-scenarios-${width}.png`,fullPage:true});
         }

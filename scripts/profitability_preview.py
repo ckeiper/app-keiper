@@ -35,6 +35,7 @@ from profitability_scenarios import render as render_scenario,simulate
 from test_profitability_scenarios import form as scenario_form
 for mode in ['blank','ready','error']:
     values=scenario_form() if mode!='blank' else {}
+    if mode=='ready':values['target_margin']='40'
     scenario=simulate(values) if mode=='ready' else None
     body=render_scenario(42,'MLB100','Produto de demonstração','preview-only',values,scenario,'Informe publicidade por pedido.' if mode=='error' else '')
     (dest/('profitability-scenario-'+mode+'.html')).write_text(page('Simular descontos progressivos',42,'Loja de demonstração','anuncios',body),encoding='utf-8')
