@@ -68,7 +68,7 @@ class DeclineRouteTests(unittest.TestCase):
         ns = dict(pode_ver_loja=lambda cid:True, request=SimpleNamespace(args={}),
                   datetime=datetime, ranking_query_bounds=ranking_query_bounds,
                   banco=lambda:contextlib.nullcontext(None),consultar=query,
-                  ranking_metrics=ranking,esc=lambda s:s,pagina_loja=lambda *args:args[-1])
+                  ranking_metrics=ranking,esc=lambda s:s,pagina_loja=lambda *args:args[-1],executar=Mock())
         route = main_function('ranking_anuncios', ns)
         output = route(1)
         self.assertIn('Ranking indisponível',output)

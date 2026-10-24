@@ -80,3 +80,9 @@ Os logs do Render também mostraram Python 3.14 em produção, enquanto o CI cob
 ## Continuação — comparação histórica de rentabilidade
 
 Lote sobre `ac991cd`: evolução da contribuição e margem por anúncio, composição aritmética da diferença, participação dos componentes e pontos de conferência com fontes. Leitura das duas janelas em lote, snapshot consistente e sem escrita em GET. Sem dados completos nos dois períodos, a comparação é indisponível; custo atual não substitui histórico. Especificação e limites em `RENTABILIDADE_HISTORICA.md`. Integração e publicação condicionadas ao CI desta revisão.
+
+## Continuação — evidências financeiras nas prioridades
+
+#236 integrado em `36df005`, com 688 testes aprovados em Python 3.12/3.14 e QA de navegador. Deploy `dep-dbeb7115efls73ar0go0` confirmado `live`.
+
+Próximo lote liga custos documentados aos cards existentes de anúncios com perda bruta. Para o administrador, acrescenta contribuição atual negativa e comparação de margem, inclusive quando negativa, sem mudar a ordem bruta ou os critérios de acesso dos clientes. Uma leitura financeira adicional por loja, com reaproveitamento das vendas e fingerprint compartilhado; sem chamada ao marketplace e sem nova migração. Especificação em `PRIORIDADES_FINANCEIRAS.md`. Publicação condicionada aos testes desta revisão.

@@ -74,6 +74,11 @@ def summarize_context(context, cid, item_id, start, end):
     if context['pending']:
         summary.update(orders=None, units=None, gross_items=None,
                        reason='Há pedidos ainda não verificados nesta loja.')
+    summary['fingerprint'] = fingerprint_for(cid,item_id,start,end,orders,items)
+    return summary
+
+
+def fingerprint_for(cid,item_id,start,end,orders,items):
     # Retain only this listing's period basis; changes to status, quantity,
     # price or payments invalidate the saved evidence, even at equal totals.
     selected_orders = [r for r in orders if (created_day(r.get('criado_em')) is not None
@@ -85,10 +90,9 @@ def summarize_context(context, cid, item_id, start, end):
     selected_orders = [r for r in selected_orders
                        if (r['conexao_id'], str(r['pedido_id'])) in target_keys]
     canonical = lambda rows: sorted(json.dumps(r, sort_keys=True, default=str) for r in rows)
-    summary['fingerprint'] = hashlib.sha256(json.dumps(
+    return hashlib.sha256(json.dumps(
         [cid,item_id,start.isoformat(),end.isoformat(),canonical(selected_orders),canonical(selected_items)],
         ensure_ascii=True).encode()).hexdigest()
-    return summary
 
 
 
