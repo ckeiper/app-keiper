@@ -3,7 +3,7 @@ from decimal import Decimal
 from html import escape
 
 
-def assess(evidence, sales):
+def assess(evidence, sales, days=7):
     """Separate traffic and paid-orders/visit declines with verified inputs."""
     if not evidence.get('sales_verified') or not sales:
         return dict(state='incompleto', title='Validar os dados de vendas',
@@ -20,7 +20,7 @@ def assess(evidence, sales):
     if not traffic['complete'] or not efficiency['complete']:
         return dict(state='lacunas', title='Queda confirmada; mecanismo ainda desconhecido',
                     detail='A cobertura de visitas ou a base para pedidos pagos por visita é insuficiente.',
-                    check='Completar as leituras de visitas dos 14 dias e conferir pedidos pagos, antes de sugerir mudanças.',
+                    check='Completar as leituras de visitas dos '+str(2*days)+' dias e conferir pedidos pagos, antes de sugerir mudanças.',
                     facts=[])
     previous_visits = traffic['previous']['totals']['visitas']
     previous_orders = sales.get('previous_orders')
@@ -59,10 +59,10 @@ def assess(evidence, sales):
                 facts=facts)
 
 
-def render(result):
+def render(result, days=7):
     tone = ' alert' if result['state'] in ('dupla','trafego','eficiencia') else ''
     out = '<section class="cross-reading'+tone+'" aria-label="Leitura cruzada da queda">'
-    out += '<span class="cross-label">LEITURA CRUZADA · 7 DIAS VS. 7 DIAS</span>'
+    out += '<span class="cross-label">LEITURA CRUZADA · '+str(days)+' DIAS VS. '+str(days)+' DIAS</span>'
     out += '<h4>'+escape(result['title'])+'</h4>'
     if result['facts']:
         out += '<div class="cross-facts">'
