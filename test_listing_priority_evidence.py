@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from listing_priority_evidence import enrich_priorities
 from listing_priority_queue import prioritize
+from listing_priority_sources import listing_signals
 
 
 class PriorityEvidenceTests(unittest.TestCase):
@@ -43,6 +44,18 @@ class PriorityEvidenceTests(unittest.TestCase):
                 "MLB1": {"stock_verified": True, "stock": 0}})
         self.assertNotIn("additional_findings", legacy["items"][0])
         self.assertEqual(enriched["items"][0]["additional_findings"][0]["code"], "stockout")
+
+    def test_fresh_stock_source_and_verified_velocity(self):
+        listings = [{"item_id": "MLB1", "quantidade": 12, "atualizado_em": 1000}]
+        ranking = {"available": True, "rows": {"MLB1": {"units": 21}}}
+        signals = listing_signals(listings, ranking, 7, now=1200)
+        self.assertTrue(signals["MLB1"]["stock_verified"])
+        self.assertEqual(signals["MLB1"]["daily_units"], Decimal("3"))
+
+    def test_stale_stock_source_rejected(self):
+        listings = [{"item_id": "MLB1", "quantidade": 0, "atualizado_em": 1000}]
+        signals = listing_signals(listings, {"available": True}, 7, now=30000)
+        self.assertFalse(signals["MLB1"]["stock_verified"])
 
     def test_unavailable_queue_unchanged(self):
         queue = {"available": False, "reason": "Sem cobertura", "items": []}
