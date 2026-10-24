@@ -24,3 +24,10 @@ print('Synthetic catalog previews rendered.')
 from listing_diagnostic_design import hero,priorities
 checks=[dict(priority='alta',title='Conferir disponibilidade',evidence='Leitura sintética de estoque zero.',action='Conferir reposição e a leitura mais recente.'),dict(priority='revisar',title='Revisar oferta',evidence='Alteração sintética de preço.',action='Conferir fontes e condições comerciais.')]
 (dest/'diagnostic-navy.html').write_text(page('Diagnóstico do anúncio',1,'Loja de demonstração','anuncios',hero(dict(titulo='Produto de demonstração'),1,'MLB100',checks)+priorities(checks)),encoding='utf-8')
+
+from test_catalog_price_order import snapshot
+from test_listing_catalog import item as price_item,NOW as price_now
+from unittest.mock import patch
+with patch('listing_details.time.time',return_value=price_now):
+    price_rows=[dict(price_item(1),preco=200,promocoes_json=snapshot()),dict(price_item(2),preco=100)]
+    (dest/'catalog-price-sort.html').write_text(page('Catálogo por preço',1,'Loja de demonstração','anuncios',render_catalog(1,price_rows,dict(ordem='preco'),now=price_now)),encoding='utf-8')
