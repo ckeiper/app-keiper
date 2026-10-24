@@ -7,6 +7,7 @@ from html import escape
 
 from sales_decline import investigate
 from listing_priority_evidence import enrich_priorities
+from listing_action_plan import render as render_plan
 
 LABELS = {
     'full': ('Full zerado observado', 'Checar estoque Full e reposição por variação'),
@@ -61,7 +62,7 @@ body .conteudo section.kp-queue h2{color:#fff}
 .kp-limitations{font-size:10px!important;color:#687a90!important}
 .kp-pill{display:inline-block;background:#f2f5fa;border-radius:6px;font-size:10px;font-weight:700;color:#51647d;padding:5px 7px;margin:3px 4px 3px 0}
 .kp-item p{font-size:11px;color:#586c86;line-height:1.6}
-.kp-foot{display:block;font-size:11px;font-weight:750;color:#35629b;margin-top:11px}
+.kp-plan{margin:12px 0;padding:12px;border:1px solid #d8e6f3;border-radius:10px;background:#eef5fc}.kp-plan>strong{font-size:12px;color:#244766}.kp-plan ol{padding-left:18px;margin:10px 0}.kp-plan li{margin-bottom:10px;color:#244766;font-size:12px}.kp-plan .kp-followup{font-weight:600}.kp-foot{display:block;font-size:11px;font-weight:750;color:#35629b;margin-top:11px}
 .kp-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
 .kp-footer a{color:#9fd7ff!important;font-size:12px;font-weight:750}
 @media(max-width:600px){.kp-queue{padding:17px;border-radius:15px}.kp-grid{grid-template-columns:1fr}.kp-queue h2{font-size:20px}}
@@ -98,6 +99,7 @@ def render(result, listings, cid, days=7, compact=False):
         out+='<p><b>Por onde começar:</b> '+escape(r['action'])+'</p>'
         if r['coverage'] is not None and r['coverage'] < r['expected']:
             out+='<p>Cobertura de visitas: %s/%s dias; sinais adicionais podem estar ausentes.</p>' % (r['coverage'],r['expected'])
+        out+=render_plan(r,compact=compact)
         out+='<span class="kp-foot">Abrir investigação ↗</span></a>'
     out+='</div><div class="kp-footer"><p>'+str(result['total'])+' anúncios com perda verificada · soma das perdas: R$ '+format(result['loss'],',.2f').replace(',','_').replace('.',',').replace('_','.')+'</p>'
     out+='<a href="/ranking-anuncios/%s?dias=%s">Ver todas as prioridades →</a></div></section>' % (int(cid),int(days))
