@@ -4,6 +4,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import urlencode
 from listing_profitability import COMPONENTS
+from margin_recovery import render_recovery
 from freight_comparison import format_brl
 
 CSS = '''<style>
@@ -18,6 +19,7 @@ CSS = '''<style>
 .pf .pf-metric{background:#142940;border:1px solid var(--pf-line);padding:18px;border-radius:12px}
 .pf .pf-metric strong{font-size:25px;display:block;margin:9px 0;overflow-wrap:anywhere}
 .pf .pf-metric span{font-size:12px;color:var(--pf-muted)}.pf .pf-positive{color:#88e0bf}.pf .pf-negative{color:#ffafb3}
+.pf .pf-recovery-list{display:grid;gap:12px;margin:18px 0}.pf .pf-recovery-list h4{color:#eff5ff;margin:0}
 .pf .pf-fields{display:grid;grid-template-columns:1fr 2fr;gap:12px;align-items:end;margin-bottom:18px}
 .pf label{display:block;font-size:13px}.pf input{display:block;box-sizing:border-box;width:100%;background:#0b192c;color:#eff5ff;border:1px solid #426184;padding:12px;border-radius:8px;margin-top:7px;min-width:0}
 .pf input[type=checkbox]{display:inline;width:auto;margin-right:8px}.pf button,.pf .pf-button{display:inline-block;background:#287ac1;color:white;border:0;padding:12px 18px;border-radius:9px;font-weight:700;cursor:pointer}
@@ -59,6 +61,7 @@ def render(cid, item_id, title, start, end, summary, result, record, history, cs
         out += '<p class="pf-alert">'+esc(result['reason'])+'</p>'
     out += '<p>Pedidos pagos e aprovados, cobertura diária completa e vínculo dos itens. Períodos encerrados em horário de Brasília. Despesas fixas e operacionais não estão incluídas. Não há rateio automático de frete, publicidade ou valores da conta.</p></section>'
     out += comparison_html
+    out += render_recovery(summary, record)
     if record:
         out += '<section class="pf-card"><h3>Composição e fontes · registro #'+str(record['id'])+'</h3><p>Informado pelo administrador em '+esc(stamp(record['created_at']))+'. As fontes são referências declaradas, sem validação automática de documentos.</p><div class="pf-table"><table><thead><tr><th>Componente</th><th>Total no período</th><th>Fonte informada</th></tr></thead><tbody>'
         for field, label in COMPONENTS.items():
