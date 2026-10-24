@@ -16,6 +16,40 @@ def amount(value):
         return None
 
 
+# All amounts below are period totals, including product cost. Never apply
+# today's unit cost or a default tax/commission rate to historical orders.
+COMPONENTS = {
+    'products': 'Custo dos produtos vendidos',
+    'marketplace_fees': 'Tarifas do marketplace',
+    'seller_shipping': 'Frete pago pelo vendedor',
+    'taxes': 'Impostos',
+    'advertising': 'Publicidade do anúncio',
+    'adjustments': 'Descontos, devoluções e ajustes adicionais',
+}
+
+
+def period_contribution(revenue, units, costs, sources):
+    """Contribution on gross item value using explicitly documented costs.
+
+    Not net profit: fixed operating expenses are outside this calculation.
+    Zero requires a source too. No allocation of account-level Ads/freight.
+    """
+    revenue, units = amount(revenue), amount(units)
+    verified = {key: amount(costs.get(key)) for key in COMPONENTS}
+    missing = [key for key, value in verified.items()
+               if value is None or not str(sources.get(key) or '').strip()]
+    result = dict(available=False, contribution=None, margin_pct=None,
+                  revenue=revenue, units=units, missing=missing, costs=verified)
+    if revenue is None or units is None or units != units.to_integral_value():
+        return dict(result, reason='Vendas do período não verificáveis.')
+    if missing:
+        return dict(result, reason='Custos ou fontes incompletos; contribuição indisponível.')
+    total = sum(verified.values(), Decimal(0))
+    value = revenue - total
+    return dict(result, available=True, total_costs=total, contribution=value,
+                margin_pct=value * 100 / revenue if revenue else None, reason=None)
+
+
 def contribution(revenue, units, unit_cost=None, marketplace_fees=None,
                  seller_shipping=None, taxes=None, advertising=None):
     """Return verified components and a contribution only when all costs are known.
