@@ -33,6 +33,7 @@ const {chromium}=require('playwright');
   await page.locator('.evidence-jump').focus();
   await page.keyboard.press('Enter');
   assert.equal(new URL(page.url()).hash,'#evidence-action-1');
+  await page.waitForFunction(()=>{const r=document.getElementById('evidence-action-1').getBoundingClientRect();return r.top>=0&&r.top<innerHeight;},null,{timeout:5000});
   assert.ok(await page.locator('#evidence-action-1').evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.top<innerHeight;}));
   const priceAction=page.locator('.evidence-action').filter({hasText:'Revisar aumento de preço observado'});
   assert.ok(!await priceAction.getByText('Como acompanhar:',{exact:true}).isVisible());
