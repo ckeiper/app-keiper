@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const {chromium}=require('playwright');
 (async()=>{
  const browser=await chromium.launch({headless:true});
- const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage({locale:'pt-BR'});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
   for(const mode of ['open','empty','history','error','page2']){
    for(const width of [1440,390,320]){
@@ -12,6 +12,7 @@ const {chromium}=require('playwright');
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
     assert.equal(await page.locator('.listing-tasks').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
     assert.equal(await page.locator('.lt-cards article').count(),4);
+    assert.equal(await page.locator('.lt-cards a[href*=overdue]').count(),1);
     assert.equal(await page.locator('.listing-tasks>div.lt-scroll tbody tr').count(),mode==='empty'?0:mode==='page2'?5:10);
     for(const form of await page.locator('form[method=post]').all())assert.equal(await form.locator('input[name=_csrf]').count(),1);
     if(!await page.locator('.lt-create').evaluate(el=>el.open)){
