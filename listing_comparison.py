@@ -48,7 +48,7 @@ def visit_cell(metrics,visits,key,days):
     if key=='visits':
         return ' → '.join(str(int(p['totals']['visitas'])) if p['complete'] else 'Indisponível' for p in [before,after])
     if not before['complete'] or not after['complete'] or not before['totals']['visitas'] or not after['totals']['visitas']:
-        return 'Indisponível: cobertura completa e visitas positivas nos dois períodos são necessárias'
+        return 'Indisponível'
     old=metrics['previous_orders']*100/before['totals']['visitas']
     new=metrics['orders']*100/after['totals']['visitas']
     return format(old,'.2f').replace('.',',')+'% → '+format(new,'.2f').replace('.',',')+'%'
@@ -92,7 +92,7 @@ def render(cid,ranking,listings,args,end,days=7,visits=None):
                 text=(format_brl(before)+' → '+format_brl(after)) if key=='value' else str(before)+' → '+str(after)
             out+='<td>'+esc(text)+'</td>'
         out+='</tr>'
-    return out+'</tbody></table></div><p>Valor bruto dos itens vendidos, sem cálculo de lucro, margem ou Ads. Pedidos pagos ÷ visitas é um indicador observacional, não a conversão oficial do Mercado Livre. Cobertura parcial não é somada como total; zero visitas não gera taxa. Um pedido com mais de um anúncio pode aparecer em mais de uma coluna; não some os pedidos das colunas. O valor por pedido pode variar por quantidade, variações e descontos. Comparação descritiva, sem atribuição causal.</p></section>'
+    return out+'</tbody></table></div><p>Valor bruto dos itens vendidos, sem cálculo de lucro, margem ou Ads. Pedidos pagos ÷ visitas é um indicador observacional, não a conversão oficial do Mercado Livre. Cobertura parcial não é somada como total; zero visitas não gera taxa. A taxa exige cobertura completa e visitas positivas nos dois períodos. Um pedido com mais de um anúncio pode aparecer em mais de uma coluna; não some os pedidos das colunas. O valor por pedido pode variar por quantidade, variações e descontos. Comparação descritiva, sem atribuição causal.</p></section>'
 
 
 STYLE='''<style>
