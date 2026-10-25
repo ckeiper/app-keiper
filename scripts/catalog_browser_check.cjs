@@ -91,6 +91,29 @@ const {chromium}=require('playwright');
         await page.screenshot({path:`visual-qa/listing-comparison-${mode}-${width}.png`,fullPage:true});
       }
     }
+    for(const mode of ['all','filtered','pending','zero','second']) {
+      for(const width of [1440,390,320]) {
+        await page.setViewportSize({width,height:900});
+        await page.setContent(fs.readFileSync(`visual-qa/listing-abc-${mode}.html`,'utf8'));
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+        assert.equal(await page.locator('.abc').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
+        if(mode==='pending') {
+          assert.equal(await page.locator('.abc table').count(),0);
+          assert.ok((await page.locator('.abc').textContent()).includes('Dados incompletos não são zero'));
+        } else {
+          assert.equal(await page.locator('.abc-card').count(),4);
+          assert.equal(await page.locator('.abc tbody tr').count(),mode==='filtered'?1:mode==='second'?8:20);
+          assert.equal(await page.locator('.abc-form select').inputValue(),mode==='filtered'?'C':'todos');
+          if(mode==='zero')assert.ok((await page.locator('.abc').textContent()).includes('Sem base percentual'));
+          if(mode==='second')assert.ok((await page.locator('.abc-pages').textContent()).includes('Página 2 de 2'));
+          if(width<700)assert.ok(await page.locator('.abc-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
+          await page.locator('.abc-scroll').focus();assert.equal(await page.locator(':focus').getAttribute('role'),'region');
+          await page.locator('.abc summary').focus();await page.keyboard.press('Enter');
+          assert.ok(await page.locator('.abc details p').isVisible());
+        }
+        await page.screenshot({path:`visual-qa/listing-abc-${mode}-${width}.png`,fullPage:true});
+      }
+    }
     assert.deepEqual(errors,[]);
     console.log('Catalog desktop/mobile layout, five-column table, technical disclosure and GET filters passed.');
   }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

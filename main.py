@@ -4230,6 +4230,8 @@ def ranking_anuncios(cid):
     if request.args.get("modo") != "prioridades":
         from listing_comparison import render as render_listing_comparison
         corpo += render_listing_comparison(cid,resumo,anuncios_loja,request.args,fim_analise,days=int(dias),visits=visitas_comparacao)
+        from listing_abc import render as render_listing_abc
+        corpo += render_listing_abc(cid,resumo,anuncios_loja,request.args,fim_analise,days=int(dias))
     from listing_priority_queue import prioritize as prioritize_listings, render as render_priorities
     compact_priorities = request.args.get("modo") == "prioridades"
     if not resumo["available"] and compact_priorities:

@@ -51,3 +51,16 @@ for mode in ['two','four','pending','partial','zero']:
     visit_data=load_visits(None,lambda *args:visit_rows,1,list(args.values()),comparison_end)
     body='<p>Dados fictícios para teste.</p>'+render_comparison(1,ranking,listings,args,comparison_end,visits=visit_data,now=1792846800)
     (dest/('listing-comparison-'+mode+'.html')).write_text(page('Comparar anúncios',1,'Loja de demonstração','desempenho',body),encoding='utf-8')
+
+from listing_abc import render as render_abc
+from test_listing_abc import fixture as abc_fixture
+for mode in ['all','filtered','pending','zero','second']:
+    ranking,listings=abc_fixture()
+    args={}
+    if mode=='filtered':args=dict(abc_classe='C',abc_busca='MLB4')
+    if mode=='pending':ranking['available']=False
+    if mode=='zero':
+        for metrics in ranking['rows'].values():metrics.update(value=0,previous_value=0)
+    if mode=='second':args=dict(abc_pagina='2',dias='30')
+    body='<p>Dados fictícios para teste.</p>'+render_abc(1,ranking,listings,args,comparison_end,days=30 if mode=='second' else 7)
+    (dest/('listing-abc-'+mode+'.html')).write_text(page('Curva ABC',1,'Loja de demonstração','desempenho',body),encoding='utf-8')
