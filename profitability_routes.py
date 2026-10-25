@@ -28,6 +28,10 @@ def register_profitability(app, login_required, can_view, bank, query, execute, 
             start, end = period(request.args, day)
         except ValueError as exc:
             return str(exc), 400
+        selected=request.args.get('registro')
+        if selected is not None and (not re.fullmatch(r'[1-9][0-9]{0,18}',selected) or int(selected)>9223372036854775807):
+            return 'Registro inválido.',400
+        inspected_record=None
         # Shared security middleware verifies _csrf before any POST write.
         csrf = session.setdefault('_csrf', secrets.token_urlsafe(32))
         message, status = '', 200
@@ -59,6 +63,12 @@ def register_profitability(app, login_required, can_view, bank, query, execute, 
                 ORDER BY id DESC LIMIT 1""", (cid,item_id,pair['previous_start'],pair['previous_end']))
             history = query(conn, '''SELECT id,inicio,fim,created_at FROM listing_profitability_records
                 WHERE conexao_id=%s AND item_id=%s ORDER BY id DESC LIMIT 20''', (cid,item_id))
+            if selected is not None:
+                inspected=query(conn,'''SELECT * FROM listing_profitability_records
+                    WHERE conexao_id=%s AND item_id=%s AND inicio=%s AND fim=%s AND id=%s''',
+                    (cid,item_id,start,end,int(selected)))
+                if not inspected:return 'Registro não encontrado para este anúncio e período.',404
+                inspected_record=inspected[0]
         record = records[0] if records else None
         result = result_for(summary, record)
         prior_record = prior_records[0] if prior_records else None
@@ -70,5 +80,5 @@ def register_profitability(app, login_required, can_view, bank, query, execute, 
         if request.args.get('salvo') == '1' and not message:
             message = 'Nova versão registrada. Histórico preservado.'
         body = render(cid,item_id,shops[0]['titulo'],start,end,summary,result,record,history,
-                      csrf,secrets.token_urlsafe(24),request.form if status==400 else None,message,comparison_html=comparison_html)
+                      csrf,secrets.token_urlsafe(24),request.form if status==400 else None,message,comparison_html=comparison_html,inspected_record=inspected_record)
         return shop_page('Rentabilidade por anúncio',cid,shops[0]['cliente'],'anuncios',body),status

@@ -38,6 +38,17 @@ const {chromium}=require('playwright');
         if(state==='stale')await page.screenshot({path:`visual-qa/profitability-source-status-${width}.png`,fullPage:true});
       }
     }
+    for(const width of [1440,390,320]) {
+      await page.setViewportSize({width,height:900});
+      await page.setContent(fs.readFileSync('visual-qa/profitability-inspection.html','utf8'));
+      assert.equal(await page.locator('.pf-inspection').count(),1);
+      assert.ok((await page.locator('.pf-inspection').textContent()).includes('Consulta do registro #9'));
+      assert.equal(await page.locator('.pf-inspection form').count(),0);
+      assert.equal(await page.locator('.pf-inspection tbody tr').count(),6);
+      assert.ok((await page.locator('.pf-metric').nth(1).textContent()).includes('R$ 240,00'));
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+      await page.screenshot({path:`visual-qa/profitability-inspection-${width}.png`,fullPage:true});
+    }
     for(const state of ['ready','negative','missing','stale']) {
       for(const width of [1440,390]) {
         await page.setViewportSize({width,height:900});

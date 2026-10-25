@@ -228,6 +228,15 @@ class ProfitabilityDatabaseTests(unittest.TestCase):
                 response=client.get(f'/anuncios/{cid}/MLB100/rentabilidade?inicio={START}&fim={END}')
             self.assertEqual(response.status_code,200)
             self.assertIn('R$ 240,00',response.text)
+            inspection_path=f'/anuncios/{cid}/MLB100/rentabilidade?inicio={START}&fim={END}&registro={rows[0]["id"]}'
+            with patch('profitability_routes.load_pair',side_effect=lambda *args: fixture_pair()):
+                inspected=client.get(inspection_path)
+                self.assertEqual(inspected.status_code,200)
+                self.assertIn('Consulta do registro #'+str(rows[0]['id']),inspected.text)
+                wrong_period=inspection_path.replace(str(START),str(START-timedelta(days=1)))
+                self.assertEqual(client.get(wrong_period).status_code,404)
+            with main.banco() as conn:
+                self.assertEqual(len(main.consultar(conn,'SELECT id FROM listing_profitability_records WHERE conexao_id=%s',(cid,))),2)
             with database_session(client) as state:state.update(tipo='cliente',conexao_id=cid)
             self.assertEqual(client.get(f'/anuncios/{cid}/MLB100/rentabilidade').status_code,403)
         finally:
