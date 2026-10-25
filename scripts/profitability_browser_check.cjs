@@ -44,11 +44,20 @@ const {chromium}=require('playwright');
       assert.equal(await page.locator('.pf-inspection').count(),1);
       assert.ok((await page.locator('.pf-inspection').textContent()).includes('Consulta do registro #9'));
       assert.equal(await page.locator('.pf-inspection form').count(),0);
+      assert.equal(await page.locator('.pf-revisions').count(),1);
+      assert.ok((await page.locator('.pf-revisions').textContent()).includes('Revisão total dos custos: + R$ 5,00'));
+      assert.ok((await page.locator('.pf-revisions').textContent()).includes('Revisão aritmética da contribuição: R$ -5,00'));
+      await page.locator('.pf-revisions summary').focus();await page.keyboard.press('Enter');
+      assert.ok(await page.locator('.pf-revision-table tbody tr').first().isVisible());
+      assert.equal(await page.locator('.pf-revision-table tbody tr').count(),6);
       assert.equal(await page.locator('.pf-inspection tbody tr').count(),6);
       assert.ok((await page.locator('.pf-metric').nth(1).textContent()).includes('R$ 240,00'));
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
       await page.screenshot({path:`visual-qa/profitability-inspection-${width}.png`,fullPage:true});
     }
+    await page.setContent(fs.readFileSync('visual-qa/profitability-inspection-different-basis.html','utf8'));
+    assert.equal(await page.locator('.pf-revision-table').count(),0);
+    assert.ok((await page.locator('.pf-revisions').textContent()).includes('Não comparamos valores de bases diferentes'));
     for(const state of ['ready','negative','missing','stale']) {
       for(const width of [1440,390]) {
         await page.setViewportSize({width,height:900});

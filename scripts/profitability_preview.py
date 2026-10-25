@@ -44,7 +44,11 @@ for mode in ['blank','ready','error']:
     body=render_scenario(42,'MLB100','Produto de demonstração','preview-only',values,scenario,'Informe publicidade por pedido.' if mode=='error' else '')
     (dest/('profitability-scenario-'+mode+'.html')).write_text(page('Simular descontos progressivos',42,'Loja de demonstração','anuncios',body),encoding='utf-8')
 
-old_entry=dict(record(),id=9,sources=dict(record()['sources'],products='Documento sintético da versão anterior'))
+old_entry=dict(record(),id=9,costs=dict(record()['costs'],products=Decimal('5')),sources=dict(record()['sources'],products='Documento sintético da versão anterior'))
 current_entry=dict(record(),id=10)
 body=render(42,'MLB100','Produto de demonstração',START,END,summary(),result_for(summary(),current_entry),current_entry,[current_entry,old_entry],'preview-only','x'*32,inspected_record=old_entry)
 (dest/'profitability-inspection.html').write_text(page('Consulta de registro',42,'Loja de demonstração','anuncios',body),encoding='utf-8')
+
+stale_entry=dict(old_entry,sales_fingerprint='changed')
+body=render(42,'MLB100','Produto de demonstração',START,END,summary(),result_for(summary(),current_entry),current_entry,[current_entry,stale_entry],'preview-only','x'*32,inspected_record=stale_entry)
+(dest/'profitability-inspection-different-basis.html').write_text(page('Consulta de base anterior',42,'Loja de demonstração','anuncios',body),encoding='utf-8')

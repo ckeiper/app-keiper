@@ -109,6 +109,8 @@ def render(cid, item_id, title, start, end, summary, result, record, history, cs
             out += '<div class="pf-fields"><label>'+label+' (R$)<input name="'+field+'" inputmode="decimal" required maxlength="15" value="'+esc(values.get(field,''))+'" placeholder="Total do período"></label><label>Fonte e abrangência<input name="'+field+'_source" required minlength="5" maxlength="500" value="'+esc(values.get(field+'_source',''))+'" placeholder="Documento ou relatório, datas e critério"></label></div>'
         out += '<p>Descontos, devoluções e ajustes: inclua somente reduções adicionais ainda não refletidas no preço dos itens, sem duplicar valores. Não há sincronização automática de todos os ajustes financeiros.</p><label><input type="checkbox" name="confirmed" value="yes" required>Conferi as fontes, o período, todas as unidades e os custos deste anúncio, inclusive valores zero. Não incluí custos de outras lojas ou anúncios nem contei ajustes duas vezes.</label><p><button>Salvar nova versão</button></p><small>Cada versão preserva a anterior. Nenhum anúncio, preço ou campanha será alterado.</small></form></details></section>'
     out += render_inspection(inspected_record)
+    from profitability_revisions import render as render_revisions
+    out += render_revisions(summary,record,inspected_record)
     out += '<section class="pf-card" id="pf-historico"><h3>Últimos registros deste anúncio</h3>'
     for row in history:
         query = urlencode({'inicio':row['inicio'].isoformat(),'fim':row['fim'].isoformat()})
