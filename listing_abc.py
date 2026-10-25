@@ -90,7 +90,7 @@ def render(cid, ranking, listings, args, end, days=7):
         group = [row for row in current['rows'].values() if row['category'] == category]
         value = sum((row['value'] for row in group), Decimal(0))
         share = value * 100 / current['total'] if current['total'] else None
-        out += '<div class="abc-card"><b>' + esc(CLASSES[category]) + '</b><strong>' + str(len(group)) + ' anúncios</strong><span>' + esc(format_brl(value)) + '</span><small>' + ('Sem base percentual' if share is None else format(share, '.2f').replace('.', ',') + '% do valor bruto') + '</small></div>'
+        out += '<div class="abc-card"><b>' + esc(CLASSES[category]) + '</b><strong>' + str(len(group)) + (' anúncio' if len(group) == 1 else ' anúncios') + '</strong><span>' + esc(format_brl(value)) + '</span><small>' + ('Sem base percentual' if share is None else format(share, '.2f').replace('.', ',') + '% do valor bruto') + '</small></div>'
     out += '</div><p>Total verificado: ' + esc(format_brl(current['total'])) + ' no período atual e ' + esc(format_brl(previous['total'])) + ' no anterior. Cards e classes usam a base completa, mesmo ao filtrar a lista.</p>'
     out += '<form class="abc-form" method="get" action="' + path + '#abc-anuncios">'
     out += ''.join('<input type="hidden" name="' + key + '" value="' + esc(value) + '">' for key, value in preserved.items())
