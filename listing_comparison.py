@@ -1,6 +1,7 @@
 """Same-store comparison of up to four already verified listing sales rows."""
 import re
-from datetime import timedelta
+from datetime import date, timedelta
+from urllib.parse import urlencode
 from html import escape
 from freight_comparison import format_brl
 
@@ -27,7 +28,7 @@ def load_visits(conn,query,cid,ids,end,days=7):
     if (type(days) is not int or days not in (7,30) or not 2<=len(ids)<=4 or len(set(ids))!=len(ids)
             or any(not re.fullmatch(r'MLB[0-9]{1,20}',item) for item in ids)):
         return {}
-    from investigation_evidence import window
+    from investigation_evidence import window, date_key
     dates=[(end-timedelta(days=2*days-1-i)).isoformat() for i in range(2*days)]
     rows=query(conn,"""SELECT conexao_id,item_id,dia,visitas FROM item_visits_daily
         WHERE conexao_id=%s AND item_id=ANY(%s) AND dia BETWEEN %s AND %s
@@ -37,6 +38,13 @@ def load_visits(conn,query,cid,ids,end,days=7):
         selected=[row for row in rows if row.get('conexao_id')==cid and str(row.get('item_id'))==item]
         result[item]={name:window(selected,period,['visitas'],'dia')
                       for name,period in [('previous',dates[:days]),('current',dates[days:])]}
+        by_day={}
+        for row in selected:by_day.setdefault(date_key(row.get('dia')),[]).append(row)
+        daily={}
+        for day in dates:
+            reading=window(by_day.get(day,[]),[day],['visitas'],'dia')
+            daily[day]=reading['totals']['visitas'] if reading['complete'] else None
+        result[item]['daily']=daily
     return result
 
 
@@ -54,6 +62,32 @@ def visit_cell(metrics,visits,key,days):
     return format(old,'.2f').replace('.',',')+'% → '+format(new,'.2f').replace('.',',')+'%'
 
 
+def render_daily(cid,ids,names,visits,args,end,days):
+    if visits is None:return ''
+    dates=[(end-timedelta(days=i)).isoformat() for i in range(2*days)]
+    pages=(len(dates)+6)//7
+    try:page=max(1,min(pages,int(args.get('leituras_pagina','1'))))
+    except (ValueError,TypeError):page=1
+    esc=lambda value:escape(str(value),quote=True)
+    current_start=(end-timedelta(days=days-1)).isoformat()
+    out='<details class="lc-daily" id="lc-leituras"'+(' open' if args.get('leituras_pagina') else '')+'><summary>Conferir visitas por dia e lacunas</summary><p>Sete datas por página, das mais recentes às mais antigas. Sem dado válido indica leitura ausente, inválida ou duplicada; não equivale a zero.</p><div class="lc-scroll lc-daily-scroll" tabindex="0" role="region" aria-label="Leituras diárias de visitas"><table><thead><tr><th scope="col">Data e período</th>'
+    for item in ids:out+='<th scope="col">'+esc(names.get(item,item))+'<small>'+esc(item)+'</small></th>'
+    out+='</tr></thead><tbody>'
+    for day in dates[(page-1)*7:page*7]:
+        out+='<tr><th scope="row">'+date.fromisoformat(day).strftime('%d/%m/%Y')+'<small>'+('Atual' if day>=current_start else 'Anterior')+'</small></th>'
+        for item in ids:
+            value=(visits.get(item) or {}).get('daily',{}).get(day)
+            out+='<td>'+('Sem dado válido' if value is None else esc(int(value)))+'</td>'
+        out+='</tr>'
+    out+='</tbody></table></div><nav class="lc-daily-pages" aria-label="Paginação das visitas comparadas">Página '+str(page)+' de '+str(pages)
+    for label,target in [('Anterior',page-1),('Próxima',page+1)]:
+        if 1<=target<=pages:
+            params={'comparar'+str(i):item for i,item in enumerate(ids,1)}
+            params.update(dias=str(days),leituras_pagina=str(target))
+            out+=' <a href="/ranking-anuncios/'+str(int(cid))+'?'+esc(urlencode(params))+'#lc-leituras">'+label+'</a>'
+    return out+'</nav></details>'
+
+
 def render(cid,ranking,listings,args,end,days=7,visits=None):
     esc=lambda value:escape(str(value),quote=True)
     result=selection(ranking,listings,args)
@@ -69,7 +103,7 @@ def render(cid,ranking,listings,args,end,days=7,visits=None):
     if len(names)>200:out+='<p>Sugestões limitadas a 200 anúncios. Você pode informar o código completo de outro anúncio desta loja.</p>'
     if not result['available']:return out+'<p class="lc-notice" role="status">'+esc(result['reason'])+'</p></section>'
     start=end-timedelta(days=days-1);old_end=start-timedelta(days=1);old_start=old_end-timedelta(days=days-1)
-    out+='<p>Anterior: '+old_start.strftime('%d/%m/%Y')+' a '+old_end.strftime('%d/%m/%Y')+' · Atual: '+start.strftime('%d/%m/%Y')+' a '+end.strftime('%d/%m/%Y')+'.</p><p>Deslize a tabela no celular para conferir todas as colunas. Em cada célula: anterior → atual.</p><div class="lc-scroll" tabindex="0" role="region" aria-label="Tabela comparativa com rolagem"><table><thead><tr><th scope="col">Indicador</th>'
+    out+='<p>Anterior: '+old_start.strftime('%d/%m/%Y')+' a '+old_end.strftime('%d/%m/%Y')+' · Atual: '+start.strftime('%d/%m/%Y')+' a '+end.strftime('%d/%m/%Y')+'.</p><p>Deslize a tabela no celular para conferir todas as colunas. Em cada célula: anterior → atual.</p><div class="lc-scroll lc-main-scroll" tabindex="0" role="region" aria-label="Tabela comparativa com rolagem"><table><thead><tr><th scope="col">Indicador</th>'
     for item in result['ids']:
         out+='<th scope="col"><a href="/diagnostico/'+str(int(cid))+'/'+item+'">'+esc(names.get(item,item))+'</a><small>'+esc(item)+'</small></th>'
     out+='</tr></thead><tbody>'
@@ -92,10 +126,12 @@ def render(cid,ranking,listings,args,end,days=7,visits=None):
                 text=(format_brl(before)+' → '+format_brl(after)) if key=='value' else str(before)+' → '+str(after)
             out+='<td>'+esc(text)+'</td>'
         out+='</tr>'
-    return out+'</tbody></table></div><p>Valor bruto dos itens vendidos, sem cálculo de lucro, margem ou Ads. Pedidos pagos ÷ visitas é um indicador observacional, não a conversão oficial do Mercado Livre. Cobertura parcial não é somada como total; zero visitas não gera taxa. A taxa exige cobertura completa e visitas positivas nos dois períodos. Um pedido com mais de um anúncio pode aparecer em mais de uma coluna; não some os pedidos das colunas. O valor por pedido pode variar por quantidade, variações e descontos. Comparação descritiva, sem atribuição causal.</p></section>'
+    out+='</tbody></table></div>'
+    out+=render_daily(cid,result['ids'],names,visits,args,end,days)
+    return out+'<p>Valor bruto dos itens vendidos, sem cálculo de lucro, margem ou Ads. Pedidos pagos ÷ visitas é um indicador observacional, não a conversão oficial do Mercado Livre. Cobertura parcial não é somada como total; zero visitas não gera taxa. A taxa exige cobertura completa e visitas positivas nos dois períodos. Um pedido com mais de um anúncio pode aparecer em mais de uma coluna; não some os pedidos das colunas. O valor por pedido pode variar por quantidade, variações e descontos. Comparação descritiva, sem atribuição causal.</p></section>'
 
 
 STYLE='''<style>
 body .conteudo .lc{background:#102238;color:#eaf2ff;border:1px solid #34516e;border-radius:15px;padding:20px;margin:18px 0;min-width:0;max-width:100%;box-sizing:border-box}
-body .conteudo .lc h3{color:#eaf2ff;margin:0 0 12px}body .conteudo .lc p{color:#bdcce1;font-size:12px;line-height:1.7}.lc-form{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.lc-form label{display:grid;gap:6px;font-size:12px;color:#bdcce1;flex:1 1 130px;min-width:0}.lc-form input,.lc-form select{box-sizing:border-box;width:100%;min-width:0;background:#0b192c;color:#eaf2ff;border:1px solid #426184;border-radius:8px;padding:11px;font:inherit}.lc-form button{background:#287ac1;color:#fff;border:0;border-radius:8px;padding:12px 18px;cursor:pointer}body .conteudo .lc a{color:#b9e5ff;text-decoration:none}.lc small{display:block;color:#bdcce1;margin-top:6px}.lc-scroll{overflow-x:auto;max-width:100%;margin-top:14px}.lc table{width:100%;min-width:650px;border-collapse:collapse}.lc th,.lc td{padding:13px;border-bottom:1px solid #426184;text-align:left;font-size:12px;min-width:145px;overflow-wrap:anywhere}body .conteudo .lc table th,body .conteudo .lc table td{background:#182e49;color:#eaf2ff}.lc-notice{padding:12px;background:#3b3020;border:1px solid #836b34;border-radius:9px}.lc :focus-visible{outline:3px solid #85c8ec;outline-offset:3px}@media(max-width:600px){body .conteudo .lc{padding:14px}.lc-form label{flex-basis:calc(50% - 10px)}}
+body .conteudo .lc h3{color:#eaf2ff;margin:0 0 12px}body .conteudo .lc p{color:#bdcce1;font-size:12px;line-height:1.7}.lc-form{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.lc-form label{display:grid;gap:6px;font-size:12px;color:#bdcce1;flex:1 1 130px;min-width:0}.lc-form input,.lc-form select{box-sizing:border-box;width:100%;min-width:0;background:#0b192c;color:#eaf2ff;border:1px solid #426184;border-radius:8px;padding:11px;font:inherit}.lc-form button{background:#287ac1;color:#fff;border:0;border-radius:8px;padding:12px 18px;cursor:pointer}body .conteudo .lc a{color:#b9e5ff;text-decoration:none}.lc small{display:block;color:#bdcce1;margin-top:6px}.lc-scroll{overflow-x:auto;max-width:100%;margin-top:14px}.lc table{width:100%;min-width:650px;border-collapse:collapse}.lc th,.lc td{padding:13px;border-bottom:1px solid #426184;text-align:left;font-size:12px;min-width:145px;overflow-wrap:anywhere}body .conteudo .lc table th,body .conteudo .lc table td{background:#182e49;color:#eaf2ff}.lc-daily{margin-top:16px;border-top:1px solid #426184;padding-top:12px}.lc-daily summary{cursor:pointer;color:#b9e5ff;padding:10px 0;font-weight:700}.lc-daily-pages{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0;color:#bdcce1;font-size:12px}.lc-notice{padding:12px;background:#3b3020;border:1px solid #836b34;border-radius:9px}.lc :focus-visible{outline:3px solid #85c8ec;outline-offset:3px}@media(max-width:600px){body .conteudo .lc{padding:14px}.lc-form label{flex-basis:calc(50% - 10px)}}
 </style>'''
