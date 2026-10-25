@@ -98,7 +98,7 @@ def render(cid, ranking, listings, args, end, days=7):
     if not ids:
         out += '<p role="status">Nenhum anúncio corresponde aos filtros.</p>'
     else:
-        out += '<div class="abc-scroll" tabindex="0" role="region" aria-label="Classificação ABC com rolagem"><table><thead><tr><th scope="col">Anúncio</th><th scope="col">Classe anterior → atual</th><th scope="col">Valor bruto atual</th><th scope="col">Participação atual</th></tr></thead><tbody>'
+        out += '<p>Deslize a tabela no celular para conferir todas as colunas.</p><div class="abc-scroll" tabindex="0" role="region" aria-label="Classificação ABC com rolagem"><table><thead><tr><th scope="col">Anúncio</th><th scope="col">Classe anterior → atual</th><th scope="col">Valor bruto atual</th><th scope="col">Participação atual</th></tr></thead><tbody>'
         for item in ids[(page - 1) * 20:page * 20]:
             row = current['rows'][item]
             before = previous['rows'][item]
@@ -106,7 +106,7 @@ def render(cid, ranking, listings, args, end, days=7):
             before_label = label(before['category']) if previous['total'] else 'Sem base anterior'
             out += '<tr><th scope="row"><a href="/diagnostico/' + str(int(cid)) + '/' + item + '">' + esc(names.get(item, item)) + '</a><small>' + item + '</small></th><td>' + before_label + ' → ' + label(row['category']) + '</td><td>' + esc(format_brl(row['value'])) + '</td><td>' + ('Sem base percentual' if row['share'] is None else format(row['share'], '.2f').replace('.', ',') + '%') + '</td></tr>'
         out += '</tbody></table></div>'
-    out += '<nav class="abc-pages" aria-label="Paginação da curva ABC">' + str(len(ids)) + ' anúncios · Página ' + str(page) + ' de ' + str(pages)
+    out += '<nav class="abc-pages" aria-label="Paginação da curva ABC">' + str(len(ids)) + (' anúncio' if len(ids) == 1 else ' anúncios') + ' · Página ' + str(page) + ' de ' + str(pages)
     for title, target in [('Anterior', page - 1), ('Próxima', page + 1)]:
         if 1 <= target <= pages:
             params = dict(preserved, abc_classe=selected, abc_busca=search, abc_pagina=str(target))
