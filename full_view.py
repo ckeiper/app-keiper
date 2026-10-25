@@ -91,6 +91,7 @@ def render_full(cid, args, listing, observations, orders, items, coverage, first
     start, end, _, _ = period(args)
     if (end-start).days >= 180:
         raise ValueError('Selecione no máximo 180 dias para comparar Full e vendas.')
+    args = dict(args,item_id=listing['item_id'])
     days = daily_comparison(listing['item_id'], start, end, observations, orders, items, coverage, legacy)
     title = escape(str(listing.get('titulo') or listing['item_id']))
     from full_report_components import STYLE, paginate, render_snapshot, render_summary
@@ -114,6 +115,8 @@ def render_full(cid, args, listing, observations, orders, items, coverage, first
             "Dias sem informação confiável interrompem a linha.</p></div>")
     out += render_summary(days)
     out += render_snapshot(cid,args,listing,observations,start,end)
+    from full_variation_history import render as render_variation_history
+    out += render_variation_history(cid,args,listing,observations,start,end)
     out += chart(days)
     out += "<div class='card'><p>Barras azuis: unidades vendidas (eixo esquerdo). Linha verde: disponibilidade Full (eixo direito). Pontos verdes: com estoque; laranja: sem estoque. ? indica consulta desconhecida ou divergente, com interrupção da linha.</p>"
     out += "<p>O dia atual fica sem total de vendas fechado. Ausência de vendas verificadas é uma lacuna, não zero. Comparação observacional, sem comprovar causa e efeito.</p>"
