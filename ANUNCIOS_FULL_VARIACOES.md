@@ -1,0 +1,9 @@
+# Full e vendas: cobertura, histórico paginado e inventários por variação
+
+Tela Full e vendas com identidade azul-marinho, quatro cards de cobertura e tabelas com rolagem acessível. Vendas diárias são paginadas em vinte datas; rastreabilidade em trinta consultas, mais recentes primeiro. Navegação preserva anúncio, período e páginas dos outros blocos. Os cards e o gráfico continuam usando a janela completa carregada, sem alterar a aritmética das vendas ou dos estados Full. Sem consultas extras, migração, escrita ou chamada externa.
+
+A seção de inventários usa somente a última observação do anúncio dentro do período selecionado, com data/hora explícitas em Brasília. Não representa saldo atual. O vínculo entre variação e inventário vem dos metadados daquela observação; precisa ser único, Full e válido na janela de frescor de três horas já adotada pelo coletor. Quantidade exige consulta única, sem erro e inteiro não negativo. Zero confirmado é preservado; ausente, falha, duplicidade, metadado antigo/futuro ou vínculo compartilhado não recebe quantidade atribuída. Não usa uma observação anterior para substituir a última inválida.
+
+Inventário compartilhado não é rateado nem duplicado entre variações. Não há soma dos saldos exibidos. Coleta parcial é identificada e não se apresenta como todas as variações. Códigos não viram nomes de cor, tamanho ou SKU por inferência. Até vinte variações por página. Rastreabilidade trata estruturas antigas/incompletas sem derrubar a tela e escapa os textos exibidos.
+
+Oito testes novos cobrem fontes, limite de frescor, compartilhamentos, falhas, zeros, duplicidades, escopo, paginação, cobertura, escaping e compatibilidade. Navegador verifica estados pronto, parcial, sem coleta, segunda página e muitas variações em 1440, 390 e 320 px, com teclado e rolagem. Publicação condicionada aos checks desta revisão.
