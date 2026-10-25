@@ -1,7 +1,11 @@
 # Dashboard Keiper — auditoria e execução
 
-Estado consolidado em 25/10/2026, após #269. Base de produção: `1bf0c826f4d729c3536040d7fcf13547900e57ff`.
-Render: `dep-dbf2jnjbc2fs738o2pb0`, confirmado live em 25/10/2026 às 13:11:41 (Brasília). Suíte: 887 testes sem skips com PostgreSQL em Python 3.12 e 3.14; checks de navegador aprovados. Isso não comprova validação financeira de todas as contas reais.
+Estado consolidado em 25/10/2026, após #271. Base de produção: `f5222e3edc7846423ad2c92af400eb3c71bfc1a6`.
+Render: `dep-dbf5qvm7bikc73bsavdg`, confirmado live em 25/10/2026 às 16:52:11 (Brasília). Suíte: 903 testes sem skips com PostgreSQL em Python 3.12 e 3.14; checks de navegador aprovados. Isso não comprova validação financeira de todas as contas reais.
+
+## Controle de requisitos conhecidos
+
+O [controle de capacidades e lacunas](ANUNCIOS_CONTROLE_ENTREGAS.md) registra 44 grupos conhecidos: 17 concluídos no escopo descrito, 16 parciais e 11 pendentes. **Esses números não são a contagem das 90 melhorias originais.** A lista integral continua ausente; somente a posição original nº 90 foi confirmada. O registro estruturado e a verificação no CI impedem contagem numérica sem a lista original e detectam referências ausentes ou relatório desatualizado.
 
 ## Entregas consolidadas
 
@@ -31,6 +35,8 @@ Render: `dep-dbf2jnjbc2fs738o2pb0`, confirmado live em 25/10/2026 às 13:11:41 (
 | Estoque nas prioridades | Base de unidades e frescor explícitos publicados | #257 |
 | Diagnóstico e preços | Cobertura, continuidade de fontes e navegação publicados | #259–#261 |
 | Contribuição e versões de custos | Composição por volume, status das fontes, inspeção e comparação de versões publicadas | #262–#265 |
+| Curva ABC | Publicada por valor bruto, com empates, comparação de classes, filtros e paginação | #271 |
+| Estoque no comparador | Publicado; leitura atual separada das janelas históricas, sem previsão garantida de ruptura | #270 |
 | Comparador de até quatro anúncios | Vendas, visitas, cobertura, razão pedidos/visitas e inspeção diária publicados | #267–#269 |
 
 Esses PRs representam entregas técnicas; não são contagem equivalente aos 90 requisitos originais.

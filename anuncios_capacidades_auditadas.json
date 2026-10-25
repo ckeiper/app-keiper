@@ -1,0 +1,861 @@
+{
+  "versao": 1,
+  "data_auditoria": "2026-10-25",
+  "base_sha": "f5222e3edc7846423ad2c92af400eb3c71bfc1a6",
+  "origem": "Resumo aprovado preservado no contexto e escolhas finais explicitamente registradas; lista literal integral não recuperada.",
+  "lista_original_completa": false,
+  "contagem_das_90": null,
+  "criterio": "Unidades de capacidade agrupadas para auditoria; não equivalem a itens nem posições da lista original de 90.",
+  "deploy_base": {
+    "id": "dep-dbf5qvm7bikc73bsavdg",
+    "status": "live",
+    "horario_brasilia": "2026-10-25T16:52:11-03:00"
+  },
+  "validacao_base": {
+    "testes": 903,
+    "python": [
+      "3.12",
+      "3.14"
+    ],
+    "postgres": true,
+    "workflow_runs": [
+      40227731347,
+      40227731317,
+      40227731231
+    ]
+  },
+  "capacidades": [
+    {
+      "id": "concorrentes-links",
+      "area": "Concorrência",
+      "capacidade": "Cadastro de links de concorrentes por loja",
+      "estado": "concluida",
+      "implementado": "Cadastro, vínculo ao anúncio e isolamento por loja.",
+      "falta": "",
+      "fontes": [
+        "competitor_routes.py",
+        "competitor_monitor.py"
+      ],
+      "testes": [
+        "test_competitors.py"
+      ],
+      "prs": [
+        145
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "concorrentes-frequencia",
+      "area": "Concorrência",
+      "capacidade": "Programação de dez leituras diárias",
+      "estado": "concluida",
+      "implementado": "Dez slots por dia em Brasília, coleta limitada e proteção entre workers. A execução efetiva de cada loja depende de conexão e respostas da API.",
+      "falta": "",
+      "fontes": [
+        "competitor_monitor.py",
+        "main.py"
+      ],
+      "testes": [
+        "test_competitors.py"
+      ],
+      "prs": [
+        145
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "concorrentes-full",
+      "area": "Concorrência",
+      "capacidade": "Observação de Full dos concorrentes",
+      "estado": "concluida",
+      "implementado": "Estados observados e histórico sem preencher lacunas como estoque zero.",
+      "falta": "",
+      "fontes": [
+        "competitor_monitor.py",
+        "competitor_routes.py",
+        "offer_history.py"
+      ],
+      "testes": [
+        "test_competitors.py",
+        "test_offer_history.py"
+      ],
+      "prs": [
+        145,
+        166
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "concorrentes-preco",
+      "area": "Concorrência",
+      "capacidade": "Monitoramento do preço final e promoção",
+      "estado": "concluida",
+      "implementado": "Preço confirmado, fonte, histórico e tratamento de leitura inválida. Não presume cupom ou frete.",
+      "falta": "",
+      "fontes": [
+        "competitor_monitor.py",
+        "offer_history.py"
+      ],
+      "testes": [
+        "test_competitors.py",
+        "test_offer_reading_coverage.py"
+      ],
+      "prs": [
+        145,
+        259
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "competitividade-perdas",
+      "area": "Concorrência",
+      "capacidade": "Histórico de competitividade com diagnóstico de perdas",
+      "estado": "parcial",
+      "implementado": "Distância entre preços, pares válidos, variação e contagens por período.",
+      "falta": "Falta uma análise específica que relacione perdas verificadas do anúncio aos pares competitivos, com cobertura e limites explícitos; não atribuir causa por coincidência temporal.",
+      "fontes": [
+        "listing_competitiveness.py",
+        "investigation_evidence.py"
+      ],
+      "testes": [
+        "test_listing_competitiveness.py"
+      ],
+      "prs": [
+        248,
+        258
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "visitas-coleta",
+      "area": "Visitas",
+      "capacidade": "Coleta e persistência de visitas por anúncio",
+      "estado": "concluida",
+      "implementado": "Coleta incremental, cobertura e falhas explícitas; dados disponíveis em gráficos e tabelas.",
+      "falta": "",
+      "fontes": [
+        "copas_visits_store.py",
+        "main.py"
+      ],
+      "testes": [
+        "test_visits_history.py",
+        "test_visits_refresh.py"
+      ],
+      "prs": [
+        124,
+        133,
+        164,
+        165
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "conversao-oficial",
+      "area": "Visitas",
+      "capacidade": "Conversão real/oficial",
+      "estado": "parcial",
+      "implementado": "Razão observacional de pedidos pagos por visitas com cobertura verificada e denominadores positivos.",
+      "falta": "Não há equivalência comprovada com a métrica oficial de conversão do marketplace; definição, numerador, janela e fonte precisam ser validados.",
+      "fontes": [
+        "listing_comparison.py",
+        "investigation_evidence.py"
+      ],
+      "testes": [
+        "test_listing_comparison_visits.py"
+      ],
+      "prs": [
+        268
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "comparador-quatro",
+      "area": "Visitas",
+      "capacidade": "Comparação de até quatro anúncios",
+      "estado": "concluida",
+      "implementado": "Mesmas janelas verificadas, vendas, visitas, cobertura diária e estoque atual separado do histórico.",
+      "falta": "",
+      "fontes": [
+        "listing_comparison.py",
+        "listing_comparison_stock.py"
+      ],
+      "testes": [
+        "test_listing_comparison.py",
+        "test_listing_comparison_visits.py",
+        "test_comparison_daily_visits.py",
+        "test_comparison_stock.py"
+      ],
+      "prs": [
+        267,
+        268,
+        269,
+        270
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "historico-completo",
+      "area": "Visitas",
+      "capacidade": "Histórico completo de visitas",
+      "estado": "parcial",
+      "implementado": "Histórico persistido desde as coletas e inspeção diária com lacunas explícitas.",
+      "falta": "Não há reconstrução de todo o período anterior à coleta; cobertura real varia por anúncio. Não certificar histórico integral de todas as contas.",
+      "fontes": [
+        "copas_visits_store.py",
+        "listing_timeline.py"
+      ],
+      "testes": [
+        "test_visits_history.py",
+        "test_listing_timeline.py"
+      ],
+      "prs": [
+        168,
+        269
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "estoque-full-historico",
+      "area": "Estoque",
+      "capacidade": "Histórico de estoque Full",
+      "estado": "concluida",
+      "implementado": "Observações de disponibilidade, fontes e integração com vendas e diagnóstico. Ausência é desconhecida.",
+      "falta": "",
+      "fontes": [
+        "full_monitor.py",
+        "listing_full_sales_chart.py",
+        "investigation_evidence.py"
+      ],
+      "testes": [
+        "test_full.py",
+        "test_listing_full_sales_chart.py"
+      ],
+      "prs": [
+        158,
+        161,
+        260
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "estoque-ruptura",
+      "area": "Estoque",
+      "capacidade": "Previsão de ruptura",
+      "estado": "parcial",
+      "implementado": "Cobertura aritmética pelo estoque recente e unidades vendidas verificadas.",
+      "falta": "Ainda não é previsão validada de demanda ou data de ruptura; falta modelo e validação histórica apropriados.",
+      "fontes": [
+        "listing_priority_sources.py",
+        "listing_comparison_stock.py"
+      ],
+      "testes": [
+        "test_stock_priority_details.py",
+        "test_comparison_stock.py"
+      ],
+      "prs": [
+        257,
+        270
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "estoque-variacoes",
+      "area": "Estoque",
+      "capacidade": "Estoque por variação",
+      "estado": "parcial",
+      "implementado": "Metadados de inventário por variação usados para confirmar estado agregado de Full.",
+      "falta": "Falta painel completo por variação com vendas, histórico e cobertura próprios; quantidade do anúncio não comprova cada variação.",
+      "fontes": [
+        "full_monitor.py",
+        "full_view.py"
+      ],
+      "testes": [
+        "test_full.py"
+      ],
+      "prs": [
+        158
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "curva-abc",
+      "area": "Estoque",
+      "capacidade": "Curva ABC",
+      "estado": "concluida",
+      "implementado": "Classes por valor bruto, empates juntos, duas janelas, filtros e paginação.",
+      "falta": "",
+      "fontes": [
+        "listing_abc.py"
+      ],
+      "testes": [
+        "test_listing_abc.py"
+      ],
+      "prs": [
+        271
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "metas-alertas",
+      "area": "Execução",
+      "capacidade": "Metas com alertas por anúncio",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Não foi identificado fluxo de cadastro, histórico e alertas de metas operacionais por anúncio. Meta de margem no simulador não substitui esse fluxo.",
+      "fontes": [
+        "profitability_scenarios.py"
+      ],
+      "testes": [
+        "test_discount_margin_target.py"
+      ],
+      "prs": [
+        251
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "vendas-paralisadas",
+      "area": "Estoque",
+      "capacidade": "Sinais de vendas paralisadas",
+      "estado": "concluida",
+      "implementado": "Interrupção de pedidos entre períodos verificados, com checklist e sem inferir demanda a partir de zero isolado.",
+      "falta": "",
+      "fontes": [
+        "listing_opportunities.py",
+        "listing_ranking.py"
+      ],
+      "testes": [
+        "test_listing_opportunities.py",
+        "test_listing_ranking.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "rentabilidade",
+      "area": "Rentabilidade",
+      "capacidade": "Rentabilidade por anúncio",
+      "estado": "parcial",
+      "implementado": "Contribuição documentada, componentes, versões, fontes, fingerprint e comparação histórica.",
+      "falta": "Custos exigem registro documental do administrador; coleta automática completa e reconciliação dos componentes não estão implementadas. Não é lucro líquido.",
+      "fontes": [
+        "profitability_routes.py",
+        "profitability_store.py",
+        "profitability_comparison.py"
+      ],
+      "testes": [
+        "test_profitability.py",
+        "test_profitability_comparison.py"
+      ],
+      "prs": [
+        235,
+        236,
+        263,
+        264,
+        265
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "simulador",
+      "area": "Rentabilidade",
+      "capacidade": "Simulador financeiro",
+      "estado": "concluida",
+      "implementado": "Premissas explícitas, até cinco faixas, composição e meta opcional sem valores presumidos.",
+      "falta": "",
+      "fontes": [
+        "profitability_scenarios.py"
+      ],
+      "testes": [
+        "test_profitability_scenarios.py",
+        "test_discount_margin_target.py"
+      ],
+      "prs": [
+        247,
+        251
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "recuperacao-margem",
+      "area": "Rentabilidade",
+      "capacidade": "Diagnóstico e ações de revisão da margem",
+      "estado": "concluida",
+      "implementado": "Componentes documentados, déficit aritmético e ações de conferência. Não promete recuperação nem executa alterações.",
+      "falta": "",
+      "fontes": [
+        "margin_recovery.py"
+      ],
+      "testes": [
+        "test_margin_recovery.py"
+      ],
+      "prs": [
+        239
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "tarifas",
+      "area": "Rentabilidade",
+      "capacidade": "Tarifas por anúncio",
+      "estado": "parcial",
+      "implementado": "Tarifas podem ser documentadas nos custos e informadas explicitamente no simulador.",
+      "falta": "Falta obtenção e conferência automática das tarifas aplicáveis ao anúncio e à venda histórica.",
+      "fontes": [
+        "listing_profitability.py",
+        "profitability_scenarios.py"
+      ],
+      "testes": [
+        "test_listing_profitability.py",
+        "test_profitability_scenarios.py"
+      ],
+      "prs": [
+        235,
+        247
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "parcelamento",
+      "area": "Rentabilidade",
+      "capacidade": "Análise específica de parcelamento",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Não foi identificado comparativo por opção de parcelamento com fonte oficial, custos específicos e impacto na contribuição. Campo genérico de tarifas não comprova essa entrega.",
+      "fontes": [
+        "profitability_scenarios.py"
+      ],
+      "testes": [
+        "test_profitability_scenarios.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "descontos-progressivos",
+      "area": "Rentabilidade",
+      "capacidade": "Descontos progressivos e simulação de novas faixas",
+      "estado": "concluida",
+      "implementado": "Quantidades e descontos progressivos, rentabilidade sob premissas explícitas e distância da meta opcional.",
+      "falta": "",
+      "fontes": [
+        "profitability_scenarios.py"
+      ],
+      "testes": [
+        "test_profitability_scenarios.py",
+        "test_discount_margin_target.py"
+      ],
+      "prs": [
+        247,
+        251
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "promocoes-resultados",
+      "area": "Rentabilidade",
+      "capacidade": "Promoções: comparação de resultados e rentabilidade",
+      "estado": "parcial",
+      "implementado": "Histórico de participação e antes/depois de ações de preço/promoção, inclusive contribuição com custos documentados.",
+      "falta": "A referência automática é a data de detecção; falta comprovar vigência integral e condições da promoção durante a janela. Custos não são coletados integralmente de forma automática.",
+      "fontes": [
+        "promo_history.py",
+        "profitability_action.py"
+      ],
+      "testes": [
+        "test_promo_history.py",
+        "test_profitability_action.py",
+        "test_action_finance_volume.py"
+      ],
+      "prs": [
+        205,
+        249,
+        266
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "tendencia",
+      "area": "Diagnóstico",
+      "capacidade": "Tendência inteligente",
+      "estado": "parcial",
+      "implementado": "Comparação entre períodos e sinais determinísticos de alta, queda e novas vendas.",
+      "falta": "Não foi identificado modelo específico de tendência com controle de sazonalidade e validação histórica; comparação simples não certifica todo o requisito amplo.",
+      "fontes": [
+        "listing_trends.py",
+        "listing_diagnostic_rules.py"
+      ],
+      "testes": [
+        "test_listing_trends.py",
+        "test_listing_diagnostic_rules.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "anomalias",
+      "area": "Diagnóstico",
+      "capacidade": "Detector de anomalias",
+      "estado": "parcial",
+      "implementado": "Regras de queda com limites explícitos e cobertura verificada.",
+      "falta": "Falta detector específico de desvios frente à série histórica com método e validação definidos; limiar entre dois períodos é somente regra de alerta.",
+      "fontes": [
+        "listing_diagnostic_rules.py",
+        "investigation_triage.py"
+      ],
+      "testes": [
+        "test_listing_diagnostic_rules.py",
+        "test_investigation_triage.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "antes-depois",
+      "area": "Diagnóstico",
+      "capacidade": "Comparação antes e depois de ações",
+      "estado": "concluida",
+      "implementado": "Janelas encerradas equivalentes, vendas, visitas e contribuição quando documentada; sem atribuição causal.",
+      "falta": "",
+      "fontes": [
+        "listing_interventions.py",
+        "intervention_routes.py",
+        "profitability_action.py"
+      ],
+      "testes": [
+        "test_listing_interventions.py",
+        "test_profitability_action.py"
+      ],
+      "prs": [
+        173,
+        249,
+        266
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "indice-estabilidade",
+      "area": "Diagnóstico",
+      "capacidade": "Índice de estabilidade",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Não foi identificado índice com definição, fonte, janela e tratamento de lacunas. Ausência de mudança de preço não prova estabilidade.",
+      "fontes": [
+        "offer_history.py"
+      ],
+      "testes": [
+        "test_offer_history.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "conteudo-checklist",
+      "area": "Conteúdo",
+      "capacidade": "Checklist, fotos e qualidade do anúncio",
+      "estado": "parcial",
+      "implementado": "Contagens de fotos/clips, status, estoque, preço e sugestões básicas de revisão.",
+      "falta": "Falta análise completa de conteúdo e imagens; quantidade de fotos não mede qualidade, clareza ou objeções do comprador.",
+      "fontes": [
+        "listing_health.py",
+        "listing_details.py"
+      ],
+      "testes": [
+        "test_listing_health.py",
+        "test_listing_details.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "perguntas-avaliacoes",
+      "area": "Conteúdo",
+      "capacidade": "Perguntas e avaliações",
+      "estado": "parcial",
+      "implementado": "Coleta de perguntas e demandas operacionais existentes.",
+      "falta": "Não foi identificado painel completo de objeções, avaliações e recorrências por anúncio.",
+      "fontes": [
+        "main.py"
+      ],
+      "testes": [],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "reativacao",
+      "area": "Conteúdo",
+      "capacidade": "Reativação de anúncios",
+      "estado": "parcial",
+      "implementado": "Status pausado gera conferência do motivo antes da reativação.",
+      "falta": "Falta fluxo dedicado de revisão de elegibilidade e acompanhamento de reativação; alerta de pausa não comprova entrega completa.",
+      "fontes": [
+        "listing_health.py"
+      ],
+      "testes": [
+        "test_listing_health.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "catalogo",
+      "area": "Conteúdo",
+      "capacidade": "Catálogo gerencial de anúncios",
+      "estado": "concluida",
+      "implementado": "Busca, filtros, paginação, preço confirmado e leitura de campanhas, com estados de erro e dados técnicos.",
+      "falta": "",
+      "fontes": [
+        "listing_catalog.py",
+        "listing_details.py"
+      ],
+      "testes": [
+        "test_listing_catalog.py",
+        "test_catalog_campaign_reading.py",
+        "test_promotion_render_resilience.py"
+      ],
+      "prs": [
+        253,
+        254,
+        255,
+        256
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "mapa-estados",
+      "area": "Mercado",
+      "capacidade": "Mapa de vendas por estado",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Não foi identificado painel geográfico de vendas por UF com fonte e cobertura verificadas.",
+      "fontes": [],
+      "testes": [],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "sazonalidade",
+      "area": "Mercado",
+      "capacidade": "Sazonalidade",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Não foi identificado módulo de análise sazonal por anúncio com histórico suficiente e método definido.",
+      "fontes": [],
+      "testes": [],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "semelhantes",
+      "area": "Mercado",
+      "capacidade": "Anúncios semelhantes",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Não foi identificado agrupamento verificável de anúncios semelhantes com critério de equivalência. Cadastro manual de concorrente não comprova essa análise.",
+      "fontes": [
+        "competitor_routes.py"
+      ],
+      "testes": [
+        "test_competitors.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "competicao-interna",
+      "area": "Mercado",
+      "capacidade": "Competição interna",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Não foi identificado diagnóstico de sobreposição entre anúncios da própria loja. Curva ABC mede concentração, não canibalização.",
+      "fontes": [
+        "listing_abc.py"
+      ],
+      "testes": [
+        "test_listing_abc.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "trafego-horarios",
+      "area": "Mercado",
+      "capacidade": "Tráfego e horários",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Visitas atuais são diárias; não foi identificado histórico de tráfego por hora com fonte própria. Horário do pedido não substitui horário da visita.",
+      "fontes": [
+        "copas_visits_store.py"
+      ],
+      "testes": [
+        "test_visits_history.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "compradores-ticket",
+      "area": "Mercado",
+      "capacidade": "Compradores e ticket",
+      "estado": "parcial",
+      "implementado": "Valor médio dos itens por pedido/anúncio a partir de vendas verificadas.",
+      "falta": "Não foi identificado perfil de compradores ou coortes; média por anúncio/pedido não é ticket único de comprador e não deve ser somada entre anúncios.",
+      "fontes": [
+        "listing_kpis.py",
+        "listing_comparison.py"
+      ],
+      "testes": [
+        "test_listing_kpis.py",
+        "test_listing_comparison.py"
+      ],
+      "prs": [
+        267
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "kits",
+      "area": "Mercado",
+      "capacidade": "Análise de kits",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Não foi identificado fluxo específico de composição, validação de demanda e rentabilidade de kits. Simular quantidade não comprova composição de kit.",
+      "fontes": [
+        "profitability_scenarios.py"
+      ],
+      "testes": [
+        "test_profitability_scenarios.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "registro-alteracoes",
+      "area": "Execução",
+      "capacidade": "Registro manual e automático de alterações",
+      "estado": "concluida",
+      "implementado": "Histórico de eventos observados e ações manuais, autoria, datas e possibilidade de desconsiderar preservando histórico.",
+      "falta": "",
+      "fontes": [
+        "automatic_history.py",
+        "intervention_routes.py"
+      ],
+      "testes": [
+        "test_automatic_history.py",
+        "test_listing_interventions.py"
+      ],
+      "prs": [
+        173,
+        175
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "tarefas",
+      "area": "Execução",
+      "capacidade": "Tarefas por anúncio",
+      "estado": "parcial",
+      "implementado": "Demandas e planos de conferência; registro de ações já executadas.",
+      "falta": "Falta ciclo de tarefa futura com responsável, prazo e conclusão por anúncio. Registro de ação executada não é agendamento de tarefa.",
+      "fontes": [
+        "main.py",
+        "listing_action_plan.py",
+        "intervention_routes.py"
+      ],
+      "testes": [
+        "test_listing_action_plan.py",
+        "test_listing_interventions.py"
+      ],
+      "prs": [
+        250
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "central-acoes",
+      "area": "Execução",
+      "capacidade": "Central de ações e prioridades",
+      "estado": "concluida",
+      "implementado": "Fila por perda verificada, evidências e acesso administrativo/por loja.",
+      "falta": "",
+      "fontes": [
+        "client_priorities.py",
+        "listing_priority_queue.py"
+      ],
+      "testes": [
+        "test_client_priorities.py",
+        "test_listing_priority_queue.py"
+      ],
+      "prs": [
+        200,
+        234
+      ],
+      "numero_original": null
+    },
+    {
+      "id": "calendario",
+      "area": "Execução",
+      "capacidade": "Calendário de ações",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Não foi identificado calendário de ações futuras por anúncio com responsáveis e prazos. Histórico cronológico não equivale a calendário.",
+      "fontes": [
+        "intervention_routes.py"
+      ],
+      "testes": [
+        "test_listing_interventions.py"
+      ],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "pdf",
+      "area": "Execução",
+      "capacidade": "Relatório PDF de anúncios",
+      "estado": "parcial",
+      "implementado": "Central de demandas oferece impressão pelo navegador/PDF e CSV.",
+      "falta": "Não foi identificado relatório PDF específico de Anúncios 2.0 com escopo, período, evidências e layout exportável validado.",
+      "fontes": [
+        "main.py"
+      ],
+      "testes": [],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "primeiros-30",
+      "area": "Execução",
+      "capacidade": "Plano dos primeiros trinta dias",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Não foi identificado plano de implantação com etapas e acompanhamento dos primeiros trinta dias por anúncio/loja.",
+      "fontes": [],
+      "testes": [],
+      "prs": [],
+      "numero_original": null
+    },
+    {
+      "id": "ranking-plano",
+      "area": "Execução",
+      "capacidade": "Ranking de prioridades com diagnóstico e plano de ação",
+      "estado": "concluida",
+      "implementado": "Fila verificada e plano de revisão com evidências, conferência e acompanhamento, sem alegar execução automática.",
+      "falta": "",
+      "fontes": [
+        "listing_priority_queue.py",
+        "listing_action_plan.py",
+        "investigation_evidence.py"
+      ],
+      "testes": [
+        "test_listing_priority_queue.py",
+        "test_listing_action_plan.py",
+        "test_diagnostic_navigation.py"
+      ],
+      "prs": [
+        250,
+        261
+      ],
+      "numero_original": 90
+    }
+  ]
+}
