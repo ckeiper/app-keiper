@@ -679,6 +679,8 @@ def iniciar_banco():
         init_offer_history(conn, execute)
         from listing_interventions import init_schema as init_interventions
         init_interventions(conn, execute)
+        from listing_tasks import init_schema as init_listing_tasks
+        init_listing_tasks(conn, execute)
         from automatic_history import init_schema as init_automatic_history
         init_automatic_history(conn, execute)
         from automatic_history import seed_existing
@@ -3997,6 +3999,9 @@ def diagnostico_saude_anuncio(cid, item_id):
                           reason="Há pedidos antigos ainda não verificados nesta loja.")
     from listing_diagnostic_design import hero, priorities
     cabecalho = hero(item, cid, item_id, resultados)
+    if session.get('tipo') == 'admin':
+        from urllib.parse import quote
+        cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/tarefas'>Planejar tarefas do anúncio</a></p>"
     corpo = cabecalho
     corpo += ("<div class='card'><h3>Indicadores de vendas por anúncio</h3>"
               "<p class='muted'>Somente pedidos pagos e aprovados, com cobertura "
@@ -5617,6 +5622,8 @@ register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagi
 register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
 from intervention_routes import register_interventions
 register_interventions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_task_routes import register_tasks
+register_tasks(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from profitability_routes import register_profitability
 register_profitability(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,

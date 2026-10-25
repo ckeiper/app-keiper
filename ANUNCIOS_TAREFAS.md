@@ -1,0 +1,11 @@
+# Tarefas por anúncio
+
+Fluxo administrativo independente do histórico de ações executadas. Acesso pelo diagnóstico individual e pela rota autenticada `/anuncios/<loja>/<MLB>/tarefas`. Exige administrador e acesso à loja, com confirmação de vínculo do anúncio. Clientes não recebem leitura ou escrita nesta etapa.
+
+Tarefa exige título, responsável informado e prazo em data de Brasília; descrição opcional. Não há nome ou prazo inventado pelo sistema. Lista em dez tarefas por página, filtros por estado e atrasadas, cards do conjunto completo do anúncio. Aberta pode ser concluída ou cancelada; concluída/cancelada pode ser reaberta. Cancelamento preserva a tarefa. Conclusão é um registro manual do usuário: não altera o marketplace nem cria automaticamente um registro de ação executada ou resultado financeiro.
+
+Duas tabelas novas independentes, criadas de forma idempotente, sem alteração de tabelas existentes. Conteúdo original permanece imutável; correção de escopo é cancelar e criar outra tarefa. Cada mudança de estado acrescenta evento com usuário, horário, estado anterior/novo e versão. Histórico paginado da tarefa selecionada, consultado no mesmo snapshot de leitura da lista. Sem exclusão de tarefas/eventos. Nenhuma mensagem ao responsável, chamada de marketplace ou de IA é executada.
+
+Criação usa chave de reenvio por loja/anúncio; repetição idêntica não duplica tarefa/evento. Chave repetida com outro conteúdo é rejeitada. Mudanças exigem versão e estado anteriores; atualização concorrente ou reenvio obsoleto retorna conflito em vez de sobrescrever. Alteração e evento pertencem à mesma transação; falha ao registrar o evento reverte a alteração inteira. Todas as consultas e mutações incluem loja/anúncio; tokens CSRF e verificação de origem existentes preservados.
+
+Sete testes unitários/rotas cobrem validação, reenvio, conflito, SQL escopado, paginação, XSS, CSRF e bloqueio de clientes. Seis testes de integração PostgreSQL cobrem persistência, idempotência, isolamento, estados, concorrência real, rollback de auditoria e migração idempotente. Navegador cobre lista, vazio, histórico, erro e segunda página em 1440, 390 e 320 px. Publicação condicionada à aprovação de todos os checks desta revisão.
