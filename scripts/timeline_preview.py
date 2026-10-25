@@ -35,7 +35,19 @@ body='<p>Dados fictícios para validação automática.</p>'+panel+render('MLB10
 print('Synthetic timeline previews rendered.')
 
 from offer_history import render as render_offers
-from test_listing_competitiveness import data as competitive_data,END as competitive_end
+from test_listing_competitiveness import data as competitive_data,END as competitive_end,STAMP as competitive_stamp
 fixture=competitive_data()
 fixture.update(current=None,targets_limited=False,history_limited=False)
 (dest/'competitiveness-preview.html').write_text(page('Competitividade observada',1,'Loja de demonstração','anuncios','<p>Dados fictícios para teste.</p>'+render_offers(fixture,1,'MLB100',competitive_end)),encoding='utf-8')
+
+from competitive_sales_context import render as render_competitive_sales
+from test_competitive_sales_context import fixture as context_fixture
+for mode in ['decline','stable','missing-prices','missing-sales','limited','zero']:
+    ranking,offers=context_fixture()
+    if mode=='stable':ranking['rows']['MLB1']['value']=300
+    if mode=='missing-prices':offers['competitors']=[r for r in offers['competitors'] if r['observed_at']>competitive_stamp-86400]
+    if mode=='missing-sales':ranking['available']=False
+    if mode=='limited':offers['history_limited']=True
+    if mode=='zero':ranking['rows']['MLB1']['previous_value']=0
+    body='<p>Dados fictícios para teste.</p>'+render_competitive_sales(ranking,'MLB1',offers,competitive_end)
+    (dest/('competitive-sales-'+mode+'.html')).write_text(page('Vendas e competitividade',1,'Loja de demonstração','anuncios',body),encoding='utf-8')
