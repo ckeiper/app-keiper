@@ -5,6 +5,7 @@ on:
       - 'listing_catalog.py'
       - 'listing_comparison.py'
       - 'test_listing_comparison.py'
+      - 'test_listing_comparison_visits.py'
       - 'listing_competitiveness.py'
       - 'offer_history.py'
       - 'test_offer_reading_coverage.py'

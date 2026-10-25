@@ -4167,6 +4167,7 @@ def ranking_anuncios(cid):
     fim_analise = reporting_today() - datetime.timedelta(days=1)
     inicio_sql, fim_sql, inicio_cobertura, fim_cobertura = ranking_query_bounds(int(dias), today=fim_analise)
     sinais_financeiros = {}
+    visitas_comparacao = {}
     with banco() as conn:
         executar(conn, 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
         lojas = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
@@ -4207,6 +4208,11 @@ def ranking_anuncios(cid):
             pedidos, itens, [r["dia"] for r in cobertura],
             sorted({str(a["item_id"]) for a in anuncios_loja} | {str(i["item_id"]) for i in itens if i.get("item_id")}),
             end=fim_analise, days=int(dias), pending=bool(pendentes and pendentes[0]["n"]))
+        if request.args.get('modo') != 'prioridades':
+            from listing_comparison import selection as comparison_selection, load_visits as load_comparison_visits
+            selected_comparison=comparison_selection(resumo,anuncios_loja,request.args)
+            if selected_comparison['available']:
+                visitas_comparacao=load_comparison_visits(conn,consultar,cid,selected_comparison['ids'],fim_analise,days=int(dias))
         if resumo['available'] and session.get('tipo') == 'admin':
             from profitability_priority import load_signals as load_financial_signals
             sinais_financeiros = load_financial_signals(
@@ -4223,7 +4229,7 @@ def ranking_anuncios(cid):
               + "?dias=30'>30 dias</a></p></div>")
     if request.args.get("modo") != "prioridades":
         from listing_comparison import render as render_listing_comparison
-        corpo += render_listing_comparison(cid,resumo,anuncios_loja,request.args,fim_analise,days=int(dias))
+        corpo += render_listing_comparison(cid,resumo,anuncios_loja,request.args,fim_analise,days=int(dias),visits=visitas_comparacao)
     from listing_priority_queue import prioritize as prioritize_listings, render as render_priorities
     compact_priorities = request.args.get("modo") == "prioridades"
     if not resumo["available"] and compact_priorities:

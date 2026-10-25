@@ -56,7 +56,7 @@ const {chromium}=require('playwright');
     await page.setContent(fs.readFileSync('visual-qa/catalog-price-sort.html','utf8'));
     assert.deepEqual(await page.locator('.catalog-price').allTextContents(),['R$ 100,00','R$ 80,00']);
     assert.equal(await page.locator('select[name=ordem]').inputValue(),'preco');
-    for(const mode of ['two','four','pending']) {
+    for(const mode of ['two','four','pending','partial','zero']) {
       for(const width of [1440,390,320]) {
         await page.setViewportSize({width,height:900});
         await page.setContent(fs.readFileSync(`visual-qa/listing-comparison-${mode}.html`,'utf8'));
@@ -66,8 +66,12 @@ const {chromium}=require('playwright');
         assert.equal(await page.locator('.lc table').count(),mode==='pending'?0:1);
         if(mode!=='pending') {
           assert.equal(await page.locator('.lc thead th').count(),mode==='two'?3:5);
-          assert.equal(await page.locator('.lc tbody tr').count(),5);
+          assert.equal(await page.locator('.lc tbody tr').count(),8);
           assert.ok((await page.locator('.lc tbody').textContent()).includes('R$ 200,00 → R$ 100,00'));
+          const efficiency=await page.locator('.lc tbody tr').last().locator('td').first().textContent();
+          if(['partial','zero'].includes(mode))assert.ok(efficiency.includes('Indisponível'));
+          else assert.equal(efficiency,'1,43% → 1,43%');
+          if(mode==='partial')assert.ok((await page.locator('.lc tbody tr').nth(6).textContent()).includes('7/7 → 6/7 dias válidos'));
           if(width<700)assert.ok(await page.locator('.lc-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
           await page.locator('.lc-scroll').focus();assert.equal(await page.locator(':focus').getAttribute('role'),'region');
         }
