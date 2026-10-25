@@ -34,6 +34,8 @@ const {chromium}=require('playwright');
         assert.equal(await page.locator('#pf-unidades').count(),1);
         assert.equal(await page.locator('.pf-unit-table tbody tr').count(),available?8:0);
         if(available)assert.ok((await page.locator('#pf-unidades').textContent()).includes('Médias históricas'));
+        assert.equal(await page.locator('.pf-volume-part').count(),available?3:0);
+        if(available)assert.ok((await page.locator('.pf-volume-bridge').textContent()).includes('As duas parcelas somam a variação total'));
         assert.equal(await page.locator('#pf-recuperacao').count(),1);
         if(state==='negative')assert.ok((await page.locator('#pf-recuperacao').textContent()).includes('Déficit de contribuição documentada'));
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Comparison ${state} body overflow at ${width}`);
