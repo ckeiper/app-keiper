@@ -37,6 +37,8 @@ from listing_comparison import render as render_comparison
 from test_listing_comparison import sample as comparison_sample,END as comparison_end
 for mode in ['two','four','pending','partial','zero']:
     ranking,listings=comparison_sample()
+    for index,listing in enumerate(listings):
+        listing.update(quantidade=0 if mode=='zero' else 12,atualizado_em=1792846800-(21601 if mode=='partial' and index==0 else 0))
     args={f'comparar{i}':'MLB'+str(i) for i in range(1,3 if mode=='two' else 5)}
     if mode=='pending':ranking['available']=False
     from listing_comparison import load_visits
@@ -47,5 +49,5 @@ for mode in ['two','four','pending','partial','zero']:
         for r in visit_rows:
             if r['item_id']=='MLB1' and r['dia']>=(comparison_end-timedelta(days=6)).isoformat():r['visitas']=0
     visit_data=load_visits(None,lambda *args:visit_rows,1,list(args.values()),comparison_end)
-    body='<p>Dados fictícios para teste.</p>'+render_comparison(1,ranking,listings,args,comparison_end,visits=visit_data)
+    body='<p>Dados fictícios para teste.</p>'+render_comparison(1,ranking,listings,args,comparison_end,visits=visit_data,now=1792846800)
     (dest/('listing-comparison-'+mode+'.html')).write_text(page('Comparar anúncios',1,'Loja de demonstração','desempenho',body),encoding='utf-8')
