@@ -4,6 +4,8 @@ on:
     paths:
       - 'listing_catalog.py'
       - 'full_view.py'
+      - 'full_variation_history.py'
+      - 'test_full_variation_history.py'
       - 'full_report_components.py'
       - 'test_full_report.py'
       - 'scripts/full_report*'

@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 from sales_metrics import SAO_PAULO
 from full_monitor import METADATA_MAX_AGE
 
-PAGE_KEYS = ('full_dias', 'full_consultas', 'full_variacoes')
+PAGE_KEYS = ('full_dias', 'full_consultas', 'full_variacoes', 'full_historico_variacao')
 
 
 def paginate(rows, cid, args, key, size, anchor):
@@ -16,7 +16,7 @@ def paginate(rows, cid, args, key, size, anchor):
         page = max(1, min(pages, int(args.get(key, '1'))))
     except (TypeError, ValueError):
         page = 1
-    params = {k: str(args[k]) for k in ('item_id','periodo','inicio','fim') + PAGE_KEYS if k in args}
+    params = {k: str(args[k]) for k in ('item_id','periodo','inicio','fim','full_variacao') + PAGE_KEYS if k in args}
     nav = '<nav class="full-pages" aria-label="Paginação de ' + anchor + '">Página ' + str(page) + ' de ' + str(pages)
     for label, target in [('Anterior', page - 1), ('Próxima', page + 1)]:
         if 1 <= target <= pages:

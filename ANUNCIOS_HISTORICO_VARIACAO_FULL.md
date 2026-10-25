@@ -1,0 +1,9 @@
+# Histórico observado de quantidade por variação Full
+
+A tela Full e vendas permite selecionar uma variação e conferir sua quantidade a cada observação carregada, com data/hora de Brasília, inventário, confirmação e diferença aritmética entre consultas comparáveis. Reutiliza o histórico já lido sob as permissões e limites existentes; sem consulta nova, chamada externa, escrita ou migração.
+
+Cada observação passa pela validação de vínculo, metadados e consulta de inventário do componente de Full. Quantidade zero confirmada é preservada. Falha, ausência da variação, metadado antigo, duplicidade de observação ou vínculo compartilhado gera uma lacuna, sem recorrer a leitura anterior. Troca de inventário interrompe a comparação de quantidade. Diferença exige duas observações consecutivas válidas do mesmo inventário, separadas por até seis horas. O valor não identifica reposição, entradas, saídas, reservas ou vendas e não é previsão de ruptura.
+
+Análise limitada às quinhentas observações mais recentes do anúncio dentro do período escolhido para controlar o trabalho de processamento de JSON na página. Limite explícito; as consultas restantes permanecem na rastreabilidade existente. É possível mudar o período para examinar outro recorte. Vinte observações por página; seleção e datas preservadas. Até duzentas sugestões de códigos, com digitação permitida de outro código presente no recorte. Anúncios sem código de variação confirmado mostram pendência, sem inventar nomes ou SKU.
+
+Oito testes novos cobrem diferenças, zeros, escopo, imutabilidade, lacunas, duplicidades, troca de inventário, compartilhamento, frescor, limite de seis horas, orçamento de observações, escaping e paginação. Navegador verifica pronto, falha intermediária, troca de inventário, compartilhamento, segunda página e limite em 1440, 390 e 320 px, com teclado e rolagem. Integração/publicação condicionadas aos checks desta revisão.

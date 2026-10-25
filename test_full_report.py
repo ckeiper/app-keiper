@@ -90,9 +90,9 @@ class FullReportTests(unittest.TestCase):
                 if tag=='table':self.counts.append(0);self.current+=1
                 if tag=='tr':self.counts[self.current]+=1
         parser=Tables();parser.feed(text)
-        self.assertEqual(parser.counts,[3,21,31])
+        self.assertEqual(parser.counts,[3,21,21,31])
         text=render_full(1,dict(ARGS,full_dias='2',full_consultas='2'),LISTING,rows,[],[],covered,{})
-        parser=Tables();parser.feed(text);self.assertEqual(parser.counts,[3,11,11])
+        parser=Tables();parser.feed(text);self.assertEqual(parser.counts,[3,21,11,11])
 
     def test_escape_and_malformed_evidence_remain_readable(self):
         row=observation();row['evidence']['inventories'][0]['reason']='<script>'

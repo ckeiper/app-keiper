@@ -31,3 +31,21 @@ for mode in ('ready','partial','empty','page2','variations'):
     body='<p>Dados fictícios para validação automática.</p>'+render_full(1,args,LISTING,rows,[],[],coverage,first)
     (dest/('full-report-'+mode+'.html')).write_text(page('Full e vendas',1,'Loja de demonstração','full',body),encoding='utf-8')
 print('Synthetic Full report previews rendered.')
+
+
+from test_full_variation_history import reading
+for mode in ('ready','gap','switched','shared','page2','limited'):
+    rows=[reading(STAMP-7200,2),reading(STAMP-3600,0),reading(STAMP,3)]
+    args=dict(ARGS,full_variacao='1')
+    if mode=='gap':rows[1]=reading(STAMP-3600,None)
+    if mode=='switched':rows[-1]=reading(STAMP,3,inventory='NEW')
+    if mode=='shared':
+        rows[-1]['evidence']['metadata']['inventories'][1]['inventory_id']='A'
+        rows[-1]['evidence']['inventories']=rows[-1]['evidence']['inventories'][:1]
+        rows[-1]['quantity']=3
+    if mode in ('page2','limited'):
+        rows=[reading(STAMP-i*30,i%4) for i in range(41 if mode=='page2' else 510)]
+    if mode=='page2':args['full_historico_variacao']='2'
+    first=dict(first=min(r['observed_at'] for r in rows),first_known=min(r['observed_at'] for r in rows))
+    body='<p>Dados fictícios para validação automática.</p>'+render_full(1,args,LISTING,rows,[],[],coverage,first)
+    (dest/('full-variation-history-'+mode+'.html')).write_text(page('Histórico da variação Full',1,'Loja de demonstração','full',body),encoding='utf-8')

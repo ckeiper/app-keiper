@@ -35,6 +35,28 @@ const {chromium}=require('playwright');
     await page.screenshot({path:`visual-qa/full-report-${mode}-${width}.png`,fullPage:true});
    }
   }
+  for(const mode of ['ready','gap','switched','shared','page2','limited']){
+   for(const width of [1440,390,320]){
+    await page.setViewportSize({width,height:900});
+    await page.setContent(fs.readFileSync(`visual-qa/full-variation-history-${mode}.html`,'utf8'));
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    const panel=page.locator('.full-variation-history');
+    assert.equal(await panel.locator('input[name=full_variacao]').inputValue(),'1');
+    assert.equal(await panel.locator('form').getAttribute('action'),'/full/1#full-historico-variacao');
+    assert.equal(await panel.locator('tbody tr').count(),['page2','limited'].includes(mode)?20:3);
+    const cells=panel.locator('tbody tr').first().locator('td');
+    if(mode==='ready')assert.equal(await cells.nth(2).textContent(),'+3 unidades');
+    if(['gap','switched'].includes(mode))assert.equal(await cells.nth(2).textContent(),'Sem par consecutivo comparável');
+    if(mode==='shared')assert.equal(await cells.nth(1).textContent(),'Indisponível');
+    if(mode==='limited')assert.ok((await panel.textContent()).includes('Recorte limitado às 500'));
+    if(mode==='page2')assert.ok((await panel.locator('nav').textContent()).includes('Página 2 de 3'));
+    await panel.locator('summary').focus();await page.keyboard.press('Enter');
+    assert.ok(!await panel.locator('table').isVisible());await page.keyboard.press('Enter');
+    await panel.locator('.full-variation-history-scroll').focus();assert.equal(await page.locator(':focus').getAttribute('role'),'region');
+    if(width<700)assert.ok(await panel.locator('.full-variation-history-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
+    await page.screenshot({path:`visual-qa/full-variation-history-${mode}-${width}.png`,fullPage:true});
+   }
+  }
   assert.deepEqual(errors,[]);console.log('Full stock, variant evidence, coverage and pagination checks passed.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
