@@ -43,3 +43,8 @@ for mode in ['blank','ready','error']:
     scenario=simulate(values) if mode=='ready' else None
     body=render_scenario(42,'MLB100','Produto de demonstração','preview-only',values,scenario,'Informe publicidade por pedido.' if mode=='error' else '')
     (dest/('profitability-scenario-'+mode+'.html')).write_text(page('Simular descontos progressivos',42,'Loja de demonstração','anuncios',body),encoding='utf-8')
+
+old_entry=dict(record(),id=9,sources=dict(record()['sources'],products='Documento sintético da versão anterior'))
+current_entry=dict(record(),id=10)
+body=render(42,'MLB100','Produto de demonstração',START,END,summary(),result_for(summary(),current_entry),current_entry,[current_entry,old_entry],'preview-only','x'*32,inspected_record=old_entry)
+(dest/'profitability-inspection.html').write_text(page('Consulta de registro',42,'Loja de demonstração','anuncios',body),encoding='utf-8')

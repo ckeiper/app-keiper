@@ -59,7 +59,20 @@ def render_source_status(summary,result,record):
     return out+'</section>'
 
 
-def render(cid, item_id, title, start, end, summary, result, record, history, csrf, key, values=None, message='', comparison_html=''):
+def render_inspection(record):
+    if record is None:return ''
+    esc=lambda value:escape(str(value),quote=True)
+    out='<section class="pf-card pf-inspection" id="pf-registro" aria-label="Consulta do registro de custos"><h3 tabindex="-1">Consulta do registro #'+esc(record['id'])+'</h3>'
+    out+='<p>'+record['inicio'].strftime('%d/%m/%Y')+' a '+record['fim'].strftime('%d/%m/%Y')+' · Informado em '+esc(stamp(record['created_at']))+'</p>'
+    out+='<p>Base original: '+esc(record['units'])+' unidades · '+format_brl(record['gross_items'])+' em valor bruto dos itens.</p><p class="pf-alert">Somente consulta. Selecionar este registro não altera os indicadores, que continuam usando a última versão do período e a verificação atual das vendas. Não é possível restaurar ou editar uma versão por esta consulta.</p>'
+    out+='<div class="pf-table"><table><thead><tr><th>Componente registrado</th><th>Total no período</th><th>Referência declarada</th></tr></thead><tbody>'
+    for field,label in COMPONENTS.items():
+        out+='<tr><td>'+label+'</td><td>'+format_brl(record['costs'].get(field))+'</td><td class="pf-source">'+esc(record['sources'].get(field,''))+'</td></tr>'
+    query=urlencode(dict(inicio=record['inicio'].isoformat(),fim=record['fim'].isoformat()))
+    return out+'</tbody></table></div><p>Documentos não são auditados automaticamente. O registro pode ter uma base de vendas diferente da atual.</p><a href="?'+esc(query)+'#pf-historico">Voltar ao histórico do período</a></section>'
+
+
+def render(cid, item_id, title, start, end, summary, result, record, history, csrf, key, values=None, message='', comparison_html='', inspected_record=None):
     values = values or {}
     esc = lambda value: escape(str(value), quote=True)
     out = CSS + '<div class="pf"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Evidências financeiras</span><h2>Rentabilidade por anúncio</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="/diagnostico/'+str(cid)+'/'+esc(item_id)+'">← Diagnóstico do anúncio</a><p>Contribuição sobre o valor bruto dos itens vendidos, após os custos documentados abaixo. Não representa lucro líquido nem repasse bancário.</p>'
@@ -95,8 +108,9 @@ def render(cid, item_id, title, start, end, summary, result, record, history, cs
         for field, label in COMPONENTS.items():
             out += '<div class="pf-fields"><label>'+label+' (R$)<input name="'+field+'" inputmode="decimal" required maxlength="15" value="'+esc(values.get(field,''))+'" placeholder="Total do período"></label><label>Fonte e abrangência<input name="'+field+'_source" required minlength="5" maxlength="500" value="'+esc(values.get(field+'_source',''))+'" placeholder="Documento ou relatório, datas e critério"></label></div>'
         out += '<p>Descontos, devoluções e ajustes: inclua somente reduções adicionais ainda não refletidas no preço dos itens, sem duplicar valores. Não há sincronização automática de todos os ajustes financeiros.</p><label><input type="checkbox" name="confirmed" value="yes" required>Conferi as fontes, o período, todas as unidades e os custos deste anúncio, inclusive valores zero. Não incluí custos de outras lojas ou anúncios nem contei ajustes duas vezes.</label><p><button>Salvar nova versão</button></p><small>Cada versão preserva a anterior. Nenhum anúncio, preço ou campanha será alterado.</small></form></details></section>'
-    out += '<section class="pf-card"><h3>Últimos registros deste anúncio</h3>'
+    out += render_inspection(inspected_record)
+    out += '<section class="pf-card" id="pf-historico"><h3>Últimos registros deste anúncio</h3>'
     for row in history:
         query = urlencode({'inicio':row['inicio'].isoformat(),'fim':row['fim'].isoformat()})
-        out += '<p><a href="?'+esc(query)+'">'+row['inicio'].strftime('%d/%m/%Y')+' a '+row['fim'].strftime('%d/%m/%Y')+'</a> · registro #'+str(row['id'])+' · '+esc(stamp(row['created_at']))+' · abre a última versão do período</p>'
+        out += '<p><a href="?'+esc(query)+'">'+row['inicio'].strftime('%d/%m/%Y')+' a '+row['fim'].strftime('%d/%m/%Y')+'</a> · registro #'+str(row['id'])+' · '+esc(stamp(row['created_at']))+' · abre a última versão do período. <a class="pf-inspect-link" href="?'+esc(query+'&registro='+str(row['id']))+'#pf-registro">Conferir registro #'+esc(row['id'])+'</a></p>'
     return out + ('<p>Nenhum custo documentado registrado.</p>' if not history else '')+'</section></div>'
