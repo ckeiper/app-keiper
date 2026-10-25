@@ -63,7 +63,7 @@ const {chromium}=require('playwright');
         assert.equal(await page.locator('.lc-form input').count(),4);
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
         assert.equal(await page.locator('.lc').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
-        assert.equal(await page.locator('.lc table').count(),mode==='pending'?0:2);
+        assert.equal(await page.locator('.lc table').count(),mode==='pending'?0:3);
         if(mode!=='pending') {
           assert.equal(await page.locator('.lc-main-scroll thead th').count(),mode==='two'?3:5);
           assert.equal(await page.locator('.lc-main-scroll tbody tr').count(),8);
@@ -74,13 +74,18 @@ const {chromium}=require('playwright');
           if(mode==='partial')assert.ok((await page.locator('.lc-main-scroll tbody tr').nth(6).textContent()).includes('7/7 → 6/7 dias válidos'));
           if(width<700)assert.ok(await page.locator('.lc-main-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
           await page.locator('.lc-main-scroll').focus();assert.equal(await page.locator(':focus').getAttribute('role'),'region');
-          await page.locator('.lc-daily summary').focus();await page.keyboard.press('Enter');
-          assert.ok(await page.locator('.lc-daily tbody tr').first().isVisible());
-          assert.equal(await page.locator('.lc-daily tbody tr').count(),7);
-          assert.ok((await page.locator('.lc-daily tbody tr').first().textContent()).includes('23/10/2026'));
-          if(mode==='partial')assert.equal(await page.locator('.lc-daily tbody tr').first().locator('td').first().textContent(),'Sem dado válido');
-          if(mode==='zero')assert.equal(await page.locator('.lc-daily tbody tr').first().locator('td').first().textContent(),'0');
+          await page.locator('.lc-daily:not(.lc-stock) summary').focus();await page.keyboard.press('Enter');
+          assert.ok(await page.locator('.lc-daily:not(.lc-stock) tbody tr').first().isVisible());
+          assert.equal(await page.locator('.lc-daily:not(.lc-stock) tbody tr').count(),7);
+          assert.ok((await page.locator('.lc-daily:not(.lc-stock) tbody tr').first().textContent()).includes('23/10/2026'));
+          if(mode==='partial')assert.equal(await page.locator('.lc-daily:not(.lc-stock) tbody tr').first().locator('td').first().textContent(),'Sem dado válido');
+          if(mode==='zero')assert.equal(await page.locator('.lc-daily:not(.lc-stock) tbody tr').first().locator('td').first().textContent(),'0');
           if(width<700)assert.ok(await page.locator('.lc-daily-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
+          await page.locator('.lc-stock summary').focus();await page.keyboard.press('Enter');
+          assert.equal(await page.locator('.lc-stock tbody tr').count(),4);
+          assert.equal(await page.locator('.lc-stock tbody tr').first().locator('td').first().textContent(),mode==='partial'?'Indisponível':mode==='zero'?'0 unidades':'12 unidades');
+          assert.ok((await page.locator('.lc-stock').textContent()).includes('sem previsão de demanda'));
+          if(width<700)assert.ok(await page.locator('.lc-stock-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
 
         }
         await page.screenshot({path:`visual-qa/listing-comparison-${mode}-${width}.png`,fullPage:true});

@@ -4,6 +4,8 @@ on:
     paths:
       - 'listing_catalog.py'
       - 'listing_comparison.py'
+      - 'listing_comparison_stock.py'
+      - 'test_comparison_stock.py'
       - 'test_listing_comparison.py'
       - 'test_listing_comparison_visits.py'
       - 'test_comparison_daily_visits.py'

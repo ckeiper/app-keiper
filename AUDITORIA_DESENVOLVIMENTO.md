@@ -1,7 +1,7 @@
 # Dashboard Keiper — auditoria e execução
 
-Estado consolidado em 24/10/2026, após #241. Base de produção: `70c7e60a721378f588d08fce94adbf577c355226`.
-Render: `dep-dbeck3mk1f9s73f63hg0`, confirmado live em 24/10/2026 às 12:10:18 (Brasília). Suíte: 733 testes sem skips com PostgreSQL em Python 3.12 e 3.14; checks de navegador aprovados. Isso não comprova validação financeira de todas as contas reais.
+Estado consolidado em 25/10/2026, após #269. Base de produção: `1bf0c826f4d729c3536040d7fcf13547900e57ff`.
+Render: `dep-dbf2jnjbc2fs738o2pb0`, confirmado live em 25/10/2026 às 13:11:41 (Brasília). Suíte: 887 testes sem skips com PostgreSQL em Python 3.12 e 3.14; checks de navegador aprovados. Isso não comprova validação financeira de todas as contas reais.
 
 ## Entregas consolidadas
 
@@ -17,11 +17,29 @@ Render: `dep-dbeck3mk1f9s73f63hg0`, confirmado live em 24/10/2026 às 12:10:18 (
 | Comparação histórica de volume e médias por unidade | Integrada e publicada | #240 |
 | Leitura limitada de pedidos no acompanhamento de ações | Integrada e publicada; ganho de latência não medido | #241 |
 
+### Continuação publicada após #241
+
+| Capacidade | Estado e limite | Evidência |
+|---|---|---|
+| Fila financeira independente e KEVIA Ads | Publicadas; contribuição documentada e vendas oficiais atribuídas, sem rateio arbitrário | #243, #244 |
+| Leitura aritmética do relatório de vendas | Publicada; não equivale a conciliação bancária | #245, #246 |
+| Simulador de descontos progressivos | Publicado; depende de custos explicitamente informados, sem alteração de preço | #247, #251 |
+| Competitividade e histórico por período | Publicados; cobertura observada, sem reconstruir leituras ausentes | #248, #258 |
+| Acompanhamento financeiro de ações | Publicado; fontes e volume verificáveis, sem atribuição causal | #249, #266 |
+| Plano de revisão nas prioridades | Publicado; usa evidências existentes, sem alegar ação executada | #250 |
+| Promoções e catálogo | Filtros, preço confirmado, estados de leitura e resiliência publicados | #252–#256 |
+| Estoque nas prioridades | Base de unidades e frescor explícitos publicados | #257 |
+| Diagnóstico e preços | Cobertura, continuidade de fontes e navegação publicados | #259–#261 |
+| Contribuição e versões de custos | Composição por volume, status das fontes, inspeção e comparação de versões publicadas | #262–#265 |
+| Comparador de até quatro anúncios | Vendas, visitas, cobertura, razão pedidos/visitas e inspeção diária publicados | #267–#269 |
+
+Esses PRs representam entregas técnicas; não são contagem equivalente aos 90 requisitos originais.
+
 ## Pendências reais
 
 - Documento integral dos 90 requisitos: ainda não recuperado; impede contar ou certificar a conclusão da lista literal.
 - Coleta automática completa de custos por anúncio e período: pendente. Os registros atuais são documentados pelo administrador.
-- Conciliação bancária integral (#201): pendente; a importação de conciliação de vendas/frete existente não equivale à conciliação com extrato bancário.
+- Mercado Pago e conciliação bancária integral (#201): adiados por decisão do usuário; a importação de conciliação de vendas/frete existente não equivale à conciliação com extrato bancário.
 - Ingestão periódica de transcrições do Gmail: pendente no aplicativo; a importação manual existente não é automação de e-mail.
 - Uniformização de telas legadas e validação de fontes/dados por conta continuam trabalhos de evolução, sem alegação de conclusão global.
 

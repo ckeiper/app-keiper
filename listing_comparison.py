@@ -88,7 +88,7 @@ def render_daily(cid,ids,names,visits,args,end,days):
     return out+'</nav></details>'
 
 
-def render(cid,ranking,listings,args,end,days=7,visits=None):
+def render(cid,ranking,listings,args,end,days=7,visits=None,now=None):
     esc=lambda value:escape(str(value),quote=True)
     result=selection(ranking,listings,args)
     path='/ranking-anuncios/'+str(int(cid))
@@ -128,6 +128,8 @@ def render(cid,ranking,listings,args,end,days=7,visits=None):
         out+='</tr>'
     out+='</tbody></table></div>'
     out+=render_daily(cid,result['ids'],names,visits,args,end,days)
+    from listing_comparison_stock import render as render_stock
+    out+=render_stock(listings,ranking,result['ids'],names,days,now=now)
     return out+'<p>Valor bruto dos itens vendidos, sem cálculo de lucro, margem ou Ads. Pedidos pagos ÷ visitas é um indicador observacional, não a conversão oficial do Mercado Livre. Cobertura parcial não é somada como total; zero visitas não gera taxa. A taxa exige cobertura completa e visitas positivas nos dois períodos. Um pedido com mais de um anúncio pode aparecer em mais de uma coluna; não some os pedidos das colunas. O valor por pedido pode variar por quantidade, variações e descontos. Comparação descritiva, sem atribuição causal.</p></section>'
 
 
