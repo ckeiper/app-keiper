@@ -26,6 +26,18 @@ const {chromium}=require('playwright');
         if(state==='ready')await page.screenshot({path:`visual-qa/profitability-${width}.png`,fullPage:true});
       }
     }
+    for(const state of ['ready','missing','stale','unverified']) {
+      for(const width of [1440,390,320]) {
+        await page.setViewportSize({width,height:900});
+        await page.setContent(fs.readFileSync(`visual-qa/profitability-${state}.html`,'utf8'));
+        assert.equal(await page.locator('.pf-status-item').count(),3);
+        assert.equal(await page.locator('.pf-status-link').count(),state==='unverified'?0:1);
+        assert.equal(await page.locator('#pf-fontes').count(),state==='unverified'?0:1);
+        assert.equal(await page.locator('.pf-record-warning').count(),['stale','unverified'].includes(state)?1:0);
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+        if(state==='stale')await page.screenshot({path:`visual-qa/profitability-source-status-${width}.png`,fullPage:true});
+      }
+    }
     for(const state of ['ready','negative','missing','stale']) {
       for(const width of [1440,390]) {
         await page.setViewportSize({width,height:900});

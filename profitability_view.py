@@ -27,7 +27,8 @@ CSS = '''<style>
 .pf .pf-alert{background:#322c20;border:1px solid #836b34;padding:16px;border-radius:12px;color:#ffe1a1;margin:16px 0}
 .pf .pf-unit-table{min-width:650px}.pf .pf-unit-table caption{text-align:left;color:#b6c7dc;padding:12px 0}
 .pf .pf-table{overflow-x:auto}.pf table{width:100%;border-collapse:collapse}.pf th,.pf td{padding:13px 10px;border-bottom:1px solid var(--pf-line);text-align:left;color:#dce9f7;overflow-wrap:anywhere}.pf th{font-size:12px;color:#b6c7dc}.pf details summary{cursor:pointer;font-weight:700;padding:8px 0}.pf .pf-source{max-width:480px;white-space:pre-wrap}
-@media(max-width:700px){.pf .pf-grid,.pf .pf-fields{grid-template-columns:1fr}.pf .pf-card,.pf .pf-hero{padding:18px}.pf h2{font-size:22px}.pf .pf-filter label{flex:1 1 130px}.pf .pf-filter button{width:100%}}
+.pf .pf-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:15px 0}.pf .pf-status-item{background:#142940;border:1px solid #34516e;border-radius:10px;padding:14px;min-width:0}.pf .pf-status-item span{display:block;color:#b6c7dc;font-size:12px}.pf .pf-status-item strong{display:block;font-size:14px;margin-top:8px;overflow-wrap:anywhere}.pf .pf-source-status .pf-status-link{display:inline-block;background:#1c3552;color:#b9e5ff;border:1px solid #426184;border-radius:9px;padding:10px 12px}
+@media(max-width:700px){.pf .pf-status-grid{grid-template-columns:1fr}.pf .pf-grid,.pf .pf-fields{grid-template-columns:1fr}.pf .pf-card,.pf .pf-hero{padding:18px}.pf h2{font-size:22px}.pf .pf-filter label{flex:1 1 130px}.pf .pf-filter button{width:100%}}
 </style>'''
 
 
@@ -39,6 +40,23 @@ def stamp(value):
         return parsed.astimezone(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y às %H:%M · Brasília')
     except (ValueError,TypeError,OverflowError):
         return 'Data não verificável'
+
+
+def render_source_status(summary,result,record):
+    verified=summary.get('orders') is not None
+    cost_state=('Vinculados à base verificada' if result['available'] else
+                'Registro requer conferência' if record else 'Ainda não registrados')
+    out='<section class="pf-card pf-source-status" aria-label="Validação do período"><h3>Validação do período</h3><div class="pf-status-grid">'
+    for label,value in [('Vendas','Base verificada' if verified else 'Verificação pendente'),
+                        ('Custos documentados',cost_state),
+                        ('Documentos','Referências declaradas, sem auditoria automática')]:
+        out+='<article class="pf-status-item"><span>'+label+'</span><strong>'+escape(value)+'</strong></article>'
+    out+='</div>'
+    if verified:
+        out+='<a class="pf-status-link" href="#pf-fontes">Conferir fontes e registrar custos</a>'
+    else:
+        out+='<p>Conclua a verificação das vendas antes de registrar custos para esta base. Registros anteriores permanecem preservados.</p>'
+    return out+'</section>'
 
 
 def render(cid, item_id, title, start, end, summary, result, record, history, csrf, key, values=None, message='', comparison_html=''):
@@ -62,10 +80,13 @@ def render(cid, item_id, title, start, end, summary, result, record, history, cs
     if not result['available']:
         out += '<p class="pf-alert">'+esc(result['reason'])+'</p>'
     out += '<p>Pedidos pagos e aprovados, cobertura diária completa e vínculo dos itens. Períodos encerrados em horário de Brasília. Despesas fixas e operacionais não estão incluídas. Não há rateio automático de frete, publicidade ou valores da conta.</p></section>'
+    out += render_source_status(summary,result,record)
     out += comparison_html
     out += render_recovery(summary, record)
     if record:
-        out += '<section class="pf-card"><h3>Composição e fontes · registro #'+str(record['id'])+'</h3><p>Informado pelo administrador em '+esc(stamp(record['created_at']))+'. As fontes são referências declaradas, sem validação automática de documentos.</p><div class="pf-table"><table><thead><tr><th>Componente</th><th>Total no período</th><th>Fonte informada</th></tr></thead><tbody>'
+        if not result['available']:
+            out += '<section class="pf-card pf-record-warning"><h3>Este registro não valida o cálculo atual</h3><p class="pf-alert">'+esc(result['reason'])+'</p><p>Base registrada: '+esc(record.get('units'))+' unidades · '+format_brl(record.get('gross_items'))+' em valor bruto dos itens. Os componentes abaixo são históricos; não substituem a conferência da base selecionada.</p></section>'
+        out += '<section class="pf-card"><h3>'+('Composição e fontes' if result['available'] else 'Registro preservado para conferência')+' · registro #'+str(record['id'])+'</h3><p>Informado pelo administrador em '+esc(stamp(record['created_at']))+'. As fontes são referências declaradas, sem validação automática de documentos.</p><div class="pf-table"><table><thead><tr><th>Componente</th><th>Total no período</th><th>Fonte informada</th></tr></thead><tbody>'
         for field, label in COMPONENTS.items():
             out += '<tr><td>'+label+'</td><td>'+format_brl(record['costs'].get(field))+'</td><td class="pf-source">'+esc(record['sources'].get(field,''))+'</td></tr>'
         out += '</tbody></table></div></section>'
@@ -77,5 +98,5 @@ def render(cid, item_id, title, start, end, summary, result, record, history, cs
     out += '<section class="pf-card"><h3>Últimos registros deste anúncio</h3>'
     for row in history:
         query = urlencode({'inicio':row['inicio'].isoformat(),'fim':row['fim'].isoformat()})
-        out += '<p><a href="?'+esc(query)+'">'+row['inicio'].strftime('%d/%m/%Y')+' a '+row['fim'].strftime('%d/%m/%Y')+'</a> · versão #'+str(row['id'])+' · '+esc(stamp(row['created_at']))+'</p>'
+        out += '<p><a href="?'+esc(query)+'">'+row['inicio'].strftime('%d/%m/%Y')+' a '+row['fim'].strftime('%d/%m/%Y')+'</a> · registro #'+str(row['id'])+' · '+esc(stamp(row['created_at']))+' · abre a última versão do período</p>'
     return out + ('<p>Nenhum custo documentado registrado.</p>' if not history else '')+'</section></div>'
