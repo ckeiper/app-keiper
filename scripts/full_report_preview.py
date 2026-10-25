@@ -27,6 +27,7 @@ for mode in ('ready','partial','empty','page2','variations'):
         row['evidence']['inventories']=readings
         row['quantity']=150
         args['full_variacoes']='2'
-    body='<p>Dados fictícios para validação automática.</p>'+render_full(1,args,LISTING,rows,[],[],coverage,{})
+    first=dict(first=min(r['observed_at'] for r in rows),first_known=min(r['observed_at'] for r in rows if r['state']!='unknown')) if rows else {}
+    body='<p>Dados fictícios para validação automática.</p>'+render_full(1,args,LISTING,rows,[],[],coverage,first)
     (dest/('full-report-'+mode+'.html')).write_text(page('Full e vendas',1,'Loja de demonstração','full',body),encoding='utf-8')
 print('Synthetic Full report previews rendered.')

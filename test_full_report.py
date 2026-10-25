@@ -81,6 +81,7 @@ class FullReportTests(unittest.TestCase):
         covered=[(START+timedelta(days=i)).isoformat() for i in range(30)]
         text=render_full(1,ARGS,LISTING,rows,[],[],covered,{})
         self.assertIn('30/30',text);self.assertIn('1/30',text)
+        self.assertNotIn('Ainda não há coletas Full',text)
         self.assertIn('Página 1 de 2',text)
         from html.parser import HTMLParser
         class Tables(HTMLParser):

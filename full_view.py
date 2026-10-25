@@ -103,6 +103,8 @@ def render_full(cid, args, listing, observations, orders, items, coverage, first
             out += '<p>Primeira confirmação de estoque Full: ' + confirmed + ' (Brasília). A cobertura é por consulta, sem histórico contínuo.</p>'
         else:
             out += '<p>Ainda não houve confirmação de estoque Full pela API.</p>'
+    elif observations:
+        out += '<p>Há observações no período selecionado; a data da primeira coleta histórica não está disponível.</p>'
     else:
         out += '<p>Ainda não há coletas Full. O histórico começará na próxima sincronização desta loja.</p>'
     out += ("<p>O gráfico compara vendas do anúncio com o estoque Full observado nas consultas de cada dia. "
