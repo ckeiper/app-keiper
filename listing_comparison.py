@@ -23,7 +23,38 @@ def selection(ranking,listings,args):
     return dict(available=True,ids=selected,reason=None)
 
 
-def render(cid,ranking,listings,args,end,days=7):
+def load_visits(conn,query,cid,ids,end,days=7):
+    if (type(days) is not int or days not in (7,30) or not 2<=len(ids)<=4 or len(set(ids))!=len(ids)
+            or any(not re.fullmatch(r'MLB[0-9]{1,20}',item) for item in ids)):
+        return {}
+    from investigation_evidence import window
+    dates=[(end-timedelta(days=2*days-1-i)).isoformat() for i in range(2*days)]
+    rows=query(conn,"""SELECT conexao_id,item_id,dia,visitas FROM item_visits_daily
+        WHERE conexao_id=%s AND item_id=ANY(%s) AND dia BETWEEN %s AND %s
+        ORDER BY item_id,dia""",(cid,ids,dates[0],dates[-1]))
+    result={}
+    for item in ids:
+        selected=[row for row in rows if row.get('conexao_id')==cid and str(row.get('item_id'))==item]
+        result[item]={name:window(selected,period,['visitas'],'dia')
+                      for name,period in [('previous',dates[:days]),('current',dates[days:])]}
+    return result
+
+
+def visit_cell(metrics,visits,key,days):
+    before=(visits or {}).get('previous') or dict(complete=False,covered=0,expected=days,totals=None)
+    after=(visits or {}).get('current') or dict(complete=False,covered=0,expected=days,totals=None)
+    if key=='visit_coverage':
+        return str(before['covered'])+'/'+str(days)+' → '+str(after['covered'])+'/'+str(days)+' dias válidos'
+    if key=='visits':
+        return ' → '.join(str(int(p['totals']['visitas'])) if p['complete'] else 'Indisponível' for p in [before,after])
+    if not before['complete'] or not after['complete'] or not before['totals']['visitas'] or not after['totals']['visitas']:
+        return 'Indisponível'
+    old=metrics['previous_orders']*100/before['totals']['visitas']
+    new=metrics['orders']*100/after['totals']['visitas']
+    return format(old,'.2f').replace('.',',')+'% → '+format(new,'.2f').replace('.',',')+'%'
+
+
+def render(cid,ranking,listings,args,end,days=7,visits=None):
     esc=lambda value:escape(str(value),quote=True)
     result=selection(ranking,listings,args)
     path='/ranking-anuncios/'+str(int(cid))
@@ -42,11 +73,13 @@ def render(cid,ranking,listings,args,end,days=7):
     for item in result['ids']:
         out+='<th scope="col"><a href="/diagnostico/'+str(int(cid))+'/'+item+'">'+esc(names.get(item,item))+'</a><small>'+esc(item)+'</small></th>'
     out+='</tr></thead><tbody>'
-    for label,key in [('Valor bruto dos itens','value'),('Pedidos com este anúncio','orders'),('Unidades vendidas','units'),('Valor dos itens por pedido','ticket'),('Variação do valor bruto','delta')]:
+    for label,key in [('Valor bruto dos itens','value'),('Pedidos com este anúncio','orders'),('Unidades vendidas','units'),('Valor dos itens por pedido','ticket'),('Variação do valor bruto','delta'),('Visitas registradas','visits'),('Cobertura das visitas','visit_coverage'),('Pedidos pagos ÷ visitas','orders_per_visit')]:
         out+='<tr><th scope="row">'+label+'</th>'
         for item in result['ids']:
             row=ranking['rows'][item]
-            if key=='ticket':
+            if key in ('visits','visit_coverage','orders_per_visit'):
+                text=visit_cell(row,(visits or {}).get(item),key,days)
+            elif key=='ticket':
                 before=row['previous_value']/row['previous_orders'] if row['previous_orders'] else None
                 after=row['value']/row['orders'] if row['orders'] else None
                 text=('Sem pedidos' if before is None else format_brl(before))+' → '+('Sem pedidos' if after is None else format_brl(after))
@@ -59,7 +92,7 @@ def render(cid,ranking,listings,args,end,days=7):
                 text=(format_brl(before)+' → '+format_brl(after)) if key=='value' else str(before)+' → '+str(after)
             out+='<td>'+esc(text)+'</td>'
         out+='</tr>'
-    return out+'</tbody></table></div><p>Valor bruto dos itens vendidos, sem cálculo de lucro, margem, Ads ou conversão. Um pedido com mais de um anúncio pode aparecer em mais de uma coluna; não some os pedidos das colunas. O valor por pedido pode variar por quantidade, variações e descontos. Comparação descritiva, sem atribuição causal.</p></section>'
+    return out+'</tbody></table></div><p>Valor bruto dos itens vendidos, sem cálculo de lucro, margem ou Ads. Pedidos pagos ÷ visitas é um indicador observacional, não a conversão oficial do Mercado Livre. Cobertura parcial não é somada como total; zero visitas não gera taxa. A taxa exige cobertura completa e visitas positivas nos dois períodos. Um pedido com mais de um anúncio pode aparecer em mais de uma coluna; não some os pedidos das colunas. O valor por pedido pode variar por quantidade, variações e descontos. Comparação descritiva, sem atribuição causal.</p></section>'
 
 
 STYLE='''<style>
