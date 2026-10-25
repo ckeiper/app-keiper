@@ -45,7 +45,14 @@ const {chromium}=require('playwright');
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
     assert.equal(await page.locator('.action-finance h3').evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
     assert.equal(await page.locator('.action-finance table').count(),['ready','negative'].includes(state)?1:0);
-    if(state==='ready')assert.ok((await page.locator('.action-finance').textContent()).includes('R$ 1.340,00'));
+    if(state==='ready') {
+     assert.ok((await page.locator('.action-finance').textContent()).includes('R$ 1.340,00'));
+     assert.equal(await page.locator('.action-finance tbody tr').count(),5);
+     assert.ok((await page.locator('.action-finance').textContent()).includes('Contribuição média por unidade'));
+     const links=await page.locator('.action-finance a').evaluateAll(els=>els.map(el=>el.getAttribute('href')));
+     assert.ok(links.some(h=>h.includes('registro=1#pf-registro')));
+     assert.ok(links.some(h=>h.includes('registro=2#pf-registro')));
+    }
     if(state==='negative')assert.ok((await page.locator('.action-finance').textContent()).includes('R$ -400,00'));
     if(state==='ready')await page.screenshot({path:`visual-qa/action-finance-${width}.png`,fullPage:true});
    }
