@@ -106,6 +106,32 @@ const {chromium}=require('playwright');
    assert.ok(await page.locator('.price-comparison>div').evaluate(el=>el.scrollWidth>=el.clientWidth));
    await page.screenshot({path:`visual-qa/competitiveness-${width}.png`,fullPage:true});
   }
+  for(const mode of ['decline','stable','missing-prices','missing-sales','limited','zero']) {
+   for(const width of [1440,390,320]) {
+    await page.setViewportSize({width,height:900});
+    await page.setContent(fs.readFileSync(`visual-qa/competitive-sales-${mode}.html`,'utf8'));
+    assert.equal(await page.locator('.competitive-sales').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    if(mode==='missing-sales') {
+     assert.equal(await page.locator('.competitive-sales article').count(),0);
+     assert.ok((await page.locator('.competitive-sales').textContent()).includes('Dados incompletos não são zero'));
+    } else {
+     assert.equal(await page.locator('.competitive-sales article').count(),3);
+     await page.locator('.competitive-sales summary').focus();await page.keyboard.press('Enter');
+     assert.ok(await page.locator('.competitive-sales table').isVisible());
+     assert.equal(await page.locator('.competitive-sales tbody tr').count(),1);
+     const text=await page.locator('.competitive-sales').textContent();
+     if(mode==='decline')assert.ok(text.includes('Queda bruta e maior proporção'));
+     if(mode==='stable')assert.ok(text.includes('Sem queda bruta entre os períodos'));
+     if(mode==='missing-prices')assert.ok(text.includes('Comparação competitiva pendente'));
+     if(mode==='limited')assert.ok(text.includes('Histórico limitado: ampliar'));
+     if(mode==='zero')assert.ok(text.includes('Sem base percentual anterior'));
+     await page.locator('.competitive-sales-scroll').focus();assert.equal(await page.locator(':focus').getAttribute('role'),'region');
+     if(width<700)assert.ok(await page.locator('.competitive-sales-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
+    }
+    await page.screenshot({path:`visual-qa/competitive-sales-${mode}-${width}.png`,fullPage:true});
+   }
+  }
   assert.deepEqual(errors,[]);
   console.log('Timeline chart, sparse event alignment, metric switch, pagination and mobile layout passed.');
  }finally{await browser.close();await new Promise(r=>server.close(r));}

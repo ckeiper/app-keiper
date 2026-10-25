@@ -12,6 +12,8 @@ on:
       - 'test_listing_comparison_visits.py'
       - 'test_comparison_daily_visits.py'
       - 'listing_competitiveness.py'
+      - 'competitive_sales_context.py'
+      - 'test_competitive_sales_context.py'
       - 'offer_history.py'
       - 'test_offer_reading_coverage.py'
       - 'test_diagnostic_source_continuity.py'
