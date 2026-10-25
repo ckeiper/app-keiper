@@ -33,7 +33,7 @@ def render_recovery(summary, record):
     esc=lambda v:escape(str(v),quote=True)
     out='<section class="pf-card" id="pf-recuperacao" aria-label="Plano de revisão da margem"><h3>Plano de revisão da margem</h3>'
     if not plan['available']:
-        return out+'<p class="pf-alert">'+esc(plan['reason'])+'</p><a href="#pf-fontes">Conferir custos e fontes do período ↗</a></section>'
+        return out+'<p class="pf-alert">'+esc(plan['reason'])+'</p>'+('<a href="#pf-fontes">Conferir custos e fontes do período ↗</a>' if summary.get('orders') is not None else '<p>Conclua a verificação das vendas para liberar o registro de custos deste período.</p>')+'</section>'
     if plan['gap'] > 0:
         out+='<p>Déficit de contribuição documentada no período: <strong>'+format_brl(plan['gap'])+'</strong>. É a diferença aritmética entre os custos registrados e o valor bruto vendido, sem despesas fixas. Não é economia disponível nem recuperação garantida.</p>'
     else:

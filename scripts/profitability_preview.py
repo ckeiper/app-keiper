@@ -10,6 +10,10 @@ from profitability_view import render
 for name,entry in [('profitability-ready',record()),('profitability-missing',None),('profitability-stale',dict(record(),sales_fingerprint='b'*64))]:
     body=render(42,'MLB100','Produto de demonstração',START,END,summary(),result_for(summary(),entry),entry,[entry] if entry else [],'preview-only','x'*32)
     (dest/(name+'.html')).write_text(page('Rentabilidade por anúncio',42,'Loja de demonstração','anuncios',body),encoding='utf-8')
+unverified=dict(summary(),orders=None,units=None,gross_items=None,reason='Pedidos pendentes de verificação.')
+entry=record()
+body=render(42,'MLB100','Produto de demonstração',START,END,unverified,result_for(unverified,entry),entry,[entry],'preview-only','x'*32)
+(dest/'profitability-unverified.html').write_text(page('Rentabilidade por anúncio',42,'Loja de demonstração','anuncios',body),encoding='utf-8')
 print('Synthetic profitability previews rendered.')
 
 from test_profitability_comparison import pair_records
