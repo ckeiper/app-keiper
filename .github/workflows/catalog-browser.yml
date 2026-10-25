@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'listing_catalog.py'
+      - 'listing_comparison.py'
+      - 'test_listing_comparison.py'
       - 'listing_competitiveness.py'
       - 'offer_history.py'
       - 'test_offer_reading_coverage.py'

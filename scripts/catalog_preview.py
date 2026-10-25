@@ -31,3 +31,12 @@ from unittest.mock import patch
 with patch('listing_details.time.time',return_value=price_now):
     price_rows=[dict(price_item(1),preco=200,promocoes_json=snapshot()),dict(price_item(2),preco=100)]
     (dest/'catalog-price-sort.html').write_text(page('Catálogo por preço',1,'Loja de demonstração','anuncios',render_catalog(1,price_rows,dict(ordem='preco'),now=price_now)),encoding='utf-8')
+
+from listing_comparison import render as render_comparison
+from test_listing_comparison import sample as comparison_sample,END as comparison_end
+for mode in ['two','four','pending']:
+    ranking,listings=comparison_sample()
+    args={f'comparar{i}':'MLB'+str(i) for i in range(1,3 if mode=='two' else 5)}
+    if mode=='pending':ranking['available']=False
+    body='<p>Dados fictícios para teste.</p>'+render_comparison(1,ranking,listings,args,comparison_end)
+    (dest/('listing-comparison-'+mode+'.html')).write_text(page('Comparar anúncios',1,'Loja de demonstração','desempenho',body),encoding='utf-8')

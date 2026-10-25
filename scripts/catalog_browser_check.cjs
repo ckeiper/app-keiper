@@ -56,6 +56,24 @@ const {chromium}=require('playwright');
     await page.setContent(fs.readFileSync('visual-qa/catalog-price-sort.html','utf8'));
     assert.deepEqual(await page.locator('.catalog-price').allTextContents(),['R$ 100,00','R$ 80,00']);
     assert.equal(await page.locator('select[name=ordem]').inputValue(),'preco');
+    for(const mode of ['two','four','pending']) {
+      for(const width of [1440,390,320]) {
+        await page.setViewportSize({width,height:900});
+        await page.setContent(fs.readFileSync(`visual-qa/listing-comparison-${mode}.html`,'utf8'));
+        assert.equal(await page.locator('.lc-form input').count(),4);
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+        assert.equal(await page.locator('.lc').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
+        assert.equal(await page.locator('.lc table').count(),mode==='pending'?0:1);
+        if(mode!=='pending') {
+          assert.equal(await page.locator('.lc thead th').count(),mode==='two'?3:5);
+          assert.equal(await page.locator('.lc tbody tr').count(),5);
+          assert.ok((await page.locator('.lc tbody').textContent()).includes('R$ 200,00 → R$ 100,00'));
+          if(width<700)assert.ok(await page.locator('.lc-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
+          await page.locator('.lc-scroll').focus();assert.equal(await page.locator(':focus').getAttribute('role'),'region');
+        }
+        await page.screenshot({path:`visual-qa/listing-comparison-${mode}-${width}.png`,fullPage:true});
+      }
+    }
     assert.deepEqual(errors,[]);
     console.log('Catalog desktop/mobile layout, five-column table, technical disclosure and GET filters passed.');
   }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
