@@ -662,18 +662,21 @@
       "area": "Conteúdo",
       "capacidade": "Reativação de anúncios",
       "estado": "parcial",
-      "implementado": "Status pausado gera conferência do motivo antes da reativação.",
-      "falta": "Falta fluxo dedicado de revisão de elegibilidade e acompanhamento de reativação; alerta de pausa não comprova entrega completa.",
+      "implementado": "Tela dedicada à revisão de reativação por anúncio: status recente e estoque verificado, orientações de conferência de motivo/restrições/oferta, tarefa de elegibilidade com descrição/responsável/prazo explícitos, calendário e histórico das tarefas. Acompanha mudanças de status observadas nas coletas, com datas anterior/detecção e limite explícito de dez eventos. Nenhuma alteração no marketplace.",
+      "falta": "Motivo oficial da pausa e validação automática de elegibilidade não foram coletados. A decisão e eventual reativação são externas e manuais; tarefas concluídas não comprovam oferta reativada ou impacto em vendas.",
       "fontes": [
-        "listing_health.py"
+        "listing_reactivation.py",
+        "listing_reactivation_routes.py"
       ],
       "testes": [
-        "test_listing_health.py"
+        "test_listing_reactivation.py",
+        "test_listing_reactivation_integration.py",
+        "scripts/listing_reactivation_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 7,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "catalogo",
@@ -1078,6 +1081,18 @@
       "base": "frentes_auditadas",
       "data": "2026-10-26",
       "resumo": "Avaliações de metas de estoque persistidas pelas sincronizações com histórico por meta; demais métricas e notificações seguem pendentes.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 14,
+        "pendente": 8
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Revisão dedicada de reativação com tarefa de elegibilidade e acompanhamento de mudanças observadas; validação oficial segue parcial.",
       "contagens": {
         "concluida": 22,
         "parcial": 14,
