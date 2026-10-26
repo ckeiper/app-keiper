@@ -7,6 +7,9 @@ on:
       - 'test_listing_task*.py'
       - 'scripts/listing_tasks*'
       - 'listing_calendar.py'
+      - 'listing_onboarding*.py'
+      - 'test_listing_onboarding*.py'
+      - 'scripts/listing_onboarding*'
       - 'listing_questions.py'
       - 'test_listing_questions*.py'
       - 'scripts/listing_questions*'
@@ -87,6 +90,7 @@ jobs:
       - run: python scripts/catalog_preview.py
       - run: python scripts/listing_tasks_preview.py
       - run: python scripts/listing_calendar_preview.py
+      - run: python scripts/listing_onboarding_preview.py
       - run: python scripts/listing_questions_preview.py
       - run: python scripts/listing_content_preview.py
       - run: python scripts/full_report_preview.py
@@ -99,6 +103,7 @@ jobs:
       - run: node scripts/catalog_browser_check.cjs
       - run: node scripts/listing_tasks_browser_check.cjs
       - run: node scripts/listing_calendar_browser_check.cjs
+      - run: node scripts/listing_onboarding_browser_check.cjs
       - run: node scripts/listing_questions_browser_check.cjs
       - run: node scripts/listing_content_browser_check.cjs
       - run: node scripts/full_report_browser_check.cjs
