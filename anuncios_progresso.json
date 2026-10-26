@@ -925,16 +925,24 @@
     {
       "id": "primeiros-30",
       "area": "Execução",
-      "capacidade": "Plano dos primeiros trinta dias",
-      "estado": "pendente",
-      "implementado": "",
-      "falta": "Não foi identificado plano de implantação com etapas e acompanhamento dos primeiros trinta dias por anúncio/loja.",
-      "fontes": [],
-      "testes": [],
+      "capacidade": "Plano de acompanhamento dos primeiros trinta dias por anúncio",
+      "estado": "concluida",
+      "implementado": "Plano por anúncio com início e responsável explicitamente informados, quatro tarefas nos dias 1, 7, 14 e 30, integração com calendário e histórico das tarefas, progresso por conclusão humana e indicação de atrasos/cancelamentos. Criação atômica e idempotente, sem executar alterações no marketplace nem presumir data oficial de publicação.",
+      "falta": "",
+      "fontes": [
+        "listing_onboarding.py",
+        "listing_onboarding_routes.py",
+        "listing_onboarding_view.py"
+      ],
+      "testes": [
+        "test_listing_onboarding.py",
+        "test_listing_onboarding_integration.py",
+        "scripts/listing_onboarding_browser_check.cjs"
+      ],
       "prs": [],
       "numero_original": null,
       "prioridade": 9,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "ranking-plano",
@@ -1014,6 +1022,18 @@
         "concluida": 21,
         "parcial": 13,
         "pendente": 10
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Plano por anúncio com quatro etapas de acompanhamento em trinta dias, tarefas e progresso confirmado manualmente.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 13,
+        "pendente": 9
       },
       "total": 44,
       "prs": []
