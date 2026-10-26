@@ -15,7 +15,7 @@ def render(cid,item,shop,model,today,now,token,values=None,message=''):
     for name,val in dict(_csrf=token,operation='create',submission_key=values.get('submission_key') or secrets.token_urlsafe(24)).items():out+='<input type="hidden" name="'+name+'" value="'+esc(val)+'">'
     out+='<label>Estoque mínimo · unidades<input type="number" name="minimum" min="0" max="1000000" step="1" required value="'+esc(values.get('minimum',''))+'"></label>'
     for key,label in [('start_date','Início'),('end_date','Fim')]:out+='<label>'+label+' · Brasília<input type="date" name="'+key+'" required value="'+esc(values.get(key,''))+'"></label>'
-    out+='<label>Responsável informado<input name="responsible" maxlength="80" required value="'+esc(values.get('responsible',''))+'"></label><button>Salvar meta</button></form><p>Período de 1 a 90 dias. Valores ficam preservados; para corrigir, cancele a meta e cadastre outra. Meta zero é permitida e não dispara alerta para estoque zero.</p></details><h3>Metas registradas</h3><p>'+str(model['total'])+' registros. A avaliação se refere à leitura disponível nesta abertura da tela, não a monitoramento contínuo.</p>'
+    out+='<label>Responsável informado<input name="responsible" maxlength="80" required value="'+esc(values.get('responsible',''))+'"></label><button>Salvar meta</button></form><p>Período de 1 a 90 dias. Valores ficam preservados; para corrigir, cancele a meta e cadastre outra. Meta zero é permitida e não dispara alerta para estoque zero.</p></details><h3>Metas registradas</h3><p>'+str(model['total'])+' registros. A avaliação atual usa a leitura disponível nesta abertura. As sincronizações também registram avaliações no histórico, sem garantia de monitoramento contínuo.</p>'
     def stamp(t):return datetime.fromtimestamp(t,SAO_PAULO).strftime('%d/%m/%Y %H:%M')
     for row in model['rows']:
         code,label,stock=evaluate(row,shop,today,now)
@@ -24,7 +24,7 @@ def render(cid,item,shop,model,today,now,token,values=None,message=''):
         out+='<p>Cadastrada em '+stamp(row['created_at'])+' · Usuário #'+str(row['created_by'])+'</p>'
         if row.get('cancelled_at') is not None:out+='<p>Cancelada em '+stamp(row['cancelled_at'])+' · Usuário #'+str(row['cancelled_by'])+'</p>'
         else:out+='<form method="post">'+''.join('<input type="hidden" name="'+k+'" value="'+esc(v)+'">' for k,v in dict(_csrf=token,operation='cancel',goal_id=row['id']).items())+'<button>Cancelar meta e preservar registro</button></form>'
-        out+='</article>'
+        out+='<p><a href="'+path+'/metas/historico/'+str(row['id'])+'">Histórico das avaliações</a></p></article>'
     if not model['rows']:out+='<p>Nenhuma meta cadastrada. Nenhum limite é presumido automaticamente.</p>'
     out+='<nav aria-label="Paginação de metas">Página '+str(model['page'])+' de '+str(model['pages'])
     for label,p in [('Anterior',model['page']-1),('Próxima',model['page']+1)]:

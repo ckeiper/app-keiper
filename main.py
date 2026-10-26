@@ -685,6 +685,8 @@ def iniciar_banco():
         init_listing_tasks(conn, execute)
         from listing_goals import init_schema as init_listing_goals
         init_listing_goals(conn, execute)
+        from goal_observations import init_schema as init_goal_observations
+        init_goal_observations(conn, execute)
         from listing_onboarding import init_schema as init_listing_onboarding
         init_listing_onboarding(conn, execute)
         from listing_content import init_schema as init_listing_content
@@ -5175,6 +5177,11 @@ def puxar_anuncios(conexao_id, token, user_id):
     return completo
 
 
+def puxar_avaliacoes_metas(conexao_id):
+    from goal_observations import collect
+    return collect(conexao_id, banco, consultar, executar, int(time.time()))
+
+
 def puxar_metricas(conexao_id, token):
     return
 
@@ -5534,6 +5541,7 @@ def executar_atualizacao(cid):
                 # Atualizar pedidos primeiro: a fila é serial e anúncios podem demorar.
                 ("pedidos", lambda: puxar_pedidos(cid, token, user_id)),
                 ("anuncios", lambda: puxar_anuncios(cid, token, user_id)),
+                ("metas_estoque", lambda: puxar_avaliacoes_metas(cid)),
                 ("full", lambda: puxar_full(cid, token, user_id)),
                 ("perguntas", lambda: puxar_perguntas(cid, token, user_id)),
                 ("envios", lambda: puxar_envios(cid, token, user_id)),
@@ -5624,6 +5632,8 @@ from listing_review_report import register_report
 register_report(app, login_required, pode_ver_loja, banco, consultar, executar)
 from listing_goal_routes import register_goals
 register_goals(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from goal_observations import register_history
+register_history(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_onboarding_routes import register_onboarding
 register_onboarding(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_content_routes import register_content

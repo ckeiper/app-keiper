@@ -331,17 +331,21 @@
       "area": "Execução",
       "capacidade": "Metas com alertas por anúncio",
       "estado": "parcial",
-      "implementado": "Cadastro administrativo de metas de estoque mínimo por anúncio, com valor, período e responsável informados, histórico de cadastro/cancelamento preservado e paginação. Alertas no painel calculados ao abrir a tela com leitura do catálogo de até seis horas; dados antigos, inválidos ou ausentes ficam não verificados. Metas encerradas não usam estoque atual para fabricar resultado histórico.",
-      "falta": "Faltam outras métricas de metas, histórico persistido das avaliações e monitoramento/notificações automáticos. A leitura é do estoque geral do catálogo, sem certificação por variação ou inventário Full; não é previsão de ruptura.",
+      "implementado": "Cadastro administrativo de metas de estoque mínimo por anúncio, com valor, período e responsável informados, histórico de cadastro/cancelamento preservado e paginação. Alertas no painel calculados ao abrir a tela com leitura do catálogo de até seis horas; dados antigos, inválidos ou ausentes ficam não verificados. Metas encerradas não usam estoque atual para fabricar resultado histórico. Sincronizações avaliam metas elegíveis e persistem data da avaliação, data da leitura, estoque verificado ou ausência e resultado. Histórico por meta com paginação, preservado após cancelamento; sem reconstrução retroativa.",
+      "falta": "Faltam outras métricas de metas e notificações automáticas externas. As avaliações dependem das sincronizações disponíveis, sem garantia de coleta contínua. A leitura é do estoque geral do catálogo, sem certificação por variação ou inventário Full; não é previsão de ruptura.",
       "fontes": [
         "listing_goals.py",
         "listing_goal_routes.py",
-        "listing_goal_view.py"
+        "listing_goal_view.py",
+        "goal_observations.py"
       ],
       "testes": [
         "test_listing_goals.py",
         "test_listing_goals_integration.py",
-        "scripts/listing_goals_browser_check.cjs"
+        "scripts/listing_goals_browser_check.cjs",
+        "test_goal_observations.py",
+        "test_goal_observations_integration.py",
+        "scripts/goal_observations_browser_check.cjs"
       ],
       "prs": [
         251
@@ -1062,6 +1066,18 @@
       "base": "frentes_auditadas",
       "data": "2026-10-26",
       "resumo": "Relatório operacional de revisão por anúncio com evidências e layout A4 para exportação pelo navegador; relatório completo segue parcial.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 14,
+        "pendente": 8
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Avaliações de metas de estoque persistidas pelas sincronizações com histórico por meta; demais métricas e notificações seguem pendentes.",
       "contagens": {
         "concluida": 22,
         "parcial": 14,
