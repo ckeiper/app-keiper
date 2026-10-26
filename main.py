@@ -5654,6 +5654,8 @@ from listing_questions import register_questions
 register_questions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from profitability_routes import register_profitability
 register_profitability(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from installment_comparison import register as register_installment_comparison
+register_installment_comparison(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
                     is_updating=lambda cid: cid in ATUALIZANDO)
 

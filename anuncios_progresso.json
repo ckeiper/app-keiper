@@ -448,15 +448,17 @@
       "area": "Rentabilidade",
       "capacidade": "Tarifas por anúncio",
       "estado": "parcial",
-      "implementado": "Tarifas podem ser documentadas nos custos e informadas explicitamente no simulador.",
+      "implementado": "Tarifas podem ser documentadas nos custos e informadas explicitamente nos simuladores. Comparador de dois ou três pedidos mantém tarifa total e financiamento incluído separados para conferência, sem cobrar financiamento duas vezes; referência e data declaradas por opção.",
       "falta": "Falta obtenção e conferência automática das tarifas aplicáveis ao anúncio e à venda histórica.",
       "fontes": [
         "listing_profitability.py",
-        "profitability_scenarios.py"
+        "profitability_scenarios.py",
+        "installment_comparison.py"
       ],
       "testes": [
         "test_listing_profitability.py",
-        "test_profitability_scenarios.py"
+        "test_profitability_scenarios.py",
+        "test_installment_comparison.py"
       ],
       "prs": [
         235,
@@ -464,25 +466,27 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "parcelamento",
       "area": "Rentabilidade",
       "capacidade": "Análise específica de parcelamento",
-      "estado": "pendente",
-      "implementado": "",
-      "falta": "Não foi identificado comparativo por opção de parcelamento com fonte oficial, custos específicos e impacto na contribuição. Campo genérico de tarifas não comprova essa entrega.",
+      "estado": "parcial",
+      "implementado": "Comparador manual por anúncio de duas ou três opções identificadas por quantidade de parcelas, bruto e tarifa total com financiamento incluído, referência e data obrigatórias, custos comuns explícitos, contribuição e diferença para a primeira opção. Sem persistir ou alterar anúncio.",
+      "falta": "Falta coleta e validação oficial das opções elegíveis e dos respectivos custos. Referências são declaradas pelo administrador, não verificadas; não calcula prestações, juros, calendário de recebimento nem impacto nas vendas.",
       "fontes": [
-        "profitability_scenarios.py"
+        "profitability_scenarios.py",
+        "installment_comparison.py"
       ],
       "testes": [
-        "test_profitability_scenarios.py"
+        "test_profitability_scenarios.py",
+        "test_installment_comparison.py"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "descontos-progressivos",
@@ -1144,6 +1148,18 @@
         "concluida": 22,
         "parcial": 17,
         "pendente": 5
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Comparação manual de tarifas e parcelamento com referências declaradas e impacto na contribuição; obtenção e elegibilidade oficiais continuam pendentes.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
       },
       "total": 44,
       "prs": []

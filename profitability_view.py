@@ -78,6 +78,7 @@ def render(cid, item_id, title, start, end, summary, result, record, history, cs
     out = CSS + '<div class="pf"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Evidências financeiras</span><h2>Rentabilidade por anúncio</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="/diagnostico/'+str(cid)+'/'+esc(item_id)+'">← Diagnóstico do anúncio</a><p>Contribuição sobre o valor bruto dos itens vendidos, após os custos documentados abaixo. Não representa lucro líquido nem repasse bancário.</p>'
     out += '<form method="get" class="pf-filter"><label>Início<input type="date" name="inicio" value="'+start.isoformat()+'" required></label><label>Fim<input type="date" name="fim" value="'+end.isoformat()+'" required></label><button>Aplicar período</button></form></header>'
     out += '<p><a class="pf-button" href="/anuncios/'+str(cid)+'/'+esc(item_id)+'/simulacao-descontos">Simular descontos progressivos ↗</a></p>'
+    out += '<p><a class="pf-button" href="/anuncios/'+str(cid)+'/'+esc(item_id)+'/parcelamento">Comparar tarifas e parcelamento ↗</a></p>'
     if message:
         out += '<p class="pf-alert" role="status">'+esc(message)+'</p>'
     verified = summary.get('orders') is not None
