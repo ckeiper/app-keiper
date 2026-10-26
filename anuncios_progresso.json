@@ -556,20 +556,23 @@
       "area": "Diagnóstico",
       "capacidade": "Detector de anomalias",
       "estado": "parcial",
-      "implementado": "Regras de queda com limites explícitos e cobertura verificada.",
-      "falta": "Falta detector específico de desvios frente à série histórica com método e validação definidos; limiar entre dois períodos é somente regra de alerta.",
+      "implementado": "Regras de queda com limites explícitos e cobertura verificada. Regra explícita de desvio de preço: leitura única confirmada recente fora da faixa anterior e diferença absoluta de pelo menos 20% da mediana anterior, exigindo suficiência da amostra de referência. Dados ausentes, falha recente ou amostra insuficiente mantêm sinal não verificado.",
+      "falta": "Ainda não há modelo estatístico/preditivo validado de anomalias gerais do anúncio ou das vendas com sazonalidade e validação histórica. Regras descritivas de preço/queda não atribuem causa ou impacto financeiro.",
       "fontes": [
         "listing_diagnostic_rules.py",
-        "investigation_triage.py"
+        "investigation_triage.py",
+        "price_deviation.py"
       ],
       "testes": [
         "test_listing_diagnostic_rules.py",
-        "test_investigation_triage.py"
+        "test_investigation_triage.py",
+        "test_price_deviation.py",
+        "scripts/price_deviation_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "antes-depois",
@@ -1125,6 +1128,18 @@
       "base": "frentes_auditadas",
       "data": "2026-10-26",
       "resumo": "Constância e amplitude dos preços observados com comparação de períodos e evidência diária; índice geral de estabilidade permanece parcial.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 17,
+        "pendente": 5
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Regra de desvio do preço recente contra mediana e faixa da amostra anterior; detector geral de anomalias continua parcial.",
       "contagens": {
         "concluida": 22,
         "parcial": 17,

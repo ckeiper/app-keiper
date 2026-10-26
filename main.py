@@ -4141,6 +4141,8 @@ def diagnostico_saude_anuncio(cid, item_id):
     painel_ofertas += render_competitive_sales(investigacao,item_id,ofertas,fim_investigacao)
     from price_stability import render as render_price_stability
     painel_ofertas += render_price_stability(ofertas["own"],fim_investigacao,cid=cid,item_id=item_id)
+    from price_deviation import render as render_price_deviation
+    painel_ofertas += render_price_deviation(ofertas["own"],fim_investigacao)
     from listing_timeline import render as render_timeline
     linha_tempo = render_timeline(item_id,pedidos_verificados,itens_pedidos,
         [r["dia"] for r in cobertura],full_rows,visitas_evidencia,ofertas['own'],
