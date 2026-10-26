@@ -8,7 +8,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');const {chromium
    await p.evaluate(()=>window.print=()=>window.printRequested=true);await p.locator('button').click();assert.equal(await p.evaluate(()=>window.printRequested),true);
    await p.screenshot({path:`visual-qa/listing-review-report-${mode}-${width}.png`,fullPage:true});
   }
-  await p.emulateMedia({media:'print'});assert.equal(await p.locator('.lr-controls').isVisible(),false);
+  await p.emulateMedia({media:'print'});assert.equal(await p.locator('.lr-report').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 255, 255)');assert.equal(await p.locator('.lr-controls').isVisible(),false);
   await p.pdf({path:`visual-qa/listing-review-report-${mode}.pdf`,format:'A4',preferCSSPageSize:true,printBackground:true});
   await p.screenshot({path:`visual-qa/listing-review-report-${mode}-print.png`,fullPage:true});
   await p.emulateMedia({media:'screen'});
