@@ -5628,6 +5628,8 @@ from anuncios_progress_routes import register_progress
 register_progress(app, login_required, pagina)
 from listing_task_routes import register_tasks
 register_tasks(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_reactivation_routes import register_reactivation
+register_reactivation(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_review_report import register_report
 register_report(app, login_required, pode_ver_loja, banco, consultar, executar)
 from listing_goal_routes import register_goals
