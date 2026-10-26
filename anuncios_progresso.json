@@ -736,37 +736,41 @@
       "id": "semelhantes",
       "area": "Mercado",
       "capacidade": "Anúncios semelhantes",
-      "estado": "pendente",
-      "implementado": "",
-      "falta": "Não foi identificado agrupamento verificável de anúncios semelhantes com critério de equivalência. Cadastro manual de concorrente não comprova essa análise.",
+      "estado": "parcial",
+      "implementado": "Painel por loja de coincidências no SKU cadastrado do anúncio, com comparação exata após remoção de espaços nas extremidades, sem ignorar maiúsculas ou caracteres internos. Filtro exato, totais de cobertura, dez grupos por página, até dez membros por grupo e acesso ao diagnóstico. Status/estoque somente com leitura recente. Não presume equivalência nem canibalização.",
+      "falta": "Falta validação de equivalência real do produto, SKUs exclusivos de variações e análise de sobreposição por público/oferta/desempenho. SKU repetido é candidato para conferência, não prova de produto idêntico, concorrência interna ou perda de vendas.",
       "fontes": [
-        "competitor_routes.py"
+        "listing_sku_overlap.py"
       ],
       "testes": [
-        "test_competitors.py"
+        "test_listing_sku_overlap.py",
+        "test_listing_sku_overlap_integration.py",
+        "scripts/listing_sku_overlap_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "competicao-interna",
       "area": "Mercado",
       "capacidade": "Competição interna",
-      "estado": "pendente",
-      "implementado": "",
-      "falta": "Não foi identificado diagnóstico de sobreposição entre anúncios da própria loja. Curva ABC mede concentração, não canibalização.",
+      "estado": "parcial",
+      "implementado": "Painel por loja de coincidências no SKU cadastrado do anúncio, com comparação exata após remoção de espaços nas extremidades, sem ignorar maiúsculas ou caracteres internos. Filtro exato, totais de cobertura, dez grupos por página, até dez membros por grupo e acesso ao diagnóstico. Status/estoque somente com leitura recente. Não presume equivalência nem canibalização.",
+      "falta": "Falta validação de equivalência real do produto, SKUs exclusivos de variações e análise de sobreposição por público/oferta/desempenho. SKU repetido é candidato para conferência, não prova de produto idêntico, concorrência interna ou perda de vendas.",
       "fontes": [
-        "listing_abc.py"
+        "listing_sku_overlap.py"
       ],
       "testes": [
-        "test_listing_abc.py"
+        "test_listing_sku_overlap.py",
+        "test_listing_sku_overlap_integration.py",
+        "scripts/listing_sku_overlap_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "trafego-horarios",
@@ -1097,6 +1101,18 @@
         "concluida": 22,
         "parcial": 14,
         "pendente": 8
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Coincidências de SKU por loja para revisão de possíveis anúncios semelhantes e sobreposição interna; ambas as frentes seguem parciais sem inferir equivalência ou canibalização.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 16,
+        "pendente": 6
       },
       "total": 44,
       "prs": []
