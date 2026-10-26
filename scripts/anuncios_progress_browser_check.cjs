@@ -24,7 +24,7 @@ const {chromium}=require('playwright');
    assert.ok((await page.locator('.ap-chart-head').textContent()).includes('44 frentes identificadas'));
    assert.equal(await page.locator('.ks-sidebar a[aria-current=page]').getAttribute('href'),'/evolucao-anuncios');
    if(width<641){
-    await page.locator('.ks-mobile-toggle').click();
+    await page.locator('.ks-toggle').click();
     assert.ok(await page.locator('.ks-sidebar a[aria-current=page]').isVisible());
     await page.keyboard.press('Escape');
    }
