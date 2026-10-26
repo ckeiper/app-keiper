@@ -43,6 +43,7 @@ on:
       - 'test_listing_questions*.py'
       - 'scripts/listing_questions*'
       - 'listing_content*.py'
+      - 'content_required_attributes.py'
       - 'test_listing_content_snapshot.py'
       - 'test_listing_content*.py'
       - 'scripts/listing_content*'
