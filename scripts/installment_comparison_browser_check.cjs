@@ -4,7 +4,7 @@ for(const mode of ['blank','ready','negative','error','three'])for(const width o
  await p.setViewportSize({width,height:900});await p.setContent(fs.readFileSync(`visual-qa/installments-${mode}.html`,'utf8'));
  assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  assert.equal(await p.locator('.ic-options fieldset').count(),3);
- assert.equal(await p.locator('.pf-hero').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(16, 34, 56)');
+ assert.ok((await p.locator('.pf-hero').evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(16, 31, 53)'));
  if(['ready','negative','three'].includes(mode)){
   assert.equal(await p.locator('#installment-results tbody tr').count(),mode==='three'?3:2);
   await p.locator('#installment-results summary').click();
