@@ -11,7 +11,7 @@ STATES={'concluida':'Concluída','em_andamento':'Em desenvolvimento','parcial':'
 ORDER={'em_andamento':0,'bloqueada':1,'pendente':2,'parcial':3,'concluida':4}
 
 
-def validate(model,root=ROOT):
+def validate(model,root=ROOT,check_files=True):
     if model.get('meta_original')!=90:raise ValueError('Meta original inválida.')
     if not re.fullmatch(r'[0-9a-f]{40}',model.get('base_sha','')):raise ValueError('Base inválida.')
     rows=model['capacidades'];ids=set();numbers=set()
@@ -26,7 +26,7 @@ def validate(model,root=ROOT):
         if state in ('parcial','pendente','bloqueada') and not row['falta']:raise ValueError('Lacuna não descrita.')
         for name in row['fontes']+row['testes']:
             path=(root/name).resolve()
-            if not path.is_relative_to(root.resolve()) or not path.is_file():raise ValueError('Referência ausente ou inválida.')
+            if not path.is_relative_to(root.resolve()) or (check_files and not path.is_file()):raise ValueError('Referência ausente ou inválida.')
         if any(type(n) is not int or n<=0 for n in row['prs']):raise ValueError('PR inválido.')
         n=row['numero_original']
         if n is not None:
@@ -56,7 +56,7 @@ def validate(model,root=ROOT):
 
 @lru_cache(maxsize=1)
 def read():
-    return validate(json.loads((ROOT/'anuncios_progresso.json').read_text(encoding='utf-8')))
+    return validate(json.loads((ROOT/'anuncios_progresso.json').read_text(encoding='utf-8')),check_files=False)
 
 
 def summary(model):
