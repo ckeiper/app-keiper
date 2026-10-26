@@ -633,16 +633,21 @@
       "area": "Conteúdo",
       "capacidade": "Perguntas e avaliações",
       "estado": "parcial",
-      "implementado": "Coleta de perguntas e demandas operacionais existentes.",
-      "falta": "Não foi identificado painel completo de objeções, avaliações e recorrências por anúncio.",
+      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento.",
+      "falta": "A coleta atual consulta até 50 perguntas por loja por atualização e não certifica cobertura integral nem atualiza todos os status antigos. Perguntas anteriormente apagadas não são reconstruídas. Falta fonte e painel de avaliações dos compradores e análise validada de objeções semânticas.",
       "fontes": [
+        "listing_questions.py",
         "main.py"
       ],
-      "testes": [],
+      "testes": [
+        "test_listing_questions.py",
+        "test_listing_questions_integration.py",
+        "scripts/listing_questions_browser_check.cjs"
+      ],
       "prs": [],
       "numero_original": null,
       "prioridade": 3,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "reativacao",
@@ -993,6 +998,18 @@
       "base": "frentes_auditadas",
       "data": "2026-10-26",
       "resumo": "Checklist manual de conteúdo com evidência, autoria e histórico; frente permanece parcial pela análise automática ainda ausente.",
+      "contagens": {
+        "concluida": 21,
+        "parcial": 13,
+        "pendente": 10
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Perguntas por anúncio com recorrências literais e preservação atômica da base coletada; avaliações e cobertura integral seguem pendentes.",
       "contagens": {
         "concluida": 21,
         "parcial": 13,

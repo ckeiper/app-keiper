@@ -724,6 +724,7 @@ def iniciar_banco():
             status TEXT, resposta TEXT, data TEXT, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, pergunta_id)
         )""")
+        execute(conn, "CREATE INDEX IF NOT EXISTS perguntas_listing_coleta ON perguntas(conexao_id,item_id,atualizado_em DESC NULLS LAST,pergunta_id DESC)")
         execute(conn, """CREATE TABLE IF NOT EXISTS envios (
             conexao_id INTEGER, envio_id TEXT, status TEXT, tracking TEXT,
             pedido_id TEXT, data TEXT, custo_frete REAL, atualizado_em BIGINT,
@@ -5180,28 +5181,13 @@ def puxar_perguntas(conexao_id, token, user_id):
     if erro or not dados:
         registrar_erro(conexao_id, "perguntas", erro or "sem resposta")
         return False
-    perguntas = dados.get("questions") or []
-    agora = int(time.time())
-    with banco() as conn:
-        executar(conn, "DELETE FROM perguntas WHERE conexao_id=%s",
-                 (conexao_id,))
-    for q in perguntas:
-        resp = q.get("answer") or {}
+    from listing_questions import persist
+    try:
         with banco() as conn:
-            executar(conn, """INSERT INTO perguntas
-                            (conexao_id, pergunta_id, item_id, texto,
-                             status, resposta, data, atualizado_em)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-                            ON CONFLICT (conexao_id, pergunta_id) DO UPDATE SET
-                              item_id=EXCLUDED.item_id,
-                              texto=EXCLUDED.texto, status=EXCLUDED.status,
-                              resposta=EXCLUDED.resposta,
-                              data=EXCLUDED.data,
-                              atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, str(q.get("id")), q.get("item_id"),
-                      q.get("text"), q.get("status"), resp.get("text"),
-                      q.get("date_created"), agora))
-
+            persist(conn, executar, conexao_id, dados, int(time.time()))
+    except ValueError as exc:
+        registrar_erro(conexao_id, "perguntas", str(exc))
+        return False
     return True
 
 
@@ -5632,6 +5618,8 @@ from listing_task_routes import register_tasks
 register_tasks(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_content_routes import register_content
 register_content(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_questions import register_questions
+register_questions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from profitability_routes import register_profitability
 register_profitability(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
