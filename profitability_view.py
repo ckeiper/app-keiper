@@ -79,6 +79,7 @@ def render(cid, item_id, title, start, end, summary, result, record, history, cs
     out += '<form method="get" class="pf-filter"><label>Início<input type="date" name="inicio" value="'+start.isoformat()+'" required></label><label>Fim<input type="date" name="fim" value="'+end.isoformat()+'" required></label><button>Aplicar período</button></form></header>'
     out += '<p><a class="pf-button" href="/anuncios/'+str(cid)+'/'+esc(item_id)+'/simulacao-descontos">Simular descontos progressivos ↗</a></p>'
     out += '<p><a class="pf-button" href="/anuncios/'+str(cid)+'/'+esc(item_id)+'/parcelamento">Comparar tarifas e parcelamento ↗</a></p>'
+    out += '<p><a class="pf-button" href="/anuncios/'+str(cid)+'/'+esc(item_id)+'/cotacao-tarifa">Consultar tarifa atual ↗</a></p>'
     if message:
         out += '<p class="pf-alert" role="status">'+esc(message)+'</p>'
     verified = summary.get('orders') is not None

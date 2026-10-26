@@ -448,17 +448,20 @@
       "area": "Rentabilidade",
       "capacidade": "Tarifas por anúncio",
       "estado": "parcial",
-      "implementado": "Tarifas podem ser documentadas nos custos e informadas explicitamente nos simuladores. Comparador de dois ou três pedidos mantém tarifa total e financiamento incluído separados para conferência, sem cobrar financiamento duas vezes; referência e data declaradas por opção.",
-      "falta": "Falta obtenção e conferência automática das tarifas aplicáveis ao anúncio e à venda histórica.",
+      "implementado": "Tarifas podem ser documentadas nos custos e informadas explicitamente nos simuladores. Comparador de dois ou três pedidos mantém tarifa total e financiamento incluído separados para conferência, sem cobrar financiamento duas vezes; referência e data declaradas por opção. Cotação sob demanda em /sites/MLB/listing_prices após validar conta, propriedade, preço unitário sem variações, categoria, modalidade e logística atuais. Separa tarifa de venda e detalhe fixo incluído, desconhecido de zero, sem persistir como custo histórico.",
+      "falta": "Falta conferência automática contra cobranças de vendas históricas e cobertura de variações e contextos comerciais específicos. Cotação atual é estimativa da API, não cobrança confirmada nem custo histórico.",
       "fontes": [
         "listing_profitability.py",
         "profitability_scenarios.py",
-        "installment_comparison.py"
+        "installment_comparison.py",
+        "listing_fee_quote.py",
+        "docs/TARIFAS_COTACAO.md"
       ],
       "testes": [
         "test_listing_profitability.py",
         "test_profitability_scenarios.py",
-        "test_installment_comparison.py"
+        "test_installment_comparison.py",
+        "test_listing_fee_quote.py"
       ],
       "prs": [
         235,
@@ -1156,6 +1159,18 @@
       "base": "frentes_auditadas",
       "data": "2026-10-26",
       "resumo": "Comparação manual de tarifas e parcelamento com referências declaradas e impacto na contribuição; obtenção e elegibilidade oficiais continuam pendentes.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Cotação de tarifa sob demanda na API Mercado Livre, com contexto logístico e conta verificados; cobrança histórica continua sem conferência automática.",
       "contagens": {
         "concluida": 22,
         "parcial": 18,

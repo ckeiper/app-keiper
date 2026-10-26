@@ -5656,6 +5656,8 @@ from profitability_routes import register_profitability
 register_profitability(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from installment_comparison import register as register_installment_comparison
 register_installment_comparison(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
+from listing_fee_quote import register as register_fee_quote
+register_fee_quote(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
                     is_updating=lambda cid: cid in ATUALIZANDO)
 
