@@ -600,19 +600,21 @@
       "id": "indice-estabilidade",
       "area": "Diagnóstico",
       "capacidade": "Índice de estabilidade",
-      "estado": "pendente",
-      "implementado": "",
-      "falta": "Não foi identificado índice com definição, fonte, janela e tratamento de lacunas. Ausência de mudança de preço não prova estabilidade.",
+      "estado": "parcial",
+      "implementado": "Índice descritivo de constância dos preços finais confirmados, com comparação entre períodos, critérios explícitos de suficiência, quebra de pares por falhas/duplicidades/intervalo acima de seis horas, cobertura diária, mínimo/máximo e amplitude amostral. Sem fonte suficiente, não exibe índice; não extrapola duração, vendas ou mercado.",
+      "falta": "O indicador descreve somente as leituras de preço carregadas, sem estabilidade geral do anúncio, ponderação por tempo ou validação preditiva. Cobertura contínua entre coletas não é comprovada.",
       "fontes": [
-        "offer_history.py"
+        "price_stability.py",
+        "main.py"
       ],
       "testes": [
-        "test_offer_history.py"
+        "test_price_stability.py",
+        "scripts/price_stability_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "conteudo-checklist",
@@ -1113,6 +1115,18 @@
         "concluida": 22,
         "parcial": 16,
         "pendente": 6
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Constância e amplitude dos preços observados com comparação de períodos e evidência diária; índice geral de estabilidade permanece parcial.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 17,
+        "pendente": 5
       },
       "total": 44,
       "prs": []

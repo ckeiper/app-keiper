@@ -7,6 +7,9 @@ on:
       - 'test_listing_task*.py'
       - 'scripts/listing_tasks*'
       - 'listing_calendar.py'
+      - 'price_stability.py'
+      - 'test_price_stability.py'
+      - 'scripts/price_stability*'
       - 'listing_sku_overlap.py'
       - 'test_listing_sku_overlap*.py'
       - 'scripts/listing_sku_overlap*'
@@ -105,6 +108,7 @@ jobs:
       - run: python scripts/catalog_preview.py
       - run: python scripts/listing_tasks_preview.py
       - run: python scripts/listing_calendar_preview.py
+      - run: python scripts/price_stability_preview.py
       - run: python scripts/listing_sku_overlap_preview.py
       - run: python scripts/listing_reactivation_preview.py
       - run: python scripts/goal_observations_preview.py
@@ -123,6 +127,7 @@ jobs:
       - run: node scripts/catalog_browser_check.cjs
       - run: node scripts/listing_tasks_browser_check.cjs
       - run: node scripts/listing_calendar_browser_check.cjs
+      - run: node scripts/price_stability_browser_check.cjs
       - run: node scripts/listing_sku_overlap_browser_check.cjs
       - run: node scripts/listing_reactivation_browser_check.cjs
       - run: node scripts/goal_observations_browser_check.cjs
