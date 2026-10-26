@@ -4169,6 +4169,8 @@ def anuncios(cid):
                            refresh=barra_atualizar(cid, ultima, "anuncios"),
                            errors=erros, admin=session.get("tipo") == "admin",
                            freight=frete_esperado)
+    if session.get("tipo") == "admin":
+        corpo = "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/skus-repetidos'>Revisar SKUs repetidos</a></p>" + corpo
     return pagina_loja("Anúncios", cid, c["cliente"], "anuncios", corpo)
 
 
@@ -5628,6 +5630,8 @@ from anuncios_progress_routes import register_progress
 register_progress(app, login_required, pagina)
 from listing_task_routes import register_tasks
 register_tasks(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_sku_overlap import register_overlap
+register_overlap(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_reactivation_routes import register_reactivation
 register_reactivation(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_review_report import register_report
