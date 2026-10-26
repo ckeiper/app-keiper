@@ -17,7 +17,7 @@ def render(data,model):
     records=[event for event in data['historico'] if event['base']==model['base']][-12:]
     ceiling=max([total,1]+[event['total'] for event in records])
     left,right,top,bottom=64,716,28,270
-    chart='<svg viewBox="0 0 760 330" role="img" aria-labelledby="ap-chart-title ap-chart-desc"><title id="ap-chart-title">Evolução das frentes concluídas</title><desc id="ap-chart-desc">'+str(done)+' de '+str(total)+' frentes auditadas concluídas. '+('Primeira medição; o histórico começa nesta publicação.' if len(records)==1 else 'Cada ponto é uma medição registrada numa publicação.')+'</desc>'
+    chart='<svg viewBox="0 0 760 365" role="img" aria-labelledby="ap-chart-title ap-chart-desc"><title id="ap-chart-title">Evolução das frentes concluídas</title><desc id="ap-chart-desc">'+str(done)+' de '+str(total)+' frentes auditadas concluídas. '+('Primeira medição; o histórico começa nesta publicação.' if len(records)==1 else 'Cada ponto é uma medição registrada numa publicação.')+'</desc>'
     for step in range(5):
         value=ceiling*step/4;y=bottom-(bottom-top)*step/4
         chart+='<line x1="'+str(left)+'" y1="'+str(y)+'" x2="'+str(right)+'" y2="'+str(y)+'" stroke="#304760"/><text x="50" y="'+str(y+5)+'" text-anchor="end">'+str(round(value))+'</text>'
@@ -32,7 +32,7 @@ def render(data,model):
         label=date.fromisoformat(event['data']).strftime('%d/%m')
         chart+='<circle cx="'+str(x)+'" cy="'+str(y)+'" r="7" fill="#69d6b5" stroke="#0e2035" stroke-width="3"><title>'+esc(label+': '+str(value)+' concluídas. '+event['resumo'])+'</title></circle><text class="ap-value" x="'+str(x)+'" y="'+str(max(top,y-18))+'" text-anchor="middle">'+str(value)+'</text>'
         if len(coords)<=6 or index in (0,len(coords)-1):chart+='<text x="'+str(x)+'" y="299" text-anchor="middle">'+label+'</text>'
-    chart+='<text x="390" y="325" text-anchor="middle">Publicações registradas</text></svg>'
+    chart+='<text x="390" y="350" text-anchor="middle">Publicações registradas</text></svg>'
     out+='<div class="ap-chart">'+chart+'</div><div class="ap-legend" aria-label="Situação atual">'
     for code in ('concluida','em_andamento','parcial','pendente','bloqueada'):
         n=model['counts'].get(code,0)
