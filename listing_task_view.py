@@ -13,7 +13,7 @@ FILTERS=dict(open='Abertas',overdue='Atrasadas',done='Concluídas',cancelled='Ca
 def render(cid,item_id,shop,model,today,token,values=None,message=''):
     values=values or {};esc=lambda v:escape(str(v),quote=True)
     path=f'/anuncios/{int(cid)}/{item_id}/tarefas'
-    out=STYLE+'<section class="listing-tasks"><h2>Tarefas do anúncio</h2><p>'+esc(shop.get('titulo') or item_id)+' · '+esc(item_id)+'</p><nav class="lt-links"><a href="/diagnostico/'+str(int(cid))+'/'+item_id+'">Diagnóstico</a><a href="/anuncios/'+str(int(cid))+'/'+item_id+'/acoes">Ações já realizadas</a></nav><p>Planejamento interno. Marcar uma tarefa como concluída não altera o anúncio nem registra automaticamente uma ação executada.</p>'
+    out=STYLE+'<section class="listing-tasks"><h2>Tarefas do anúncio</h2><p>'+esc(shop.get('titulo') or item_id)+' · '+esc(item_id)+'</p><nav class="lt-links"><a href="/anuncios/'+str(int(cid))+'/'+item_id+'/calendario">Calendário de tarefas</a><a href="/diagnostico/'+str(int(cid))+'/'+item_id+'">Diagnóstico</a><a href="/anuncios/'+str(int(cid))+'/'+item_id+'/acoes">Ações já realizadas</a></nav><p>Planejamento interno. Marcar uma tarefa como concluída não altera o anúncio nem registra automaticamente uma ação executada.</p>'
     if message:out+='<p class="lt-notice" role="status">'+esc(message)+'</p>'
     counts={row['status']:row['n'] for row in model['counts']}
     overdue=sum(row['overdue'] for row in model['counts'])

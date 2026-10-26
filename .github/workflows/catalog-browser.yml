@@ -6,6 +6,8 @@ on:
       - 'listing_task*.py'
       - 'test_listing_task*.py'
       - 'scripts/listing_tasks*'
+      - 'listing_calendar.py'
+      - 'scripts/listing_calendar*'
       - 'full_view.py'
       - 'full_variation_history.py'
       - 'test_full_variation_history.py'
@@ -78,6 +80,7 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - run: python scripts/catalog_preview.py
       - run: python scripts/listing_tasks_preview.py
+      - run: python scripts/listing_calendar_preview.py
       - run: python scripts/full_report_preview.py
       - run: python scripts/timeline_preview.py
       - run: python scripts/interventions_preview.py
@@ -87,6 +90,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node scripts/catalog_browser_check.cjs
       - run: node scripts/listing_tasks_browser_check.cjs
+      - run: node scripts/listing_calendar_browser_check.cjs
       - run: node scripts/full_report_browser_check.cjs
       - run: node scripts/timeline_browser_check.cjs
       - run: node scripts/interventions_browser_check.cjs
