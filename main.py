@@ -4140,7 +4140,7 @@ def diagnostico_saude_anuncio(cid, item_id):
     from competitive_sales_context import render as render_competitive_sales
     painel_ofertas += render_competitive_sales(investigacao,item_id,ofertas,fim_investigacao)
     from price_stability import render as render_price_stability
-    painel_ofertas += render_price_stability(ofertas["own"],fim_investigacao)
+    painel_ofertas += render_price_stability(ofertas["own"],fim_investigacao,cid=cid,item_id=item_id)
     from listing_timeline import render as render_timeline
     linha_tempo = render_timeline(item_id,pedidos_verificados,itens_pedidos,
         [r["dia"] for r in cobertura],full_rows,visitas_evidencia,ofertas['own'],
@@ -5632,6 +5632,8 @@ from anuncios_progress_routes import register_progress
 register_progress(app, login_required, pagina)
 from listing_task_routes import register_tasks
 register_tasks(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from price_observation_export import register_export
+register_export(app, login_required, pode_ver_loja, banco, consultar, executar)
 from listing_sku_overlap import register_overlap
 register_overlap(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_reactivation_routes import register_reactivation

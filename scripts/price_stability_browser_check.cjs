@@ -6,7 +6,7 @@ for(const mode of ['ready','empty','gaps','changes','limited'])for(const width o
  assert.equal(await p.locator('.price-stability').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(16, 34, 56)');
  if(mode==='limited')assert.equal(await p.locator('.ps-cards article').count(),0);
  else{
-  assert.equal(await p.locator('.ps-cards article').count(),2);await p.locator('.price-stability summary').click();
+  assert.equal(await p.locator('.price-stability a[href*="precos-observados.csv"]').count(),1);assert.equal(await p.locator('.ps-cards article').count(),2);await p.locator('.price-stability summary').click();
   assert.equal(await p.locator('.ps-scroll tbody tr').count(),7);
   await p.locator('.ps-scroll').focus();assert.equal(await p.locator(':focus').getAttribute('role'),'region');
   if(width<700)assert.ok(await p.locator('.ps-scroll').evaluate(e=>e.scrollWidth>e.clientWidth));

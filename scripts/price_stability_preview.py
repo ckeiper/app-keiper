@@ -12,4 +12,4 @@ for mode in ('ready','empty','gaps','changes','limited'):
     if mode=='changes':
         for i,row in enumerate(rows):row['price']+=i
     if mode=='limited':rows*=500
-    (dest/('price-stability-'+mode+'.html')).write_text(page('Diagnóstico',1,'Loja fictícia','anuncios','<p>Dados fictícios de teste.</p>'+render(rows,END,now=NOW)))
+    (dest/('price-stability-'+mode+'.html')).write_text(page('Diagnóstico',1,'Loja fictícia','anuncios','<p>Dados fictícios de teste.</p>'+render(rows,END,now=NOW,cid=1,item_id='MLB1')))

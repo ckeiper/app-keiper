@@ -56,12 +56,15 @@ def build(rows,end,days=7,now=None):
     return dict(limited=False,current=period(rows,current_start,end,now),previous=period(rows,previous_end-timedelta(days=days-1),previous_end,now))
 
 
-def render(rows,end,days=7,now=None):
+def render(rows,end,days=7,now=None,cid=None,item_id=None):
     data=build(rows,end,days,now);esc=lambda v:escape(str(v),quote=True)
     def pct(value):return format(value.quantize(Decimal('0.1'),rounding=ROUND_HALF_UP),'f').replace('.',',')+'%' if value is not None else 'não verificado'
     def money(value):return 'R$ '+format(value.quantize(Decimal('0.01')),'f').replace('.',',') if value is not None else 'não verificado'
     out=STYLE+'<section class="price-stability"><h3>Constância dos preços observados</h3><p>Fonte: leituras confirmadas de preço final em BRL. Índice amostral de 0 a 100: pares sem mudança ÷ pares comparáveis × 100. Pares exigem duas leituras únicas, positivas e confirmadas, com intervalo de até seis horas. Falha, duplicidade e intervalo maior interrompem a comparação.</p>'
     if data['limited']:return out+'<p role="status">Mais de 5.000 registros carregados: índice não verificado. Reduza o período ou confira o histórico; nenhum recorte arbitrário foi usado.</p></section>'
+    if cid is not None and item_id is not None:
+        from urllib.parse import quote
+        out+='<p><a href="/anuncios/'+str(int(cid))+'/'+quote(str(item_id),safe='')+'/precos-observados.csv?dias='+str(days)+'" style="color:#b9e5ff">Exportar leituras dos dois períodos em CSV</a></p><p>O arquivo consulta os registros disponíveis no momento da exportação e pode incluir coletas posteriores à abertura desta tela.</p>'
     out+='<p>Para exibir o índice: nenhum registro com horário/formato inválido ou futuro na base carregada, ao menos dez pares comparáveis, leituras válidas em três dias, 80% das leituras confirmadas e 80% dos intervalos entre horários coletados comparáveis. Essas condições não comprovam cobertura contínua do período. Cada par tem o mesmo peso, sem ponderação por tempo ou vendas.</p><div class="ps-cards">'
     for key,label in [('previous','Período anterior'),('current','Período atual')]:
         p=data[key]

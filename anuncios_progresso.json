@@ -601,15 +601,17 @@
       "area": "Diagnóstico",
       "capacidade": "Índice de estabilidade",
       "estado": "parcial",
-      "implementado": "Índice descritivo de constância dos preços finais confirmados, com comparação entre períodos, critérios explícitos de suficiência, quebra de pares por falhas/duplicidades/intervalo acima de seis horas, cobertura diária, mínimo/máximo e amplitude amostral. Sem fonte suficiente, não exibe índice; não extrapola duração, vendas ou mercado.",
+      "implementado": "Índice descritivo de constância dos preços finais confirmados, com comparação entre períodos, critérios explícitos de suficiência, quebra de pares por falhas/duplicidades/intervalo acima de seis horas, cobertura diária, mínimo/máximo e amplitude amostral. Sem fonte suficiente, não exibe índice; não extrapola duração, vendas ou mercado. Exportação administrativa das leituras dos dois períodos em CSV, com preço confirmado ou ausência explícita, limite de 5.000 e escopo por loja/anúncio.",
       "falta": "O indicador descreve somente as leituras de preço carregadas, sem estabilidade geral do anúncio, ponderação por tempo ou validação preditiva. Cobertura contínua entre coletas não é comprovada.",
       "fontes": [
         "price_stability.py",
-        "main.py"
+        "main.py",
+        "price_observation_export.py"
       ],
       "testes": [
         "test_price_stability.py",
-        "scripts/price_stability_browser_check.cjs"
+        "scripts/price_stability_browser_check.cjs",
+        "test_price_observation_export.py"
       ],
       "prs": [],
       "numero_original": null,

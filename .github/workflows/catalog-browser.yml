@@ -8,6 +8,8 @@ on:
       - 'scripts/listing_tasks*'
       - 'listing_calendar.py'
       - 'price_stability.py'
+      - 'price_observation_export.py'
+      - 'test_price_observation_export.py'
       - 'test_price_stability.py'
       - 'scripts/price_stability*'
       - 'listing_sku_overlap.py'
