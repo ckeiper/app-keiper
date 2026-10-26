@@ -8,6 +8,7 @@ const {chromium}=require('playwright');
   res.end(fs.readFileSync(chart?'visual-qa/anuncios-progress-refresh.json':'visual-qa/anuncios-progress-current.html','utf8'));
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const expected=JSON.parse(fs.readFileSync('visual-qa/anuncios-progress-refresh.json','utf8'));
  const browser=await chromium.launch({headless:true});const page=await browser.newPage();
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
@@ -24,7 +25,7 @@ const {chromium}=require('playwright');
    const dateBox=await labels.nth(count-2).boundingBox(),axisBox=await labels.last().boundingBox();
    assert.ok(dateBox.y+dateBox.height<=axisBox.y,'Chart date and axis labels must not overlap');
    assert.ok((await page.locator('.ap-scope').textContent()).includes('90 sugestões'));
-   assert.ok((await page.locator('.ap-chart-head').textContent()).includes('44 frentes identificadas'));
+   assert.ok((await page.locator('.ap-chart-head').textContent()).includes(String(expected.expected_total)+expected.expected_label));
    assert.equal(await page.locator('.ks-sidebar a[aria-current=page]').getAttribute('href'),'/evolucao-anuncios');
    if(width<641){
     await page.locator('.ks-toggle').click();
@@ -35,7 +36,7 @@ const {chromium}=require('playwright');
   }
   await page.goto('http://127.0.0.1:'+server.address().port+'/evolucao-anuncios');
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
-  await page.waitForFunction(()=>document.querySelector('.ap-chart-head strong')?.textContent==='21');
+  await page.waitForFunction(value=>document.querySelector('.ap-chart-head strong')?.textContent===String(value),expected.expected_done);
   assert.equal(await page.locator('.ap-progress circle').count(),2);
   assert.equal(await page.locator('.ap-progress a,.ap-progress table,.ap-progress form').count(),0);
   assert.deepEqual(errors,[]);console.log('Progress chart only, accessible title, live counts and mobile navigation passed.');

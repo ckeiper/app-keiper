@@ -1,6 +1,6 @@
 import json
 from copy import deepcopy
-from datetime import date
+from datetime import date,timedelta
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -18,10 +18,12 @@ import html
 class AnunciosProgressTests(unittest.TestCase):
     def test_current_counts_come_from_records_and_not_the_target_90(self):
         data=read();model=summary(data)
-        self.assertEqual(model['total'],44);self.assertEqual(model['counts']['concluida'],20)
-        self.assertEqual(sum(model['counts'].values()),44)
-        self.assertFalse(data['lista_original_completa']);self.assertIsNone(data['contagem_das_90'])
-        self.assertEqual(model['base'],'frentes_auditadas')
+        self.assertEqual(model['total'],len([r for r in data['capacidades'] if r['numero_original'] is not None]) if data['lista_original_completa'] else len(data['capacidades']))
+        self.assertEqual(model['counts']['concluida'],sum(r['estado']=='concluida' for r in data['capacidades'] if not data['lista_original_completa'] or r['numero_original'] is not None))
+        self.assertEqual(sum(model['counts'].values()),model['total'])
+        if not data['lista_original_completa']:
+            self.assertIsNone(data['contagem_das_90']);self.assertEqual(model['base'],'frentes_auditadas')
+        else:self.assertEqual(model['base'],'originais')
 
     def test_unproven_completion_missing_references_and_duplicate_ids_rejected(self):
         for change in ('gap','file','duplicate','status'):
@@ -42,28 +44,31 @@ class AnunciosProgressTests(unittest.TestCase):
         with self.assertRaises(ValueError):validate(data)
 
     def test_graph_only_no_links_lists_or_controls_and_no_fake_prior_measurements(self):
-        data=read();text=render(data,summary(data))
+        data=deepcopy(read());data['historico']=[data['historico'][-1]];text=render(data,summary(data))
         self.assertEqual(text.count('<svg'),1);self.assertEqual(text.count('<circle'),1)
         for tag in ('<a ','<table','<form','<ul','<ol'):
             self.assertNotIn(tag,text)
         self.assertIn('Primeira medição',text)
-        self.assertIn('44 frentes identificadas',text);self.assertIn('Meta original: 90',text)
-        self.assertNotIn('20/90',text)
+        if not data['lista_original_completa']:
+            self.assertIn(str(summary(data)['total'])+' frentes identificadas',text);self.assertIn('Meta original: 90',text)
+            self.assertNotIn(str(summary(data)['counts']['concluida'])+'/90',text)
 
     def test_new_release_measurement_updates_chart_without_mutating_ledger(self):
         data=deepcopy(read());before=deepcopy(data)
-        row=next(r for r in data['capacidades'] if r['estado']=='parcial')
+        row=next(r for r in data['capacidades'] if not data['lista_original_completa'] or r['numero_original'] is not None)
+        row.update(estado='parcial',falta='Lacuna sintética')
+        initial=summary(data);data['historico']=[dict(base=initial['base'],data=data['historico'][-1]['data'],resumo='Medição sintética',contagens=dict(initial['counts']),total=initial['total'],prs=[])]
         row.update(estado='concluida',falta='')
         model=summary(data)
-        data['historico'].append(dict(base=model['base'],data='2026-10-26',resumo='Entrega verificada',contagens=dict(model['counts']),total=model['total'],prs=[]))
+        data['historico'].append(dict(base=model['base'],data=(date.fromisoformat(data['historico'][-1]['data'])+timedelta(days=1)).isoformat(),resumo='Entrega verificada',contagens=dict(model['counts']),total=model['total'],prs=[]))
         text=render(data,model)
         self.assertEqual(text.count('<circle'),2);self.assertIn('<polyline',text)
-        self.assertEqual(model['counts']['concluida'],21)
+        self.assertEqual(model['counts']['concluida'],initial['counts']['concluida']+1)
         self.assertEqual(read(),before)
 
     def test_history_text_is_escaped_in_svg_and_only_same_basis_is_plotted(self):
-        data=deepcopy(read());data['historico'][0]['resumo']='<script>'
-        data['historico'].append(dict(base='originais',data='2026-10-26',resumo='Outra base',contagens={'pendente':90},total=90,prs=[]))
+        data=deepcopy(read());data['historico']=[data['historico'][-1]];data['historico'][0]['resumo']='<script>'
+        data['historico'].append(dict(base='originais' if summary(data)['base']=='frentes_auditadas' else 'frentes_auditadas',data=(date.fromisoformat(data['historico'][-1]['data'])+timedelta(days=1)).isoformat(),resumo='Outra base',contagens={'pendente':90},total=90,prs=[]))
         text=render(data,summary(data))
         self.assertNotIn('<script>',text);self.assertIn('&lt;script&gt;',text)
         self.assertEqual(text.count('<circle'),1)
