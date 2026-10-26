@@ -502,10 +502,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
 def pagina(titulo, corpo):
     is_home = "<main class='kh-home'>" in corpo
+    is_progress = "<main class='ap-progress'>" in corpo
+    use_sidebar = is_home or is_progress
     topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
     links = ""
-    if session.get("tipo") == "admin" and not is_home:
+    if session.get("tipo") == "admin" and not use_sidebar:
         links += "<a class='btn' href='/seguranca'>Segurança</a>"
     links += "<a class='btn' href='/conectar'>+ Conectar loja</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
@@ -513,9 +515,9 @@ def pagina(titulo, corpo):
     cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS + "</head><body>"
     fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
     sidebar = ""
-    if is_home:
+    if use_sidebar:
         from home_sidebar import render_home_sidebar
-        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin")
+        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin", active="progress" if is_progress else "home")
     return cab + sidebar + topo + marca + links + fim
 
 
@@ -5622,6 +5624,8 @@ register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagi
 register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
 from intervention_routes import register_interventions
 register_interventions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from anuncios_progress_routes import register_progress
+register_progress(app, login_required, pagina)
 from listing_task_routes import register_tasks
 register_tasks(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from profitability_routes import register_profitability
