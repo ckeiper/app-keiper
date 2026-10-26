@@ -683,6 +683,8 @@ def iniciar_banco():
         init_interventions(conn, execute)
         from listing_tasks import init_schema as init_listing_tasks
         init_listing_tasks(conn, execute)
+        from listing_content import init_schema as init_listing_content
+        init_listing_content(conn, execute)
         from automatic_history import init_schema as init_automatic_history
         init_automatic_history(conn, execute)
         from automatic_history import seed_existing
@@ -5628,6 +5630,8 @@ from anuncios_progress_routes import register_progress
 register_progress(app, login_required, pagina)
 from listing_task_routes import register_tasks
 register_tasks(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_content_routes import register_content
+register_content(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from profitability_routes import register_profitability
 register_profitability(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
