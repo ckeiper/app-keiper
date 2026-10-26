@@ -915,16 +915,20 @@
       "area": "Execução",
       "capacidade": "Relatório PDF de anúncios",
       "estado": "parcial",
-      "implementado": "Central de demandas oferece impressão pelo navegador/PDF e CSV.",
-      "falta": "Não foi identificado relatório PDF específico de Anúncios 2.0 com escopo, período, evidências e layout exportável validado.",
+      "implementado": "Relatório operacional por anúncio com loja, emissão em Brasília, fonte/data do catálogo, estoque verificado, últimas revisões manuais dos oito critérios, totais de tarefas, dez tarefas por prazo e contagens de perguntas. Layout A4 para impressão/Salvar como PDF pelo navegador, com limites e lacunas explícitos.",
+      "falta": "Ainda não consolida todos os indicadores de Anúncios 2.0, séries históricas, Ads e contribuição financeira documentada. A exportação usa a impressão do navegador; não há geração ou envio automático de PDF pelo servidor.",
       "fontes": [
-        "main.py"
+        "listing_review_report.py"
       ],
-      "testes": [],
+      "testes": [
+        "test_listing_review_report.py",
+        "test_listing_review_report_integration.py",
+        "scripts/listing_review_report_browser_check.cjs"
+      ],
       "prs": [],
       "numero_original": null,
       "prioridade": 8,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "primeiros-30",
@@ -1046,6 +1050,18 @@
       "base": "frentes_auditadas",
       "data": "2026-10-26",
       "resumo": "Metas de estoque mínimo com responsável, período e alertas na abertura do painel; frente passa de pendente a parcial.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 14,
+        "pendente": 8
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Relatório operacional de revisão por anúncio com evidências e layout A4 para exportação pelo navegador; relatório completo segue parcial.",
       "contagens": {
         "concluida": 22,
         "parcial": 14,
