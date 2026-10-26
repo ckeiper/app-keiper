@@ -8,13 +8,14 @@ from zoneinfo import ZoneInfo
 import requests
 from flask import request, session
 from profitability_view import CSS
+from content_required_attributes import compare as compare_required, render as render_required
 
 
 class ContentUnavailable(ValueError):
     pass
 
 
-def read(token, path, request_get):
+def read(token, path, request_get, payload_type=dict):
     try:
         response = request_get('https://api.mercadolibre.com'+path,
             headers={'Authorization': 'Bearer '+token}, timeout=(3, 8), allow_redirects=False)
@@ -23,7 +24,7 @@ def read(token, path, request_get):
         if response.status_code != 200:
             raise ContentUnavailable('Leitura indisponível no Mercado Livre. Nenhuma ausência foi presumida.')
         payload = response.json()
-        if not isinstance(payload, dict):
+        if not isinstance(payload, payload_type):
             raise ContentUnavailable('Resposta não verificável do Mercado Livre.')
         return payload
     except (requests.RequestException, ValueError, TypeError) as exc:
@@ -72,6 +73,14 @@ def inspect(token, seller_id, item_id, request_get, now=None):
             result['description_message'] = 'Texto da descrição não verificável na resposta.'
     except ContentUnavailable as exc:
         result['description_message'] = str(exc)
+    result['requirements']=dict(state='unknown',message='Categoria do anúncio não verificável.')
+    category=item.get('category_id')
+    if isinstance(category,str) and re.fullmatch(r'MLB[0-9]{1,20}',category):
+        try:
+            payload=read(token,'/categories/'+category+'/attributes',request_get,list)
+            result['requirements']=dict(compare_required(payload,item),category=category)
+        except ContentUnavailable as exc:
+            result['requirements']=dict(state='unknown',message=str(exc))
     return result
 
 
@@ -99,7 +108,7 @@ def render(cid, item_id, title, csrf, result=None):
             else:
                 out += '<details><summary>Ler descrição consultada</summary><p class="cs-text">'+esc(description[:12000])+'</p></details>'
                 if len(description)>12000: out += '<p>Exibidos os primeiros 12.000 caracteres de '+str(len(description))+'. Confira o texto completo no anúncio.</p>'
-            out += '<h4>Atributos do anúncio principal</h4><p>Lista retornada pela consulta. Não compara requisitos da categoria nem confirma preenchimento por variação.</p>'
+            out += '<h4>Atributos do anúncio principal</h4><p>Lista retornada pela consulta. Os requisitos da categoria são conferidos abaixo, sem certificar a validade dos valores.</p>'
             if result['attributes'] is None:
                 out += '<p>Atributos não verificados.</p>'
             elif not result['attributes']:
@@ -108,6 +117,7 @@ def render(cid, item_id, title, csrf, result=None):
                 out += '<dl class="cs-attributes">'+''.join('<dt>'+esc(a['name'])+'</dt><dd>'+esc(a['value'] if a['value'] is not None else 'Valor não verificado')+'</dd>' for a in result['attributes'])+'</dl>'
                 if result['attribute_count']>50: out += '<p>Exibidos 50 de '+str(result['attribute_count'])+' atributos retornados.</p>'
             out += '<p>Contagem de fotos não certifica legibilidade, medidas ou conteúdo das imagens. Clips e vídeo não foram consultados. Campos não verificados não significam ausência.</p>'
+            out += render_required(result.get('requirements',{}))
         out += '</section>'
     return out+'<section class="pf-card"><h3>Continuar a conferência</h3><p>Confira imagens, especificações, compatibilidade e dúvidas reais antes de registrar seu parecer. A oferta pode mudar depois desta leitura. Nenhum histórico de revisão foi substituído.</p><a href="'+path+'">Registrar evidências no checklist ↗</a></section></div><style>.cs-text{white-space:pre-wrap;overflow-wrap:anywhere}.cs-attributes{overflow-wrap:anywhere}.cs-attributes dt{font-weight:700;margin-top:12px}.cs-attributes dd{margin:4px 0 0}</style>'
 

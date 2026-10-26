@@ -633,22 +633,26 @@
       "area": "Conteúdo",
       "capacidade": "Checklist, fotos e qualidade do anúncio",
       "estado": "parcial",
-      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade. Consulta sob demanda do conteúdo atual após validar conta e propriedade: título, fotos retornadas, atributos principais e descrição em texto simples; diferencia vazio de desconhecido e não modifica pareceres.",
-      "falta": "Falta análise do conteúdo visual das imagens e clips, validação dos atributos obrigatórios da categoria e de cada variação e avaliação semântica da descrição. A leitura atual não aprova critérios nem certifica qualidade ou impacto em vendas.",
+      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade. Consulta sob demanda do conteúdo atual após validar conta e propriedade: título, fotos retornadas, atributos principais e descrição em texto simples; diferencia vazio de desconhecido e não modifica pareceres. Conferência de presença das regras obrigatórias e condicionais retornadas pela categoria, com evidência no anúncio principal ou em cada variação e estados desconhecidos explícitos.",
+      "falta": "Faltam análise visual de imagens e clips, avaliação semântica da descrição, aplicabilidade das regras condicionais e validação dos valores/ficha técnica. Conferência de presença não certifica validade ou aprovação do anúncio.",
       "fontes": [
         "listing_content.py",
         "listing_content_routes.py",
         "listing_content_view.py",
         "listing_content_snapshot.py",
-        "docs/CONTEUDO_CONSULTA.md"
+        "docs/CONTEUDO_CONSULTA.md",
+        "content_required_attributes.py"
       ],
       "testes": [
         "test_listing_content.py",
         "test_listing_content_integration.py",
         "scripts/listing_content_browser_check.cjs",
-        "test_listing_content_snapshot.py"
+        "test_listing_content_snapshot.py",
+        "test_listing_content_requirements.py"
       ],
-      "prs": [],
+      "prs": [
+        291
+      ],
       "numero_original": null,
       "prioridade": 2,
       "atualizado_em": "2026-10-26"
@@ -1193,6 +1197,18 @@
       },
       "total": 44,
       "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Conferência de presença dos atributos obrigatórios e condicionais da categoria no anúncio e nas variações; validade, aplicabilidade condicional e qualidade do conteúdo continuam parciais.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": []
     }
   ],
   "publicacoes": [
@@ -1231,6 +1247,12 @@
       "titulo": "Consulta atual de tarifa",
       "horario_brasilia": "2026-10-26T16:34:07-03:00",
       "deploy": "dep-dbfqlbqjnfac73ekulu0"
+    },
+    {
+      "pr": 291,
+      "titulo": "Consulta atual de conteúdo",
+      "horario_brasilia": "2026-10-26T16:43:37-03:00",
+      "deploy": "dep-dbfqpqvf3r2c73aurplg"
     }
   ]
 }
