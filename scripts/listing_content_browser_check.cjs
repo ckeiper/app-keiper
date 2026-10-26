@@ -11,6 +11,6 @@ for(const mode of ['empty','reviewed','error','page2'])for(const width of [1440,
  await form.locator('select').selectOption('revise');await form.locator('textarea').fill('Conferir as especificações nas imagens do produto.');
  assert.equal(await form.evaluate(e=>e.checkValidity()),true);
  for(const f of await page.locator('.content-review form').all())assert.equal(await f.locator('input[name=_csrf]').count(),1);
- if(mode==='error')assert.ok((await page.locator('[role=status]').textContent()).includes('outra aba'));
+ if(mode==='error')assert.ok((await page.locator('.content-review [role=status]').textContent()).includes('outra aba'));
  await page.screenshot({path:`visual-qa/listing-content-${mode}-${width}.png`,fullPage:true});
 }console.log('Content checklist evidence forms and responsive states passed.');}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});
