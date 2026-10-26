@@ -13,6 +13,8 @@ page=main_function('pagina',env)
 for name in ('current','history'):
     data=deepcopy(read());data['historico']=[data['historico'][-1]]
     if name=='history':
+        # Several publications on one day must still render one daily column.
+        data['historico'] += [deepcopy(data['historico'][-1]) for _ in range(15)]
         row=next((r for r in data['capacidades'] if r['estado']!='concluida'),None)
         if row is not None:row.update(estado='concluida',falta='')
         else:data['capacidades'][0].update(estado='parcial',falta='Lacuna sintética para teste')

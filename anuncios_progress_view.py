@@ -14,32 +14,35 @@ def render(data,model):
     out+='<div class="ap-chart-head"><div><strong>'+str(done)+'</strong><span>'+('melhorias da lista original concluídas' if original else 'frentes auditadas concluídas')+'</span><small>'+str(total)+(' melhorias mapeadas' if original else ' frentes identificadas')+'</small></div><p>Última medição<br><b>'+date.fromisoformat(data['historico'][-1]['data']).strftime('%d/%m/%Y')+'</b></p></div>'
     if not original:
         out+='<p class="ap-scope">Meta original: 90 sugestões. A contagem das 90 está em consolidação; este gráfico acompanha as '+str(total)+' frentes identificadas.</p>'
-    records=[event for event in data['historico'] if event['base']==model['base']][-12:]
+    # Keep the last published measurement of each day, within the same cohort.
+    daily={}
+    for event in data['historico']:
+        if event['base']==model['base']:daily[event['data']]=event
+    records=[daily[day] for day in sorted(daily)][-12:]
     ceiling=max([total,1]+[event['total'] for event in records])
     left,right,top,bottom=64,716,28,270
-    chart='<svg viewBox="0 0 760 365" role="img" aria-labelledby="ap-chart-title ap-chart-desc"><title id="ap-chart-title">Evolução das frentes concluídas</title><desc id="ap-chart-desc">'+str(done)+' de '+str(total)+' frentes auditadas concluídas. '+('Primeira medição; o histórico começa nesta publicação.' if len(records)==1 else 'Cada ponto é uma medição registrada numa publicação.')+'</desc>'
+    chart='<svg viewBox="0 0 760 365" role="img" aria-labelledby="ap-chart-title ap-chart-desc"><title id="ap-chart-title">Evolução das frentes concluídas</title><desc id="ap-chart-desc">'+str(done)+' de '+str(total)+' frentes auditadas concluídas. '+('Primeira medição; o histórico começa nesta publicação.' if len(records)==1 else 'Cada coluna mostra a última medição publicada de um dia.')+'</desc>'
     for step in range(5):
         value=ceiling*step/4;y=bottom-(bottom-top)*step/4
         chart+='<line x1="'+str(left)+'" y1="'+str(y)+'" x2="'+str(right)+'" y2="'+str(y)+'" stroke="#304760"/><text x="50" y="'+str(y+5)+'" text-anchor="end">'+str(round(value))+'</text>'
     coords=[]
     for index,event in enumerate(records):
-        x=(left+right)/2 if len(records)==1 else left+(right-left)*index/(len(records)-1)
+        x=left+(right-left)*(index+0.5)/len(records)
         value=event['contagens'].get('concluida',0);y=bottom-(bottom-top)*value/ceiling
         coords.append((x,y,value,event))
-    if len(coords)>1:
-        chart+='<polyline points="'+' '.join(str(x)+','+str(y) for x,y,_,_ in coords)+'" fill="none" stroke="#69d6b5" stroke-width="4"/>'
     for index,(x,y,value,event) in enumerate(coords):
         label=date.fromisoformat(event['data']).strftime('%d/%m')
-        chart+='<circle cx="'+str(x)+'" cy="'+str(y)+'" r="7" fill="#69d6b5" stroke="#0e2035" stroke-width="3"><title>'+esc(label+': '+str(value)+' concluídas. '+event['resumo'])+'</title></circle><text class="ap-value" x="'+str(x)+'" y="'+str(max(top,y-18))+'" text-anchor="middle">'+str(value)+'</text>'
+        width=min(72,(right-left)/len(records)*0.55)
+        chart+='<rect class="ap-column" x="'+str(x-width/2)+'" y="'+str(y)+'" width="'+str(width)+'" height="'+str(bottom-y)+'" fill="#69d6b5" rx="4"><title>'+esc(label+': '+str(value)+' concluídas. '+event['resumo'])+'</title></rect><text class="ap-value" x="'+str(x)+'" y="'+str(max(top,y-18))+'" text-anchor="middle">'+str(value)+'</text>'
         if len(coords)<=6 or index in (0,len(coords)-1):chart+='<text x="'+str(x)+'" y="299" text-anchor="middle">'+label+'</text>'
-    chart+='<text x="390" y="350" text-anchor="middle">Publicações registradas</text></svg>'
+    chart+='<text x="390" y="350" text-anchor="middle">Evolução diária</text></svg>'
     out+='<div class="ap-chart">'+chart+'</div><div class="ap-legend" aria-label="Situação atual">'
     for code in ('concluida','em_andamento','parcial','pendente','bloqueada'):
         n=model['counts'].get(code,0)
         if not n and code not in ('concluida','parcial','pendente'):continue
         out+='<span><i style="background:'+COLORS[code]+'" aria-hidden="true"></i>'+LABELS[code]+': <b>'+str(n)+'</b></span>'
     out+='</div>'
-    if len(records)==1:out+='<p class="ap-footnote">Primeira medição. As próximas publicações formarão o histórico de evolução.</p>'
+    if len(records)==1:out+='<p class="ap-footnote">Primeiro dia registrado. Cada dia mostra somente a última medição publicada.</p>'
     return out+'</section></main>'
 
 
