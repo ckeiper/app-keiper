@@ -611,20 +611,22 @@
       "area": "Conteúdo",
       "capacidade": "Checklist, fotos e qualidade do anúncio",
       "estado": "parcial",
-      "implementado": "Contagens de fotos/clips, status, estoque, preço e sugestões básicas de revisão.",
-      "falta": "Falta análise completa de conteúdo e imagens; quantidade de fotos não mede qualidade, clareza ou objeções do comprador.",
+      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade.",
+      "falta": "Ainda não há inspeção automática do conteúdo real das imagens, descrição e atributos; os pareceres são manuais e datados. O sistema não certifica qualidade atual nem inventa objeções ou conclusões de IA.",
       "fontes": [
-        "listing_health.py",
-        "listing_details.py"
+        "listing_content.py",
+        "listing_content_routes.py",
+        "listing_content_view.py"
       ],
       "testes": [
-        "test_listing_health.py",
-        "test_listing_details.py"
+        "test_listing_content.py",
+        "test_listing_content_integration.py",
+        "scripts/listing_content_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 2,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "perguntas-avaliacoes",
@@ -979,6 +981,18 @@
       "base": "frentes_auditadas",
       "data": "2026-10-26",
       "resumo": "Calendário mensal dos prazos e responsáveis por anúncio, integrado às tarefas.",
+      "contagens": {
+        "concluida": 21,
+        "parcial": 13,
+        "pendente": 10
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Checklist manual de conteúdo com evidência, autoria e histórico; frente permanece parcial pela análise automática ainda ausente.",
       "contagens": {
         "concluida": 21,
         "parcial": 13,
