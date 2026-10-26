@@ -125,5 +125,6 @@ class ListingTaskIntegrationTests(unittest.TestCase):
     self.assertEqual(text.count('class="lc-task"'),10)
     self.assertEqual(self.client.get(path+'&pagina=2').get_data(as_text=True).count('class="lc-task"'),3)
     self.assertEqual(len(self.rows()),13)
-    with self.client.session_transaction() as state:state['tipo']='cliente'
-    self.assertEqual(self.client.get(path).status_code,403)
+    restricted=m.app.test_client()
+    with database_session(restricted) as state:state.update(usuario_id=2,tipo='cliente',conexao_id=self.ids[0])
+    self.assertEqual(restricted.get(path).status_code,403)
