@@ -32,7 +32,7 @@ class ReactivationIntegrationTests(unittest.TestCase):
         with m.banco() as conn:
             tasks=m.consultar(conn,'SELECT * FROM listing_tasks WHERE conexao_id=%s',(ids[0],));self.assertEqual(len(tasks),1);self.assertEqual(tasks[0]['title'],TITLE)
             self.assertEqual(m.consultar(conn,'SELECT status FROM anuncios WHERE conexao_id=%s',(ids[0],))[0]['status'],'paused')
-            for stamp,status in [(now-1,'paused'),(now,'active')]:record(conn,m.executar,ids[0],'MLB123','listing',stamp,dict(status=dict(value=status,label='Status',kind='outro')))
+            for stamp,status in [(now-1,'paused'),(now,'active')]:record(conn,m.executar,ids[0],'MLB123','listing',stamp,dict(status=status))
         text=c.get(path).get_data(as_text=True);self.assertIn('Pausado → Ativo',text)
         self.assertIn('Nenhuma conferência planejada',c.get(path.replace('/'+str(ids[0])+'/', '/'+str(ids[1])+'/')).get_data(as_text=True))
         self.assertEqual(c.post(path,data=dict(data,_csrf='bad')).status_code,400)
