@@ -109,3 +109,21 @@ class ListingTaskIntegrationTests(unittest.TestCase):
     self.assertEqual(self.client.post(self.url,data=overdue).status_code,303)
     text=self.client.get(self.url+'?status=overdue').get_data(as_text=True)
     self.assertIn('Conferir tarefa atrasada',text);self.assertNotIn('Conferir estoque Full',text)
+ def test_calendar_real_counts_isolation_and_preserves_tasks(self):
+    row=self.make();m=self.m;due=row['due_date'];month=due.strftime('%Y-%m')
+    with m.banco() as conn:
+        for i in range(12):
+            values=validate(dict(self.payload(),title='Calendário tarefa '+str(i),submission_key=('calendar-'+str(i)).ljust(24,'x')),reporting_today())
+            create(conn,m.consultar,m.executar,self.ids[0],'MLB123',values,self.actor)
+        values=validate(dict(self.payload(),title='SEGREDO OUTRA LOJA',submission_key='foreign-calendar-key-1234'),reporting_today())
+        create(conn,m.consultar,m.executar,self.ids[1],'MLB123',values,self.actor)
+    path=self.url.replace('/tarefas','/calendario')+'?mes='+month
+    with patch.object(m.requests,'get',side_effect=AssertionError('network')):
+        response=self.client.get(path)
+    self.assertEqual(response.status_code,200);text=response.get_data(as_text=True)
+    self.assertIn('13 tarefas no mês',text);self.assertNotIn('SEGREDO OUTRA LOJA',text)
+    self.assertEqual(text.count('class="lc-task"'),10)
+    self.assertEqual(self.client.get(path+'&pagina=2').get_data(as_text=True).count('class="lc-task"'),3)
+    self.assertEqual(len(self.rows()),13)
+    with self.client.session_transaction() as state:state['tipo']='cliente'
+    self.assertEqual(self.client.get(path).status_code,403)

@@ -48,3 +48,19 @@ def register_tasks(app,login_required,can_view,bank,query,execute,shop_page,toda
         except ValueError as exc:return str(exc),400
         body=render(cid,item_id,shops[0],model,today(),token,values=values,message=message)
         return shop_page('Tarefas do anúncio',cid,shops[0]['cliente'],'anuncios',body),status
+
+    @app.route('/anuncios/<int:cid>/<item_id>/calendario',methods=['GET'])
+    @login_required
+    def listing_task_calendar(cid,item_id):
+        from listing_calendar import load as calendar_load,render as calendar_render
+        if session.get('tipo')!='admin' or not can_view(cid):return 'Acesso restrito',403
+        if not re.fullmatch(r'MLB[0-9]{1,20}',item_id):return 'Anúncio não encontrado',404
+        try:
+            with bank() as conn:
+                execute(conn,'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+                shops=query(conn,'''SELECT c.cliente,a.titulo FROM conexoes c JOIN anuncios a ON a.conexao_id=c.id
+                    WHERE c.id=%s AND a.item_id=%s''',(cid,item_id))
+                if not shops:return 'Anúncio não encontrado nesta loja.',404
+                model=calendar_load(conn,query,cid,item_id,request.args,today())
+        except ValueError as exc:return str(exc),400
+        return shop_page('Calendário do anúncio',cid,shops[0]['cliente'],'anuncios',calendar_render(cid,item_id,shops[0],model,today()))

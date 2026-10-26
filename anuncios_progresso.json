@@ -881,19 +881,23 @@
       "id": "calendario",
       "area": "Execução",
       "capacidade": "Calendário de ações",
-      "estado": "pendente",
-      "implementado": "",
-      "falta": "Não foi identificado calendário de ações futuras por anúncio com responsáveis e prazos. Histórico cronológico não equivale a calendário.",
+      "estado": "concluida",
+      "implementado": "Calendário mensal por anúncio dos prazos informados nas tarefas, com responsáveis na agenda, filtros de status, dias com contagem de todas as páginas, destaque de hoje, atrasadas e agenda paginada de dez registros. Gerenciamento e histórico preservados na tela de tarefas.",
+      "falta": "",
       "fontes": [
-        "intervention_routes.py"
+        "listing_calendar.py",
+        "listing_task_routes.py",
+        "listing_task_view.py"
       ],
       "testes": [
-        "test_listing_interventions.py"
+        "test_listing_calendar.py",
+        "test_listing_tasks_integration.py",
+        "scripts/listing_calendar_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 1,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-26"
     },
     {
       "id": "pdf",
@@ -970,6 +974,18 @@
         275
       ],
       "base": "frentes_auditadas"
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Calendário mensal dos prazos e responsáveis por anúncio, integrado às tarefas.",
+      "contagens": {
+        "concluida": 21,
+        "parcial": 13,
+        "pendente": 10
+      },
+      "total": 44,
+      "prs": []
     }
   ],
   "publicacoes": [
