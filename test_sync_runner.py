@@ -31,10 +31,11 @@ class SyncRunnerTests(unittest.TestCase):
                        store_sync_lock=lambda connect,cid:contextlib.nullcontext(True),
                        consultar=Mock(return_value=[dict(id=5,user_id=99)]),
                        token_atual=lambda c:'fake',time=SimpleNamespace(time=lambda:100),
-                       registrar_erro=Mock(),resolver_erro=Mock(),run_stages=run_stages,
+                       registrar_erro=Mock(),resolver_erro=Mock(),run_stages=run_stages,puxar_avaliacoes_metas=Mock(return_value=True),
                        gravar_historico=Mock())
         namespace.update({'puxar_'+name:mock for name,mock in collectors.items()})
         self.assertTrue(main_function('executar_atualizacao',namespace)(5))
+        namespace['puxar_avaliacoes_metas'].assert_called_once_with(5)
         for mock in collectors.values(): mock.assert_called_once()
 
     def test_worker_drains_remaining_shops_even_if_error_logging_fails(self):
