@@ -137,7 +137,10 @@ jobs:
       - run: python scripts/profitability_preview.py
       - run: python scripts/profitability_priority_preview.py
       - run: npm install --no-save --no-package-lock playwright@1.51.1 chart.js@4.4.1
-      - run: npx playwright install --with-deps chromium
+      # Ubuntu's hosted image already supplies Chromium's runtime libraries.
+      # Avoid upgrading OS packages from slow mirrors before browser checks.
+      - run: npx playwright install chromium
+        timeout-minutes: 4
       - run: node scripts/catalog_browser_check.cjs
       - run: node scripts/listing_tasks_browser_check.cjs
       - run: node scripts/listing_calendar_browser_check.cjs
