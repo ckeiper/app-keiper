@@ -43,6 +43,7 @@ on:
       - 'test_listing_questions*.py'
       - 'scripts/listing_questions*'
       - 'listing_content*.py'
+      - 'test_listing_content_snapshot.py'
       - 'test_listing_content*.py'
       - 'scripts/listing_content*'
       - 'scripts/listing_calendar*'
@@ -131,6 +132,7 @@ jobs:
       - run: python scripts/listing_onboarding_preview.py
       - run: python scripts/listing_questions_preview.py
       - run: python scripts/listing_content_preview.py
+      - run: python scripts/listing_content_snapshot_preview.py
       - run: python scripts/full_report_preview.py
       - run: python scripts/timeline_preview.py
       - run: python scripts/interventions_preview.py
@@ -156,6 +158,7 @@ jobs:
       - run: node scripts/listing_onboarding_browser_check.cjs
       - run: node scripts/listing_questions_browser_check.cjs
       - run: node scripts/listing_content_browser_check.cjs
+      - run: node scripts/listing_content_snapshot_browser_check.cjs
       - run: node scripts/full_report_browser_check.cjs
       - run: node scripts/timeline_browser_check.cjs
       - run: node scripts/interventions_browser_check.cjs

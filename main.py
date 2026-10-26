@@ -5658,6 +5658,8 @@ from installment_comparison import register as register_installment_comparison
 register_installment_comparison(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
 from listing_fee_quote import register as register_fee_quote
 register_fee_quote(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get)
+from listing_content_snapshot import register as register_content_snapshot
+register_content_snapshot(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
                     is_updating=lambda cid: cid in ATUALIZANDO)
 
