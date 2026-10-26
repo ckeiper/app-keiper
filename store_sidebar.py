@@ -43,6 +43,7 @@ def render_store_sidebar(cid, cliente, secao, admin=False):
         nav+='</div></details>'
     footer=link('Atualizar dados','/atualizar?cid='+cid,'M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 3M4 16l2 3a7 7 0 0 0 12-2')
     if admin:
+        footer+=link('Evolução de Anúncios','/evolucao-anuncios','M4 4h16v16H4zM8 9h8M8 13h5M8 17h3')
         footer+=link('Diagnóstico','/diagnostico','M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14m5 12 6 6')
         footer+=link('Segurança','/seguranca','M12 3 3 7v6c0 4 9 8 9 8s9-4 9-8V7z')
     footer="<details class='ks-nav-group'><summary><span aria-hidden='true'>⚙</span><span class='ks-label'>Ferramentas</span><span class='ks-chevron' aria-hidden='true'>⌄</span></summary><div class='ks-nav-children'>"+footer+'</div></details>'

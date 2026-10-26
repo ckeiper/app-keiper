@@ -6,6 +6,10 @@ on:
       - 'crm_home.py'
       - 'home_theme.py'
       - 'home_sidebar.py'
+      - 'anuncios_progress*.py'
+      - 'anuncios_progresso.json'
+      - 'scripts/anuncios_progress*'
+      - 'test_anuncios_progress.py'
       - 'navigation_shell.py'
       - 'store_sidebar.py'
       - 'ads_overview_design.py'
@@ -51,6 +55,7 @@ jobs:
           node-version: '22'
       - run: python -m pip install -r requirements.txt
       - run: python scripts/management_preview.py
+      - run: python scripts/anuncios_progress_preview.py
       - run: python scripts/store_navigation_preview.py
       - run: python scripts/crm_home_preview.py
       - run: python scripts/home_alerts_preview.py
@@ -61,6 +66,7 @@ jobs:
       - run: npm install --no-save --no-package-lock playwright@1.51.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/management_browser_check.cjs
+      - run: node scripts/anuncios_progress_browser_check.cjs
       - run: node scripts/store_navigation_browser_check.cjs
       - run: node scripts/crm_home_browser_check.cjs
       - run: node scripts/home_alerts_browser_check.cjs
