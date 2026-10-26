@@ -633,17 +633,20 @@
       "area": "Conteúdo",
       "capacidade": "Checklist, fotos e qualidade do anúncio",
       "estado": "parcial",
-      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade.",
-      "falta": "Ainda não há inspeção automática do conteúdo real das imagens, descrição e atributos; os pareceres são manuais e datados. O sistema não certifica qualidade atual nem inventa objeções ou conclusões de IA.",
+      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade. Consulta sob demanda do conteúdo atual após validar conta e propriedade: título, fotos retornadas, atributos principais e descrição em texto simples; diferencia vazio de desconhecido e não modifica pareceres.",
+      "falta": "Falta análise do conteúdo visual das imagens e clips, validação dos atributos obrigatórios da categoria e de cada variação e avaliação semântica da descrição. A leitura atual não aprova critérios nem certifica qualidade ou impacto em vendas.",
       "fontes": [
         "listing_content.py",
         "listing_content_routes.py",
-        "listing_content_view.py"
+        "listing_content_view.py",
+        "listing_content_snapshot.py",
+        "docs/CONTEUDO_CONSULTA.md"
       ],
       "testes": [
         "test_listing_content.py",
         "test_listing_content_integration.py",
-        "scripts/listing_content_browser_check.cjs"
+        "scripts/listing_content_browser_check.cjs",
+        "test_listing_content_snapshot.py"
       ],
       "prs": [],
       "numero_original": null,
@@ -1178,6 +1181,18 @@
       },
       "total": 44,
       "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Consulta sob demanda do conteúdo atual para apoiar a revisão manual; análise visual e semântica, requisitos da categoria e variações continuam parciais.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": []
     }
   ],
   "publicacoes": [
@@ -1210,6 +1225,12 @@
       "titulo": "Tarefas com responsável, prazo e histórico",
       "horario_brasilia": "2026-10-25T20:57:23-03:00",
       "deploy": "dep-dbf9e995efls73bp109g"
+    },
+    {
+      "pr": 290,
+      "titulo": "Consulta atual de tarifa",
+      "horario_brasilia": "2026-10-26T16:34:07-03:00",
+      "deploy": "dep-dbfqlbqjnfac73ekulu0"
     }
   ]
 }
