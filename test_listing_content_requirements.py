@@ -64,6 +64,21 @@ class RequiredAttributesTests(unittest.TestCase):
         b.pop('attributes')
         self.assertEqual(compare(definitions(),value)['rows'][0]['state'],'unknown')
 
+    def test_variation_details_remain_visible_when_main_attribute_is_filled(self):
+        value=item();a=variant('1');b=variant('<2>');b['attributes']=[dict(id='BRAND',value_name='Marca')]
+        value['variations']=[a,b]
+        result=compare(definitions(),value)
+        self.assertEqual(result['rows'][0]['state'],'informed')
+        self.assertEqual([v['state'] for v in result['rows'][0]['variations']],['review','informed'])
+        html=render(result)
+        self.assertIn('Variação 1: Sem valor identificado',html)
+        self.assertIn('Variação &lt;2&gt;: Valor informado',html)
+        self.assertIn('não comprova erro',html)
+        b.pop('attributes')
+        self.assertEqual(compare(definitions(),value)['rows'][0]['variations'][1]['state'],'unknown')
+        value['variations']=[a,a]
+        self.assertIsNone(compare(definitions(),value)['rows'][0]['variations'])
+
     def test_incomplete_invalid_or_repeated_variations_do_not_prove_presence(self):
         for variants in (None,{},[None],[{}],[variant(1),variant(1)],[variant(True)]):
             value=item();value['attributes']=[];value['variations']=variants
