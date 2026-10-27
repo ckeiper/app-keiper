@@ -651,7 +651,8 @@
         "test_listing_content_requirements.py"
       ],
       "prs": [
-        291
+        291,
+        294
       ],
       "numero_original": null,
       "prioridade": 2,
@@ -1209,6 +1210,20 @@
       },
       "total": 44,
       "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-27",
+      "resumo": "Detalhamento dos atributos retornados por variação; aplicabilidade condicional e validação de valores permanecem parciais.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": [
+        294
+      ]
     }
   ],
   "publicacoes": [
