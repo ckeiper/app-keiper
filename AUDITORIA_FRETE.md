@@ -107,3 +107,17 @@ O comparador reutiliza os campos já lidos em vez de abrir o Excel novamente.
 Formatos desconhecidos continuam com prévia limitada e sem importação.
 Testes da rota e do fluxo completo verificam uma única abertura do workbook.
 Isso corrige o timeout observado no upload real no worker HTTP do Render.
+
+## Página de auditoria · revisão em 27/10/2026
+
+A apresentação separa envio, resultados, histórico de importações e cobertura diária.
+O cabeçalho resume somente o último relatório da loja, sem somar arquivos sobrepostos.
+Ausência de consolidação aparece como sem cobertura; um dia confirmado com valor zero
+continua sendo zero. O formulário mantém CSRF, formatos/limites, ações e validação
+do período no servidor. A consolidação fica em uma seção expansível e começa sem
+confirmação marcada. Permissões e cálculos existentes não mudam.
+
+Após importar, o histórico é relido na mesma transação e exibido na resposta, sem
+reenviar o upload. Resultados vêm antes do histórico. O relatório e suas linhas reais
+não fazem parte do código ou das capturas de testes. A validação visual cobre telas
+vazias, histórico, resultado, repetição de arquivo e acesso de cliente em desktop e celular.

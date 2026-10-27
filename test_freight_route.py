@@ -145,12 +145,15 @@ class FreightRouteTests(unittest.TestCase):
         from test_freight_reconciliation import SalesReconciliationTests
         payload = SalesReconciliationTests().workbook([dict(operation_date='01/10/2026')])
         self.query.reset_mock()
-        self.query.side_effect = [[{'cliente': 'Loja sintética'}], [], [], [{'id': 1}]]
+        refreshed = freight_reconciliation.inspect_sales_reconciliation('synthetic.xlsx', payload)
+        self.query.side_effect = [[{'cliente': 'Loja sintética'}], [], [], [{'id': 1}],
+                                 [dict(id=1,resumo=refreshed)]]
         response = self.client.post('/auditoria-frete/5', data={
             'csrf_token': token, 'acao': 'importar',
             'arquivo': (io.BytesIO(payload), 'synthetic.xlsx')})
         self.assertEqual(response.status_code, 200)
         self.assertIn('Indicadores importados.', response.get_data(as_text=True))
+        self.assertIn('01/10/2026 a 01/10/2026', response.get_data(as_text=True))
         self.assertEqual(self.query.call_args.args[2][0], 5)
 
 
