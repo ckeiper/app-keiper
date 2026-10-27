@@ -68,7 +68,9 @@ jobs:
       - run: python scripts/kevia_finance_preview.py
       - run: python scripts/freight_audit_preview.py
       - run: npm install --no-save --no-package-lock playwright@1.51.1
-      - run: npx playwright install --with-deps chromium
+      # The hosted Ubuntu image already includes Chromium runtime libraries.
+      - run: npx playwright install chromium
+        timeout-minutes: 4
       - run: node scripts/management_browser_check.cjs
       - run: node scripts/anuncios_progress_browser_check.cjs
       - run: node scripts/store_navigation_browser_check.cjs
