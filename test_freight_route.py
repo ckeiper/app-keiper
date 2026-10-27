@@ -139,19 +139,37 @@ class FreightRouteTests(unittest.TestCase):
         self.query.side_effect = [[{'cliente': 'Loja sintética'}], [], []]
         response = self.client.get('/auditoria-frete/5')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Importar indicadores desta loja', response.get_data(as_text=True))
+        self.assertIn('Analisar diferenças e salvar', response.get_data(as_text=True))
         with self.client.session_transaction() as state:
             token = state['freight_preview_csrf']
         from test_freight_reconciliation import SalesReconciliationTests
         payload = SalesReconciliationTests().workbook([dict(operation_date='01/10/2026')])
         self.query.reset_mock()
-        self.query.side_effect = [[{'cliente': 'Loja sintética'}], [], [], [{'id': 1}]]
+        refreshed = freight_reconciliation.inspect_sales_reconciliation('synthetic.xlsx', payload)
+        self.query.side_effect = [[{'cliente': 'Loja sintética'}], [], [], [{'id': 1}], [{'id': 1}],
+                                 [dict(id=1,resumo=refreshed)]]
         response = self.client.post('/auditoria-frete/5', data={
             'csrf_token': token, 'acao': 'importar',
             'arquivo': (io.BytesIO(payload), 'synthetic.xlsx')})
         self.assertEqual(response.status_code, 200)
         self.assertIn('Indicadores importados.', response.get_data(as_text=True))
+        self.assertIn('01/10/2026 a 01/10/2026', response.get_data(as_text=True))
         self.assertEqual(self.query.call_args.args[2][0], 5)
+
+    def test_saved_order_differences_are_read_only_and_scoped_to_selected_report(self):
+        from test_freight_differences import report as detailed_report
+        import json
+        with self.client.session_transaction() as state:state['tipo']='admin'
+        data=detailed_report()
+        self.query.side_effect=[[dict(cliente='Loja sintética')],[dict(id=8,resumo=dict(data,rows=3,seller_shipping_total='33.00'))],[],[dict(id=8,resumo=json.dumps(data))]]
+        response=self.client.get('/auditoria-frete/5?relatorio=8')
+        self.assertEqual(response.status_code,200)
+        self.assertIn('scope="row" class="fa-order-id">1001',response.text)
+        self.assertEqual(self.query.call_args.args[2],(5,8))
+        self.assertTrue(all(c.args[1].lstrip().startswith('SELECT') for c in self.query.call_args_list))
+        self.query.reset_mock();self.query.side_effect=[[dict(cliente='Loja')],[],[]]
+        self.assertEqual(self.client.get('/auditoria-frete/5?relatorio=²').status_code,400)
+        self.assertEqual(self.query.call_count,3)
 
 
 if __name__ == '__main__':
