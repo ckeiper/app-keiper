@@ -71,6 +71,15 @@ class FreightStoreIntegrationTests(unittest.TestCase):
             self.assertEqual(report_history(conn, query, 8), [])
             self.assertTrue(save_report(conn, query, 8, b'synthetic', summary))
             self.assertEqual(len(report_history(conn, query, 7)), 1)
+            from freight_store import save_review,report_detail
+            from test_freight_differences import review
+            rid=save_review(conn,query,7,b'synthetic',review())
+            saved=report_detail(conn,query,7,rid)[0]['resumo']
+            self.assertEqual({k:v for k,v in saved.items() if k!='freight_review'},summary)
+            self.assertEqual(len(saved['freight_review']['details']),2)
+            self.assertNotIn('freight_review',report_history(conn,query,7)[0]['resumo'])
+            self.assertNotIn('freight_review',report_history(conn,query,8)[0]['resumo'])
+            self.assertEqual(report_detail(conn,query,8,rid),[])
             from freight_reconciliation import inspect_sales_reconciliation
             from test_freight_reconciliation import SalesReconciliationTests
             make = SalesReconciliationTests().workbook

@@ -2148,12 +2148,27 @@ def auditoria_frete(cid):
     if "freight_preview_csrf" not in session:
         session["freight_preview_csrf"] = secrets.token_urlsafe(32)
     from freight_audit_view import render_page
+    import json
+    from freight_store import report_detail, save_review
+    from datetime import datetime as review_datetime, timezone as review_timezone
     admin = session.get('tipo') == 'admin'
     reports, days = [], []
+    current_report, selected_id = None, None
     if admin:
         with banco() as conn:
             reports = report_history(conn, consultar, cid)
             days = consolidated_history(conn, consultar, cid)
+            raw_id = request.args.get('relatorio') or (str(reports[0]['id']) if reports else None)
+            if raw_id is not None:
+                if not raw_id.isascii() or not raw_id.isdigit() or len(raw_id)>19 or not 0 < int(raw_id) < 2**63:
+                    return 'Relatório inválido', 400
+                selected_id = int(raw_id)
+                selected = report_detail(conn, consultar, cid, selected_id)
+                if not selected:
+                    return 'Relatório não encontrado nesta loja', 404
+                current_report = selected[0]['resumo']
+                if isinstance(current_report, str):
+                    current_report = json.loads(current_report)
     corpo = ''
     if request.method == "POST":
         if request.form.get('acao') in ('importar', 'consolidar') and session.get('tipo') != 'admin':
@@ -2187,9 +2202,15 @@ def auditoria_frete(cid):
                 raise PreviewError('Formato não reconhecido para conferência e comparação por vendas.')
             resumo, _, linhas_comparacao, colunas_comparacao = bundle
             corpo += render_sales_reconciliation(resumo)
+            order_differences = []
             resumo['sales_comparison'] = audit_against_sales(
                 cid, arquivo.filename, payload, resumo, banco, consultar, calcular_vendas,
-                parsed_rows=linhas_comparacao, parsed_columns=colunas_comparacao)
+                parsed_rows=linhas_comparacao, parsed_columns=colunas_comparacao,
+                details=order_differences)
+            resumo['freight_review'] = dict(version=1,
+                checked_at=review_datetime.now(review_timezone.utc).isoformat(),
+                comparison=resumo['sales_comparison'], details=order_differences)
+            current_report, selected_id = resumo, None
             corpo += render_sales_comparison(resumo['sales_comparison'])
             corpo += detalhes_planilha
             if request.form.get('acao') in ('importar', 'consolidar'):
@@ -2202,9 +2223,10 @@ def auditoria_frete(cid):
                             days = consolidated_history(conn, consultar, cid)
                         else:
                             novo = save_report(conn, consultar, cid, payload, resumo)
+                        selected_id = save_review(conn, consultar, cid, payload, resumo['freight_review'])
                         reports = report_history(conn, consultar, cid)
                     corpo = corpo.replace('Nenhum dado foi salvo.', 'Os indicadores agregados deste relatório estão registrados nesta loja.')
-                    corpo += "<div class='aviso'>" + ('Indicadores importados.' if novo else 'Este arquivo já foi importado nesta loja.') + '</div>'
+                    corpo += "<div class='aviso'>" + ('Indicadores importados.' if novo else 'Este arquivo já foi importado nesta loja. Conferência por venda atualizada, sem substituir os indicadores originais.') + '</div>'
                 except ValueError as exc:
                     return esc(str(exc)), 400
         except PreviewError as exc:
@@ -2212,9 +2234,15 @@ def auditoria_frete(cid):
             corpo += detalhes_planilha
     response = Response(pagina_loja("Auditoria de Frete", cid, lojas[0]["cliente"],
                                    "auditoria_frete", render_page(session["freight_preview_csrf"],
-                                       admin, lojas[0]["cliente"], reports, days, corpo)), mimetype="text/html")
+                                       admin, lojas[0]["cliente"], reports, days, corpo,
+                                       current=current_report, report_id=selected_id,
+                                       args=request.args, cid=cid)), mimetype="text/html")
     response.headers["Cache-Control"] = "no-store"
     return response
+
+
+from freight_difference_view import register_export as register_freight_export
+register_freight_export(app, login_required, pode_ver_loja, banco, consultar)
 
 
 @app.route("/painel")

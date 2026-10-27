@@ -34,10 +34,12 @@ relatórios de clientes, identificadores reais ou detalhes de pagamento ao Git.
 ## Importação de indicadores por loja
 
 O administrador pode importar o resumo de um relatório XLSX na loja selecionada.
-A tabela `frete_importacoes` guarda somente indicadores agregados, datas dos
-movimentos, instante da importação e SHA-256. O arquivo, nomes de produtos,
-pedidos, pagamentos e identificadores do cliente não são persistidos.
-O SHA-256 é único por loja; reenviar os mesmos bytes é uma operação sem efeito.
+A tabela `frete_importacoes` guarda indicadores agregados, datas dos movimentos,
+instante da importação e SHA-256. O detalhamento autorizado em 27/10/2026 acrescenta
+somente os campos mínimos de pedido/envio e valores descritos na seção final.
+O arquivo, nomes de produtos, pagamentos e identificadores do comprador não são persistidos.
+O SHA-256 é único por loja; reenviar os mesmos bytes não duplica os indicadores.
+A reanálise atualiza somente a conferência por venda, preservando os totais originais.
 Relatórios diferentes permanecem separados, inclusive se seus períodos se
 sobrepõem: não somar históricos como se fossem movimentos novos.
 
@@ -94,8 +96,8 @@ como lacuna de comparação; não se afirma que um frete é correto nesses casos
 
 A tela informa quantos pedidos foram comparados, referência real ou estimada,
 quantos estão acima/abaixo/dentro da tolerância de R$ 0,01 e totais somente dos
-pedidos comparados. A comparação retorna e persiste apenas agregados; os
-identificadores ficam em memória durante o processamento. Divergência entre as
+pedidos comparados. A comparação retorna agregados por padrão; o fluxo detalhado
+autorizado também salva evidências mínimas por pedido. Divergência entre as
 duas fontes não comprova cobrança indevida nem equivale à tarifa contratada.
 
 ## Leitura única do XLSX
@@ -110,8 +112,8 @@ Isso corrige o timeout observado no upload real no worker HTTP do Render.
 
 ## Página de auditoria · revisão em 27/10/2026
 
-A apresentação separa envio, resultados, histórico de importações e cobertura diária.
-O cabeçalho resume somente o último relatório da loja, sem somar arquivos sobrepostos.
+A apresentação prioriza diferenças por venda; envio, detalhes gerais, histórico e
+cobertura diária ficam em segundo plano, sem somar arquivos sobrepostos.
 Ausência de consolidação aparece como sem cobertura; um dia confirmado com valor zero
 continua sendo zero. O formulário mantém CSRF, formatos/limites, ações e validação
 do período no servidor. A consolidação fica em uma seção expansível e começa sem
@@ -121,3 +123,25 @@ Após importar, o histórico é relido na mesma transação e exibido na respost
 reenviar o upload. Resultados vêm antes do histórico. O relatório e suas linhas reais
 não fazem parte do código ou das capturas de testes. A validação visual cobre telas
 vazias, histórico, resultado, repetição de arquivo e acesso de cliente em desktop e celular.
+
+## Diferenças por venda · escopo solicitado em 27/10/2026
+
+A tela prioriza valores a mais e a menos, referência real ou estimada e a lista de
+diferenças por pedido. Não força vínculo para movimentos ambíguos. A lista tem 50
+linhas por página, filtros de direção e referência e exportação CSV de todas as
+diferenças do filtro. A conferência usa a mesma fórmula de Vendas; referência
+estimada não comprova tarifa contratada ou cobrança indevida.
+
+Sob autorização para mostrar venda por venda, a análise salva somente pedido,
+envio, valores comparados, diferença, fonte, critério de vínculo e data de venda.
+Esses dados mínimos ficam em `resumo.freight_review`, com instante da conferência.
+Não armazena dados do comprador nem o arquivo. A listagem de históricos omite o
+detalhamento; somente o relatório selecionado é carregado, com escopo de loja.
+O CSV exige login administrativo e o mesmo escopo, não é armazenado publicamente
+e neutraliza prefixos de fórmula em campos de texto provenientes da fonte.
+
+Relatórios antigos conservam seus indicadores e comparação original. Reanalisar
+o mesmo arquivo atualiza apenas `freight_review`, por loja e SHA-256, sem duplicar
+importação, alterar consolidação diária ou substituir totais originais. Antes da
+reanálise, a tela informa que a lista por pedido não está disponível. O total a
+menos legado não é inferido pelo saldo líquido das diferenças.

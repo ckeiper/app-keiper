@@ -1,4 +1,4 @@
-"""Store-scoped report summaries; never store customer rows or upload bytes."""
+"""Store-scoped summaries and minimal freight reviews; no buyer data or upload bytes."""
 import hashlib
 import json
 import datetime
@@ -95,8 +95,22 @@ def save_report(conn, query, store_id, payload, summary):
 
 
 def report_history(conn, query, store_id):
-    return query(conn, '''SELECT id, importado_em, resumo FROM frete_importacoes
+    return query(conn, '''SELECT id, importado_em, resumo - 'freight_review' AS resumo FROM frete_importacoes
         WHERE conexao_id=%s ORDER BY id DESC LIMIT 10''', (store_id,))
+
+
+def report_detail(conn,query,store_id,report_id):
+    return query(conn,'''SELECT id,importado_em,resumo FROM frete_importacoes
+        WHERE conexao_id=%s AND id=%s''',(store_id,report_id))
+
+
+def save_review(conn,query,store_id,payload,review):
+    """Refresh only the review; original report aggregates and SHA stay intact."""
+    rows=query(conn,'''UPDATE frete_importacoes SET resumo=jsonb_set(resumo,
+        '{freight_review}',%s::jsonb,true) WHERE conexao_id=%s AND arquivo_sha256=%s RETURNING id''',
+        (json.dumps(review),store_id,hashlib.sha256(payload).hexdigest()))
+    if not rows:raise ValueError('Importação não encontrada nesta loja para salvar a conferência.')
+    return rows[0]['id']
 
 
 def render_history(reports):
