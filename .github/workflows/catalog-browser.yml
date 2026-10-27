@@ -44,6 +44,8 @@ on:
       - 'scripts/listing_questions*'
       - 'listing_content*.py'
       - 'content_required_attributes.py'
+      - 'content_conditional_attributes.py'
+      - 'test_content_conditional_attributes.py'
       - 'test_listing_content_snapshot.py'
       - 'test_listing_content*.py'
       - 'scripts/listing_content*'

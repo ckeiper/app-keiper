@@ -9,6 +9,7 @@ import requests
 from flask import request, session
 from profitability_view import CSS
 from content_required_attributes import compare as compare_required, render as render_required
+from content_conditional_attributes import evaluate as evaluate_conditional
 
 
 class ContentUnavailable(ValueError):
@@ -37,7 +38,7 @@ def text(value, limit):
     return value.strip() if isinstance(value, str) and len(value) <= limit else None
 
 
-def inspect(token, seller_id, item_id, request_get, now=None):
+def inspect(token, seller_id, item_id, request_get, now=None, request_post=None):
     result = dict(state='unknown', checked_at=now or datetime.now(timezone.utc))
     if (not isinstance(token, str) or not token or
         isinstance(seller_id, bool) or not re.fullmatch(r'[1-9][0-9]{0,19}', str(seller_id)) or
@@ -79,6 +80,13 @@ def inspect(token, seller_id, item_id, request_get, now=None):
         try:
             payload=read(token,'/categories/'+category+'/attributes',request_get,list)
             result['requirements']=dict(compare_required(payload,item),category=category)
+            if result['requirements'].get('state') == 'read' and any(r['conditional'] for r in result['requirements']['rows']):
+                conditional=evaluate_conditional(token,category,item,result['description'],request_post)
+                result['requirements']['conditional']=conditional
+                if conditional['state']=='read':
+                    for row in result['requirements']['rows']:
+                        if row['conditional']:
+                            row['conditional_confirmed']=row['id'] in conditional['required_ids']
         except ContentUnavailable as exc:
             result['requirements']=dict(state='unknown',message=str(exc))
     return result
@@ -122,7 +130,7 @@ def render(cid, item_id, title, csrf, result=None):
     return out+'<section class="pf-card"><h3>Continuar a conferência</h3><p>Confira imagens, especificações, compatibilidade e dúvidas reais antes de registrar seu parecer. A oferta pode mudar depois desta leitura. Nenhum histórico de revisão foi substituído.</p><a href="'+path+'">Registrar evidências no checklist ↗</a></section></div><style>.cs-text{white-space:pre-wrap;overflow-wrap:anywhere}.cs-attributes{overflow-wrap:anywhere}.cs-attributes dt{font-weight:700;margin-top:12px}.cs-attributes dd{margin:4px 0 0}</style>'
 
 
-def register(app, login_required, can_view, bank, query, shop_page, resolve_token, request_get):
+def register(app, login_required, can_view, bank, query, shop_page, resolve_token, request_get, request_post=requests.post):
     @app.route('/anuncios/<int:cid>/<item_id>/conteudo-atual', methods=['GET', 'POST'])
     @login_required
     def listing_content_snapshot(cid, item_id):
@@ -136,6 +144,6 @@ def register(app, login_required, can_view, bank, query, shop_page, resolve_toke
         if not shops:
             return 'Anúncio não encontrado nesta loja.', 404
         csrf = session.setdefault('_csrf', secrets.token_urlsafe(32))
-        result = inspect(resolve_token(shops[0]), shops[0]['user_id'], item_id, request_get) if request.method == 'POST' else None
+        result = inspect(resolve_token(shops[0]), shops[0]['user_id'], item_id, request_get, request_post=request_post) if request.method == 'POST' else None
         return shop_page('Conteúdo atual do anúncio', cid, shops[0]['cliente'], 'anuncios',
                          render(cid, item_id, shops[0]['titulo'], csrf, result))
