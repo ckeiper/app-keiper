@@ -95,7 +95,7 @@ def compare(payload,item):
         name=name if isinstance(name,str) and name.strip() and len(name)<=300 else code
         state,message=presence(code,item)
         conditional=tags.get('conditional_required') is True
-        rows.append(dict(id=code,name=name,conditional=conditional,state=state,message=message,
+        rows.append(dict(id=code,name=name,conditional=conditional,required=tags.get('required') is True,state=state,message=message,
                          variations=variation_details(code,item)))
     return dict(state='read',rows=rows[:100],total=len(rows))
 
@@ -110,6 +110,12 @@ def render(result):
     out+='<p>Categoria consultada: '+esc(result.get('category','Não informada'))+'.</p>'
     for row in result['rows']:
         label='Obrigatoriedade condicional · aplicabilidade não avaliada' if row['conditional'] else 'Obrigatório na categoria consultada'
+        if row.get('required'):
+            label='Obrigatório na categoria consultada'
+        elif row.get('conditional_confirmed') is True:
+            label='Obrigatório na consulta condicional do Mercado Livre'
+        elif row.get('conditional_confirmed') is False:
+            label='Condicional não retornado como obrigatório nesta consulta; confira se os dados estão completos'
         out+='<article class="cs-requirement" data-presence="'+esc(row['state'])+'"><h5>'+esc(row['name'])+'</h5><p>'+label+'</p><p>'+esc(row['message'])+'</p></article>'
         variations = row.get('variations')
         if variations is None:

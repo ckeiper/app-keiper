@@ -1,12 +1,12 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');const {chromium}=require('playwright');
 (async()=>{const browser=await chromium.launch({headless:true});try{const page=await browser.newPage();
-for(const mode of ['blank','read','empty','partial','unknown','requirements','variants','category-failure'])for(const width of [1440,390,320]){
+for(const mode of ['blank','read','empty','partial','unknown','requirements','variants','conditional','category-failure'])for(const width of [1440,390,320]){
  await page.setViewportSize({width,height:900});await page.setContent(fs.readFileSync(`visual-qa/content-snapshot-${mode}.html`,'utf8'));
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  assert.equal(await page.locator('.content-snapshot form[method=post]').count(),1);
  assert.equal(await page.locator('.content-snapshot input[name=_csrf]').count(),1);
  assert.equal(await page.locator('.content-snapshot img').count(),0);
- if(['read','empty','partial','requirements','variants','category-failure'].includes(mode))assert.equal(await page.locator('.content-snapshot .pf-metric').count(),3);
+ if(['read','empty','partial','requirements','variants','conditional','category-failure'].includes(mode))assert.equal(await page.locator('.content-snapshot .pf-metric').count(),3);
  else assert.equal(await page.locator('.content-snapshot .pf-metric').count(),0);
  if(mode==='read'){
   await page.locator('#content-snapshot-result summary').click();
@@ -30,6 +30,7 @@ for(const mode of ['blank','read','empty','partial','unknown','requirements','va
   assert.ok((await details.textContent()).includes('não comprova erro'));
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  }
+ if(mode==='conditional')assert.ok((await page.locator('.cs-required').textContent()).includes('Obrigatório na consulta condicional do Mercado Livre'));
  if(mode==='category-failure'){
   assert.equal(await page.locator('.cs-requirement').count(),0);
   assert.ok((await page.locator('.cs-required [role=status]').textContent()).includes('Requisitos não verificados'));
