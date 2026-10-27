@@ -21,7 +21,15 @@ for(const mode of ['blank','read','empty','partial','unknown','requirements','va
   assert.ok((await page.locator('.cs-required').textContent()).includes('aplicabilidade não avaliada'));
   assert.ok((await page.locator('.cs-required').textContent()).includes('MLB200'));
  }
- if(mode==='variants')assert.ok((await page.locator('.cs-requirement').first().textContent()).includes('1 de 2'));
+ if(mode==='variants'){
+  assert.ok((await page.locator('.cs-requirement').first().textContent()).includes('1 de 2'));
+  const details=page.locator('.cs-required details').first();
+  await details.locator('summary').click();
+  assert.ok((await details.textContent()).includes('Variação 1: Valor informado'));
+  assert.ok((await details.textContent()).includes('Variação 2: Sem valor identificado'));
+  assert.ok((await details.textContent()).includes('não comprova erro'));
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ }
  if(mode==='category-failure'){
   assert.equal(await page.locator('.cs-requirement').count(),0);
   assert.ok((await page.locator('.cs-required [role=status]').textContent()).includes('Requisitos não verificados'));

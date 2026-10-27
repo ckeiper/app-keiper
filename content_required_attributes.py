@@ -59,6 +59,27 @@ def presence(code,item):
     return 'review',detail+'; conferir variações sem valor identificado'
 
 
+def variation_details(code, item):
+    """Report what each variation returned, without inferring applicability."""
+    variants = item.get('variations')
+    if not isinstance(variants, list) or len(variants) > 1000:
+        return None
+    seen = set()
+    details = []
+    for variant in variants:
+        if not isinstance(variant, dict):
+            return None
+        identifier = variant.get('id')
+        if isinstance(identifier, bool) or not isinstance(identifier, (str, int)) or not str(identifier).strip() or len(str(identifier)) > 200 or str(identifier) in seen:
+            return None
+        seen.add(str(identifier))
+        groups = [attributes(variant.get(key)) for key in ('attributes', 'attribute_combinations')]
+        states = [has_value(group.get(code)) if group is not None else None for group in groups]
+        state = 'informed' if True in states else 'unknown' if None in states else 'review'
+        details.append(dict(id=str(identifier), state=state))
+    return details
+
+
 def compare(payload,item):
     definitions=attributes(payload)
     if definitions is None:
@@ -74,7 +95,8 @@ def compare(payload,item):
         name=name if isinstance(name,str) and name.strip() and len(name)<=300 else code
         state,message=presence(code,item)
         conditional=tags.get('conditional_required') is True
-        rows.append(dict(id=code,name=name,conditional=conditional,state=state,message=message))
+        rows.append(dict(id=code,name=name,conditional=conditional,state=state,message=message,
+                         variations=variation_details(code,item)))
     return dict(state='read',rows=rows[:100],total=len(rows))
 
 
@@ -89,6 +111,17 @@ def render(result):
     for row in result['rows']:
         label='Obrigatoriedade condicional · aplicabilidade não avaliada' if row['conditional'] else 'Obrigatório na categoria consultada'
         out+='<article class="cs-requirement" data-presence="'+esc(row['state'])+'"><h5>'+esc(row['name'])+'</h5><p>'+label+'</p><p>'+esc(row['message'])+'</p></article>'
+        variations = row.get('variations')
+        if variations is None:
+            out += '<p>Detalhes das variações não verificáveis.</p>'
+        elif variations:
+            labels = {'informed':'Valor informado', 'review':'Sem valor identificado', 'unknown':'Não verificável'}
+            out += '<details><summary>Conferir valores retornados por variação</summary><p>A ausência na variação não comprova erro: o valor pode estar no anúncio principal e a aplicabilidade depende da categoria.</p><ul>'
+            for variation in variations[:100]:
+                out += '<li>Variação '+esc(variation['id'])+': '+labels[variation['state']]+'</li>'
+            if len(variations)>100:
+                out += '<li>Exibidas 100 de '+str(len(variations))+' variações.</li>'
+            out += '</ul></details>'
     if result['total']>100:
         out+='<p>Exibidos 100 de '+str(result['total'])+' requisitos retornados.</p>'
     return out+'<p>Não executa validação de publicação ou regras condicionais e não aprova critérios do checklist. A categoria e o anúncio podem mudar após esta leitura.</p></section><style>.cs-requirement{border:1px solid #426184;border-radius:10px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.cs-requirement h5{font:inherit;font-weight:700;margin:0 0 8px}</style>'

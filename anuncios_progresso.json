@@ -633,7 +633,7 @@
       "area": "Conteúdo",
       "capacidade": "Checklist, fotos e qualidade do anúncio",
       "estado": "parcial",
-      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade. Consulta sob demanda do conteúdo atual após validar conta e propriedade: título, fotos retornadas, atributos principais e descrição em texto simples; diferencia vazio de desconhecido e não modifica pareceres. Conferência de presença das regras obrigatórias e condicionais retornadas pela categoria, com evidência no anúncio principal ou em cada variação e estados desconhecidos explícitos.",
+      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade. Consulta sob demanda do conteúdo atual após validar conta e propriedade: título, fotos retornadas, atributos principais e descrição em texto simples; diferencia vazio de desconhecido e não modifica pareceres. Conferência de presença das regras obrigatórias e condicionais retornadas pela categoria, com evidência no anúncio principal ou em cada variação e estados desconhecidos explícitos. Detalhamento dos valores retornados em cada variação, inclusive quando o atributo está presente no anúncio principal, sem presumir erro ou obrigatoriedade por variação.",
       "falta": "Faltam análise visual de imagens e clips, avaliação semântica da descrição, aplicabilidade das regras condicionais e validação dos valores/ficha técnica. Conferência de presença não certifica validade ou aprovação do anúncio.",
       "fontes": [
         "listing_content.py",
@@ -651,11 +651,12 @@
         "test_listing_content_requirements.py"
       ],
       "prs": [
-        291
+        291,
+        294
       ],
       "numero_original": null,
       "prioridade": 2,
-      "atualizado_em": "2026-10-26"
+      "atualizado_em": "2026-10-27"
     },
     {
       "id": "perguntas-avaliacoes",
@@ -1209,6 +1210,20 @@
       },
       "total": 44,
       "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-27",
+      "resumo": "Detalhamento dos atributos retornados por variação; aplicabilidade condicional e validação de valores permanecem parciais.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": [
+        294
+      ]
     }
   ],
   "publicacoes": [
