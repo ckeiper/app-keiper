@@ -501,6 +501,7 @@ document.addEventListener("DOMContentLoaded", function () {
 """
 
 def pagina(titulo, corpo):
+    from theme_switcher import HEAD as theme_head, SCRIPT as theme_script
     is_home = "<main class='kh-home'>" in corpo
     is_progress = "<main class='ap-progress'>" in corpo
     use_sidebar = is_home or is_progress
@@ -512,8 +513,8 @@ def pagina(titulo, corpo):
     links += "<a class='btn' href='/conectar'>+ Conectar loja</a></div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS + "</head><body>"
-    fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
+    cab += "<title>" + esc(titulo) + "</title>" + theme_head + CSS + VISUAL_CSS + "</head><body>"
+    fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + theme_script + "</body></html>"
     sidebar = ""
     if use_sidebar:
         from home_sidebar import render_home_sidebar
@@ -522,6 +523,7 @@ def pagina(titulo, corpo):
 
 
 def pagina_loja(titulo, cid, cliente, secao, corpo):
+    from theme_switcher import HEAD as theme_head, SCRIPT as theme_script
     from section_refresh import SCOPES, render as render_refresh
     if secao in SCOPES and "class='k-refresh'" not in corpo:
         corpo = render_refresh(cid, secao) + corpo
@@ -529,13 +531,13 @@ def pagina_loja(titulo, cid, cliente, secao, corpo):
     sidebar = render_store_sidebar(cid, cliente, secao, admin=session.get("tipo") == "admin")
     cab = "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS + "</head><body>"
+    cab += "<title>" + esc(titulo) + "</title>" + theme_head + CSS + VISUAL_CSS + "</head><body>"
     cab += sidebar + "<header class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1></div>"
     cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>" + esc(str(cliente)) + "</div>"
     cab += "<a class='btn sair' href='/logout'>Sair</a></header>"
     cab += "<div class='wrap'><div class='layout'><main class='conteudo'>" + corpo
     from chart_personalization import CONTROLS as chart_controls
-    return cab + "</main></div></div>" + chart_controls + SCRIPT + "</body></html>"
+    return cab + "</main></div></div>" + chart_controls + SCRIPT + theme_script + "</body></html>"
 
 
 FUSO_BR = datetime.timezone(datetime.timedelta(hours=-3))

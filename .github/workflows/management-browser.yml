@@ -26,6 +26,9 @@ on:
       - 'scripts/crm_home*'
       - 'management*.py'
       - 'visual_theme.py'
+      - 'theme_switcher.py'
+      - 'test_theme_switcher.py'
+      - 'scripts/theme*'
       - 'main.py'
       - 'freight_audit_view.py'
       - 'freight_difference_view.py'
@@ -83,6 +86,7 @@ jobs:
       - run: python scripts/kyra_preview.py
       - run: python scripts/kevia_finance_preview.py
       - run: python scripts/freight_audit_preview.py
+      - run: python scripts/theme_preview.py
       - run: npm install --no-save --no-package-lock playwright@1.51.1
       # The hosted Ubuntu image already includes Chromium runtime libraries.
       - run: npx playwright install chromium
@@ -101,6 +105,7 @@ jobs:
       - run: node scripts/kyra_browser_check.cjs
       - run: node scripts/kevia_finance_browser_check.cjs
       - run: node scripts/freight_audit_browser_check.cjs
+      - run: node scripts/theme_browser_check.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
