@@ -633,8 +633,8 @@
       "area": "Conteúdo",
       "capacidade": "Checklist, fotos e qualidade do anúncio",
       "estado": "parcial",
-      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade. Consulta sob demanda do conteúdo atual após validar conta e propriedade: título, fotos retornadas, atributos principais e descrição em texto simples; diferencia vazio de desconhecido e não modifica pareceres. Conferência de presença das regras obrigatórias e condicionais retornadas pela categoria, com evidência no anúncio principal ou em cada variação e estados desconhecidos explícitos. Detalhamento dos valores retornados em cada variação, inclusive quando o atributo está presente no anúncio principal, sem presumir erro ou obrigatoriedade por variação. Consulta sob demanda das regras condicionais na API oficial quando os dados básicos e a descrição estão disponíveis; falhas permanecem não verificadas.",
-      "falta": "Faltam análise visual de imagens e clips, avaliação semântica da descrição e validação dos valores/ficha técnica. A consulta condicional depende dos dados retornados e não certifica aprovação do anúncio.",
+      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade. Consulta sob demanda do conteúdo atual após validar conta e propriedade: título, fotos retornadas, atributos principais e descrição em texto simples; diferencia vazio de desconhecido e não modifica pareceres. Conferência de presença das regras obrigatórias e condicionais retornadas pela categoria, com evidência no anúncio principal ou em cada variação e estados desconhecidos explícitos. Detalhamento dos valores retornados em cada variação, inclusive quando o atributo está presente no anúncio principal, sem presumir erro ou obrigatoriedade por variação. Consulta sob demanda das regras condicionais na API oficial quando os dados básicos e a descrição estão disponíveis; falhas permanecem não verificadas. Compara o comprimento de valores simples retornados com value_max_length da categoria quando disponível, incluindo variações.",
+      "falta": "Faltam análise visual de imagens e clips, avaliação semântica da descrição e validação abrangente de valores e ficha técnica. A conferência de comprimento e a consulta condicional não certificam aprovação do anúncio.",
       "fontes": [
         "listing_content.py",
         "listing_content_routes.py",
@@ -658,7 +658,7 @@
       ],
       "numero_original": null,
       "prioridade": 2,
-      "atualizado_em": "2026-10-27"
+      "atualizado_em": "2026-10-28"
     },
     {
       "id": "perguntas-avaliacoes",
@@ -1231,6 +1231,18 @@
       "base": "frentes_auditadas",
       "data": "2026-10-27",
       "resumo": "Consulta oficial de atributos condicionais com dados disponíveis; validade dos valores e qualidade do conteúdo permanecem parciais.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-28",
+      "resumo": "Conferência de comprimento dos valores simples com limite oficial retornado para a categoria; a análise de conteúdo continua parcial.",
       "contagens": {
         "concluida": 22,
         "parcial": 18,

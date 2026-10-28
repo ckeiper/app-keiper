@@ -17,3 +17,12 @@ Documentação oficial consultada em 26/10/2026:
 Referências de atributos/validações verificadas por trechos indexados oficiais; acesso direto retornou HTTP 403 nesta conferência. A consulta condicional usa o recurso oficial documentado e não reproduz validação de publicação.
 
 Exemplos e capturas usam somente dados fictícios locais.
+
+## Comprimento de valores
+
+Para atributos obrigatórios ou condicionais exibidos, quando a categoria retorna
+`value_max_length` positivo, a tela compara o tamanho de `value_name` simples no
+anúncio e nas variações. Um valor acima do limite é sinalizado para conferência,
+com local, tamanho observado e limite. Não compara valores complexos, IDs sem
+texto ou valor não aplicável; limite ausente ou resposta incompleta não significa
+que o valor seja válido. A leitura não simula a publicação nem altera o anúncio.
