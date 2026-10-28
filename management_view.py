@@ -66,7 +66,7 @@ def render_management(cid,report,args):
     period_params.update({key:args[key] for key in ('inicio','fim') if args.get(key)})
     sales_url=f'/vendas/{cid}?'+urlencode({'periodo':'personalizado','inicio':start.isoformat(),'fim':end.isoformat()})
     ads_url=f'/ads/{cid}?'+urlencode({'de':start.isoformat(),'ate':end.isoformat()})
-    body=STYLE+"<div class='mgmt-dashboard'><header class='mgmt-header'><div><span class='mgmt-eyebrow'>Visão de performance</span><h2>"+escape(report['shop']['cliente'])+"</h2><p>Acompanhe os resultados. Escolha o próximo passo.</p></div>"
+    body=STYLE+"<div class='mgmt-dashboard'><header class='mgmt-header'><div><span class='mgmt-eyebrow'>Keiper Consultoria · Performance da loja</span><h2>"+escape(report['shop']['cliente'])+"</h2><p>Resultados, oportunidades e próximos passos em um só lugar.</p></div>"
     body+=f"<div class='mgmt-links'><a class='btn-acoes' href='/atualizar/resumo/{cid}'>Atualizar dados</a><a class='btn-acoes cinza' href='/painel/{cid}/operacao'>Operação do dia →</a></div></header>"
     if report.get('updating'):
         body+="<div class='aviso' role='status'>Sincronização em andamento. Os indicadores mostram a última leitura disponível; recarregue esta página após a conclusão.</div>"
@@ -105,7 +105,7 @@ def render_management(cid,report,args):
                +"Faltam: "+escape(dates)+". Investimento, ROAS, ACOS e TACOS "
                +"aguardam a recuperação automática; não tratamos lacunas como gasto zero.</p>"
                +f"<a class='btn-acoes cinza' href='/ads/{int(cid)}'>Sincronizar Ads agora</a></div>")
-    body+="<nav class='mgmt-links' aria-label='Análises detalhadas'>"+''.join("<a class='btn-acoes cinza' href='"+escape(url,quote=True)+"'>"+label+'</a>' for url,label in [(sales_url,'Analisar vendas'),(ads_url,'Ads e alertas de campanhas'),(f'/anuncios/{cid}/concorrencia','Concorrência'),(f'/custos/{cid}','Custos e margens'),(f'/full/{cid}','Full e vendas')])+'</nav>'
+    body+="<section class='mgmt-shortcuts' aria-label='Acessos rápidos'><div class='mgmt-section-title'><h2>Explore a operação</h2><span>Detalhes da loja</span></div><nav class='mgmt-shortcut-grid'>"+''.join("<a class='mgmt-shortcut' href='"+escape(url,quote=True)+"'><span>"+label+"</span><small>"+detail+"</small><b aria-hidden='true'>↗</b></a>" for url,label,detail in [(sales_url,'Vendas','Pedidos e resultados'),(ads_url,'Publicidade','Campanhas e alertas'),(f'/anuncios/{cid}/concorrencia','Concorrência','Preço e logística'),(f'/custos/{cid}','Custos','Margens e cadastro'),(f'/full/{cid}','Full','Estoque e vendas')])+'</nav></section>'
     body+=priorities(cid,report,args)
     # The current store home is /painel/<cid>; the legacy /operacao page is
     # different. Load verified item priorities after the visible dashboard.

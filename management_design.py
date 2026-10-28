@@ -125,6 +125,47 @@ body:has(.mgmt-dashboard) .wrap{max-width:1680px;margin:22px auto}
   body.sidebar-open .layout:has(.mgmt-dashboard)>.menu-lateral{transform:translateX(0)}
   .layout:has(.mgmt-dashboard)>.conteudo{flex:1;min-width:0;width:100%;padding:0 0 20px}
 }
+/* Store dashboard: Keiper navy palette and readable decision hierarchy. */
+body:has(.mgmt-dashboard){background:#081426;color:#eaf2ff}
+body:has(.mgmt-dashboard) .top{background:#0a172a;border-bottom:1px solid #233b59}
+.layout:has(.mgmt-dashboard)>.menu-lateral{background:#0d1d32;border:1px solid #243c59}
+.layout:has(.mgmt-dashboard)>.menu-lateral a.item.atual{background:linear-gradient(110deg,#1858a2,#297eca)}
+.mgmt-dashboard{--ink:#edf5ff;--muted:#a9bed5;--line:#2b425d;--brand:#67b4ff;color:var(--ink)}
+.mgmt-dashboard h2{color:#eef6ff}.mgmt-dashboard p,.mgmt-dashboard .muted{color:#b1c3d8}
+.mgmt-dashboard .card{background:#11243a;border-color:#2a435f;box-shadow:0 14px 35px #030b1b30}
+.mgmt-header{position:relative;overflow:hidden;padding:25px 28px;border:1px solid #315b82;border-radius:20px;background:radial-gradient(circle at 80% 0%,#22547c 0%,transparent 42%),linear-gradient(120deg,#122941,#102037);box-shadow:0 16px 38px #030b1b40}
+.mgmt-header h2{color:#fff;font-size:clamp(25px,3vw,34px);overflow-wrap:anywhere}.mgmt-header p{color:#c0d3e5}.mgmt-eyebrow{color:#80c6fa}
+.mgmt-header .mgmt-links{position:relative}.mgmt-dashboard .btn-acoes{background:#2476c7;border-color:#3389dc;color:#fff}
+.mgmt-dashboard .btn-acoes:hover{background:#1762ac}.mgmt-dashboard .btn-acoes.cinza{background:#172e48;border-color:#3a5777;color:#e0edfc}
+.mgmt-period{background:#11243a!important;border-color:#2a435f!important}.mgmt-filter label{color:#bdd0e3}
+.mgmt-filter input,.mgmt-filter select{background:#0d1d30;border-color:#3a5772;color:#f1f7ff}.mgmt-period-dates summary,.mgmt-dashboard details summary{color:#88c7ff}
+.mgmt-period>a{color:#a6d4ff}.mgmt-tabs{border-color:#304660}.mgmt-tabs a{color:#a9bdd4}.mgmt-tabs a[aria-selected=true]{color:#f0f8ff;border-color:#5bb8ff}
+.mgmt-tab-count{background:#1c446a;color:#c8e6ff}
+.mgmt-dashboard .stat{background:#13283f;border-color:#2d4864;box-shadow:0 9px 24px #030b1b24}
+.mgmt-dashboard .stat .lab{color:#b4c8db;font-size:11px}.mgmt-dashboard .stat .num{color:#f5faff}.mgmt-dashboard .stat small{color:#b1c5d9}
+.mgmt-dashboard .mgmt-tone-revenue{background:linear-gradient(125deg,#155b9d,#247eb4);border-color:#438cc0}
+.mgmt-dashboard .mgmt-tone-revenue .lab,.mgmt-dashboard .mgmt-tone-revenue small{color:#e5f5ff}
+.mgmt-dashboard .mgmt-stat-empty .num{color:#b1c1d0}.mgmt-metric-icon{background:#27425d;color:#bce0ff}
+.mgmt-tone-teal .mgmt-metric-icon{background:#174c49;color:#70e0c2}.mgmt-tone-amber .mgmt-metric-icon{background:#59492b;color:#ffd388}.mgmt-tone-blue .mgmt-metric-icon{background:#234b73;color:#9fd0ff}
+.mgmt-ads-strip{background:#11243a;border-color:#2a435f}.mgmt-dashboard .mgmt-ads-strip .stat{background:transparent}.mgmt-ads-strip .stat+.stat{border-left-color:#304963!important}
+.mgmt-ads-strip .mgmt-tone-teal .num{color:#82e4c8}.mgmt-ads-strip .mgmt-tone-amber .num{color:#ffd394}.mgmt-ads-strip .mgmt-tone-blue .num{color:#a6d5ff}
+.mgmt-chart-legend,.mgmt-chart-x,.mgmt-chart-y{color:#b0c4d8}.mgmt-chart svg line{stroke:#304860}.mgmt-chart-empty{border-color:#3d5872;color:#b4c8dc}
+.mgmt-chart-switch button{background:#122941;border-color:#35536e;color:#d4e5f6}.mgmt-chart-switch button[aria-pressed=true]{background:#246ea9;border-color:#67baff;color:#fff}
+.mgmt-preview-card,.mgmt-preview-card.mgmt-preview-high{background:#142b42;border-color:#35536d}.mgmt-preview-card.mgmt-preview-high{border-color:#ad745b}.mgmt-preview-card h3{color:#f2f7ff}.mgmt-preview-card p,.mgmt-preview-title{color:#bacbdd}.mgmt-preview-card a,.mgmt-section-title>a{color:#83caff}.mgmt-preview-label{color:#f2c18e}
+.mgmt-preview-card[href]{display:block;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s}.mgmt-preview-card[href]:hover,.mgmt-preview-card[href]:focus-visible{border-color:#82caff;transform:translateY(-2px);outline:0}.mgmt-preview-action{color:#8ed0ff;font-size:11px;font-weight:700}
+.mgmt-shortcuts{margin:22px 0}.mgmt-shortcuts .mgmt-section-title span{font-size:11px;color:#9fb7ce}.mgmt-shortcut-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.mgmt-shortcut{position:relative;display:flex;flex-direction:column;gap:8px;min-width:0;padding:18px;border:1px solid #31506e;border-radius:14px;background:#142b43;color:#f3f8ff;text-decoration:none;transition:transform .15s,border-color .15s,background .15s}.mgmt-shortcut span{font-weight:750;font-size:13px}.mgmt-shortcut small{color:#abc2d9;font-size:11px;line-height:1.4}.mgmt-shortcut b{position:absolute;right:14px;top:14px;color:#76c4ff}.mgmt-shortcut:hover,.mgmt-shortcut:focus-visible{transform:translateY(-2px);border-color:#78c5ff;background:#1a3956;outline:0}
+.mgmt-dashboard .mgmt-catalog .stat{background:#1a324a}.mgmt-leaders li{border-color:#30465c;color:#b2c5d7}.mgmt-leaders a{color:#e3efff}.mgmt-leaders li:before{color:#9fb8ce}
+.mgmt-notice{background:#382e21;border-color:#80653c;color:#ffdea1}.mgmt-notice summary{color:#ffda98!important}.mgmt-notice ul{color:#f1d5aa}
+.mgmt-scroll{border-color:#365069}.mgmt-table th{background:#1b344e;color:#d0dfef;border-color:#39536c}.mgmt-table td{color:#c5d5e5;border-color:#30465c}.mgmt-table td:first-child{color:#eef6ff}.mgmt-table tbody tr:hover{background:#1c354d}.mgmt-table small{color:#adbfce}.mgmt-table a{color:#89caff}.mgmt-pager{color:#b6c9dc}.mgmt-pill{background:#2b4264;color:#d7e7ff}.mgmt-high{background:#5e352e;color:#ffd5c0}.mgmt-medium{background:#554528;color:#ffe2a7}
+body:has(.ks-store-sidebar) .conteudo .mgmt-dashboard h2{color:#edf5ff}
+body:has(.ks-store-sidebar) .conteudo .mgmt-dashboard .stat .num{color:#f4f9ff}
+body:has(.ks-store-sidebar) .conteudo .mgmt-dashboard .stat .lab{color:#bdd0e4}
+body:has(.ks-store-sidebar) .conteudo .mgmt-dashboard .mgmt-tone-revenue .lab{color:#e5f5ff}
+body:has(.ks-store-sidebar) .conteudo .mgmt-dashboard .card,body:has(.ks-store-sidebar) .conteudo .mgmt-dashboard .stat{border-color:#2d4864}
+@media(max-width:1000px){.mgmt-shortcut-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.mgmt-ads-strip .stat:nth-child(n+3){border-top-color:#304963!important}}
+@media(max-width:600px){.mgmt-header{padding:20px}.mgmt-shortcut-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.mgmt-shortcut{padding:14px}.mgmt-shortcut small{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.mgmt-shortcut{transition:none}.mgmt-shortcut:hover{transform:none}}
 </style>"""
 
 ICON = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 18V8m5 10V4m5 14v-7m5 7V6M3 21h18'/></svg>"
@@ -234,10 +275,10 @@ def priorities(cid,report,args):
     for signal in chosen:
         url=signal['path'].format(cid=cid)
         priority={'alta':'Prioridade alta','media':'Atenção','oportunidade':'Oportunidade','dados':'Validar dados'}[signal['priority']]
-        out+=("<article class='mgmt-preview-card "+('mgmt-preview-high' if signal['priority']=='alta' else '')+"'>"
+        out+=("<a class='mgmt-preview-card "+('mgmt-preview-high' if signal['priority']=='alta' else '')+"' href='"+escape(url,quote=True)+"'>"
               "<span class='mgmt-preview-label'>"+priority+"</span><h3>"+escape(signal['title'])+"</h3>"
-              "<p>"+escape(signal['evidence'])+"</p><a href='"+escape(url,quote=True)+"'>"+escape(signal['action'])+" →</a>"
-              "<span class='mgmt-preview-title' title='"+escape(signal['label'],quote=True)+"'>"+escape(signal['label'])+"</span></article>")
+              "<p>"+escape(signal['evidence'])+"</p><span class='mgmt-preview-action'>"+escape(signal['action'])+" →</span>"
+              "<span class='mgmt-preview-title' title='"+escape(signal['label'],quote=True)+"'>"+escape(signal['label'])+"</span></a>")
     if not chosen:
         out+="<article class='mgmt-preview-card'><h3>Nenhuma prioridade confirmada</h3><p>Confira a cobertura dos dados e explore a análise por anúncio.</p></article>"
     return out+'</div></section>'
