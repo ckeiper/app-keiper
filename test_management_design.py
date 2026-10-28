@@ -4,6 +4,13 @@ from management_design import active_tab,panel,daily_chart,metric_card,product
 
 
 class ManagementDesignTests(unittest.TestCase):
+    def test_variation_colors_follow_comparison_without_inventing_a_baseline(self):
+        from management_view import compare, card
+        for current, previous, text, tone in [(120,100,'+20,0%','up'),(80,100,'-20,0%','down'),(100,100,'0,0%','neutral'),(10,0,'Sem base de comparação','neutral'),(None,100,'Sem base de comparação','neutral')]:
+            rendered=card('Pedidos pagos','100',compare(current,previous))
+            self.assertIn("mgmt-variation-"+tone,rendered)
+            self.assertIn(text,rendered)
+
     def test_filter_navigation_keeps_the_relevant_panel_visible(self):
         self.assertEqual(active_tab({}),'overview')
         self.assertEqual(active_tab({'area':'estoque'}),'actions')
