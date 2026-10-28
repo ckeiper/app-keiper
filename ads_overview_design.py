@@ -18,13 +18,33 @@ STYLE = """<style>
 @media(max-width:960px){.ka-hero{padding:24px}.ka-actions{width:100%}.ka-ads .stat .num{font-size:24px}}
 @media(max-width:640px){.ka-hero{padding:22px 18px;border-radius:16px;gap:15px}.ka-hero h2{font-size:25px}.ka-actions a{flex:1;text-align:center;padding:10px}.ka-ads .card{padding:17px}.ka-ads .ka-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.ka-ads .stat{padding:15px 12px}.ka-ads .stat .num{font-size:21px}.ka-ads .stat .lab{font-size:9px;letter-spacing:0}.ka-alert-grid{grid-template-columns:1fr}.ka-ads form>label{flex:1;min-width:115px}.ka-ads form>.btn{align-self:end}.ka-section-title{align-items:start}.ka-section-title span{max-width:100px;text-align:right}}
 .ka-ads .ka-budget-mini{margin-top:8px;max-width:210px;font-size:10px;color:#7186a4}.ka-ads .ka-budget-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:5px}.ka-ads .ka-budget-head b{font-weight:800}.ka-ads .ka-budget-track{height:6px;border-radius:8px;background:#e7edf6;overflow:hidden}.ka-ads .ka-budget-track span{display:block;height:100%;border-radius:8px}.ka-ads .ka-budget-mini small,.ka-ads .ka-budget-na{display:block;margin-top:5px;font-size:9px;color:#8b9ab0}
+/* Ads overview follows the store's navy theme; scoped to this screen. */
+body:has(.ka-ads),body:has(.ka-ads) .layout,body:has(.ka-ads) .layout>.conteudo{background:#081426;color:#eaf2ff}
+.ka-ads{color:#eaf2ff;--ka-line:#2d4864;--ka-muted:#b2c7da}
+body:has(.ks-store-sidebar) .conteudo .ka-ads h2,body:has(.ks-store-sidebar) .conteudo .ka-ads h3{color:#edf5ff}
+.ka-ads .card{background:#11243a;border-color:#2d4864;box-shadow:0 12px 30px #030b1b30}
+body:has(.ks-store-sidebar) .conteudo .ka-ads .card,body:has(.ks-store-sidebar) .conteudo .ka-ads .stat{border-color:#2d4864}
+body:has(.ks-store-sidebar) .conteudo .ka-ads .stat{background:#13283f;border-color:#2d4864}
+body:has(.ks-store-sidebar) .conteudo .ka-ads .stat:nth-child(2){background:linear-gradient(125deg,#155b9d,#247eb4);border-color:#438cc0}
+body:has(.ks-store-sidebar) .conteudo .ka-ads .stat .num{color:#f4f9ff}
+body:has(.ks-store-sidebar) .conteudo .ka-ads .stat .lab{color:#bdd0e4}
+.ka-ads .stat small,.ka-ads .muted,.ka-section-title span{color:#b2c7da}
+.ka-ads label{color:#bdd0e4}.ka-ads input,.ka-ads select{background:#0d1d30;border-color:#3a5772;color:#f1f7ff;color-scheme:dark}
+.ka-alert,.ka-alert.has-items,.ka-alert.ka-opportunity.has-items{background:#142b42;border-color:#35536d}.ka-alert.has-items{border-color:#957552}.ka-alert.ka-opportunity.has-items{border-color:#448b80}
+.ka-alert summary,.ka-alert-body,.ka-alert-body li b{color:#e4f1ff}.ka-alert-body li{border-color:#35516b}.ka-alert-count,.ka-alert.has-items .ka-alert-count,.ka-alert.ka-opportunity.has-items .ka-alert-count{background:#284861;color:#e4f5ff}
+body:has(.ks-store-sidebar) .conteudo .ka-ads th, .ka-ads .kc-campaigns .kc-campaign-table th{background:#1b344e;color:#d0dfef;border-color:#39536c}
+body:has(.ks-store-sidebar) .conteudo .ka-ads td{color:#d7e6f5;border-color:#30465c}.ka-ads .kc-campaigns .kc-campaign-table td:nth-child(4){color:#8de2c3}
+.ka-ads a{color:#93ceff}.ka-ads .aviso{background:#382e21;border-color:#80653c;color:#ffe0ae}.ka-ads .ka-budget-track{background:#35516c}
+body:has(.ks-store-sidebar) .conteudo .ka-ads .kc-campaigns a.kc-campaign-name,body:has(.ks-store-sidebar) .conteudo .ka-ads .kc-campaigns a.kc-campaign-name:visited{color:#e6f3ff!important}
+body:has(.ks-store-sidebar) .conteudo .ka-ads .kc-campaigns .kc-campaign-row:hover,body:has(.ks-store-sidebar) .conteudo .ka-ads .kc-campaigns .kc-campaign-row:focus-visible{background:#1d3a56;box-shadow:inset 3px 0 #79c9ff}
+@media(max-width:760px){body:has(.ks-store-sidebar) .conteudo .ka-ads .kc-campaigns .kc-campaign-row{background:#142b42;border-color:#35536d}}
 </style>"""
 
 
 def header(cid, store, start, end):
     cid=str(int(cid))
     from section_refresh import render as refresh
-    return STYLE+"<style>.ka-actions .k-refresh{margin:0!important;max-width:330px;gap:8px!important}.ka-actions .k-refresh button{background:#ffffff0b;color:#e3edfc;border:1px solid #59789e;border-radius:10px;min-height:40px;padding:10px 15px;font-size:12px;cursor:pointer}.ka-actions .k-refresh [role=status]{font-size:10px!important;color:#b6c9e4}</style><div class='ka-ads'><header class='ka-hero'><div><span class='ka-eyebrow'>Product Ads · "+escape(str(store))+"</span><h2>Publicidade</h2><p>Investimento, vendas e oportunidades das suas campanhas.</p><p>"+start.strftime('%d/%m')+' a '+end.strftime('%d/%m')+"</p></div><div class='ka-actions'><a href='#ka-campaign-list'>Ver campanhas</a>"+refresh(cid,'ads')+"</div></header>"
+    return STYLE+"<style>.ka-actions .k-refresh{margin:0!important;max-width:330px;gap:8px!important}.ka-actions .k-refresh button{background:#ffffff0b;color:#e3edfc;border:1px solid #59789e;border-radius:10px;min-height:40px;padding:10px 15px;font-size:12px;cursor:pointer}.ka-actions .k-refresh [role=status]{font-size:10px!important;color:#b6c9e4}</style><div class='ka-ads'><header class='ka-hero'><div><span class='ka-eyebrow'>Product Ads · "+escape(str(store))+"</span><h2>Publicidade</h2><p>"+start.strftime('%d/%m')+' a '+end.strftime('%d/%m')+"</p></div><div class='ka-actions'><a href='#ka-campaign-list'>Ver campanhas</a>"+refresh(cid,'ads')+"</div></header>"
 
 
 def alert_card(title, description, items, empty, opportunity=False):
@@ -39,7 +59,7 @@ def daily_chart(rows):
     datasets=[dict(label='Faturamento atribuído',data=[float(r['faturamento'] or 0) for r in ordered],borderColor='#4e7be6',backgroundColor='#4e7be61a',fill=True,tension=.3,borderWidth=3,pointRadius=0,pointHoverRadius=5),
               dict(label='Investimento',data=[float(r['gasto'] or 0) for r in ordered],borderColor='#21a39d',borderDash=[5,4],tension=.3,borderWidth=2,pointRadius=0,pointHoverRadius=4)]
     return """<section class='card'><h3>Evolução diária</h3><p class='muted'>Faturamento atribuído e investimento em reais, nos dias com registros.</p><div class='grafico-box'><canvas id='ads-historico' role='img' aria-label='Evolução diária do faturamento atribuído e investimento em reais'></canvas></div>
-<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script><script>(function(){if(typeof Chart==='undefined')return;var currency=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});new Chart(document.getElementById('ads-historico'),{type:'line',data:{labels:"""+json.dumps(labels)+",datasets:"+json.dumps(datasets)+"""},options:{locale:'pt-BR',responsive:true,maintainAspectRatio:false,animation:matchMedia('(prefers-reduced-motion:reduce)').matches?false:{duration:350},interaction:{intersect:false,mode:'index'},plugins:{legend:{position:'bottom',align:'start',labels:{usePointStyle:true,boxWidth:8,padding:20,color:'#657c9d',font:{size:11}}},tooltip:{backgroundColor:'#14243b',cornerRadius:10,padding:13,callbacks:{label:function(c){return c.dataset.label+': '+currency.format(c.parsed.y)}}}},scales:{x:{grid:{display:false},border:{display:false},ticks:{maxRotation:0,maxTicksLimit:7,color:'#8193ad',font:{size:10}}},y:{beginAtZero:true,border:{display:false},grid:{color:'#edf1f7'},ticks:{maxTicksLimit:5,color:'#8193ad',font:{size:10},callback:function(v){return currency.format(v)}}}}}});})();</script></section>"""
+<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script><script>(function(){if(typeof Chart==='undefined')return;var currency=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});new Chart(document.getElementById('ads-historico'),{type:'line',data:{labels:"""+json.dumps(labels)+",datasets:"+json.dumps(datasets)+"""},options:{locale:'pt-BR',responsive:true,maintainAspectRatio:false,animation:matchMedia('(prefers-reduced-motion:reduce)').matches?false:{duration:350},interaction:{intersect:false,mode:'index'},plugins:{legend:{position:'bottom',align:'start',labels:{usePointStyle:true,boxWidth:8,padding:20,color:'#b5cce0',font:{size:11}}},tooltip:{backgroundColor:'#14243b',cornerRadius:10,padding:13,callbacks:{label:function(c){return c.dataset.label+': '+currency.format(c.parsed.y)}}}},scales:{x:{grid:{display:false},border:{display:false},ticks:{maxRotation:0,maxTicksLimit:7,color:'#b5cce0',font:{size:10}}},y:{beginAtZero:true,border:{display:false},grid:{color:'#304860'},ticks:{maxTicksLimit:5,color:'#b5cce0',font:{size:10},callback:function(v){return currency.format(v)}}}}}});})();</script></section>"""
 
 def budget_progress(budget, spent, updated, now_ts, exhausted_at=None):
     """Show observed daily spend only when the snapshot is recent."""
