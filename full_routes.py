@@ -37,7 +37,16 @@ def register_full(app, login_required, can_view, banco, query, page, shop_page, 
                 shops = shop
             listings = query(conn, 'SELECT item_id,titulo FROM anuncios WHERE conexao_id=%s ORDER BY titulo,item_id', (cid,))
         allowed = [s for s in shops if can_view(s['id'])]
-        body = "<h2>Full e vendas</h2><form action='/full' method='get' class='card'><label>Loja <select name='loja'>"
+        body = """<style>
+        body:has(.full-page-theme),body:has(.full-page-theme) .layout,body:has(.full-page-theme) .layout>.conteudo{background:#081426;color:#eaf2ff}
+        body:has(.full-page-theme) .conteudo h2{color:#edf5ff}
+        body:has(.full-page-theme) .conteudo>form.card,body:has(.full-page-theme) .conteudo>.card{background:#11243a;border:1px solid #2d4864;color:#eaf2ff;border-radius:15px}
+        body:has(.full-page-theme) .conteudo form.card{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+        body:has(.full-page-theme) .conteudo form.card label{display:grid;gap:6px;min-width:140px;color:#bdd0e4;font-size:12px;font-weight:700}
+        body:has(.full-page-theme) .conteudo form.card input,body:has(.full-page-theme) .conteudo form.card select{min-height:40px;max-width:100%;box-sizing:border-box;background:#0d1d30;border:1px solid #3a5772;border-radius:8px;color:#f1f7ff;padding:8px 10px;color-scheme:dark}
+        body:has(.full-page-theme) .conteudo .aviso{background:#382e21;border-color:#80653c;color:#ffe0ae}
+        @media(max-width:600px){body:has(.full-page-theme) .conteudo form.card label{flex:1;min-width:120px}}
+        </style><span class='full-page-theme' hidden></span><h2>Full e vendas</h2><form action='/full' method='get' class='card'><label>Loja <select name='loja'>"""
         for s in allowed:
             body += "<option value='" + str(s['id']) + "'" + (' selected' if s['id'] == cid else '') + '>' + escape(s['cliente']) + '</option>'
         body += "</select></label> <button class='btn-acoes'>Abrir loja</button></form>"

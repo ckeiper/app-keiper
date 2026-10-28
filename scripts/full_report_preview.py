@@ -6,6 +6,10 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from catalog_preview import page,dest
 from full_view import render_full
 from test_full_report import observation,STAMP,ARGS,LISTING,START
+import ast
+source=ast.parse(Path('full_routes.py').read_text(encoding='utf-8'))
+prefix=next(node.value for node in ast.walk(source) if isinstance(node,ast.Constant) and isinstance(node.value,str) and "<span class='full-page-theme'" in node.value)
+shell=prefix+"<option value='1'>Loja de demonstração</option></select></label><button>Abrir loja</button></form><form class='card'><label>Anúncio <select><option>Produto de teste</option></select></label><button>Aplicar</button></form>"
 
 coverage=[(START+timedelta(days=i)).isoformat() for i in range(30)]
 for mode in ('ready','partial','empty','page2','variations'):
@@ -28,7 +32,7 @@ for mode in ('ready','partial','empty','page2','variations'):
         row['quantity']=150
         args['full_variacoes']='2'
     first=dict(first=min(r['observed_at'] for r in rows),first_known=min(r['observed_at'] for r in rows if r['state']!='unknown')) if rows else {}
-    body='<p>Dados fictícios para validação automática.</p>'+render_full(1,args,LISTING,rows,[],[],coverage,first)
+    body=shell+render_full(1,args,LISTING,rows,[],[],coverage,first)
     (dest/('full-report-'+mode+'.html')).write_text(page('Full e vendas',1,'Loja de demonstração','full',body),encoding='utf-8')
 print('Synthetic Full report previews rendered.')
 
