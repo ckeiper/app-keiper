@@ -24,11 +24,12 @@ def number(value,digits=1,suffix=''):
 def compare(current, previous, money=False):
     delta=change(current,previous)
     text='Sem base de comparação' if delta is None else ('+' if delta>0 else '')+number(delta,1,'%')
-    return 'Anterior: '+fmt(previous,money)+' · '+text
+    tone='neutral' if delta is None or delta == 0 else 'up' if delta > 0 else 'down'
+    return ('Anterior: '+fmt(previous,money),text,tone)
 
 
 def card(label,value,note):
-    return metric_card(label,value,note)
+    return metric_card(label,value,note[0],note[1],note[2]) if isinstance(note,tuple) else metric_card(label,value,note)
 
 
 def select(name,options,value):
@@ -66,7 +67,7 @@ def render_management(cid,report,args):
     period_params.update({key:args[key] for key in ('inicio','fim') if args.get(key)})
     sales_url=f'/vendas/{cid}?'+urlencode({'periodo':'personalizado','inicio':start.isoformat(),'fim':end.isoformat()})
     ads_url=f'/ads/{cid}?'+urlencode({'de':start.isoformat(),'ate':end.isoformat()})
-    body=STYLE+"<div class='mgmt-dashboard'><header class='mgmt-header'><div><span class='mgmt-eyebrow'>Keiper Consultoria · Performance da loja</span><h2>"+escape(report['shop']['cliente'])+"</h2><p>Resultados, oportunidades e próximos passos em um só lugar.</p></div>"
+    body=STYLE+"<div class='mgmt-dashboard'><header class='mgmt-header'><div><span class='mgmt-eyebrow'>Keiper Consultoria · Performance da loja</span><h2>"+escape(report['shop']['cliente'])+"</h2></div>"
     body+=f"<div class='mgmt-links'><a class='btn-acoes' href='/atualizar/resumo/{cid}'>Atualizar dados</a><a class='btn-acoes cinza' href='/painel/{cid}/operacao'>Operação do dia →</a></div></header>"
     if report.get('updating'):
         body+="<div class='aviso' role='status'>Sincronização em andamento. Os indicadores mostram a última leitura disponível; recarregue esta página após a conclusão.</div>"

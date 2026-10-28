@@ -143,6 +143,7 @@ body:has(.mgmt-dashboard) .top{background:#0a172a;border-bottom:1px solid #233b5
 .mgmt-tab-count{background:#1c446a;color:#c8e6ff}
 .mgmt-dashboard .stat{background:#13283f;border-color:#2d4864;box-shadow:0 9px 24px #030b1b24}
 .mgmt-dashboard .stat .lab{color:#b4c8db;font-size:11px}.mgmt-dashboard .stat .num{color:#f5faff}.mgmt-dashboard .stat small{color:#b1c5d9}
+.mgmt-dashboard .mgmt-variation{font-weight:750;white-space:nowrap}.mgmt-dashboard .mgmt-variation-up{color:#80f0b7}.mgmt-dashboard .mgmt-variation-down{color:#ffb1b8}.mgmt-dashboard .mgmt-variation-neutral{color:#d2e0ee}
 .mgmt-dashboard .mgmt-tone-revenue{background:linear-gradient(125deg,#155b9d,#247eb4);border-color:#438cc0}
 .mgmt-dashboard .mgmt-tone-revenue .lab,.mgmt-dashboard .mgmt-tone-revenue small{color:#e5f5ff}
 .mgmt-dashboard .mgmt-stat-empty .num{color:#b1c1d0}.mgmt-metric-icon{background:#27425d;color:#bce0ff}
@@ -171,15 +172,16 @@ body:has(.ks-store-sidebar) .conteudo .mgmt-dashboard .card,body:has(.ks-store-s
 ICON = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 18V8m5 10V4m5 14v-7m5 7V6M3 21h18'/></svg>"
 
 
-def metric_card(label,value,note):
+def metric_card(label,value,note,variation=None,variation_tone='neutral'):
     tone = ('revenue' if label=='Faturamento de pedidos pagos' else
             'teal' if label in ('Pedidos pagos','ROAS entregue','Anúncios com vendas') else
             'amber' if label in ('Ticket médio por pedido','ACOS','Sem vendas no período') else
             'blue' if label in ('Unidades vendidas','TACOS da loja','Visitas coletadas') else 'violet')
     empty = " mgmt-stat-empty" if value.startswith(('Indisponível','Aguardando')) else ''
+    variation_html = (" · <span class='mgmt-variation mgmt-variation-"+({'up':'up','down':'down'}.get(variation_tone,'neutral'))+"'>"+escape(variation)+"</span>") if variation is not None else ''
     return ("<div class='stat mgmt-tone-"+tone+empty+"'><span class='mgmt-metric-icon'>"+ICON
             +"</span><div class='lab'>"+escape(label)+"</div><div class='num'>"+escape(value)
-            +"</div><small>"+escape(note)+"</small></div>")
+            +"</div><small>"+escape(note)+variation_html+"</small></div>")
 
 
 def active_tab(args):
