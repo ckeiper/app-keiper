@@ -40,6 +40,8 @@ on:
       - 'scripts/costs_theme*'
       - 'promotions_theme.py'
       - 'scripts/promotions_theme*'
+      - 'promo_participation.py'
+      - 'scripts/promotion_participation_theme*'
       - 'keiper_ai*.py'
       - 'kevia_finance*.py'
       - 'test_kevia_finance*.py'
@@ -71,6 +73,7 @@ jobs:
       - run: python scripts/sales_theme_preview.py
       - run: python scripts/costs_theme_preview.py
       - run: python scripts/promotions_theme_preview.py
+      - run: python scripts/promotion_participation_theme_preview.py
       - run: python scripts/anuncios_progress_preview.py
       - run: python scripts/store_navigation_preview.py
       - run: python scripts/crm_home_preview.py
@@ -88,6 +91,7 @@ jobs:
       - run: node scripts/sales_theme_browser_check.cjs
       - run: node scripts/costs_theme_browser_check.cjs
       - run: node scripts/promotions_theme_browser_check.cjs
+      - run: node scripts/promotion_participation_theme_browser_check.cjs
       - run: node scripts/anuncios_progress_browser_check.cjs
       - run: node scripts/store_navigation_browser_check.cjs
       - run: node scripts/crm_home_browser_check.cjs
