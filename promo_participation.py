@@ -77,11 +77,12 @@ def is_participating(row):
 
 
 def candidate_table(cid, promotion_id, items, names, err=''):
+    from promotions_theme import STYLE
     base='/promocoes/participar/'+str(int(cid))+'/'+escape(promotion_id,quote=True)+'/'
-    out='<h2>Produtos convidados</h2><p class="sub">Campanha tradicional (DEAL). Confira preço e margem antes de confirmar. A participação não é automática.</p>'
+    out=STYLE+'<h2>Produtos convidados</h2><p class="sub">Campanha tradicional (DEAL). Confira preço e margem antes de confirmar. A participação não é automática.</p>'
     if err:
         out+='<div class="aviso" role="alert">'+escape(err)+'</div>'
-    out+='<div class="card"><table><thead><tr><th>Anúncio</th><th>Preço original</th><th>Preço sugerido</th><th>Participação</th></tr></thead><tbody>'
+    out+='<div class="card"><div style="overflow-x:auto" role="region" aria-label="Candidatos à promoção" tabindex="0"><table style="min-width:640px"><thead><tr><th>Anúncio</th><th>Preço original</th><th>Preço sugerido</th><th>Participação</th></tr></thead><tbody>'
     shown=0
     for item in items:
         if not isinstance(item,dict) or str(item.get('status','')).lower()!='candidate':
@@ -99,12 +100,13 @@ def candidate_table(cid, promotion_id, items, names, err=''):
         out+='<td><a class="filtro-btn" href="'+base+escape(item_id,quote=True)+'">Analisar e participar</a></td></tr>'
     if not shown:
         out+='<tr><td colspan="4">Nenhum anúncio candidato nesta página.</td></tr>'
-    return out+'</tbody></table></div>'
+    return out+'</tbody></table></div></div>'
 
 
 def confirmation_form(cid,promotion_id,item_id,price,mc,goal,original):
+    from promotions_theme import STYLE
     c=str(int(cid));pid=escape(promotion_id,quote=True);item=escape(item_id,quote=True)
-    return ("<div class='card' style='max-width:690px'>"
+    return (STYLE+"<div class='card' style='max-width:690px'>"
         "<h2>Confirme a participação no Mercado Livre</h2>"
         "<p class='sub'>Esta ação envia uma adesão real à campanha DEAL. "
         "Não é uma simulação e poderá alterar o preço de venda do anúncio.</p>"
