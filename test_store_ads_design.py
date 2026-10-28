@@ -45,3 +45,27 @@ class AdsOverviewDesignTests(unittest.TestCase):
     def test_invalid_period_does_not_render_a_misleading_dashboard(self):
         result=render_fixture(args='&de=2026-10-23&ate=2026-10-22')
         self.assertEqual(result[1],400)
+
+
+class CampaignConfigurationTests(unittest.TestCase):
+    def test_official_roas_equivalence_and_budget_format(self):
+        from ads_overview_design import campaign_configuration
+        self.assertEqual(campaign_configuration(dict(orcamento=1234.5, roas_objetivo=4)), ('R$ 1.234,50', '25,00%'))
+        self.assertEqual(campaign_configuration(dict(orcamento=0, roas_objetivo=6)), ('R$ 0,00', '16,67%'))
+
+    def test_missing_invalid_and_nonfinite_are_not_zero(self):
+        from ads_overview_design import campaign_configuration
+        for value in (None, '', 'bad', -1, float('nan'), float('inf'), True):
+            with self.subTest(value=value):
+                self.assertEqual(campaign_configuration(dict(orcamento=value, roas_objetivo=value)), ('Não informado', 'Não informado'))
+        self.assertEqual(campaign_configuration(dict(roas_objetivo=0))[1], 'Não informado')
+
+    def test_route_shows_current_config_even_with_old_daily_spend(self):
+        result=render_fixture(campaign_updates={'a':dict(hoje_atualizado=1)})
+        self.assertIn("<td data-label='Orçamento diário'>R$ 100,00</td>",result)
+        self.assertIn("<td data-label='ACOS objetivo'>25,00%</td>",result)
+        self.assertIn("<td data-label='ACOS objetivo'>16,67%</td>",result)
+        self.assertIn('Consumo de hoje indisponível',result)
+        missing=render_fixture(campaign_updates={'a':dict(orcamento=None,roas_objetivo=None)})
+        self.assertIn("<td data-label='Orçamento diário'>Não informado</td>",missing)
+        self.assertIn("<td data-label='ACOS objetivo'>Não informado</td>",missing)

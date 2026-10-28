@@ -16,7 +16,7 @@ from visual_theme import VISUAL_CSS
 TODAY=datetime.date(2026,10,22)
 
 
-def render_fixture(empty=False, args='', admin=True):
+def render_fixture(empty=False, args='', admin=True, campaign_updates=None):
     source=ast.parse(Path('main.py').read_text(encoding='utf-8'))
     css=next(ast.literal_eval(n.value) for n in source.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='CSS' for t in n.targets))
     env=dict(session={'tipo':'admin' if admin else 'cliente'},esc=html.escape,CSS=css,VISUAL_CSS=VISUAL_CSS,SCRIPT='',img_logo=lambda size:'')
@@ -24,6 +24,8 @@ def render_fixture(empty=False, args='', admin=True):
     rows=[dict(data=(TODAY-datetime.timedelta(days=i)).isoformat(),gasto=80+i*4,faturamento=650+i*81,impressoes=5800+i*400,cliques=102+i*11,atualizado_em=int(time.time())) for i in range(7)]
     campaigns=[dict(campanha_id='a',nome='KIT <5>',status='active',orcamento=100,roas_objetivo=4,gasto_periodo=560,fat_periodo=4800,gasto_hoje=120,hoje_atualizado=int(time.time()),gasto_ontem=80,fat_ontem=600,tem_ontem=1),
                dict(campanha_id='b',nome='Coleção verão',status='active',orcamento=200,roas_objetivo=6,gasto_periodo=320,fat_periodo=1900,gasto_hoje=80,hoje_atualizado=int(time.time()),gasto_ontem=70,fat_ontem=0,tem_ontem=1)]
+    for campaign in campaigns:
+        campaign.update((campaign_updates or {}).get(campaign['campanha_id'], {}))
     def query(conn,sql,params):
         if 'FROM conexoes' in sql:return [dict(id=1,cliente='Loja de demonstração')]
         if 'FROM ads_dia' in sql:return [] if empty else rows

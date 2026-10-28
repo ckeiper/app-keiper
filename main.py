@@ -2955,7 +2955,7 @@ def painel_ads(cid):
         return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
     from urllib.parse import urlencode
     from sales_metrics import reporting_today
-    from ads_overview_design import header, alert_card, daily_chart, ratio, budget_progress
+    from ads_overview_design import header, alert_card, daily_chart, ratio, budget_progress, campaign_configuration
     hoje = reporting_today()
     dias = request.args.get("dias", "30")
     if dias not in ("7", "30", "90"):
@@ -3196,28 +3196,31 @@ def painel_ads(cid):
             + "</div>")
     tacos_campanhas_html += (
         "<div class='kc-table-wrap'><table class='kc-campaign-table'><thead><tr>"
-        "<th>Campanha</th><th>Investimento</th><th>Faturamento Ads</th>"
-        "<th>ROAS</th><th>ACOS</th><th>TACOS</th></tr></thead><tbody>")
+        "<th>Campanha</th><th title='Configuração atual salva da campanha'>Orçamento diário</th><th>Investimento</th><th>Faturamento Ads</th>"
+        "<th>ROAS</th><th>ACOS</th><th title='Equivalente ao ROAS objetivo atual salvo: 100 ÷ ROAS'>ACOS objetivo</th><th>TACOS</th></tr></thead><tbody>")
     from urllib.parse import quote
     budget_by_id = {str(c["campanha_id"]): c for c in alert_rows}
     for nome, investimento, atribuida, roas_camp, acos_camp, tacos_valor, camp_id in linhas_tacos_pagina:
         detalhe = "/ads/" + str(cid) + "/campanha/" + quote(camp_id, safe="")
         url_segura = esc(detalhe, quote=True)
         budget_row = budget_by_id.get(camp_id, {})
+        daily_budget, target_acos = campaign_configuration(budget_row)
         budget_html = budget_progress(budget_row.get("orcamento"), budget_row.get("gasto_hoje"), budget_row.get("hoje_atualizado"), time.time(), budget_row.get("esgotado_em"))
         tacos_campanhas_html += (
             "<tr class='kc-campaign-row' tabindex='0' role='link' data-href='"
             + url_segura + "' aria-label='Abrir campanha " + esc(nome,quote=True) + "'>"
             "<td data-label='Campanha'><a class='kc-campaign-name' href='" + url_segura
             + "'>" + esc(nome) + "</a>" + budget_html + "</td>"
+            "<td data-label='Orçamento diário'>" + daily_budget + "</td>"
             "<td data-label='Investimento'>" + brl(investimento) + "</td>"
             "<td data-label='Faturamento Ads'>" + brl(atribuida) + "</td>"
             "<td data-label='ROAS'>" + (ratio(roas_camp, "x") if roas_camp is not None else "—") + "</td>"
             "<td data-label='ACOS'>" + (ratio(acos_camp, "%") if acos_camp is not None else "—") + "</td>"
+            "<td data-label='ACOS objetivo'>" + target_acos + "</td>"
             "<td data-label='TACOS'>" + (ratio(tacos_valor, "%") if tacos_valor is not None else "—")
             + "</td></tr>")
     if not linhas_tacos:
-        tacos_campanhas_html += "<tr><td colspan='6'>Nenhuma campanha atende aos filtros.</td></tr>"
+        tacos_campanhas_html += "<tr><td colspan='8'>Nenhuma campanha atende aos filtros.</td></tr>"
     tacos_campanhas_html += ("</tbody></table></div><nav aria-label='Paginação de campanhas'>"
         + "Exibindo " + str(len(linhas_tacos_pagina)) + " de " + str(len(linhas_tacos))
         + " campanhas · Página " + str(pagina_tacos) + " de " + str(paginas_tacos))
