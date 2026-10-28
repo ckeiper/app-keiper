@@ -3594,7 +3594,8 @@ def promocoes(cid):
         itens_por_promo.setdefault(it["promocao_id"], []).append(it)
     meta=c.get("mc_meta_pct")
     meta_txt=("%.2f" % meta) if meta is not None else ""
-    corpo = "<h2 style='margin-bottom:10px'>Promoções</h2>" \
+    from promotions_theme import STYLE as promotions_style
+    corpo = promotions_style + "<h2 style='margin-bottom:10px'>Promoções</h2>" \
         + barra_atualizar(cid, ultima, "promocoes")
     corpo += ("""<div class='card' style='border:1px solid #d6e5f4;border-left:5px solid #2464a0'>
         <h2 style='margin-bottom:7px'>Meta de Margem de Contribuição (MC)</h2>
@@ -3682,7 +3683,7 @@ def promocoes(cid):
             corpo += ('<p style="margin:10px 0"><a class="filtro-btn" href="/promocoes/candidatos/'
                       +str(cid)+'/'+esc(str(p['promocao_id']))+'">Ver candidatos e participar</a></p>')
         if itens:
-            corpo += ("<table><thead><tr><th>Anúncio</th><th>Preço normal</th>"
+            corpo += ("<p class='promo-scroll-hint'>Deslize para ver todas as colunas.</p><table><thead><tr><th>Anúncio</th><th>Preço normal</th>"
                       "<th>Preço promo</th><th>Desconto</th><th>Custo</th>"
                       "<th>Contribuição estimada</th></tr></thead><tbody>")
             for it in itens:
