@@ -9,15 +9,17 @@ from test_listing_content_requirements import definitions,variant
 from test_content_conditional_attributes import complete_item
 from unittest.mock import Mock
 
-for mode in ('blank','read','empty','partial','unknown','requirements','variants','conditional','category-failure'):
+for mode in ('blank','read','empty','partial','unknown','requirements','variants','conditional','length','category-failure'):
     value=item(); description=dict(plain_text='Produto fictício.\nMedidas e conteúdo da embalagem para conferência manual.')
     if mode=='empty':value.update(pictures=[],attributes=[],title='');description=dict(plain_text='')
     if mode=='partial':value.update(pictures=None,attributes=None);description={}
     payload=[dict(id=123),value,description]
     if mode == 'conditional':
         value=complete_item();payload=[dict(id=123),value,description]
-    if mode in ('requirements','variants','conditional','category-failure'):
-        value['category_id']='MLB200';payload.append(definitions() if mode!='category-failure' else {})
+    if mode in ('requirements','variants','conditional','length','category-failure'):
+        value['category_id']='MLB200';rules=definitions() if mode!='category-failure' else {}
+        if mode=='length':rules[0]['value_max_length']=4
+        payload.append(rules)
     if mode=='variants':
         value['attributes']=[]
         first=variant(1);first['attributes']=[dict(id='BRAND',value_name='Marca fictícia')]

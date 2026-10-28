@@ -1,4 +1,4 @@
-"""Presence evidence only: never certifies values, applicability or listing validity."""
+"""Presence and bounded length evidence; never certifies listing validity."""
 from html import escape
 
 
@@ -80,6 +80,29 @@ def variation_details(code, item):
     return details
 
 
+def length_findings(code, definition, item, variations_verified):
+    """Compare returned simple text with the category's declared maximum."""
+    limit = definition.get('value_max_length')
+    if type(limit) is not int or not 0 < limit <= 100000:
+        return []
+    found = []
+    def check(group, location):
+        parsed = attributes(group)
+        row = parsed.get(code) if parsed is not None else None
+        if not row or str(row.get('value_id')) == '-1' or row.get('values'):
+            return
+        value = row.get('value_name')
+        if isinstance(value, str) and len(value) > limit:
+            found.append(dict(location=location, length=len(value), limit=limit))
+    check(item.get('attributes'), 'Anúncio principal')
+    variations = item.get('variations')
+    if variations_verified and isinstance(variations,list):
+        for variant in variations:
+            for key in ('attributes','attribute_combinations'):
+                check(variant.get(key), 'Variação '+str(variant['id']))
+    return found
+
+
 def compare(payload,item):
     definitions=attributes(payload)
     if definitions is None:
@@ -95,8 +118,9 @@ def compare(payload,item):
         name=name if isinstance(name,str) and name.strip() and len(name)<=300 else code
         state,message=presence(code,item)
         conditional=tags.get('conditional_required') is True
+        details=variation_details(code,item)
         rows.append(dict(id=code,name=name,conditional=conditional,required=tags.get('required') is True,state=state,message=message,
-                         variations=variation_details(code,item)))
+                         variations=details,length_findings=length_findings(code,definition,item,details is not None)))
     return dict(state='read',rows=rows[:100],total=len(rows))
 
 
@@ -117,6 +141,14 @@ def render(result):
         elif row.get('conditional_confirmed') is False:
             label='Condicional não retornado como obrigatório nesta consulta; confira se os dados estão completos'
         out+='<article class="cs-requirement" data-presence="'+esc(row['state'])+'"><h5>'+esc(row['name'])+'</h5><p>'+label+'</p><p>'+esc(row['message'])+'</p></article>'
+        findings = row.get('length_findings',[])
+        if findings:
+            out += '<div class="cs-length"><strong>Conferir tamanho do valor</strong><ul>'
+            for finding in findings[:100]:
+                out += '<li>'+esc(finding['location'])+': '+str(finding['length'])+' caracteres; limite retornado pela categoria: '+str(finding['limit'])+'.</li>'
+            if len(findings)>100:
+                out += '<li>Exibidos 100 de '+str(len(findings))+' resultados.</li>'
+            out += '</ul><p>Revise o valor no Mercado Livre. A conferência não valida os demais requisitos.</p></div>'
         variations = row.get('variations')
         if variations is None:
             out += '<p>Detalhes das variações não verificáveis.</p>'
@@ -130,4 +162,4 @@ def render(result):
             out += '</ul></details>'
     if result['total']>100:
         out+='<p>Exibidos 100 de '+str(result['total'])+' requisitos retornados.</p>'
-    return out+'<p>Não executa validação de publicação ou regras condicionais e não aprova critérios do checklist. A categoria e o anúncio podem mudar após esta leitura.</p></section><style>.cs-requirement{border:1px solid #426184;border-radius:10px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.cs-requirement h5{font:inherit;font-weight:700;margin:0 0 8px}</style>'
+    return out+'<p>Não executa validação de publicação nem aprova critérios do checklist. A categoria e o anúncio podem mudar após esta leitura.</p></section><style>.cs-requirement,.cs-length{border:1px solid #426184;border-radius:10px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.cs-length{border-color:#c08d54}.cs-requirement h5{font:inherit;font-weight:700;margin:0 0 8px}</style>'

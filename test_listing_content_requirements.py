@@ -19,6 +19,22 @@ def variant(identifier,**changes):
 
 
 class RequiredAttributesTests(unittest.TestCase):
+    def test_length_checks_only_explicit_simple_values_and_official_limit(self):
+        payload=definitions();payload[0]['value_max_length']=4
+        value=item(); value['attributes']=[dict(id='BRAND',value_name='Marca')]
+        first=variant('1');first['attributes']=[dict(id='BRAND',value_name='Curto')]
+        second=variant('2');second['attributes']=[dict(id='BRAND',value_name='Longo',value_id='-1')]
+        value['variations']=[first,second]
+        result=compare(payload,value); findings=result['rows'][0]['length_findings']
+        self.assertEqual([f['location'] for f in findings],['Anúncio principal','Variação 1'])
+        self.assertEqual(findings[0]['limit'],4)
+        self.assertIn('limite retornado pela categoria: 4',render(result))
+        for invalid in (None,True,'4',0,-1):
+            payload[0]['value_max_length']=invalid
+            self.assertEqual(compare(payload,value)['rows'][0]['length_findings'],[])
+        payload[0]['value_max_length']=5
+        self.assertEqual(compare(payload,value)['rows'][0]['length_findings'],[])
+
     def test_common_values_missing_and_conditional_are_distinct_without_mutation(self):
         value=item(); payload=definitions(); before=deepcopy((value,payload))
         result=compare(payload,value)
