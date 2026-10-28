@@ -5,12 +5,30 @@ from datetime import datetime
 from sales_metrics import SAO_PAULO
 from sales_metrics import PRESETS, change, period, summarize
 
+SALES_STYLE = """<style>
+body:has(.sales-theme),body:has(.sales-theme) .layout,body:has(.sales-theme) .layout>.conteudo{background:#081426;color:#eaf2ff}
+body:has(.sales-theme) .conteudo .card,body:has(.sales-theme) .conteudo .stat{background:#11243a;border:1px solid #2d4864;color:#eaf2ff;border-radius:15px}
+body:has(.sales-theme) .conteudo h2,body:has(.sales-theme) .conteudo .stat .num{color:#edf5ff}
+body:has(.sales-theme) .conteudo .stat .lab,body:has(.sales-theme) .conteudo .sub,body:has(.sales-theme) .conteudo .muted{color:#bdd0e4}
+body:has(.sales-theme) .conteudo input,body:has(.sales-theme) .conteudo select{background:#0d1d30;border:1px solid #3a5772;color:#f1f7ff;color-scheme:dark}
+body:has(.sales-theme) .conteudo form.card{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+body:has(.sales-theme) .conteudo form.card label{display:grid;gap:6px;color:#bdd0e4;font-size:12px;font-weight:700;min-width:140px}
+body:has(.sales-theme) .conteudo form.card input,body:has(.sales-theme) .conteudo form.card select{min-height:40px;padding:8px 10px;border-radius:8px;max-width:100%;box-sizing:border-box}
+@media(max-width:600px){body:has(.sales-theme) .conteudo form.card label{flex:1;min-width:120px}}
+body:has(.sales-theme) .conteudo table th{background:#1b344e;color:#d0dfef;border-color:#39536c}
+body:has(.sales-theme) .conteudo table td{color:#d7e6f5;border-color:#30465c}
+body:has(.sales-theme) .conteudo .link,body:has(.sales-theme) .conteudo summary{color:#9fd5ff}
+body:has(.sales-theme) .conteudo .aviso{background:#382e21;border-color:#80653c;color:#ffe0ae}
+body:has(.sales-theme) .conteudo #vendasFaturamento{max-width:100%}
+body:has(.sales-theme) .conteudo .sales-variation{font-weight:750}body:has(.sales-theme) .conteudo .sales-up{color:#80f0b7}body:has(.sales-theme) .conteudo .sales-down{color:#ffb1b8}body:has(.sales-theme) .conteudo .sales-neutral{color:#d2e0ee}
+</style><span class='sales-theme' hidden></span>"""
+
 
 def render_sales(cid, args, banco, query):
     try:
         start, end, prev_start, prev_end = period(args)
     except ValueError as error:
-        return "<div class='aviso'>" + html.escape(str(error)) + "</div>" + filters(cid, args)
+        return SALES_STYLE + "<div class='aviso'>" + html.escape(str(error)) + "</div>" + filters(cid, args)
     with banco() as conn:
         rows = query(conn, """SELECT conexao_id, pedido_id, status, total, moeda,
                    criado_em, pagamentos_json, unidades, vendas_dia_coleta FROM pedidos
@@ -20,7 +38,7 @@ def render_sales(cid, args, banco, query):
     covered = {r["dia"] for r in coverage}
     current = summarize(rows, start, end, covered)
     previous = summarize(rows, prev_start, prev_end, covered)
-    out = filters(cid, args)
+    out = SALES_STYLE + filters(cid, args)
     timestamps = [r['atualizado_em'] for r in coverage
                   if prev_start.isoformat() <= r['dia'] <= end.isoformat()]
     if timestamps:
@@ -67,12 +85,13 @@ def render_sales(cid, args, banco, query):
                                ("unit_price", "Preço médio por unidade", True)):
         value, before = current[key], previous[key]
         pct = change(value, before)
-        comparison = "Variação indisponível" if pct is None else f"{pct:+.1f}%"
+        comparison = "Variação indisponível" if pct is None else f"{pct:+.1f}%".replace('.', ',')
         if before == 0 and value is not None and value > 0:
             comparison = "Sem base percentual (anterior = 0)"
+        tone = 'neutral' if pct is None or pct == 0 else 'up' if pct > 0 else 'down'
         out += ("<div class='stat'><div class='num'>" + fmt(value, money)
                 + "</div><div class='lab'>" + title + "</div><div class='muted'>Anterior: "
-                + fmt(before, money) + " · " + comparison + "</div></div>")
+                + fmt(before, money) + " · <span class='sales-variation sales-"+tone+"'>" + comparison + "</span></div></div>")
     out += "</div>"
     chart = {"labels": [f"Dia {i+1}" for i in range(len(current['days']))],
              "current": current['daily'], "previous": previous['daily'],
@@ -91,8 +110,8 @@ def render_sales(cid, args, banco, query):
             "new Chart(document.getElementById('vendasFaturamento'),{type:'line',data:{labels:d.labels,datasets:["
             "{label:'Atual',data:d.current,borderColor:'#059669',spanGaps:false},"
             "{label:'Anterior',data:d.previous,borderColor:'#64748b',borderDash:[5,5],spanGaps:false}]},"
-            "options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,title:{display:true,text:'R$'}}},"
-            "plugins:{tooltip:{callbacks:{title:function(items){const i=items[0].dataIndex;return d.dates[i]+' / '+d.previousDates[i];}}}}}});})();</script>")
+            "options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#bdd0e4'},grid:{color:'#304860'}},y:{beginAtZero:true,ticks:{color:'#bdd0e4'},grid:{color:'#304860'},title:{display:true,text:'R$',color:'#bdd0e4'}}},"
+            "plugins:{legend:{labels:{color:'#bdd0e4'}},tooltip:{callbacks:{title:function(items){const i=items[0].dataIndex;return d.dates[i]+' / '+d.previousDates[i];}}}}}});})();</script>")
     out += ("<div class='card'><h2>Ocorrências separadas</h2><p>Cancelamentos (status cancelled): "
             + fmt(current['cancellations'], False) + " · Anterior: " + fmt(previous['cancellations'], False)
             + "</p><p>Devoluções: indisponível · Reembolsos: indisponível.</p>"
