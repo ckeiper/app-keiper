@@ -1563,7 +1563,8 @@ def custos(cid):
     aliquota = c["aliquota_imposto"] if c["aliquota_imposto"] is not None else 0
     comissao = c["comissao_pct"] if c["comissao_pct"] is not None else 12
     ultima = ultima_atualizacao(cid)
-    corpo = "<h2 style='margin-bottom:10px'>Custos</h2>" + barra_atualizar(cid, ultima, "custos")
+    from costs_theme import STYLE as costs_style
+    corpo = costs_style + "<h2 style='margin-bottom:10px'>Custos</h2>" + barra_atualizar(cid, ultima, "custos")
     if erro == "sem_arquivo":
         corpo += "<div class='aviso'>Nenhum arquivo selecionado. " \
                  "Escolha a planilha e clique em Importar.</div>"
