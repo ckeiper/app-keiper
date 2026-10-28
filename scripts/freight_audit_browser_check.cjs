@@ -3,6 +3,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs');const {chromium
 for(const mode of ['empty','saved','result','client','duplicate'])for(const width of [1440,390,320]){
  await page.setViewportSize({width,height:1000});await page.setContent(fs.readFileSync(`visual-qa/freight-audit-${mode}.html`,'utf8'));
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${mode}/${width} overflows`);
+ assert.equal(await page.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(8, 20, 38)');
+ assert.equal(await page.locator('.fa-tabs a').first().evaluate(e=>getComputedStyle(e).color),'rgb(167, 217, 255)');
  const form=page.locator('#frete-upload-form');assert.equal(await form.count(),1);
  assert.equal(await form.locator('input[name=csrf_token]').count(),1);
  assert.equal(await form.locator('input[type=file]').getAttribute('accept'),'.xlsx,.csv');
