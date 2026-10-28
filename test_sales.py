@@ -278,6 +278,15 @@ class SyncTests(unittest.TestCase):
 
 
 class ViewTests(unittest.TestCase):
+    def test_sales_view_marks_direction_without_inventing_missing_data(self):
+        def query(conn, sql, params):
+            if 'COUNT(*)' in sql: return [{'n':0}]
+            if 'vendas_cobertura' in sql: return [{'dia': f'2026-10-{d:02}', 'atualizado_em':1} for d in range(8,12)]
+            return [row('current',total='150',criado_em='2026-10-10T12:00:00-03:00'),row('previous',total='100',criado_em='2026-10-08T12:00:00-03:00')]
+        view=render_sales(4,{'periodo':'personalizado','inicio':'2026-10-10','fim':'2026-10-11'},lambda:contextlib.nullcontext(None),query)
+        self.assertIn("class='sales-variation sales-up'>+50,0%",view)
+        self.assertIn("class='sales-variation sales-neutral'>+0,0%",view)
+
     def test_view_gaps_accessible_table_and_filters(self):
         def query(conn, sql, params):
             if 'COUNT(*)' in sql:

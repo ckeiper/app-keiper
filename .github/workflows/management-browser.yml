@@ -34,6 +34,8 @@ on:
       - 'test_freight_differences.py'
       - 'test_freight_audit_view.py'
       - 'scripts/freight_audit*'
+      - 'sales_view.py'
+      - 'scripts/sales_theme*'
       - 'keiper_ai*.py'
       - 'kevia_finance*.py'
       - 'test_kevia_finance*.py'
@@ -62,6 +64,7 @@ jobs:
           node-version: '22'
       - run: python -m pip install -r requirements.txt
       - run: python scripts/management_preview.py
+      - run: python scripts/sales_theme_preview.py
       - run: python scripts/anuncios_progress_preview.py
       - run: python scripts/store_navigation_preview.py
       - run: python scripts/crm_home_preview.py
@@ -76,6 +79,7 @@ jobs:
       - run: npx playwright install chromium
         timeout-minutes: 4
       - run: node scripts/management_browser_check.cjs
+      - run: node scripts/sales_theme_browser_check.cjs
       - run: node scripts/anuncios_progress_browser_check.cjs
       - run: node scripts/store_navigation_browser_check.cjs
       - run: node scripts/crm_home_browser_check.cjs
