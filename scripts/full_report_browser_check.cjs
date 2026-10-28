@@ -11,6 +11,8 @@ const {chromium}=require('playwright');
     await page.setViewportSize({width,height:900});
     await page.setContent(fs.readFileSync(`visual-qa/full-report-${mode}.html`,'utf8'));
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    assert.equal(await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(8, 20, 38)');
+    assert.equal(await page.locator('.conteudo>h2').first().evaluate(el=>getComputedStyle(el).color),'rgb(237, 245, 255)');
     assert.equal(await page.locator('.full-report').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
     assert.equal(await page.locator('.full-summary article').count(),4);
     assert.equal(await page.locator('.full-days-scroll tbody tr').count(),mode==='page2'?10:20);

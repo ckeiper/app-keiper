@@ -51,6 +51,7 @@ on:
       - 'scripts/listing_content*'
       - 'scripts/listing_calendar*'
       - 'full_view.py'
+      - 'full_routes.py'
       - 'full_variation_history.py'
       - 'test_full_variation_history.py'
       - 'full_report_components.py'
