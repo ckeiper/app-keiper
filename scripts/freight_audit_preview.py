@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime,date,timedelta,timezone
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from catalog_preview import page,dest
-from freight_audit_view import render_page
+from freight_audit_view import render_page, reporting_today
 from freight_reconciliation import render_sales_reconciliation,empty_day
 from ledger_arithmetic import empty,accumulate
 from freight_sales_compare import compare_sales_rows,render_sales_comparison
@@ -18,7 +18,7 @@ data=dict(rows=120,shipping_rows=70,invalid_shipping_rows=0,inconsistent_shippin
           seller_shipping_total='1200.00',period_start='2026-09-17',period_end='2026-10-17',financial=financial)
 data['freight_review']=review()
 reports=[dict(id=1,importado_em=datetime(2026,10,27,14,tzinfo=timezone.utc),resumo=data)]
-today=date.today()
+today=reporting_today()
 days=[dict(dia=today-timedelta(days=i),resumo=dict(empty_day(),seller_shipping_total='40.00')) for i in range(12)]
 for mode in ('empty','saved','result','client','duplicate'):
     result=render_sales_reconciliation(data)+render_sales_comparison(compare_sales_rows([],{}, {},[],[])) if mode=='result' else ''
