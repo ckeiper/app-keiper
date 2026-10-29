@@ -10,6 +10,7 @@ from flask import request, session
 from profitability_view import CSS
 from content_required_attributes import compare as compare_required, render as render_required
 from content_conditional_attributes import evaluate as evaluate_conditional
+from content_attribute_units import compare as compare_units, render as render_units
 
 
 class ContentUnavailable(ValueError):
@@ -75,11 +76,13 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None)
     except ContentUnavailable as exc:
         result['description_message'] = str(exc)
     result['requirements']=dict(state='unknown',message='Categoria do anúncio não verificável.')
+    result['attribute_units']=dict(state='unknown',message='Categoria do anúncio não verificável.')
     category=item.get('category_id')
     if isinstance(category,str) and re.fullmatch(r'MLB[0-9]{1,20}',category):
         try:
             payload=read(token,'/categories/'+category+'/attributes',request_get,list)
             result['requirements']=dict(compare_required(payload,item),category=category)
+            result['attribute_units']=compare_units(payload,item)
             if result['requirements'].get('state') == 'read' and any(r['conditional'] for r in result['requirements']['rows']):
                 conditional=evaluate_conditional(token,category,item,result['description'],request_post)
                 result['requirements']['conditional']=conditional
@@ -89,6 +92,7 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None)
                             row['conditional_confirmed']=row['id'] in conditional['required_ids']
         except ContentUnavailable as exc:
             result['requirements']=dict(state='unknown',message=str(exc))
+            result['attribute_units']=dict(state='unknown',message=str(exc))
     return result
 
 
@@ -126,6 +130,7 @@ def render(cid, item_id, title, csrf, result=None):
                 if result['attribute_count']>50: out += '<p>Exibidos 50 de '+str(result['attribute_count'])+' atributos retornados.</p>'
             out += '<p>Contagem de fotos não certifica legibilidade, medidas ou conteúdo das imagens. Clips e vídeo não foram consultados. Campos não verificados não significam ausência.</p>'
             out += render_required(result.get('requirements',{}))
+            out += render_units(result.get('attribute_units',{}))
         out += '</section>'
     return out+'<section class="pf-card"><h3>Continuar a conferência</h3><p>Confira imagens, especificações, compatibilidade e dúvidas reais antes de registrar seu parecer. A oferta pode mudar depois desta leitura. Nenhum histórico de revisão foi substituído.</p><a href="'+path+'">Registrar evidências no checklist ↗</a></section></div><style>.cs-text{white-space:pre-wrap;overflow-wrap:anywhere}.cs-attributes{overflow-wrap:anywhere}.cs-attributes dt{font-weight:700;margin-top:12px}.cs-attributes dd{margin:4px 0 0}</style>'
 
