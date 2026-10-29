@@ -6,7 +6,7 @@ def render_home_sidebar(admin=False,active='home'):
     overview = "<a href='/painel/analise' title='Relatórios consolidados'><span aria-hidden='true'>▦</span><span class='ks-label'>Relatórios consolidados</span></a>" if admin else ""
     crm = "<a href='/crm' title='CRM e leads'><span aria-hidden='true'>◎</span><span class='ks-label'>CRM e leads</span></a>" if admin else ""
     management = ("<a href='/usuarios' title='Usuários'><span aria-hidden='true'>♙</span><span class='ks-label'>Usuários</span></a>"
-                  "<a href='/diagnostico' title='Diagnóstico'><span aria-hidden='true'>⌕</span><span class='ks-label'>Diagnóstico</span></a>"
+                  "<a href='/diagnostico'"+(" aria-current='page'" if active=='diagnostic' else '')+" title='Diagnóstico'><span aria-hidden='true'>⌕</span><span class='ks-label'>Diagnóstico</span></a>"
                   "<a href='/prioridades' title='Central de prioridades'><span aria-hidden='true'>⚑</span><span class='ks-label'>Central de prioridades</span></a>") if admin else ""
     if admin:
         management += "<a href='/evolucao-anuncios'"+(" aria-current='page'" if active=='progress' else '')+" title='Evolução de Anúncios'><span aria-hidden='true'>▤</span><span class='ks-label'>Evolução de Anúncios</span></a>"

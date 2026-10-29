@@ -20,7 +20,7 @@ def test_home_has_sidebar_and_security_only_in_footer():
     assert "<footer class='ks-foot'><a href='/seguranca'" in rendered
     header = rendered.split("<div class='top'>", 1)[1].split("<div class='wrap'>", 1)[0]
     assert '/seguranca' not in header
-    assert "href='/conectar'" in header
+    assert "href='/conectar'" not in header
 
 
 def test_client_sidebar_keeps_admin_routes_hidden():
@@ -31,7 +31,20 @@ def test_client_sidebar_keeps_admin_routes_hidden():
     assert "href='/painel/analise'" not in rendered
 
 
-def test_other_pages_keep_their_existing_header():
+def test_other_pages_use_sidebar_without_header_actions():
     rendered = page(home=False)
-    assert "<aside class='ks-sidebar'" not in rendered
+    assert "<aside class='ks-sidebar'" in rendered
     assert "href='/seguranca'" in rendered
+
+
+def test_login_connection_action_lives_in_login_form():
+    form = main_function('form_login', {})()
+    assert "href='/conectar'" in form
+
+
+def test_settings_switch_shared_by_home_and_store():
+    from store_sidebar import render_store_sidebar
+    for rendered in (page(), render_store_sidebar(1, 'Loja', 'resumo')):
+        assert rendered.count("role='switch'") == 1
+        assert 'Configuração' in rendered
+        assert "aria-label='Tema escuro'" in rendered
