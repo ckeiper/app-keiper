@@ -28,7 +28,7 @@ class SalesGoalIntegrationTests(unittest.TestCase):
     with self.c.session_transaction() as s:self.token=s['_csrf'];self.actor=s['usuario_id']
  def tearDown(self):
     with self.m.banco() as conn:
-        for table in ('listing_sales_goals','anuncios'):self.m.executar(conn,'DELETE FROM '+table+' WHERE conexao_id=ANY(%s)',(self.ids,))
+        for table in ('listing_sales_goals','vendas_cobertura','anuncios'):self.m.executar(conn,'DELETE FROM '+table+' WHERE conexao_id=ANY(%s)',(self.ids,))
         self.m.executar(conn,'DELETE FROM conexoes WHERE id=ANY(%s)',(self.ids,))
  def data(self):
     from datetime import timedelta
@@ -59,3 +59,16 @@ class SalesGoalIntegrationTests(unittest.TestCase):
             barrier.wait(timeout=5);return create(conn,m.consultar,self.ids[0],'MLB123',data,self.actor)
     with ThreadPoolExecutor(max_workers=2) as pool:ids=list(pool.map(run,range(2)))
     self.assertEqual(ids[0],ids[1]);self.assertEqual(len(self.rows()),1)
+ def test_closed_goal_requires_coverage_and_is_scoped(self):
+    from datetime import timedelta
+    day=reporting_today()-timedelta(days=1)
+    data=dict(self.data(),start_date=day.isoformat(),end_date=day.isoformat())
+    self.assertEqual(self.c.post(self.path,data=data).status_code,303)
+    self.assertIn('Resultado não verificado',self.c.get(self.path).text)
+    with self.m.banco() as conn:
+        self.m.executar(conn,'INSERT INTO vendas_cobertura(conexao_id,dia,atualizado_em) VALUES(%s,%s,1)',(self.ids[1],day.isoformat()))
+    self.assertIn('Resultado não verificado',self.c.get(self.path).text)
+    with self.m.banco() as conn:
+        self.m.executar(conn,'INSERT INTO vendas_cobertura(conexao_id,dia,atualizado_em) VALUES(%s,%s,1)',(self.ids[0],day.isoformat()))
+    result=self.c.get(self.path).text
+    self.assertIn('Prazo encerrado · meta não atingida',result);self.assertIn('Apurado: 0',result)

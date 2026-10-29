@@ -354,7 +354,8 @@
         "scripts/listing_sales_goals_browser_check.cjs"
       ],
       "prs": [
-        251
+        251,
+        313
       ],
       "numero_original": null,
       "prioridade": 5,
@@ -1352,7 +1353,10 @@
         "parcial": 17,
         "pendente": 2
       },
-      "total": 44
+      "total": 44,
+      "prs": [
+        313
+      ]
     }
   ],
   "publicacoes": [
