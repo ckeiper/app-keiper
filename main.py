@@ -675,6 +675,8 @@ def iniciar_banco():
             PRIMARY KEY (conexao_id, pedido_id, item_id)
         )""")
         init_sales_schema(conn, execute)
+        from promotion_observations import init_schema as init_promotion_readings
+        init_promotion_readings(conn, execute)
         from listing_kits import init_schema as init_kit_schema
         init_kit_schema(conn, execute)
         from sales_geography import init_schema as init_sales_geography
@@ -3984,6 +3986,7 @@ def diagnostico_saude_anuncio(cid, item_id):
         from urllib.parse import quote
         cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/tarefas'>Planejar tarefas do anúncio</a></p>"
     cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/kits'>Analisar composição de kit</a></p>" if session.get('tipo')=='admin' else ''
+    cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/promocoes-resultados'>Comparar períodos de promoção</a></p>" if session.get('tipo')=='admin' else ''
     corpo = cabecalho
     corpo += ("<div class='card'><h3>Indicadores de vendas por anúncio</h3>"
               "<p class='muted'>Somente pedidos pagos e aprovados, com cobertura "
@@ -5633,6 +5636,8 @@ from listing_questions import register_questions
 register_questions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from profitability_routes import register_profitability
 register_profitability(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from promotion_comparison import register as register_promotion_comparison
+register_promotion_comparison(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_kit_view import register as register_kits
 register_kits(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from installment_comparison import register as register_installment_comparison

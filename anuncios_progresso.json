@@ -518,25 +518,32 @@
       "area": "Rentabilidade",
       "capacidade": "Promoções: comparação de resultados e rentabilidade",
       "estado": "parcial",
-      "implementado": "Histórico de participação e antes/depois de ações de preço/promoção, inclusive contribuição com custos documentados.",
-      "falta": "A referência automática é a data de detecção; falta comprovar vigência integral e condições da promoção durante a janela. Custos não são coletados integralmente de forma automática.",
+      "implementado": "Histórico de participação e antes/depois de ações de preço/promoção, inclusive contribuição com custos documentados. Preservação incremental das consultas de promoções por item, incluindo falhas, status, datas e condições selecionadas. Painel histórico com comparação descritiva de janelas equivalentes de 7/30 dias a partir de calendário com fuso explícito, sem usar a detecção como início. Exclui dias parciais/futuros, candidatos/removidos, variações e tipos condicionais sem regra validada. Contribuição depende de custos documentados das datas exatas e fingerprint de vendas válido.",
+      "falta": "Calendário e leituras isoladas não comprovam participação contínua e condições constantes durante toda a janela. Persistem a lacuna de comprovação integral da vigência efetiva e a coleta automática completa dos custos; sem reconstrução retroativa.",
       "fontes": [
         "promo_history.py",
-        "profitability_action.py"
+        "profitability_action.py",
+        "promotion_observations.py",
+        "promotion_comparison.py",
+        "docs/PROMOCOES_CALENDARIO.md"
       ],
       "testes": [
         "test_promo_history.py",
         "test_profitability_action.py",
-        "test_action_finance_volume.py"
+        "test_action_finance_volume.py",
+        "test_promotion_observations.py",
+        "test_promotion_observations_integration.py",
+        "scripts/promotion_comparison_browser_check.cjs"
       ],
       "prs": [
         205,
         249,
-        266
+        266,
+        312
       ],
       "numero_original": null,
       "prioridade": 4,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-29"
     },
     {
       "id": "tendencia",
@@ -1314,6 +1321,20 @@
       "total": 44,
       "prs": [
         311
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Promoções: histórico de consultas, distinção entre calendário e participação observada e comparação com períodos equivalentes; frente permanece parcial pelas lacunas de vigência efetiva e custos.",
+      "contagens": {
+        "concluida": 25,
+        "parcial": 17,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        312
       ]
     }
   ],
