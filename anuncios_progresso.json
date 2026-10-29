@@ -733,7 +733,7 @@
       "area": "Mercado",
       "capacidade": "Mapa de vendas por estado",
       "estado": "concluida",
-      "implementado": "Mapa geográfico das 27 UFs por pedidos ou faturamento, tabela com ticket/participação, filtros de período, cobertura diária e destinos desconhecidos. Coleta incremental de UF em envios confirmados do vendedor, sem endereços ou dados pessoais. Cobertura de destinos preenchida progressivamente nas sincronizações existentes, com ausência explícita e sem certificação de histórico integral. Checks de PostgreSQL e navegador aprovados na revisão 624aa48b4b78a7b289d9a683f97e1360c851d15f.",
+      "implementado": "Mapa geográfico das 27 UFs por pedidos ou faturamento, tabela com ticket/participação, filtros de período, cobertura diária e destinos desconhecidos. Coleta incremental de UF em envios confirmados do vendedor, sem endereços ou dados pessoais. Cobertura de destinos preenchida progressivamente nas sincronizações existentes, com ausência explícita e sem certificação de histórico integral. Checks de PostgreSQL e navegador aprovados na revisão 624aa48b4b78a7b289d9a683f97e1360c851d15f. Publicação confirmada no Render: dep-dbh93r95efls738if6v0, commit b09dfca469ab091664162a194590aa9bf84f586d.",
       "falta": "",
       "fontes": [
         "sales_geography.py",
@@ -959,9 +959,9 @@
       "id": "pdf",
       "area": "Execução",
       "capacidade": "Relatório PDF de anúncios",
-      "estado": "em_andamento",
-      "implementado": "Relatório consolidado por anúncio implementado: vendas e comparação, visitas e razão observacional, série diária de vendas/visitas/Full/preço, conteúdo, Ads da loja sem rateio, contribuição documentada com verificação da base, ações, tarefas e perguntas locais. Download real em PDF A4 gerado no servidor, com fontes incorporadas, paginação e limites explícitos.",
-      "falta": "Aguardando checks de PostgreSQL, navegador e publicação da exportação consolidada.",
+      "estado": "concluida",
+      "implementado": "Relatório consolidado por anúncio implementado: vendas e comparação, visitas e razão observacional, série diária de vendas/visitas/Full/preço, conteúdo, Ads da loja sem rateio, contribuição documentada com verificação da base, ações, tarefas e perguntas locais. Download real em PDF A4 gerado no servidor, com fontes incorporadas, paginação e limites explícitos. Preserva indisponibilidade das fontes e limites de amostra; não certifica métricas ainda não existentes no sistema. Checks de PostgreSQL e navegador aprovados na revisão 9fab2d65ba10ad582d159b88f19f6258f8972d8d.",
+      "falta": "",
       "fontes": [
         "listing_review_report.py",
         "listing_consolidated_report.py",
@@ -975,7 +975,9 @@
         "test_listing_consolidated_report_integration.py",
         "scripts/listing_consolidated_report_browser_check.cjs"
       ],
-      "prs": [],
+      "prs": [
+        310
+      ],
       "numero_original": null,
       "prioridade": 8,
       "atualizado_em": "2026-10-28"
@@ -1283,15 +1285,16 @@
     {
       "base": "frentes_auditadas",
       "data": "2026-10-28",
-      "resumo": "Relatório consolidado HTML/PDF implementado, aguardando validação de publicação.",
+      "resumo": "Relatório consolidado de anúncio: indicadores, séries diárias, contexto Ads, contribuição documentada, ações e download real em PDF no servidor.",
       "contagens": {
-        "concluida": 23,
+        "concluida": 24,
         "parcial": 17,
-        "pendente": 3,
-        "em_andamento": 1
+        "pendente": 3
       },
       "total": 44,
-      "prs": []
+      "prs": [
+        310
+      ]
     }
   ],
   "publicacoes": [

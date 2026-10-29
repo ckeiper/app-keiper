@@ -4,8 +4,8 @@ import re
 import time
 from datetime import datetime,timedelta
 from html import escape
-from sales_metrics import reporting_today,SAO_PAULO
-from profitability_store import load_pair,read_sales_context,result_for
+from sales_metrics import reporting_today,SAO_PAULO,created_day
+from profitability_store import summarize_context,read_sales_context,result_for
 from listing_sales import listing_sales_summary
 from investigation_evidence import window
 from listing_full_sales_chart import daily_full_status
@@ -15,6 +15,11 @@ from listing_content import CRITERIA,STATES as REVIEW_STATES
 from listing_tasks import STATES as TASK_STATES
 from listing_profitability import COMPONENTS
 from listing_priority_sources import listing_signals
+
+
+def stamp(value):
+    try:return datetime.fromtimestamp(int(value),SAO_PAULO).strftime('%d/%m/%Y %H:%M')+' (Brasília)'
+    except (ValueError,TypeError,OverflowError,OSError):return 'não informada'
 
 
 def number(value,money=False):
@@ -27,9 +32,10 @@ def load(conn,query,cid,item,days=30,today=None):
     today=today or reporting_today();end=today-timedelta(days=1);start=end-timedelta(days=days-1)
     data=load_operational(conn,query,cid,item)
     if data is None:return None
-    pair=load_pair(conn,query,cid,item,start,end)
-    context=read_sales_context(conn,query,cid,start,end)
-    previous_start=pair['previous_start']; bounds=(cid,item,previous_start.isoformat(),end.isoformat())
+    previous_end=start-timedelta(days=1);previous_start=previous_end-timedelta(days=days-1)
+    context=read_sales_context(conn,query,cid,previous_start,end)
+    pair=dict(current=summarize_context(context,cid,item,start,end),previous=summarize_context(context,cid,item,previous_start,previous_end),previous_start=previous_start,previous_end=previous_end)
+    bounds=(cid,item,previous_start.isoformat(),end.isoformat())
     visits=query(conn,'''SELECT dia,visitas FROM item_visits_daily WHERE conexao_id=%s AND item_id=%s
         AND dia BETWEEN %s AND %s ORDER BY dia''',bounds)
     lower=int(datetime.combine(start,datetime.min.time(),SAO_PAULO).timestamp())
@@ -66,10 +72,19 @@ def sections(data):
     metrics.append(['Pedidos / visitas (observacional)']+conversion)
     sections=[dict(title='Desempenho e comparação',note='Períodos encerrados equivalentes. Anterior: '+str(pair['previous_start'])+' a '+str(pair['previous_end'])+'. Somente pedidos pagos/aprovados com vínculo completo dos itens. Valor dos itens não inclui rateio de frete, cupons ou taxas; razão pedidos/visitas não é conversão oficial do Mercado Livre. '+str(pair['current'].get('reason') or '')+' '+str(pair['previous'].get('reason') or ''),columns=['Indicador','Anterior','Atual'],rows=metrics)]
     stock_signal=listing_signals([shop],{},1,now=int(time.time()))[shop['item_id']]
-    sections.append(dict(title='Catálogo e revisão de conteúdo',note='Fonte: catálogo sincronizado; estoque atual não reconstrói o histórico. Fotos/clips são contagens e não notas de qualidade.',columns=['Critério','Parecer / leitura','Evidência'],rows=[['Estoque observado',str(stock_signal['stock']) if stock_signal['stock_verified'] else 'Não verificado','Coleta: '+str(shop.get('atualizado_em') or 'não informada')],['Fotos / clips',number(shop.get('fotos'))+' / '+number(shop.get('clips')),'Leitura do catálogo']]+[[label,REVIEW_STATES[d['reviews'][code]['verdict']],d['reviews'][code]['note']] if code in d['reviews'] else [label,'Sem revisão',''] for code,(label,_) in CRITERIA.items()]))
+    sections.append(dict(title='Catálogo e revisão de conteúdo',note='Fonte: catálogo sincronizado; estoque atual não reconstrói o histórico. Fotos/clips são contagens e não notas de qualidade.',columns=['Critério','Parecer / leitura','Evidência'],rows=[['Estoque observado',str(stock_signal['stock']) if stock_signal['stock_verified'] else 'Não verificado','Coleta: '+stamp(shop.get('atualizado_em'))],['Fotos / clips',number(shop.get('fotos'))+' / '+number(shop.get('clips')),'Leitura do catálogo']]+[[label,REVIEW_STATES[d['reviews'][code]['verdict']],d['reviews'][code]['note']] if code in d['reviews'] else [label,'Sem revisão',''] for code,(label,_) in CRITERIA.items()]))
     full=daily_full_status(data['full'],dates);prices=daily_readings(data['offers']);daily=[]
+    # Classify once; retain invalid dates in each window for the canonical integrity gates.
+    by_day={};keys_to_day={};unknown=[];items_by_day={}
+    for order in data['context']['orders']:
+        day=created_day(order.get('criado_em'))
+        if day is None:unknown.append(order);continue
+        key=day.isoformat();by_day.setdefault(key,[]).append(order);keys_to_day[(order.get('conexao_id'),str(order.get('pedido_id')))]=key
+    for item_row in data['context']['items']:
+        day=keys_to_day.get((item_row.get('conexao_id'),str(item_row.get('pedido_id'))))
+        if day:items_by_day.setdefault(day,[]).append(item_row)
     for i,day in enumerate(dates):
-        sales=listing_sales_summary(data['context']['orders'],data['context']['items'],data['context']['coverage'],shop['item_id'],end=start+timedelta(days=i),days=1)
+        sales=listing_sales_summary(by_day.get(day,[])+unknown,items_by_day.get(day,[]),data['context']['coverage'],shop['item_id'],end=start+timedelta(days=i),days=1)
         if data['context']['pending']:sales.update(orders=None,gross_items=None)
         visit=window(data['visits'],[day],['visitas'],'dia')
         price=confirmed_price(prices[day]) if day in prices else None

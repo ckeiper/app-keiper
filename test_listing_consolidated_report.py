@@ -46,5 +46,10 @@ class ConsolidatedReportTests(unittest.TestCase):
     with patch('listing_consolidated_report.load',return_value=fixture()):
         response=c.get(base+'.pdf');self.assertEqual(response.status_code,200);self.assertEqual(response.mimetype,'application/pdf');self.assertIn('attachment',response.headers['Content-Disposition']);self.assertIn('no-store',response.headers['Cache-Control'])
     self.assertIn('READ ONLY',e.call_args.args[1])
+ def test_daily_partition_keeps_invalid_dates_as_unavailable(self):
+    d=fixture();d['context']['orders'].append(dict(conexao_id=7,pedido_id='bad',status='paid',total=1,moeda='BRL',criado_em=None,vendas_dia_coleta=d['end'].isoformat(),pagamentos_json=[dict(status='approved')],unidades=1))
+    daily=sections(d)[2]['rows']
+    self.assertEqual(daily[-1][1],'Indisponível')
+    self.assertEqual(daily[0][1],'0')
  def test_missing_listing_short_circuits_before_financial_queries(self):
     q=Mock(return_value=[]);self.assertIsNone(load(None,q,7,'MLB1'));self.assertEqual(q.call_count,1);self.assertEqual(q.call_args.args[2],(7,'MLB1'))
