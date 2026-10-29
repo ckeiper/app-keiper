@@ -44,6 +44,9 @@ on:
       - 'scripts/listing_consolidated_report*'
       - 'test_listing_review_report*.py'
       - 'scripts/listing_review_report*'
+      - 'listing_sales_goal*.py'
+      - 'test_listing_sales_goals*.py'
+      - 'scripts/listing_sales_goals*'
       - 'listing_goal*.py'
       - 'test_listing_goals*.py'
       - 'scripts/listing_goals*'
@@ -147,6 +150,7 @@ jobs:
       - run: python scripts/listing_review_report_preview.py
       - run: python scripts/listing_consolidated_report_preview.py
       - run: python scripts/listing_goals_preview.py
+      - run: python scripts/listing_sales_goals_preview.py
       - run: python scripts/listing_onboarding_preview.py
       - run: python scripts/listing_questions_preview.py
       - run: python scripts/listing_content_preview.py
@@ -176,6 +180,7 @@ jobs:
       - run: node scripts/listing_review_report_browser_check.cjs
       - run: node scripts/listing_consolidated_report_browser_check.cjs
       - run: node scripts/listing_goals_browser_check.cjs
+      - run: node scripts/listing_sales_goals_browser_check.cjs
       - run: node scripts/listing_onboarding_browser_check.cjs
       - run: node scripts/listing_questions_browser_check.cjs
       - run: node scripts/listing_content_browser_check.cjs

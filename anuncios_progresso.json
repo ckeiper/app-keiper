@@ -331,13 +331,16 @@
       "area": "Execução",
       "capacidade": "Metas com alertas por anúncio",
       "estado": "parcial",
-      "implementado": "Cadastro administrativo de metas de estoque mínimo por anúncio, com valor, período e responsável informados, histórico de cadastro/cancelamento preservado e paginação. Alertas no painel calculados ao abrir a tela com leitura do catálogo de até seis horas; dados antigos, inválidos ou ausentes ficam não verificados. Metas encerradas não usam estoque atual para fabricar resultado histórico. Sincronizações avaliam metas elegíveis e persistem data da avaliação, data da leitura, estoque verificado ou ausência e resultado. Histórico por meta com paginação, preservado após cancelamento; sem reconstrução retroativa.",
-      "falta": "Faltam outras métricas de metas e notificações automáticas externas. As avaliações dependem das sincronizações disponíveis, sem garantia de coleta contínua. A leitura é do estoque geral do catálogo, sem certificação por variação ou inventário Full; não é previsão de ruptura.",
+      "implementado": "Cadastro administrativo de metas de estoque mínimo por anúncio, com valor, período e responsável informados, histórico de cadastro/cancelamento preservado e paginação. Alertas no painel calculados ao abrir a tela com leitura do catálogo de até seis horas; dados antigos, inválidos ou ausentes ficam não verificados. Metas encerradas não usam estoque atual para fabricar resultado histórico. Sincronizações avaliam metas elegíveis e persistem data da avaliação, data da leitura, estoque verificado ou ausência e resultado. Histórico por meta com paginação, preservado após cancelamento; sem reconstrução retroativa. Metas de pedidos pagos, unidades e valor bruto dos itens por anúncio, com período e responsável, cadastro idempotente e cancelamento preservado. Avaliação na abertura usa somente dias completos e cobertura de vendas verificada. Abaixo da meta durante o prazo é andamento; alerta somente depois do encerramento, sem projetar ritmo ou inventar zeros.",
+      "falta": "Notificações automáticas externas e histórico persistido de avaliações de metas de vendas ainda pendentes. Metas de vendas são reavaliadas na abertura e podem mudar com correções na base. Estoque geral não certifica variações, inventário Full ou previsão de ruptura; avaliações de estoque dependem das sincronizações.",
       "fontes": [
         "listing_goals.py",
         "listing_goal_routes.py",
         "listing_goal_view.py",
-        "goal_observations.py"
+        "goal_observations.py",
+        "listing_sales_goals.py",
+        "listing_sales_goal_routes.py",
+        "listing_sales_goal_view.py"
       ],
       "testes": [
         "test_listing_goals.py",
@@ -345,14 +348,18 @@
         "scripts/listing_goals_browser_check.cjs",
         "test_goal_observations.py",
         "test_goal_observations_integration.py",
-        "scripts/goal_observations_browser_check.cjs"
+        "scripts/goal_observations_browser_check.cjs",
+        "test_listing_sales_goals.py",
+        "test_listing_sales_goals_integration.py",
+        "scripts/listing_sales_goals_browser_check.cjs"
       ],
       "prs": [
-        251
+        251,
+        313
       ],
       "numero_original": null,
       "prioridade": 5,
-      "atualizado_em": "2026-10-26"
+      "atualizado_em": "2026-10-29"
     },
     {
       "id": "vendas-paralisadas",
@@ -1335,6 +1342,20 @@
       "total": 44,
       "prs": [
         312
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Metas de pedidos, unidades e valor bruto por anúncio, com avaliação verificável após dias completos; frente parcial enquanto faltam notificações externas e histórico de avaliações de vendas.",
+      "contagens": {
+        "concluida": 25,
+        "parcial": 17,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        313
       ]
     }
   ],

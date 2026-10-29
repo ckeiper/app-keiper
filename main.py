@@ -690,6 +690,8 @@ def iniciar_banco():
         init_listing_tasks(conn, execute)
         from listing_goals import init_schema as init_listing_goals
         init_listing_goals(conn, execute)
+        from listing_sales_goals import init_schema as init_sales_goals
+        init_sales_goals(conn, execute)
         from goal_observations import init_schema as init_goal_observations
         init_goal_observations(conn, execute)
         from listing_onboarding import init_schema as init_listing_onboarding
@@ -5623,6 +5625,8 @@ from sales_geography_view import register as register_sales_geography
 register_sales_geography(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
 from listing_review_report import register_report
 register_report(app, login_required, pode_ver_loja, banco, consultar, executar)
+from listing_sales_goal_routes import register_sales_goals
+register_sales_goals(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_goal_routes import register_goals
 register_goals(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from goal_observations import register_history
