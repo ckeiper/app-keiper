@@ -330,9 +330,9 @@
       "id": "metas-alertas",
       "area": "Execução",
       "capacidade": "Metas com alertas por anúncio",
-      "estado": "parcial",
-      "implementado": "Cadastro administrativo de metas de estoque mínimo por anúncio, com valor, período e responsável informados, histórico de cadastro/cancelamento preservado e paginação. Alertas no painel calculados ao abrir a tela com leitura do catálogo de até seis horas; dados antigos, inválidos ou ausentes ficam não verificados. Metas encerradas não usam estoque atual para fabricar resultado histórico. Sincronizações avaliam metas elegíveis e persistem data da avaliação, data da leitura, estoque verificado ou ausência e resultado. Histórico por meta com paginação, preservado após cancelamento; sem reconstrução retroativa. Metas de pedidos pagos, unidades e valor bruto dos itens por anúncio, com período e responsável, cadastro idempotente e cancelamento preservado. Avaliação na abertura usa somente dias completos e cobertura de vendas verificada. Abaixo da meta durante o prazo é andamento; alerta somente depois do encerramento, sem projetar ritmo ou inventar zeros. Sincronizações de pedidos persistem avaliações das metas de vendas, com data de corte, resultado, valor verificado ou ausência e impressão da base. Histórico paginado por anúncio e meta, preservado após cancelamento. Metas encerradas são revisitadas por 30 dias; GET somente consulta.",
-      "falta": "Notificações automáticas externas ainda pendentes. As avaliações dependem das sincronizações; não há coleta contínua garantida nem reconstrução retroativa. Estoque geral não certifica variações, inventário Full ou previsão de ruptura.",
+      "estado": "em_andamento",
+      "implementado": "Cadastro administrativo de metas de estoque mínimo por anúncio, com valor, período e responsável informados, histórico de cadastro/cancelamento preservado e paginação. Alertas no painel calculados ao abrir a tela com leitura do catálogo de até seis horas; dados antigos, inválidos ou ausentes ficam não verificados. Metas encerradas não usam estoque atual para fabricar resultado histórico. Sincronizações avaliam metas elegíveis e persistem data da avaliação, data da leitura, estoque verificado ou ausência e resultado. Histórico por meta com paginação, preservado após cancelamento; sem reconstrução retroativa. Metas de pedidos pagos, unidades e valor bruto dos itens por anúncio, com período e responsável, cadastro idempotente e cancelamento preservado. Avaliação na abertura usa somente dias completos e cobertura de vendas verificada. Abaixo da meta durante o prazo é andamento; alerta somente depois do encerramento, sem projetar ritmo ou inventar zeros. Sincronizações de pedidos persistem avaliações das metas de vendas, com data de corte, resultado, valor verificado ou ausência e impressão da base. Histórico paginado por anúncio e meta, preservado após cancelamento. Metas encerradas são revisitadas por 30 dias; GET somente consulta. Avisos opcionais por e-mail para a própria conta administrativa, desativados por padrão e condicionados a consentimento explícito por meta. Usa nova avaliação verificada, última leitura de estoque coincidente com o catálogo, prazo encerrado para vendas e até uma tentativa por dia de Brasília. Bloqueia metas canceladas, lojas inativas e e-mail alterado. Persistência de tentativas com deduplicação concorrente e estado SMTP aceito ou incerto, sem repetir automaticamente a tentativa diária.",
+      "falta": "Aguardando checks de integração e navegador para validar avisos opcionais. SMTP depende da configuração existente; aceite SMTP não comprova entrega. Não há garantia de coleta contínua, previsão de ruptura ou reconstrução retroativa.",
       "fontes": [
         "listing_goals.py",
         "listing_goal_routes.py",
@@ -341,7 +341,10 @@
         "listing_sales_goals.py",
         "listing_sales_goal_routes.py",
         "listing_sales_goal_view.py",
-        "sales_goal_observations.py"
+        "sales_goal_observations.py",
+        "goal_notifications.py",
+        "goal_notification_routes.py",
+        "goal_notification_view.py"
       ],
       "testes": [
         "test_listing_goals.py",
@@ -355,7 +358,10 @@
         "scripts/listing_sales_goals_browser_check.cjs",
         "test_sales_goal_observations.py",
         "test_sales_goal_observations_integration.py",
-        "scripts/sales_goal_observations_browser_check.cjs"
+        "scripts/sales_goal_observations_browser_check.cjs",
+        "test_goal_notifications.py",
+        "test_goal_notifications_integration.py",
+        "scripts/goal_notifications_browser_check.cjs"
       ],
       "prs": [
         251,
@@ -1376,6 +1382,18 @@
       "prs": [
         314
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Avisos opcionais de metas em desenvolvimento e validação, desativados por padrão; não houve envio real no desenvolvimento.",
+      "contagens": {
+        "concluida": 25,
+        "parcial": 16,
+        "em_andamento": 1,
+        "pendente": 2
+      },
+      "total": 44
     }
   ],
   "publicacoes": [
