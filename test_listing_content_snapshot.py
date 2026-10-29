@@ -139,3 +139,12 @@ class ContentSnapshotRouteTests(unittest.TestCase):
         self.query.return_value=[]
         self.assertEqual(self.client.post(self.path,data=dict(_csrf='csrf')).status_code,404)
         self.resolve.assert_not_called(); self.get.assert_not_called()
+
+    def test_explicit_technical_sheet_button_fetches_only_verified_category(self):
+        from test_content_technical_specs import specs,field,rules
+        data=item();data.update(category_id='MLB200',variations=[])
+        self.get.side_effect=requester([dict(id=123),data,{},rules(),specs(field())]).side_effect
+        result=self.client.post(self.path,data=dict(_csrf='csrf',ficha_tecnica='1'))
+        self.assertEqual(result.status_code,200);self.assertIn('Ficha técnica da categoria',result.text)
+        self.assertEqual(self.get.call_count,5);self.assertTrue(self.get.call_args.args[0].endswith('/categories/MLB200/technical_specs/input'))
+        self.assertNotIn('secret-token',result.text)
