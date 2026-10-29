@@ -62,13 +62,14 @@ class GoalNotificationIntegrationTests(unittest.TestCase):
     self.assertEqual(self.c.post(self.path,data=dict(enabled='yes',confirmed_email='someone@example.invalid',_csrf=self.token)).status_code,400)
     self.enable();self.assertEqual(self.run_dispatch(),1);self.assertEqual(self.sender.call_args.args[0],self.email)
     self.assertEqual(self.run_dispatch(),0);self.assertEqual(len(self.count()),1)
-    self.assertIn('Aceito pelo SMTP',self.c.get(self.path).text)
+    self.assertIn('<strong>Aceito pelo SMTP · entrega não confirmada</strong>',self.c.get(self.path).text)
     self.assertEqual(self.c.post(self.path,data=dict(_csrf=self.token)).status_code,303)
     self.assertEqual(self.run_dispatch(self.now+3),0)
     self.assertEqual(self.c.get(self.path.replace('MLB123','MLB999')).status_code,404)
     other=m.app.test_client()
     with database_session(other) as s:s.update(usuario_id=812,tipo='admin')
-    self.assertNotIn('Aceito pelo SMTP',other.get(self.path).text)
+    self.assertIn('Nenhuma tentativa registrada.',other.get(self.path).text)
+    self.assertNotIn('<strong>Aceito pelo SMTP · entrega não confirmada</strong>',other.get(self.path).text)
  def test_new_evaluation_after_enable_required_and_concurrent_dedup(self):
     m=self.m
     collect_stock(self.cid,m.banco,m.consultar,m.executar,self.now)
