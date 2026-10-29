@@ -507,7 +507,7 @@ def pagina(titulo, corpo):
     use_sidebar = bool(session.get("tipo"))
     topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
-    links = "</div>"
+    links = ("<a class='btn sair' href='/logout'>Sair</a>" if session.get("tipo") else "") + "</div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
     cab += "<title>" + esc(titulo) + "</title>" + theme_head + CSS + VISUAL_CSS + "</head><body>"
