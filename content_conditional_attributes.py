@@ -20,6 +20,8 @@ def evaluate(token, category, item, description, request_post):
             return unknown
         response = request_post('https://api.mercadolibre.com/categories/'+category+'/attributes/conditional',
             headers={'Authorization': 'Bearer '+token}, json=payload, timeout=(3, 8), allow_redirects=False)
+        if response.status_code == 429:
+            return dict(unknown,rate_limited=True)
         if response.status_code != 200:
             return unknown
         result = response.json()

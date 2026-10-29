@@ -11,9 +11,14 @@ from profitability_view import CSS
 from content_required_attributes import compare as compare_required, render as render_required
 from content_conditional_attributes import evaluate as evaluate_conditional
 from content_attribute_units import compare as compare_units, render as render_units
+from content_technical_specs import compare as compare_specs, render as render_specs
 
 
 class ContentUnavailable(ValueError):
+    pass
+
+
+class ContentRateLimited(ContentUnavailable):
     pass
 
 
@@ -22,7 +27,7 @@ def read(token, path, request_get, payload_type=dict):
         response = request_get('https://api.mercadolibre.com'+path,
             headers={'Authorization': 'Bearer '+token}, timeout=(3, 8), allow_redirects=False)
         if response.status_code == 429:
-            raise ContentUnavailable('Limite de consultas atingido. Aguarde antes de tentar novamente.')
+            raise ContentRateLimited('Limite de consultas atingido. Aguarde antes de tentar novamente.')
         if response.status_code != 200:
             raise ContentUnavailable('Leitura indisponível no Mercado Livre. Nenhuma ausência foi presumida.')
         payload = response.json()
@@ -39,7 +44,7 @@ def text(value, limit):
     return value.strip() if isinstance(value, str) and len(value) <= limit else None
 
 
-def inspect(token, seller_id, item_id, request_get, now=None, request_post=None):
+def inspect(token, seller_id, item_id, request_get, now=None, request_post=None, include_specs=False):
     result = dict(state='unknown', checked_at=now or datetime.now(timezone.utc))
     if (not isinstance(token, str) or not token or
         isinstance(seller_id, bool) or not re.fullmatch(r'[1-9][0-9]{0,19}', str(seller_id)) or
@@ -68,6 +73,7 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None)
         result['attribute_count'] = len(attrs)
         result['attributes'] = [dict(name=text(a.get('name'), 300) or a['id'],
             value=text(a.get('value_name'), 2000)) for a in attrs[:50]]
+    rate_limited=False
     try:
         desc = read(token, '/items/'+item_id+'/description', request_get)
         result['description'] = text(desc.get('plain_text'), 200000)
@@ -75,17 +81,22 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None)
             result['description_message'] = 'Texto da descrição não verificável na resposta.'
     except ContentUnavailable as exc:
         result['description_message'] = str(exc)
+        rate_limited=isinstance(exc,ContentRateLimited)
     result['requirements']=dict(state='unknown',message='Categoria do anúncio não verificável.')
     result['attribute_units']=dict(state='unknown',message='Categoria do anúncio não verificável.')
+    if include_specs:result['technical_specs']=dict(state='unknown',message='Categoria do anúncio não verificável.')
+    category_attributes=None
     category=item.get('category_id')
     if isinstance(category,str) and re.fullmatch(r'MLB[0-9]{1,20}',category):
         try:
             payload=read(token,'/categories/'+category+'/attributes',request_get,list)
+            category_attributes=payload
             result['requirements']=dict(compare_required(payload,item),category=category)
             result['attribute_units']=compare_units(payload,item)
             if result['requirements'].get('state') == 'read' and any(r['conditional'] for r in result['requirements']['rows']):
                 conditional=evaluate_conditional(token,category,item,result['description'],request_post)
                 result['requirements']['conditional']=conditional
+                rate_limited=rate_limited or conditional.get('rate_limited') is True
                 if conditional['state']=='read':
                     for row in result['requirements']['rows']:
                         if row['conditional']:
@@ -93,13 +104,22 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None)
         except ContentUnavailable as exc:
             result['requirements']=dict(state='unknown',message=str(exc))
             result['attribute_units']=dict(state='unknown',message=str(exc))
+            rate_limited=rate_limited or isinstance(exc,ContentRateLimited)
+        if include_specs and not rate_limited:
+            try:
+                specs=read(token,'/categories/'+category+'/technical_specs/input',request_get)
+                result['technical_specs']=compare_specs(specs,category_attributes,item,result['requirements'].get('conditional'))
+            except ContentUnavailable as exc:
+                result['technical_specs']=dict(state='unknown',message=str(exc))
+    if include_specs and rate_limited:
+        result['technical_specs']=dict(state='unknown',message='Limite de consultas atingido. Aguarde antes de tentar novamente.')
     return result
 
 
 def render(cid, item_id, title, csrf, result=None):
     esc = lambda value: escape(str(value), quote=True)
     path = '/anuncios/'+str(int(cid))+'/'+esc(item_id)+'/conteudo'
-    out = CSS+'<div class="pf content-snapshot"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Conferência de conteúdo</span><h2>Conteúdo atual do anúncio</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="'+path+'">← Voltar ao checklist de conteúdo</a><p>Consulte o que o Mercado Livre retorna agora para apoiar sua revisão. A leitura não aprova critérios nem mede qualidade ou impacto nas vendas.</p></header><section class="pf-card"><h3>Consultar no Mercado Livre</h3><p>Verifica a conta autorizada e a propriedade do anúncio. Não altera a oferta nem os pareceres registrados. A leitura aparece apenas nesta resposta; registre sua evidência no checklist.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><button>Consultar conteúdo atual</button></form></section>'
+    out = CSS+'<div class="pf content-snapshot"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Conferência de conteúdo</span><h2>Conteúdo atual do anúncio</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="'+path+'">← Voltar ao checklist de conteúdo</a><p>Consulte o que o Mercado Livre retorna agora para apoiar sua revisão. A leitura não aprova critérios nem mede qualidade ou impacto nas vendas.</p></header><section class="pf-card"><h3>Consultar no Mercado Livre</h3><p>Verifica a conta autorizada e a propriedade do anúncio. Não altera a oferta nem os pareceres registrados. A leitura aparece apenas nesta resposta; registre sua evidência no checklist.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><button>Consultar conteúdo atual</button><button name="ficha_tecnica" value="1">Consultar conteúdo e ficha técnica</button></form></section>'
     if result:
         stamp = result['checked_at'].astimezone(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y às %H:%M:%S · Brasília')
         out += '<section class="pf-card" id="content-snapshot-result"><h3>Leitura consultada</h3><p>'+esc(stamp)+'</p>'
@@ -131,6 +151,7 @@ def render(cid, item_id, title, csrf, result=None):
             out += '<p>Contagem de fotos não certifica legibilidade, medidas ou conteúdo das imagens. Clips e vídeo não foram consultados. Campos não verificados não significam ausência.</p>'
             out += render_required(result.get('requirements',{}))
             out += render_units(result.get('attribute_units',{}))
+            if 'technical_specs' in result:out += render_specs(result['technical_specs'])
         out += '</section>'
     return out+'<section class="pf-card"><h3>Continuar a conferência</h3><p>Confira imagens, especificações, compatibilidade e dúvidas reais antes de registrar seu parecer. A oferta pode mudar depois desta leitura. Nenhum histórico de revisão foi substituído.</p><a href="'+path+'">Registrar evidências no checklist ↗</a></section></div><style>.cs-text{white-space:pre-wrap;overflow-wrap:anywhere}.cs-attributes{overflow-wrap:anywhere}.cs-attributes dt{font-weight:700;margin-top:12px}.cs-attributes dd{margin:4px 0 0}</style>'
 
@@ -149,6 +170,6 @@ def register(app, login_required, can_view, bank, query, shop_page, resolve_toke
         if not shops:
             return 'Anúncio não encontrado nesta loja.', 404
         csrf = session.setdefault('_csrf', secrets.token_urlsafe(32))
-        result = inspect(resolve_token(shops[0]), shops[0]['user_id'], item_id, request_get, request_post=request_post) if request.method == 'POST' else None
+        result = inspect(resolve_token(shops[0]), shops[0]['user_id'], item_id, request_get, request_post=request_post, include_specs=request.form.get('ficha_tecnica')=='1') if request.method == 'POST' else None
         return shop_page('Conteúdo atual do anúncio', cid, shops[0]['cliente'], 'anuncios',
                          render(cid, item_id, shops[0]['titulo'], csrf, result))
