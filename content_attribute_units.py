@@ -24,7 +24,7 @@ def check(definition,row):
     try:finite=Decimal(str(number)).is_finite()
     except InvalidOperation:finite=False
     if not finite or not isinstance(unit,str) or not unit.strip() or len(unit)>100:return 'unknown','Número ou unidade estruturados não verificáveis.'
-    if unit not in ids:return 'review','Unidade retornada '+unit+' não consta nas unidades informadas pela categoria: '+', '.join(ids)+'.'
+    if unit not in ids:return 'review','Unidade retornada: '+unit+'. Categoria: '+', '.join(ids)+'.'
     return 'matched','Unidade '+unit+' consta nas unidades informadas pela categoria.'
 
 
@@ -64,15 +64,16 @@ def compare(definitions,item):
 
 def render(result):
     esc=lambda v:escape(str(v),quote=True)
-    out='<section class="cs-units"><h4>Unidades dos atributos numéricos</h4><p>Compara apenas a unidade estruturada retornada com allowed_units da categoria consultada. Não presume unidade pelo texto, não converte medidas e não certifica validade da ficha.</p>'
+    out='<section class="cs-units"><h4>Unidades dos atributos numéricos</h4><p>Unidades comparadas com a regra retornada pela categoria.</p>'
     if result.get('state')!='read':return out+'<p>Unidades não verificadas. '+esc(result.get('message','Consulta indisponível.'))+'</p></section>'
     labels={'matched':'Unidade compatível com a resposta da categoria','review':'Conferir unidade','unknown':'Não verificado'}
     for row in result['rows']:
         out+='<article class="cs-unit" data-unit-state="'+row['state']+'"><h5>'+esc(row['name'])+'</h5><p>'+esc(row['location'])+'</p><strong>'+labels[row['state']]+'</strong><p>'+esc(row['message'])+'</p>'
         if row.get('managed'):out+='<p>Campo gerenciado pelo Mercado Livre; não recomenda alteração direta pelo vendedor.</p>'
-        elif row['state']=='review':out+='<p>Confira a unidade e a categoria na ficha do Mercado Livre antes de corrigir. A divergência nesta consulta não comprova erro de publicação.</p>'
+        elif row['state']=='review':out+='<p>Confira a unidade e a categoria na ficha do Mercado Livre antes de corrigir.</p>'
         out+='</article>'
     if not result['rows']:out+='<p>Nenhum valor do tipo número com unidade identificado para esta conferência.</p>'
     if result.get('variation_unknown'):out+='<p>Variações não verificáveis: nenhuma conclusão foi emitida para elas.</p>'
     if result.get('truncated'):out+='<p>Leitura limitada a 100 resultados e 5.000 entradas de atributos; não certifica cobertura integral.</p>'
+    out+='<details><summary>Limites da conferência</summary><p>A divergência nesta consulta não comprova erro de publicação. Compara apenas a unidade estruturada retornada com allowed_units. Não presume unidade pelo texto, não converte medidas e não certifica validade da ficha.</p></details>'
     return out+'</section><style>.cs-unit{border:1px solid #426184;border-radius:10px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.cs-unit[data-unit-state=review]{border-left:4px solid #c08d54}.cs-unit h5{font:inherit;font-weight:700;margin:0 0 8px}</style>'

@@ -25,7 +25,8 @@ class ThemeSwitcherTests(unittest.TestCase):
     def test_appearance_stays_local_and_accessible(self):
         self.assertNotIn('fetch(', HEAD+SCRIPT)
         self.assertNotIn('document.cookie', HEAD+SCRIPT)
-        self.assertIn('aria-pressed', SCRIPT)
+        self.assertIn('aria-checked', SCRIPT)
+        self.assertNotIn('top.appendChild', SCRIPT)
         self.assertIn('focus-visible', HEAD)
         self.assertIn('storage', SCRIPT)
         self.assertIn('@media print', HEAD)

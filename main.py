@@ -504,13 +504,10 @@ def pagina(titulo, corpo):
     from theme_switcher import HEAD as theme_head, SCRIPT as theme_script
     is_home = "<main class='kh-home'>" in corpo
     is_progress = "<main class='ap-progress'>" in corpo
-    use_sidebar = is_home or is_progress
+    use_sidebar = bool(session.get("tipo"))
     topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
-    links = ""
-    if session.get("tipo") == "admin" and not use_sidebar:
-        links += "<a class='btn' href='/seguranca'>Segurança</a>"
-    links += "<a class='btn' href='/conectar'>+ Conectar loja</a></div>"
+    links = "</div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
     cab += "<title>" + esc(titulo) + "</title>" + theme_head + CSS + VISUAL_CSS + "</head><body>"
@@ -518,7 +515,7 @@ def pagina(titulo, corpo):
     sidebar = ""
     if use_sidebar:
         from home_sidebar import render_home_sidebar
-        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin", active="progress" if is_progress else "home")
+        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin", active="progress" if is_progress else ("home" if is_home else ("diagnostic" if titulo == "Diagnóstico" else "")))
     return cab + sidebar + topo + marca + links + fim
 
 
@@ -697,6 +694,8 @@ def iniciar_banco():
         init_sales_goals(conn, execute)
         from sales_goal_observations import init_schema as init_sales_goal_observations
         init_sales_goal_observations(conn, execute)
+        from goal_notifications import init_schema as init_goal_notifications
+        init_goal_notifications(conn, execute)
         from goal_observations import init_schema as init_goal_observations
         init_goal_observations(conn, execute)
         from listing_onboarding import init_schema as init_listing_onboarding
@@ -952,7 +951,8 @@ def form_login():
             "<input name='username' required placeholder='Usuário' class='input'>"
             "<input type='password' name='senha' required placeholder='Senha' class='input'>"
             "<button class='btn-salvar' style='width:100%'>Entrar</button></form>"
-            "<p style='margin-top:12px'><a class='link' href='/recuperar'>Esqueci minha senha</a></p>")
+            "<p style='margin-top:12px'><a class='link' href='/recuperar'>Esqueci minha senha</a></p>"
+            "<p><a class='btn' href='/conectar'>+ Conectar loja</a></p>")
 
 
 @app.route("/recuperar", methods=["GET", "POST"])
@@ -1962,7 +1962,8 @@ def diagnostico():
               "<table><thead><tr><th>Loja</th><th>Situação</th><th>Categoria</th><th>Mensagem</th>"
               "<th>Quando</th></tr></thead><tbody>"
               + linhas_e + "</tbody></table></div>")
-    return pagina("Diagnóstico", corpo)
+    from diagnostic_theme import CSS as diagnostic_css
+    return pagina("Diagnóstico", diagnostic_css + "<main class='sync-diagnostic'>" + corpo + "</main>")
 FILA_ATUALIZACAO = []
 LOCK_FILA = threading.Lock()
 WORKER_VIVO = False
@@ -5633,6 +5634,8 @@ from sales_geography_view import register as register_sales_geography
 register_sales_geography(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
 from listing_review_report import register_report
 register_report(app, login_required, pode_ver_loja, banco, consultar, executar)
+from goal_notification_routes import register as register_goal_notifications
+register_goal_notifications(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from sales_goal_observations import register_history as register_sales_goal_history
 register_sales_goal_history(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_sales_goal_routes import register_sales_goals
@@ -5969,7 +5972,17 @@ def job_kyra_campaigns():
         app.logger.warning('kyra_campaign_daily_unavailable')
 
 
+def job_goal_notifications():
+    try:
+        from goal_notifications import dispatch
+        dispatch(banco, consultar, executar, int(time.time()))
+    except Exception:
+        app.logger.warning('goal_notifications_unavailable')
+
+
 scheduler = BackgroundScheduler()
+scheduler.add_job(job_goal_notifications, 'interval', minutes=1,
+                  id='goal_notifications', max_instances=1, coalesce=True)
 scheduler.add_job(job_kyra_campaigns, 'interval', minutes=1,
                   next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30),
                   id='kyra_campaign_daily', max_instances=1, coalesce=True)
