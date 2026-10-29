@@ -732,9 +732,9 @@
       "id": "mapa-estados",
       "area": "Mercado",
       "capacidade": "Mapa de vendas por estado",
-      "estado": "em_andamento",
-      "implementado": "Mapa geográfico das 27 UFs por pedidos ou faturamento, tabela com ticket/participação, filtros de período, cobertura diária e destinos desconhecidos. Coleta incremental de UF em envios confirmados do vendedor, sem endereços ou dados pessoais.",
-      "falta": "Aguardando checks de integração e navegador no CI e confirmação do deploy. Cobertura histórica depende das sincronizações disponíveis e do preenchimento incremental de destinos, mostrado no painel.",
+      "estado": "concluida",
+      "implementado": "Mapa geográfico das 27 UFs por pedidos ou faturamento, tabela com ticket/participação, filtros de período, cobertura diária e destinos desconhecidos. Coleta incremental de UF em envios confirmados do vendedor, sem endereços ou dados pessoais. Cobertura de destinos preenchida progressivamente nas sincronizações existentes, com ausência explícita e sem certificação de histórico integral. Checks de PostgreSQL e navegador aprovados na revisão 624aa48b4b78a7b289d9a683f97e1360c851d15f.",
+      "falta": "",
       "fontes": [
         "sales_geography.py",
         "sales_geography_view.py",
@@ -745,7 +745,9 @@
         "test_sales_geography_integration.py",
         "scripts/sales_geography_browser_check.cjs"
       ],
-      "prs": [],
+      "prs": [
+        309
+      ],
       "numero_original": null,
       "prioridade": 100,
       "atualizado_em": "2026-10-28"
@@ -1262,15 +1264,16 @@
     {
       "base": "frentes_auditadas",
       "data": "2026-10-28",
-      "resumo": "Mapa de vendas por UF implementado; aguardando validação de publicação.",
+      "resumo": "Mapa de vendas por estado: 27 UFs, filtros, pedidos/faturamento, ticket, participação e cobertura explícita; coleta incremental com isolamento por loja.",
       "contagens": {
-        "concluida": 22,
+        "concluida": 23,
         "parcial": 18,
-        "em_andamento": 1,
         "pendente": 3
       },
       "total": 44,
-      "prs": []
+      "prs": [
+        309
+      ]
     }
   ],
   "publicacoes": [
