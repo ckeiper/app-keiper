@@ -359,7 +359,8 @@
       ],
       "prs": [
         251,
-        313
+        313,
+        314
       ],
       "numero_original": null,
       "prioridade": 5,
@@ -1371,7 +1372,10 @@
         "parcial": 17,
         "pendente": 2
       },
-      "total": 44
+      "total": 44,
+      "prs": [
+        314
+      ]
     }
   ],
   "publicacoes": [
