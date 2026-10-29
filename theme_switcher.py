@@ -8,6 +8,13 @@ html[data-theme=light]{color-scheme:light;--kp-ink:#172d47;--kp-subtle:#52657c;-
 .kt-theme-toggle:focus-visible{outline:3px solid #479df1;outline-offset:3px}
 @media(max-width:640px){.kt-theme-toggle{min-height:44px;padding:9px 11px}}
 @media print{.kt-theme-toggle{display:none!important}}
+.kt-theme-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;font-size:12px}
+.kt-theme-toggle{min-width:44px;min-height:26px;height:26px;padding:3px;border-radius:99px;background:#52657c;justify-content:flex-start}
+.kt-theme-thumb{display:block;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s}
+.kt-theme-toggle[aria-checked=true]{background:#315cdd}
+.kt-theme-toggle[aria-checked=true] .kt-theme-thumb{transform:translateX(16px)}
+html[data-theme=light] body .kt-theme-toggle{background:#52657c!important}
+html[data-theme=light] body .kt-theme-toggle[aria-checked=true]{background:#315cdd!important}
 /* Layered important declarations outrank the legacy unlayered scoped styles. */
 @layer keiper-appearance {
 html[data-theme=light] body{background:#f3f6fb!important;color:#172d47!important;color-scheme:light!important}
@@ -58,9 +65,12 @@ var light=root.dataset.theme==='light';
 function change(object,property,value){if(!object)return;var saved=object.$keiperColors||(object.$keiperColors={});if(!(property in saved))saved[property]=object[property];object[property]=light?value:saved[property];}
 Object.values(chart.options.scales||{}).forEach(function(axis){change(axis.ticks,'color','#52657c');change(axis.grid,'color','#dbe4ef');});
 var legend=chart.options.plugins&&chart.options.plugins.legend;change(legend&&legend.labels,'color','#314e70');chart.update('none');});}
-function sync(){var light=root.dataset.theme==='light';document.querySelectorAll('.kt-theme-toggle').forEach(function(button){button.textContent=light?'☾ Tema escuro':'☀ Tema claro';button.setAttribute('aria-label',light?'Ativar tema escuro':'Ativar tema claro');button.setAttribute('aria-pressed',String(light));});charts();}
-function mount(){var button=document.createElement('button');button.type='button';button.className='kt-theme-toggle';button.addEventListener('click',function(){root.dataset.theme=root.dataset.theme==='light'?'dark':'light';try{localStorage.setItem(key,root.dataset.theme);}catch(e){}sync();});var top=document.querySelector('.top');if(top)top.appendChild(button);else{button.style.cssText='position:fixed;right:12px;top:12px;z-index:1100';document.body.appendChild(button);}sync();}
+function sync(){var dark=root.dataset.theme!=='light';document.querySelectorAll('.kt-theme-toggle').forEach(function(button){button.setAttribute('aria-checked',String(dark));});charts();}
+function mount(){document.querySelectorAll('.kt-theme-toggle').forEach(function(button){button.addEventListener('click',function(){root.dataset.theme=root.dataset.theme==='light'?'dark':'light';try{localStorage.setItem(key,root.dataset.theme);}catch(e){}sync();});});sync();}
 window.addEventListener('storage',function(e){if(e.key===key){root.dataset.theme=e.newValue==='light'?'light':'dark';sync();}});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
 window.addEventListener('load',function(){if(root.dataset.theme==='light')charts();},{once:true});
 })();</script>"""
+
+
+SETTINGS = """<details class='ks-nav-group kt-settings'><summary title='Configuração'><span aria-hidden='true'>⚙</span><span class='ks-label'>Configuração</span><span class='ks-chevron' aria-hidden='true'>⌄</span></summary><div class='ks-nav-children'><div class='kt-theme-row'><span>Tema escuro</span><button type='button' class='kt-theme-toggle' role='switch' aria-label='Tema escuro' aria-checked='true'><span class='kt-theme-thumb' aria-hidden='true'></span></button></div></div></details>"""

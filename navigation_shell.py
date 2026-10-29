@@ -31,6 +31,8 @@ document.addEventListener('click',function(e){if(document.querySelector('.ks-mob
 
 
 def shell(navigation, footer='', store_name=None):
+    from theme_switcher import SETTINGS
+    footer += SETTINGS
     kind=' ks-store-sidebar' if store_name is not None else ''
     store=("<div class='ks-store-name'>"+escape(str(store_name))+"</div>") if store_name is not None else ''
     mobile="<button class='ks-mobile-toggle' type='button' aria-expanded='true' aria-controls='ks-navigation' aria-label='Recolher menu'>☰ Menu da loja</button>" if store_name is not None else ''
