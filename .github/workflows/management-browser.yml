@@ -38,6 +38,10 @@ on:
       - 'test_freight_audit_view.py'
       - 'scripts/freight_audit*'
       - 'sales_view.py'
+      - 'sales_geography*.py'
+      - 'test_sales_geography*.py'
+      - 'assets/brazil_states_paths.json'
+      - 'scripts/sales_geography*'
       - 'scripts/sales_theme*'
       - 'costs_theme.py'
       - 'scripts/costs_theme*'
@@ -74,6 +78,7 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - run: python scripts/management_preview.py
       - run: python scripts/sales_theme_preview.py
+      - run: python scripts/sales_geography_preview.py
       - run: python scripts/costs_theme_preview.py
       - run: python scripts/promotions_theme_preview.py
       - run: python scripts/promotion_participation_theme_preview.py
@@ -93,6 +98,7 @@ jobs:
         timeout-minutes: 4
       - run: node scripts/management_browser_check.cjs
       - run: node scripts/sales_theme_browser_check.cjs
+      - run: node scripts/sales_geography_browser_check.cjs
       - run: node scripts/costs_theme_browser_check.cjs
       - run: node scripts/promotions_theme_browser_check.cjs
       - run: node scripts/promotion_participation_theme_browser_check.cjs

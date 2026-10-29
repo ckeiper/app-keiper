@@ -675,6 +675,8 @@ def iniciar_banco():
             PRIMARY KEY (conexao_id, pedido_id, item_id)
         )""")
         init_sales_schema(conn, execute)
+        from sales_geography import init_schema as init_sales_geography
+        init_sales_geography(conn, execute)
         from profitability_store import init_schema as init_profitability
         init_profitability(conn, execute)
         init_full_schema(conn, execute)
@@ -1770,6 +1772,7 @@ def vendas(cid):
              + str(cid) + "'>⬇ Exportar CSV</a>"
              "</div></div>"
              + barra_atualizar(cid, ultima, "vendas"))
+    corpo += "<a class='btn-acoes' href='/vendas/" + str(cid) + "/estados'>Mapa de vendas por estado →</a>"
     corpo += render_sales(cid, request.args, banco, consultar)
     if not vendas:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
@@ -2880,7 +2883,7 @@ def excluir(cid):
                       "<div class='card'><h2>Loja não encontrada</h2></div>")
     if request.method == "POST":
         with banco() as conn:
-            for tabela in ("full_observations", "dados_conta", "anuncios", "pedidos", "pedidos_itens",
+            for tabela in ("vendas_destinos", "full_observations", "dados_conta", "anuncios", "pedidos", "pedidos_itens",
                            "metricas", "desempenho_historico", "perguntas",
                            "envios", "promocoes", "promocoes_itens",
                            "ads_campanhas", "ads_metricas", "ads_dia",
@@ -5484,8 +5487,14 @@ def puxar_ads(conexao_id, token, user_id, refresh_range=None):
     return (history_complete and config_complete) if refresh_range is not None else True
 
 def puxar_pedidos(conexao_id, token, user_id):
-    return sync_orders(conexao_id, token, user_id, banco, consultar,
-                       executar, api_get, registrar_erro)
+    result = sync_orders(conexao_id, token, user_id, banco, consultar,
+                         executar, api_get, registrar_erro)
+    from sales_geography import sync as sync_geography
+    try:
+        sync_geography(conexao_id, token, user_id, banco, consultar, executar, requests.get)
+    except Exception:
+        app.logger.warning("sales_geography_sync_unavailable loja=%s", conexao_id)
+    return result
 
 
 def puxar_full(conexao_id, token, user_id):
@@ -5605,6 +5614,8 @@ from listing_sku_overlap import register_overlap
 register_overlap(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_reactivation_routes import register_reactivation
 register_reactivation(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from sales_geography_view import register as register_sales_geography
+register_sales_geography(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
 from listing_review_report import register_report
 register_report(app, login_required, pode_ver_loja, banco, consultar, executar)
 from listing_goal_routes import register_goals
