@@ -91,7 +91,7 @@ def register(app,login_required,can_view,bank,query,execute,shop_page):
         if session.get('tipo')!='admin' or not can_view(cid):return 'Acesso restrito',403
         if not re.fullmatch(r'MLB[0-9]{1,20}',item_id):return 'Anúncio não encontrado',404
         csrf=session.setdefault('_csrf',secrets.token_urlsafe(32))
-        if request.method=='POST' and not hmac.compare_digest(str(request.form.get('_csrf','')),str(csrf)):return 'Formulário inválido',403
+        if request.method=='POST' and not hmac.compare_digest(str(request.form.get('_csrf','')).encode(),str(csrf).encode()):return 'Formulário inválido',403
         now=int(time.time());error='';status=200;record=None;proof=None
         values=request.form if request.method=='POST' else {}
         with bank() as conn:

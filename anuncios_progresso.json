@@ -850,9 +850,9 @@
       "id": "kits",
       "area": "Mercado",
       "capacidade": "Análise de kits",
-      "estado": "em_andamento",
-      "implementado": "Fluxo administrativo de composição declarada de até cinco componentes com quantidades, custos e fontes; simulação de contribuição e margem por kit. Versões preservadas, reenvio idempotente e histórico paginado. Evidências de vendas do anúncio e componentes nas janelas encerradas, separadas da demanda ainda não validada de propostas. Limite aritmético de estoque somente com vínculos e leituras recentes de todos os componentes.",
-      "falta": "Aguardando checks de PostgreSQL/navegador e confirmação de publicação.",
+      "estado": "concluida",
+      "implementado": "Fluxo administrativo de composição declarada de até cinco componentes com quantidades, custos e fontes; simulação de contribuição e margem por kit. Versões preservadas, reenvio idempotente e histórico paginado. Evidências de vendas do anúncio e componentes nas janelas encerradas, separadas da demanda ainda não validada de propostas. Limite aritmético de estoque somente com vínculos e leituras recentes de todos os componentes. Composição e referências são declaradas pelo administrador; propostas nunca recebem demanda presumida. Nenhuma alteração é enviada ao marketplace. Checks de PostgreSQL (3.12/3.14) e navegador aprovados na revisão 3561bf3c2146b5e3627dc82b1b8308d07928baf4.",
+      "falta": "",
       "fontes": [
         "listing_kits.py",
         "listing_kit_view.py",
@@ -863,7 +863,9 @@
         "test_listing_kits_integration.py",
         "scripts/listing_kits_browser_check.cjs"
       ],
-      "prs": [],
+      "prs": [
+        311
+      ],
       "numero_original": null,
       "prioridade": 100,
       "atualizado_em": "2026-10-29"
@@ -1303,15 +1305,16 @@
     {
       "base": "frentes_auditadas",
       "data": "2026-10-29",
-      "resumo": "Análise de kits implementada; aguardando validação e publicação.",
+      "resumo": "Análise de kits: composição documentada, simulação de contribuição, evidências de vendas e estoque, versões preservadas e acesso por loja/anúncio.",
       "contagens": {
-        "concluida": 24,
+        "concluida": 25,
         "parcial": 17,
-        "pendente": 2,
-        "em_andamento": 1
+        "pendente": 2
       },
       "total": 44,
-      "prs": []
+      "prs": [
+        311
+      ]
     }
   ],
   "publicacoes": [

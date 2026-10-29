@@ -66,7 +66,7 @@ class KitTests(unittest.TestCase):
     app=Flask(__name__);app.secret_key='x';q=Mock();e=Mock();register(app,lambda f:f,lambda cid:cid==7,lambda:contextlib.nullcontext(None),q,e,lambda *a:a[-1]);c=app.test_client();url='/anuncios/7/MLB1/kits'
     self.assertEqual(c.get(url).status_code,403)
     with c.session_transaction() as s:s.update(tipo='admin',usuario_id=1,_csrf='csrf')
-    self.assertEqual(c.get(url.replace('/7/','/8/')).status_code,403);self.assertEqual(c.post(url,data=form()).status_code,403);q.assert_not_called()
+    self.assertEqual(c.get(url.replace('/7/','/8/')).status_code,403);self.assertEqual(c.post(url,data=form()).status_code,403);self.assertEqual(c.post(url,data=dict(form(),_csrf='inválido')).status_code,403);q.assert_not_called()
     q.return_value=[];self.assertEqual(c.get(url).status_code,404)
     q.side_effect=[[dict(cliente='Loja',titulo='Kit')],[dict(n=0)],[]]
     r=c.get(url);self.assertEqual(r.status_code,200);self.assertIn('no-store',r.headers['Cache-Control']);self.assertIn('READ ONLY',e.call_args.args[1])
