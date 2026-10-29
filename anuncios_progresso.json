@@ -732,15 +732,25 @@
       "id": "mapa-estados",
       "area": "Mercado",
       "capacidade": "Mapa de vendas por estado",
-      "estado": "pendente",
-      "implementado": "",
-      "falta": "Não foi identificado painel geográfico de vendas por UF com fonte e cobertura verificadas.",
-      "fontes": [],
-      "testes": [],
-      "prs": [],
+      "estado": "concluida",
+      "implementado": "Mapa geográfico das 27 UFs por pedidos ou faturamento, tabela com ticket/participação, filtros de período, cobertura diária e destinos desconhecidos. Coleta incremental de UF em envios confirmados do vendedor, sem endereços ou dados pessoais. Cobertura de destinos preenchida progressivamente nas sincronizações existentes, com ausência explícita e sem certificação de histórico integral. Checks de PostgreSQL e navegador aprovados na revisão 624aa48b4b78a7b289d9a683f97e1360c851d15f.",
+      "falta": "",
+      "fontes": [
+        "sales_geography.py",
+        "sales_geography_view.py",
+        "docs/MAPA_VENDAS.md"
+      ],
+      "testes": [
+        "test_sales_geography.py",
+        "test_sales_geography_integration.py",
+        "scripts/sales_geography_browser_check.cjs"
+      ],
+      "prs": [
+        309
+      ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-28"
     },
     {
       "id": "sazonalidade",
@@ -1250,6 +1260,20 @@
       },
       "total": 44,
       "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-28",
+      "resumo": "Mapa de vendas por estado: 27 UFs, filtros, pedidos/faturamento, ticket, participação e cobertura explícita; coleta incremental com isolamento por loja.",
+      "contagens": {
+        "concluida": 23,
+        "parcial": 18,
+        "pendente": 3
+      },
+      "total": 44,
+      "prs": [
+        309
+      ]
     }
   ],
   "publicacoes": [
