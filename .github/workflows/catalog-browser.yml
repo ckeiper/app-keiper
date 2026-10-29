@@ -35,6 +35,9 @@ on:
       - 'listing_reactivation*.py'
       - 'test_listing_reactivation*.py'
       - 'scripts/listing_reactivation*'
+      - 'sales_goal_observations.py'
+      - 'test_sales_goal_observations*.py'
+      - 'scripts/sales_goal_observations*'
       - 'goal_observations.py'
       - 'test_goal_observations*.py'
       - 'scripts/goal_observations*'
@@ -147,6 +150,7 @@ jobs:
       - run: python scripts/listing_sku_overlap_preview.py
       - run: python scripts/listing_reactivation_preview.py
       - run: python scripts/goal_observations_preview.py
+      - run: python scripts/sales_goal_observations_preview.py
       - run: python scripts/listing_review_report_preview.py
       - run: python scripts/listing_consolidated_report_preview.py
       - run: python scripts/listing_goals_preview.py
@@ -177,6 +181,7 @@ jobs:
       - run: node scripts/listing_sku_overlap_browser_check.cjs
       - run: node scripts/listing_reactivation_browser_check.cjs
       - run: node scripts/goal_observations_browser_check.cjs
+      - run: node scripts/sales_goal_observations_browser_check.cjs
       - run: node scripts/listing_review_report_browser_check.cjs
       - run: node scripts/listing_consolidated_report_browser_check.cjs
       - run: node scripts/listing_goals_browser_check.cjs

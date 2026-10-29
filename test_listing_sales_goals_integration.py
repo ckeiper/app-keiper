@@ -28,7 +28,7 @@ class SalesGoalIntegrationTests(unittest.TestCase):
     with self.c.session_transaction() as s:self.token=s['_csrf'];self.actor=s['usuario_id']
  def tearDown(self):
     with self.m.banco() as conn:
-        for table in ('listing_sales_goals','vendas_cobertura','anuncios'):self.m.executar(conn,'DELETE FROM '+table+' WHERE conexao_id=ANY(%s)',(self.ids,))
+        for table in ('listing_sales_goal_observations','listing_sales_goals','vendas_cobertura','anuncios'):self.m.executar(conn,'DELETE FROM '+table+' WHERE conexao_id=ANY(%s)',(self.ids,))
         self.m.executar(conn,'DELETE FROM conexoes WHERE id=ANY(%s)',(self.ids,))
  def data(self):
     from datetime import timedelta

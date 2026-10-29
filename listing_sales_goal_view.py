@@ -27,7 +27,7 @@ def render(cid,item,shop,model,today,now,token,values=None,message=''):
         if value is not None:out+='<p>Apurado: '+fmt(value)+' · até '+esc(cutoff)+'</p>'
         out+='<p>Registro #'+str(row['id'])+' · cadastrado pelo usuário #'+str(row['created_by'])+'</p>'
         if row.get('cancelled_at') is None:out+='<form method="post">'+hidden(dict(_csrf=token,operation='cancel',goal_id=row['id']))+'<button>Cancelar meta e preservar registro</button></form>'
-        out+='</article>'
+        out+='<p><a href="'+base+'/metas-vendas/historico/'+str(row['id'])+'">Histórico das avaliações</a></p></article>'
     if not model['rows']:out+='<p>Nenhuma meta cadastrada.</p>'
     out+='<nav aria-label="Paginação">Página '+str(model['page'])+' de '+str(model['pages'])
     for label,p in [('Anterior',model['page']-1),('Próxima',model['page']+1)]:

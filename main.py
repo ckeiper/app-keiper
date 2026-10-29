@@ -695,6 +695,8 @@ def iniciar_banco():
         init_listing_goals(conn, execute)
         from listing_sales_goals import init_schema as init_sales_goals
         init_sales_goals(conn, execute)
+        from sales_goal_observations import init_schema as init_sales_goal_observations
+        init_sales_goal_observations(conn, execute)
         from goal_observations import init_schema as init_goal_observations
         init_goal_observations(conn, execute)
         from listing_onboarding import init_schema as init_listing_onboarding
@@ -5502,6 +5504,11 @@ def puxar_pedidos(conexao_id, token, user_id):
         sync_geography(conexao_id, token, user_id, banco, consultar, executar, requests.get)
     except Exception:
         app.logger.warning("sales_geography_sync_unavailable loja=%s", conexao_id)
+    from sales_goal_observations import collect as collect_sales_goals
+    try:
+        collect_sales_goals(conexao_id, banco, consultar, executar, int(time.time()))
+    except Exception:
+        app.logger.warning("sales_goal_evaluation_unavailable loja=%s", conexao_id)
     return result
 
 
@@ -5626,6 +5633,8 @@ from sales_geography_view import register as register_sales_geography
 register_sales_geography(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
 from listing_review_report import register_report
 register_report(app, login_required, pode_ver_loja, banco, consultar, executar)
+from sales_goal_observations import register_history as register_sales_goal_history
+register_sales_goal_history(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_sales_goal_routes import register_sales_goals
 register_sales_goals(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_goal_routes import register_goals
