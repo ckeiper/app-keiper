@@ -67,9 +67,12 @@ body:has(.kh-home) .kh-alerts{border-color:#2d425e}body:has(.kh-home) .kh-alerts
 const cards=[...document.querySelectorAll('#kh-grid .kh-store')];
 const grid=document.getElementById('kh-grid');
 // Load with bounded concurrency so a portfolio does not flood the database.
-let alertIndex=0,finished=0,failures=0,lastUpdated=0;
+let alertIndex=0,lastUpdated=0;
+const states=new Map(cards.map(card=>[card,'waiting']));
 const adsStatus=document.getElementById('kh-ads-status');
 function updateAdsStatus(){
+ const finished=[...states.values()].filter(state=>state==='done'||state==='failed').length;
+ const failures=[...states.values()].filter(state=>state==='failed').length;
  if(finished<cards.length){adsStatus.textContent='Atualizando Ads… '+finished+'/'+cards.length;return;}
  if(!cards.length){adsStatus.textContent='';return;}
  const time=lastUpdated?new Date(lastUpdated*1000).toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'}):'';
@@ -88,15 +91,20 @@ async function refreshAds(id){
  if(!['aguardando','executando'].includes(state.status))throw Error('failed');}
  throw Error('timeout');
 }
-async function loadAlerts(){while(alertIndex<cards.length){
- const card=cards[alertIndex++],box=card.querySelector('.kh-alerts');
+async function loadCard(card){
+ if(states.get(card)==='loading')return;
+ states.set(card,'loading');updateAdsStatus();
+ const box=card.querySelector('.kh-alerts');
+ box.setAttribute('aria-busy','true');
+ const loading=document.createElement('button');loading.type='button';loading.disabled=true;loading.className='kh-alert-muted';loading.textContent='Atualizando Ads…';box.replaceChildren(loading);
  const link=(text,url,cls)=>{const a=document.createElement('a');a.textContent=text;a.href=url;a.className=cls;box.appendChild(a);};
  try{const state=await refreshAds(card.dataset.id);const response=await fetch('/painel/alertas/'+encodeURIComponent(card.dataset.id),{credentials:'same-origin',cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();box.replaceChildren();
  if(data.alerts.length){const first=data.alerts[0];link(first.label,data.url+'#alert-'+first.code,first.severity);if(data.alerts.length>1)link('+'+(data.alerts.length-1)+(data.alerts.length===2?' alerta':' alertas'),data.url,'kh-alert-more');}
  else{link(data.known?'Nenhum alerta nos dados disponíveis':'Campanhas ainda não sincronizadas',data.url,'kh-alert-muted');}
- lastUpdated=Math.max(lastUpdated,Number(state.fim_em)||0);
- }catch(e){failures++;box.replaceChildren();const retry=document.createElement('button');retry.type='button';retry.textContent='Falha ao atualizar Ads · tentar novamente';retry.className='kh-alert-muted';retry.addEventListener('click',()=>location.reload());box.appendChild(retry);}finally{finished++;updateAdsStatus();}
-}}
+ states.set(card,'done');lastUpdated=Math.max(lastUpdated,Number(state.fim_em)||0);
+ }catch(e){states.set(card,'failed');box.replaceChildren();const retry=document.createElement('button');retry.type='button';retry.textContent='Falha ao atualizar Ads · tentar novamente';retry.className='kh-alert-muted';retry.addEventListener('click',()=>loadCard(card));box.appendChild(retry);}finally{box.setAttribute('aria-busy','false');updateAdsStatus();}
+}
+async function loadAlerts(){while(alertIndex<cards.length){await loadCard(cards[alertIndex++]);}}
 Promise.all([loadAlerts(),loadAlerts()]);
 // Cards are server-rendered alphabetically and never reordered by performance.
 function closeMenus(){document.querySelectorAll('.kh-menu').forEach(m=>m.hidden=true);document.querySelectorAll('.kh-more').forEach(b=>b.setAttribute('aria-expanded','false'));}

@@ -20,6 +20,7 @@ def test_home_has_sidebar_and_security_only_in_footer():
     assert "<footer class='ks-foot'><a href='/seguranca'" in rendered
     header = rendered.split("<div class='top'>", 1)[1].split("<div class='wrap'>", 1)[0]
     assert '/seguranca' not in header
+    assert "href='/logout'>Sair</a>" in header
     assert "href='/conectar'" not in header
 
 
@@ -48,3 +49,15 @@ def test_settings_switch_shared_by_home_and_store():
         assert rendered.count("role='switch'") == 1
         assert 'Configuração' in rendered
         assert "aria-label='Tema escuro'" in rendered
+
+
+def test_public_login_has_no_logout_action():
+    render = main_function('pagina', dict(session={}, esc=html.escape, CSS='', VISUAL_CSS='', SCRIPT='', img_logo=lambda size: ''))
+    assert "href='/logout'" not in render('Login', '<p>Login</p>')
+
+
+def test_logout_clears_session_and_returns_to_login():
+    session = {'tipo': 'admin', 'usuario_id': 1}
+    logout = main_function('logout', dict(session=session, redirect=lambda target: target))
+    assert logout() == '/login'
+    assert session == {}
