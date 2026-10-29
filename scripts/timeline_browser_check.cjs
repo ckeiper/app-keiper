@@ -33,6 +33,7 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('.evidence-source h4').first().evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
   await page.locator('.evidence-jump').focus();
   await page.keyboard.press('Enter');
+  await page.waitForURL(url=>url.hash==='#evidence-action-1');
   assert.equal(new URL(page.url()).hash,'#evidence-action-1');
   await page.waitForFunction(()=>{const r=document.getElementById('evidence-action-1').getBoundingClientRect();return r.top>=0&&r.top<innerHeight;},null,{timeout:5000});
   assert.ok(await page.locator('#evidence-action-1').evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.top<innerHeight;}));
