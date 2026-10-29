@@ -850,19 +850,23 @@
       "id": "kits",
       "area": "Mercado",
       "capacidade": "Análise de kits",
-      "estado": "pendente",
-      "implementado": "",
-      "falta": "Não foi identificado fluxo específico de composição, validação de demanda e rentabilidade de kits. Simular quantidade não comprova composição de kit.",
+      "estado": "em_andamento",
+      "implementado": "Fluxo administrativo de composição declarada de até cinco componentes com quantidades, custos e fontes; simulação de contribuição e margem por kit. Versões preservadas, reenvio idempotente e histórico paginado. Evidências de vendas do anúncio e componentes nas janelas encerradas, separadas da demanda ainda não validada de propostas. Limite aritmético de estoque somente com vínculos e leituras recentes de todos os componentes.",
+      "falta": "Aguardando checks de PostgreSQL/navegador e confirmação de publicação.",
       "fontes": [
-        "profitability_scenarios.py"
+        "listing_kits.py",
+        "listing_kit_view.py",
+        "docs/ANALISE_KITS.md"
       ],
       "testes": [
-        "test_profitability_scenarios.py"
+        "test_listing_kits.py",
+        "test_listing_kits_integration.py",
+        "scripts/listing_kits_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-10-29"
     },
     {
       "id": "registro-alteracoes",
@@ -1295,6 +1299,19 @@
       "prs": [
         310
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Análise de kits implementada; aguardando validação e publicação.",
+      "contagens": {
+        "concluida": 24,
+        "parcial": 17,
+        "pendente": 2,
+        "em_andamento": 1
+      },
+      "total": 44,
+      "prs": []
     }
   ],
   "publicacoes": [

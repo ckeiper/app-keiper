@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - 'listing_catalog.py'
+      - 'listing_kits.py'
+      - 'listing_kit_view.py'
+      - 'test_listing_kits*.py'
+      - 'scripts/listing_kits*'
       - 'listing_task*.py'
       - 'test_listing_task*.py'
       - 'scripts/listing_tasks*'
@@ -126,6 +130,7 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - run: python scripts/catalog_preview.py
       - run: python scripts/listing_tasks_preview.py
+      - run: python scripts/listing_kits_preview.py
       - run: python scripts/listing_calendar_preview.py
       - run: python scripts/price_stability_preview.py
       - run: python scripts/price_deviation_preview.py
@@ -153,6 +158,7 @@ jobs:
         timeout-minutes: 4
       - run: node scripts/catalog_browser_check.cjs
       - run: node scripts/listing_tasks_browser_check.cjs
+      - run: node scripts/listing_kits_browser_check.cjs
       - run: node scripts/listing_calendar_browser_check.cjs
       - run: node scripts/price_stability_browser_check.cjs
       - run: node scripts/price_deviation_browser_check.cjs
