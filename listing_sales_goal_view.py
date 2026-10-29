@@ -11,7 +11,7 @@ def render(cid,item,shop,model,today,now,token,values=None,message=''):
     values=values or {};base=f'/anuncios/{int(cid)}/{item}'
     out=STYLE+'''<style>.sales-goals{overflow-wrap:anywhere}.sales-goals article{border:1px solid var(--border,#426184);border-radius:12px;padding:16px;margin:16px 0}.sales-goals .goal-met{border-left:4px solid #39b886}.sales-goals .goal-alert{border-left:4px solid #e06a70}.sales-goals form{flex-wrap:wrap}.sales-goals input,.sales-goals select{min-width:0;max-width:100%}@media(max-width:700px){.sales-goals form{flex-direction:column;align-items:stretch}}</style>'''
     out+='<section class="lc sales-goals"><h2>Metas de vendas</h2><p>'+esc(shop.get('titulo') or item)+'</p><nav><a href="'+base+'/metas">Metas de estoque</a><a href="/diagnostico/'+str(cid)+'/'+item+'">Diagnóstico</a></nav>'
-    out+='<p>Resultados até o último dia completo, em Brasília. Alertas de meta não atingida aparecem somente após o prazo, com cobertura verificada de todo o período. Dados incompletos ficam sem diagnóstico.</p><p>Valor bruto dos itens considera pedidos pagos e aprovados em reais; não representa receita líquida ou lucro. Avaliações nesta tela usam a base atual e podem mudar após correções dos pedidos. Sem envio de mensagens.</p>'
+    out+='<p>Resultados até o último dia completo, em Brasília. Alertas de meta não atingida aparecem somente após o prazo, com cobertura verificada de todo o período. Dados incompletos ficam sem diagnóstico.</p><p>Valor bruto dos itens considera pedidos pagos e aprovados em reais; não representa receita líquida ou lucro. Avaliações nesta tela usam a base atual e podem mudar após correções dos pedidos. E-mail opcional em cada meta, desativado por padrão.</p>'
     if message:out+='<p role="alert">'+esc(message)+'</p>'
     def hidden(fields):return ''.join('<input type="hidden" name="'+k+'" value="'+esc(v)+'">' for k,v in fields.items())
     out+='<details'+(' open' if values else '')+'><summary>Cadastrar meta</summary><form method="post">'+hidden(dict(_csrf=token,operation='create',submission_key=values.get('submission_key') or secrets.token_urlsafe(24)))
@@ -27,7 +27,7 @@ def render(cid,item,shop,model,today,now,token,values=None,message=''):
         if value is not None:out+='<p>Apurado: '+fmt(value)+' · até '+esc(cutoff)+'</p>'
         out+='<p>Registro #'+str(row['id'])+' · cadastrado pelo usuário #'+str(row['created_by'])+'</p>'
         if row.get('cancelled_at') is None:out+='<form method="post">'+hidden(dict(_csrf=token,operation='cancel',goal_id=row['id']))+'<button>Cancelar meta e preservar registro</button></form>'
-        out+='<p><a href="'+base+'/metas-vendas/historico/'+str(row['id'])+'">Histórico das avaliações</a></p></article>'
+        out+='<p><a href="'+base+'/metas/avisos/sales/'+str(row['id'])+'">Avisos por e-mail</a></p><p><a href="'+base+'/metas-vendas/historico/'+str(row['id'])+'">Histórico das avaliações</a></p></article>'
     if not model['rows']:out+='<p>Nenhuma meta cadastrada.</p>'
     out+='<nav aria-label="Paginação">Página '+str(model['page'])+' de '+str(model['pages'])
     for label,p in [('Anterior',model['page']-1),('Próxima',model['page']+1)]:
