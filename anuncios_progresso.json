@@ -538,7 +538,8 @@
       "prs": [
         205,
         249,
-        266
+        266,
+        312
       ],
       "numero_original": null,
       "prioridade": 4,
@@ -1332,7 +1333,9 @@
         "pendente": 2
       },
       "total": 44,
-      "prs": []
+      "prs": [
+        312
+      ]
     }
   ],
   "publicacoes": [
