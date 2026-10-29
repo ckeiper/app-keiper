@@ -86,6 +86,8 @@ def sync_promotions(cid, token, banco, consultar, executar, request_get, registr
             with banco() as conn:
                 executar(conn, 'UPDATE anuncios SET promocoes_json=%s WHERE conexao_id=%s AND item_id=%s',
                          (json.dumps(snap, ensure_ascii=False), cid, item_id))
+                from promotion_observations import record as record_promotion_reading
+                record_promotion_reading(conn,executar,cid,item_id,snap)
             continue
         error = circuit_error
         data = None
@@ -119,6 +121,8 @@ def sync_promotions(cid, token, banco, consultar, executar, request_get, registr
         with banco() as conn:
             executar(conn, 'UPDATE anuncios SET promocoes_json=%s WHERE conexao_id=%s AND item_id=%s',
                      (json.dumps(snap, ensure_ascii=False), cid, item_id))
+            from promotion_observations import record as record_promotion_reading
+            record_promotion_reading(conn,executar,cid,item_id,snap)
             if include_sale_price:
                 from offer_history import record
                 record(conn,executar,cid,item_id,snap,listing_status=item_status)
