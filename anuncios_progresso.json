@@ -689,7 +689,8 @@
       "prs": [
         291,
         294,
-        317
+        317,
+        319
       ],
       "numero_original": null,
       "prioridade": 2,
@@ -1430,7 +1431,10 @@
         "parcial": 16,
         "pendente": 2
       },
-      "total": 44
+      "total": 44,
+      "prs": [
+        319
+      ]
     }
   ],
   "publicacoes": [
@@ -1481,6 +1485,18 @@
       "titulo": "Histórico das avaliações de metas de vendas por anúncio",
       "horario_brasilia": "2026-10-29T10:26:40-03:00",
       "deploy": "dep-dbhkibcs728c73d7ugh0"
+    },
+    {
+      "pr": 316,
+      "titulo": "Avisos opcionais por e-mail para metas de anúncios",
+      "horario_brasilia": "2026-10-29T10:46:58-03:00",
+      "deploy": "dep-dbhkrccs728c73d8cl30"
+    },
+    {
+      "pr": 317,
+      "titulo": "Conferência de unidades dos atributos",
+      "horario_brasilia": "2026-10-29T10:50:19-03:00",
+      "deploy": "dep-dbhkt5ivcj2c73883thg"
     }
   ]
 }
