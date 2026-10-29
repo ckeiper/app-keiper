@@ -959,21 +959,26 @@
       "id": "pdf",
       "area": "Execução",
       "capacidade": "Relatório PDF de anúncios",
-      "estado": "parcial",
-      "implementado": "Relatório operacional por anúncio com loja, emissão em Brasília, fonte/data do catálogo, estoque verificado, últimas revisões manuais dos oito critérios, totais de tarefas, dez tarefas por prazo e contagens de perguntas. Layout A4 para impressão/Salvar como PDF pelo navegador, com limites e lacunas explícitos.",
-      "falta": "Ainda não consolida todos os indicadores de Anúncios 2.0, séries históricas, Ads e contribuição financeira documentada. A exportação usa a impressão do navegador; não há geração ou envio automático de PDF pelo servidor.",
+      "estado": "em_andamento",
+      "implementado": "Relatório consolidado por anúncio implementado: vendas e comparação, visitas e razão observacional, série diária de vendas/visitas/Full/preço, conteúdo, Ads da loja sem rateio, contribuição documentada com verificação da base, ações, tarefas e perguntas locais. Download real em PDF A4 gerado no servidor, com fontes incorporadas, paginação e limites explícitos.",
+      "falta": "Aguardando checks de PostgreSQL, navegador e publicação da exportação consolidada.",
       "fontes": [
-        "listing_review_report.py"
+        "listing_review_report.py",
+        "listing_consolidated_report.py",
+        "docs/RELATORIO_CONSOLIDADO.md"
       ],
       "testes": [
         "test_listing_review_report.py",
         "test_listing_review_report_integration.py",
-        "scripts/listing_review_report_browser_check.cjs"
+        "scripts/listing_review_report_browser_check.cjs",
+        "test_listing_consolidated_report.py",
+        "test_listing_consolidated_report_integration.py",
+        "scripts/listing_consolidated_report_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 8,
-      "atualizado_em": "2026-10-26"
+      "atualizado_em": "2026-10-28"
     },
     {
       "id": "primeiros-30",
@@ -1274,6 +1279,19 @@
       "prs": [
         309
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-28",
+      "resumo": "Relatório consolidado HTML/PDF implementado, aguardando validação de publicação.",
+      "contagens": {
+        "concluida": 23,
+        "parcial": 17,
+        "pendente": 3,
+        "em_andamento": 1
+      },
+      "total": 44,
+      "prs": []
     }
   ],
   "publicacoes": [
