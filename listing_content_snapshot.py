@@ -11,6 +11,7 @@ from profitability_view import CSS
 from content_required_attributes import compare as compare_required, render as render_required
 from content_conditional_attributes import evaluate as evaluate_conditional
 from content_attribute_units import compare as compare_units, render as render_units
+from content_action_summary import render as render_actions
 from content_boolean_attributes import compare as compare_boolean, render as render_boolean
 from content_technical_specs import compare as compare_specs, render as render_specs
 
@@ -133,6 +134,7 @@ def render(cid, item_id, title, csrf, result=None):
             def present(value):
                 return 'Não verificado' if value is None else str(value)
             out += '<div class="pf-grid">'+''.join('<article class="pf-metric"><span>'+label+'</span><strong>'+present(value)+'</strong></article>' for label, value in [('Fotos retornadas',result['photos']),('Atributos no anúncio principal',result['attribute_count']),('Variações retornadas',result['variations'])])+'</div>'
+            out += render_actions(result)
             out += '<h4>Título retornado</h4><p class="cs-text">'+esc(result['title'] if result['title'] is not None else 'Não verificado')+'</p>'
             if result['title'] == '': out += '<p>Título vazio na resposta consultada.</p>'
             out += '<h4>Descrição retornada</h4>'
