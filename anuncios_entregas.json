@@ -116,6 +116,18 @@
       },
       "atualizado_em": "2026-10-30T08:15:55.551-03:00",
       "lacuna": ""
+    },
+    {
+      "id": "avaliacoes-produto-326",
+      "escopo": "Consulta sob demanda das avaliações oficiais do produto no anúncio, com distinção de catálogo, paginação limitada e sem armazenamento de compradores.",
+      "frentes": [
+        "perguntas-avaliacoes"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 326,
+      "head_sha": "1177e73b51f78de351e25b86a6c91266059c78cf",
+      "atualizado_em": "2026-10-30T17:57:46-03:00",
+      "lacuna": "CI e publicação em validação; sem prova de uso autenticado com anúncio real. A frente permanece parcial por cobertura histórica e análise semântica."
     }
   ]
 }

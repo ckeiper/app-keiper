@@ -729,7 +729,8 @@
         "scripts/listing_buyer_reviews_browser_check.cjs"
       ],
       "prs": [
-        324
+        324,
+        326
       ],
       "numero_original": null,
       "prioridade": 3,
@@ -1538,7 +1539,9 @@
         "pendente": 2
       },
       "total": 44,
-      "prs": []
+      "prs": [
+        326
+      ]
     }
   ],
   "publicacoes": [
