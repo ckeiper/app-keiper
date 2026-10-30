@@ -31,8 +31,9 @@ def load(conn,query,cid,args):
 
 def render(cid,data,now):
     esc=lambda v:escape(str(v),quote=True);path=f'/anuncios/{int(cid)}/skus-repetidos'
-    out=STYLE+'''<style>.sku-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.sku-cards article,.sku-group{background:#182e49;border:1px solid #426184;border-radius:10px;padding:14px;margin:14px 0;overflow-wrap:anywhere}.sku-cards article{display:grid;gap:6px;font-size:12px}.sku-cards strong{font-size:24px}.sku-item{display:block;border:1px solid #426184;border-radius:8px;padding:12px;margin:10px 0;overflow-wrap:anywhere}.sku-item span{display:block;margin-top:6px;font-size:12px}.sku-item:hover{background:#244367}.sku-overlap form label{max-width:100%;flex:1}.sku-overlap input{min-width:0}.sku-overlap code{color:#b9e5ff;white-space:pre-wrap}@media(max-width:700px){.sku-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>'''
+    out=STYLE+'''<style>.sku-official-entry{display:block;border:1px solid #426184;background:#182e49;border-radius:12px;padding:16px;overflow-wrap:anywhere}.sku-official-entry span{display:block;margin-top:8px}.sku-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.sku-cards article,.sku-group{background:#182e49;border:1px solid #426184;border-radius:10px;padding:14px;margin:14px 0;overflow-wrap:anywhere}.sku-cards article{display:grid;gap:6px;font-size:12px}.sku-cards strong{font-size:24px}.sku-item{display:block;border:1px solid #426184;border-radius:8px;padding:12px;margin:10px 0;overflow-wrap:anywhere}.sku-item span{display:block;margin-top:6px;font-size:12px}.sku-item:hover{background:#244367}.sku-overlap form label{max-width:100%;flex:1}.sku-overlap input{min-width:0}.sku-overlap code{color:#b9e5ff;white-space:pre-wrap}@media(max-width:700px){.sku-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>'''
     out+='<section class="lc sku-overlap"><h2>SKUs repetidos na loja</h2><a href="/anuncios/'+str(int(cid))+'">Voltar ao catálogo</a><p>Critério: mesmo SKU cadastrado no anúncio, removendo apenas espaços, tabulações e quebras nas extremidades. Maiúsculas, acentos, caracteres e espaços internos são preservados. Não inclui SKUs exclusivos de variações quando ausentes neste campo.</p><p>Um grupo é uma coincidência cadastral para revisão, não prova de produto equivalente, concorrência interna, canibalização ou perda de vendas. Todos os status do catálogo salvo são considerados; confirme as condições atuais antes de decidir.</p><form method="get"><label>SKU exato · opcional<input name="sku" maxlength="200" value="'+esc(data['sku'])+'"></label><button>Filtrar</button><a href="'+path+'">Limpar filtro</a></form>'
+    out+='<p><a class="sku-official-entry" href="/anuncios/'+str(int(cid))+'/skus-variacoes"><strong>Conferir SKUs oficiais e variações</strong><span>Leituras oficiais separadas do código interno salvo no catálogo.</span></a></p>'
     out+='<div class="sku-cards">'+''.join('<article><strong>'+str(n)+'</strong><span>'+label+'</span></article>' for n,label in [(data['stats']['total'],'Anúncios no catálogo salvo'),(data['stats']['missing'],'Sem SKU nesse campo'),(data['group_total'],'Grupos repetidos no filtro'),(data['member_total'],'Anúncios desses grupos')])+'</div>'
     out+='<p>Cards de catálogo e ausência de SKU consideram a loja inteira; grupos respeitam o filtro. Dez grupos por página e até dez anúncios por grupo, ordenados por código. Ausência de grupo não comprova ausência de sobreposição.</p>'
     for group in data['groups']:
@@ -56,6 +57,8 @@ def render(cid,data,now):
 
 
 def register_overlap(app,login_required,can_view,bank,query,execute,shop_page):
+    from listing_sku_variations import register
+    register(app,login_required,can_view,bank,query,execute,shop_page)
     from flask import request,session
     import time
     @app.route('/anuncios/<int:cid>/skus-repetidos',methods=['GET'])
