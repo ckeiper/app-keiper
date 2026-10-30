@@ -120,7 +120,9 @@ def render(cid, item_id, title, csrf, result=None):
             out += '<h4>Comentários desta página</h4><p>Posição '+str(result['offset']+1)+' · até cinco registros por consulta. Textos são opiniões de compradores, sem confirmação das alegações.</p>'
             if not result['rows']:out += '<p>Nenhum comentário publicado verificável nesta página. Isso não comprova ausência de avaliações.</p>'
             for row in result['rows']:
-                out += '<article class="br-review"><strong>'+str(row['rate'])+' / 5'+(' · '+esc(row['title']) if row['title'] else '')+'</strong><p>'+esc(row['content'] or 'Sem texto retornado.')+'</p>'+('<small>Texto abreviado para exibição.</small>' if row['truncated'] else '')+'</article>'
+                content = row['content'] or 'Sem texto retornado.'
+                body = '<p>'+esc(content)+'</p>' if len(content)<=300 else '<p>'+esc(content[:240])+'…</p><details><summary>Ler comentário completo</summary><p>'+esc(content)+'</p></details>'
+                out += '<article class="br-review"><strong>'+str(row['rate'])+' / 5'+(' · '+esc(row['title']) if row['title'] else '')+'</strong>'+body+('<small>Texto abreviado para exibição.</small>' if row['truncated'] else '')+'</article>'
             if result['omitted']:out += '<p role="status">'+str(result['omitted'])+' registro(s) não exibido(s): publicação, vínculo ou formato não verificável.</p>'
             out += '<div class="br-pages">'
             if result['offset'] > 0:out += button(result['offset']-LIMIT,'Página anterior')
@@ -129,7 +131,7 @@ def render(cid, item_id, title, csrf, result=None):
             if result['capped']:out += '<p>Limite local de consulta: primeiras 100 posições. Não representa cobertura integral.</p>'
             out += '<details><summary>Como usar na consultoria</summary><p>Confira comentários e contexto antes de propor ajustes. Compare dúvidas com descrição e especificações; uma opinião isolada não confirma defeito ou impacto nas vendas. Totais e comentários disponíveis podem diferir e mudar entre páginas. Falhas e campos não verificados não significam zero.</p></details>'
         out += '</section>'
-    return out+'<section class="pf-card"><h3>Continuar análise</h3><div class="br-links"><a href="'+path+'/conteudo">Checklist de conteúdo</a><a href="'+path+'/perguntas">Perguntas do anúncio</a></div></section></div><style>.buyer-reviews{min-width:0}.buyer-reviews :is(p,strong,a){overflow-wrap:anywhere}.br-review{padding:14px 0;border-bottom:1px solid var(--line,#7892aa)}.br-review p{white-space:pre-wrap}.br-pages,.br-links{display:flex;flex-wrap:wrap;gap:12px}.br-links a{padding:14px;border:1px solid #7892aa;border-radius:10px}.br-levels{display:grid;grid-template-columns:1fr 1fr;gap:8px}.br-levels dd{margin:0}.buyer-reviews form{margin:10px 0}.buyer-reviews button{white-space:normal;max-width:100%}</style>'
+    return out+'<section class="pf-card"><h3>Continuar análise</h3><div class="br-links"><a href="'+path+'/conteudo">Checklist de conteúdo</a><a href="'+path+'/perguntas">Perguntas do anúncio</a></div></section></div><style>.buyer-reviews{min-width:0}.buyer-reviews :is(p,strong,a){overflow-wrap:anywhere}.br-review{padding:14px 0;border-bottom:1px solid var(--line,#7892aa)}.br-review p{white-space:pre-wrap}.br-pages,.br-links{display:flex;flex-wrap:wrap;gap:12px}.br-links a{padding:14px;border:1px solid #7892aa;border-radius:10px}.br-levels{display:grid;grid-template-columns:1fr 1fr;gap:8px}.br-levels dd{margin:0}html[data-theme=light] body .buyer-reviews .pf-hero{background:#e6f0fd!important;color:#193a60!important}.buyer-reviews form{margin:10px 0}.buyer-reviews button{white-space:normal;max-width:100%}</style>'
 
 
 def register(app, login_required, can_view, bank, query, shop_page, resolve_token, request_get):
