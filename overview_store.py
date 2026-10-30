@@ -43,6 +43,11 @@ def init_overview_schema(conn, execute):
     execute(conn, '''CREATE INDEX IF NOT EXISTS idx_overview_orders_day
         ON pedidos (conexao_id, keiper_overview_day_v1(criado_em))
         WHERE vendas_verificado_em IS NOT NULL AND keiper_overview_day_v1(criado_em) IS NOT NULL''')
+    # The overview filters by the raw date prefix before Python's exact
+    # timezone classifier. Index that exact expression, only verified rows.
+    execute(conn, '''CREATE INDEX IF NOT EXISTS idx_overview_orders_prefix
+        ON pedidos (conexao_id, LEFT(criado_em,10), pedido_id)
+        WHERE vendas_verificado_em IS NOT NULL''')
     execute(conn, '''CREATE INDEX IF NOT EXISTS idx_overview_orders_unusual
         ON pedidos (conexao_id, pedido_id)
         WHERE vendas_verificado_em IS NOT NULL AND keiper_overview_day_v1(criado_em) IS NULL''')
@@ -51,11 +56,16 @@ def init_overview_schema(conn, execute):
         WHERE categoria IN ('pedidos','atualizacao','refresh','token')''')
 
 
-# The index predicate guarantees canonical, valid timezone-aware timestamps.
-# The native PostgreSQL timestamp conversion is far cheaper than re-running
-# the PL/pgSQL regex classifier for each selected row.
+# Cheap date-prefix candidate selection. Exact Brasília reporting days and
+# payment verification remain in sales_metrics.summarize, not in this SQL.
+PERIOD_ROWS_SQL = """SELECT conexao_id, pedido_id, status, total, moeda,
+    criado_em, pagamentos_json, unidades, vendas_dia_coleta
+    FROM pedidos
+    WHERE conexao_id = ANY(%s) AND vendas_verificado_em IS NOT NULL
+      AND LEFT(criado_em, 10) BETWEEN %s AND %s"""
+
 DAILY_SQL = '''WITH candidates AS MATERIALIZED (
-    SELECT conexao_id, ((criado_em::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date) AS dia,
+    SELECT conexao_id, keiper_overview_day_v1(criado_em) AS dia,
            status, total, moeda, unidades,
            CASE WHEN jsonb_typeof(pagamentos_json) = 'array'
                 THEN pagamentos_json ELSE '[]'::jsonb END AS payments,

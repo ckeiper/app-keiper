@@ -1,0 +1,227 @@
+name: Catalog browser checks
+on:
+  pull_request:
+    paths:
+      - 'listing_catalog.py'
+      - 'promotion_observations.py'
+      - 'promotion_comparison.py'
+      - 'test_promotion_observations*.py'
+      - 'scripts/promotion_comparison*'
+      - 'listing_kits.py'
+      - 'listing_kit_view.py'
+      - 'test_listing_kits*.py'
+      - 'scripts/listing_kits*'
+      - 'listing_task*.py'
+      - 'test_listing_task*.py'
+      - 'scripts/listing_tasks*'
+      - 'listing_calendar.py'
+      - 'listing_fee_quote.py'
+      - 'test_listing_fee_quote.py'
+      - 'scripts/listing_fee_quote*'
+      - 'installment_comparison.py'
+      - 'test_installment_comparison.py'
+      - 'scripts/installment_comparison*'
+      - 'price_stability.py'
+      - 'price_deviation.py'
+      - 'test_price_deviation.py'
+      - 'scripts/price_deviation*'
+      - 'price_observation_export.py'
+      - 'test_price_observation_export.py'
+      - 'test_price_stability.py'
+      - 'scripts/price_stability*'
+      - 'listing_sku*.py'
+      - 'test_listing_sku*.py'
+      - 'scripts/listing_sku*'
+      - 'listing_reactivation*.py'
+      - 'test_listing_reactivation*.py'
+      - 'scripts/listing_reactivation*'
+      - 'sales_goal_observations.py'
+      - 'test_sales_goal_observations*.py'
+      - 'scripts/sales_goal_observations*'
+      - 'goal_notification*.py'
+      - 'test_goal_notifications*.py'
+      - 'scripts/goal_notifications*'
+      - 'goal_observations.py'
+      - 'test_goal_observations*.py'
+      - 'scripts/goal_observations*'
+      - 'listing_review_report.py'
+      - 'listing_consolidated_report.py'
+      - 'test_listing_consolidated_report*.py'
+      - 'scripts/listing_consolidated_report*'
+      - 'test_listing_review_report*.py'
+      - 'scripts/listing_review_report*'
+      - 'listing_sales_goal*.py'
+      - 'test_listing_sales_goals*.py'
+      - 'scripts/listing_sales_goals*'
+      - 'listing_goal*.py'
+      - 'test_listing_goals*.py'
+      - 'scripts/listing_goals*'
+      - 'listing_onboarding*.py'
+      - 'test_listing_onboarding*.py'
+      - 'scripts/listing_onboarding*'
+      - 'listing_questions.py'
+      - 'question_sync.py'
+      - 'test_question_sync.py'
+      - 'test_listing_questions*.py'
+      - 'scripts/listing_questions*'
+      - 'listing_content*.py'
+      - 'content_attribute_units.py'
+      - 'test_content_attribute_units.py'
+      - 'scripts/content_attribute_units*'
+      - 'content_technical_specs.py'
+      - 'test_content_technical_specs.py'
+      - 'scripts/content_technical_specs*'
+      - 'content_boolean_attributes.py'
+      - 'test_content_boolean_attributes.py'
+      - 'scripts/content_boolean_attributes*'
+      - 'content_required_attributes.py'
+      - 'content_conditional_attributes.py'
+      - 'test_content_conditional_attributes.py'
+      - 'test_listing_content_snapshot.py'
+      - 'test_listing_content*.py'
+      - 'scripts/listing_content*'
+      - 'scripts/listing_calendar*'
+      - 'full_view.py'
+      - 'full_routes.py'
+      - 'full_variation_history.py'
+      - 'test_full_variation_history.py'
+      - 'full_report_components.py'
+      - 'test_full_report.py'
+      - 'scripts/full_report*'
+      - 'listing_abc.py'
+      - 'test_listing_abc.py'
+      - 'listing_comparison.py'
+      - 'listing_comparison_stock.py'
+      - 'test_comparison_stock.py'
+      - 'test_listing_comparison.py'
+      - 'test_listing_comparison_visits.py'
+      - 'test_comparison_daily_visits.py'
+      - 'listing_competitiveness.py'
+      - 'competitive_sales_context.py'
+      - 'test_competitive_sales_context.py'
+      - 'offer_history.py'
+      - 'test_offer_reading_coverage.py'
+      - 'test_diagnostic_source_continuity.py'
+      - 'test_listing_competitiveness.py'
+      - 'listing_timeline.py'
+      - 'listing_interventions.py'
+      - 'automatic_history.py'
+      - 'test_automatic_history.py'
+      - 'intervention_routes.py'
+      - 'listing_diagnostic_design.py'
+      - 'listing_priority_evidence.py'
+      - 'listing_priority_sources.py'
+      - 'test_stock_priority_details.py'
+      - 'listing_priority_queue.py'
+      - 'listing_action_plan.py'
+      - 'test_listing_action_plan.py'
+      - 'test_profitability_priority.py'
+      - 'profitability_*.py'
+      - 'listing_profitability.py'
+      - 'test_profitability.py'
+      - 'scripts/profitability*'
+      - 'test_listing_interventions.py'
+      - 'scripts/interventions*'
+      - 'investigation_evidence.py'
+      - 'investigation_cross_signals.py'
+      - 'test_diagnostic_navigation.py'
+      - 'investigation_triage.py'
+      - 'sales_drivers.py'
+      - 'test_sales_drivers.py'
+      - 'test_investigation*.py'
+      - 'test_listing_timeline.py'
+      - 'scripts/timeline*'
+      - 'management_design.py'
+      - 'main.py'
+      - 'test_listing_catalog.py'
+      - 'scripts/catalog*'
+      - '.github/workflows/catalog-browser.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -r requirements.txt
+      - run: python scripts/catalog_preview.py
+      - run: python scripts/listing_tasks_preview.py
+      - run: python scripts/promotion_comparison_preview.py
+      - run: python scripts/listing_kits_preview.py
+      - run: python scripts/listing_calendar_preview.py
+      - run: python scripts/price_stability_preview.py
+      - run: python scripts/price_deviation_preview.py
+      - run: python scripts/installment_comparison_preview.py
+      - run: python scripts/listing_fee_quote_preview.py
+      - run: python scripts/listing_sku_overlap_preview.py
+      - run: python scripts/listing_sku_variations_preview.py
+      - run: python scripts/listing_reactivation_preview.py
+      - run: python scripts/goal_observations_preview.py
+      - run: python scripts/goal_notifications_preview.py
+      - run: python scripts/sales_goal_observations_preview.py
+      - run: python scripts/listing_review_report_preview.py
+      - run: python scripts/listing_consolidated_report_preview.py
+      - run: python scripts/listing_goals_preview.py
+      - run: python scripts/listing_sales_goals_preview.py
+      - run: python scripts/listing_onboarding_preview.py
+      - run: python scripts/listing_questions_preview.py
+      - run: python scripts/listing_content_preview.py
+      - run: python scripts/listing_content_snapshot_preview.py
+      - run: python scripts/content_boolean_attributes_preview.py
+      - run: python scripts/content_technical_specs_preview.py
+      - run: python scripts/content_attribute_units_preview.py
+      - run: python scripts/full_report_preview.py
+      - run: python scripts/timeline_preview.py
+      - run: python scripts/interventions_preview.py
+      - run: python scripts/profitability_preview.py
+      - run: python scripts/profitability_priority_preview.py
+      - run: npm install --no-save --no-package-lock playwright@1.51.1 chart.js@4.4.1
+      # Ubuntu's hosted image already supplies Chromium's runtime libraries.
+      # Avoid upgrading OS packages from slow mirrors before browser checks.
+      - run: npx playwright install chromium
+        timeout-minutes: 4
+      - run: node scripts/catalog_browser_check.cjs
+      - run: node scripts/listing_tasks_browser_check.cjs
+      - run: node scripts/promotion_comparison_browser_check.cjs
+      - run: node scripts/listing_kits_browser_check.cjs
+      - run: node scripts/listing_calendar_browser_check.cjs
+      - run: node scripts/price_stability_browser_check.cjs
+      - run: node scripts/price_deviation_browser_check.cjs
+      - run: node scripts/installment_comparison_browser_check.cjs
+      - run: node scripts/listing_fee_quote_browser_check.cjs
+      - run: node scripts/listing_sku_overlap_browser_check.cjs
+      - run: node scripts/listing_sku_variations_browser_check.cjs
+      - run: node scripts/listing_reactivation_browser_check.cjs
+      - run: node scripts/goal_observations_browser_check.cjs
+      - run: node scripts/goal_notifications_browser_check.cjs
+      - run: node scripts/sales_goal_observations_browser_check.cjs
+      - run: node scripts/listing_review_report_browser_check.cjs
+      - run: node scripts/listing_consolidated_report_browser_check.cjs
+      - run: node scripts/listing_goals_browser_check.cjs
+      - run: node scripts/listing_sales_goals_browser_check.cjs
+      - run: node scripts/listing_onboarding_browser_check.cjs
+      - run: node scripts/listing_questions_browser_check.cjs
+      - run: node scripts/listing_content_browser_check.cjs
+      - run: node scripts/listing_content_snapshot_browser_check.cjs
+      - run: node scripts/content_boolean_attributes_browser_check.cjs
+      - run: node scripts/content_technical_specs_browser_check.cjs
+      - run: node scripts/content_attribute_units_browser_check.cjs
+      - run: node scripts/full_report_browser_check.cjs
+      - run: node scripts/timeline_browser_check.cjs
+      - run: node scripts/interventions_browser_check.cjs
+      - run: node scripts/profitability_browser_check.cjs
+      - run: node scripts/profitability_priority_browser_check.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: catalog-desktop-mobile
+          path: visual-qa/
+          retention-days: 7

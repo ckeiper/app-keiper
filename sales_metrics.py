@@ -90,6 +90,9 @@ def order_fields(order):
 def summarize(rows, start, end, covered):
     days = [start + timedelta(days=i) for i in range((end - start).days + 1)]
     daily = {d: Decimal(0) for d in days}
+    daily_orders = {d: 0 for d in days}
+    daily_units = {d: 0 for d in days}
+    unknown_unit_days = set()
     revenue, orders, units, cancellations = Decimal(0), 0, 0, 0
     unknown_units = 0
     invalid = 0
@@ -140,11 +143,14 @@ def summarize(rows, start, end, covered):
         revenue += value
         daily[day] += value
         orders += 1
+        daily_orders[day] += 1
         qty = row.get("unidades")
         if type(qty) is int and qty > 0:
             units += qty
+            daily_units[day] += qty
         else:
             unknown_units += 1
+            unknown_unit_days.add(day)
     complete = all(d.isoformat() in covered for d in days)
     reliable = complete and invalid == 0
     return {
@@ -156,6 +162,9 @@ def summarize(rows, start, end, covered):
         "cancellations": cancellations if complete and not invalid_dates else None,
         "returns": None, "refunds": None,
         "daily": [float(daily[d]) if d.isoformat() in covered and d not in bad_days else None for d in days],
+        "daily_orders": [daily_orders[d] if d.isoformat() in covered and d not in bad_days else None for d in days],
+        "daily_units": [daily_units[d] if d.isoformat() in covered and d not in bad_days and d not in unknown_unit_days else None for d in days],
+        "daily_ticket": [float(daily[d]/daily_orders[d]) if d.isoformat() in covered and d not in bad_days and daily_orders[d] else None for d in days],
         "days": [d.isoformat() for d in days],
         "complete": complete, "invalid": invalid, "unknown_units": unknown_units,
         "invalid_dates": invalid_dates, "unallocated_dates": unallocated_dates,

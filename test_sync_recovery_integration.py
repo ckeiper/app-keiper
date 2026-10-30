@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 import os
 import time
 import unittest
@@ -20,7 +21,7 @@ class RecoveryIntegrationTests(unittest.TestCase):
         with m.banco() as conn:
             self.cid=m.consultar(conn,"INSERT INTO conexoes(cliente,status,user_id) VALUES('Recovery <shop>','ativa',99) RETURNING id")[0]['id']
         self.client=m.app.test_client()
-        with self.client.session_transaction() as session:
+        with database_session(self.client) as session:
             session['usuario_id']=1
             session['tipo']='admin'
 
@@ -55,7 +56,7 @@ class RecoveryIntegrationTests(unittest.TestCase):
             response=self.client.get('/atualizar?cid='+str(self.cid))
             self.assertEqual(response.status_code,302)
             queue.assert_called_once_with(self.cid)
-        with self.client.session_transaction() as session:
+        with database_session(self.client) as session:
             session['tipo']='cliente'
             session['conexao_id']=self.cid+1000
         with patch.object(self.m,'enfileirar_atualizacao') as queue:
@@ -81,7 +82,9 @@ class RecoveryIntegrationTests(unittest.TestCase):
             sales.assert_called_once()
         with m.banco() as conn:
             errors={r['categoria']:r for r in m.consultar(conn,'SELECT * FROM erros WHERE conexao_id=%s',(self.cid,))}
-        self.assertIsNotNone(errors['atualizacao']['resolvido_em'])
+        self.assertIsNone(errors['atualizacao']['resolvido_em'])
+        self.assertIn('anuncios', errors['atualizacao']['mensagem'])
+        self.assertIn('ads', errors['atualizacao']['mensagem'])
         self.assertIsNone(errors['ads']['resolvido_em'])
         self.assertIsNone(errors['anuncios']['resolvido_em'])
         self.assertEqual(errors['anuncios']['mensagem'],'Falha na coleta: IndexError')

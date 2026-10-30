@@ -1,6 +1,8 @@
 """Regression guards for summary history and background refresh wiring."""
 import pathlib
 import unittest
+from unittest.mock import Mock
+from test_listing_details import main_function
 
 
 class SalesHistoryFixTests(unittest.TestCase):
@@ -15,12 +17,15 @@ class SalesHistoryFixTests(unittest.TestCase):
         self.assertIn("ORDER BY fechado_em DESC LIMIT 100", self.main)
         self.assertIn("pi.pedido_id = ANY(%s)", self.main)
 
-    def test_manual_sales_refresh_is_queued(self):
-        start = self.main.index("def atualizar_tipo(tipo, cid):")
-        route = self.main[start:self.main.index('@app.route("/atualizar")', start)]
-        self.assertLess(route.index('if tipo in ("resumo", "vendas"):'),
-                        route.index('    with banco() as conn:'))
-        self.assertIn("enfileirar_atualizacao(cid)", route)
+    def test_only_summary_legacy_link_enqueues_full_refresh(self):
+        enqueue, connect = Mock(), Mock(side_effect=AssertionError('synchronous collection'))
+        ns=dict(pode_ver_loja=lambda cid:True,loja_habilitada_fila_persistente=lambda cid:False,
+                enfileirar_atualizacao=enqueue,banco=connect,redirect=lambda path:path)
+        route=main_function('atualizar_tipo',ns)
+        self.assertEqual(route('vendas',5),'/vendas/5')
+        self.assertEqual(route('resumo',5),'/painel/5')
+        enqueue.assert_called_once_with(5)
+        connect.assert_not_called()
 
     def test_uncovered_days_are_not_rendered_as_zero(self):
         self.assertIn("dias_cobertos", self.main)

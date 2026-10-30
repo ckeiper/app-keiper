@@ -114,7 +114,7 @@ class OverviewTests(unittest.TestCase):
         self.assertEqual(data['included'],0)
         self.assertEqual([a['kind'] for a in data['alerts']],['sync'])
 
-    def test_historical_days_allow_rotation_but_enforce_48_hour_limit(self):
+    def test_historical_days_allow_rotation_but_enforce_seven_day_limit(self):
         bounds=(date(2026,10,3),date(2026,10,4),date(2026,10,1),date(2026,10,2))
         for age,expected in [(4*3600,1),(HISTORICAL_STALE_SECONDS,1),(HISTORICAL_STALE_SECONDS+1,0)]:
             cov=[dict(conexao_id=1,dia=f'2026-10-{i:02}',atualizado_em=NOW-age) for i in range(1,5)]
@@ -175,12 +175,42 @@ class OverviewTests(unittest.TestCase):
             if 'ORDER BY conexao_id,pedido_id' in sql:
                 self.assertIn('LIMIT',sql)
             return []
-        load_overview([shop(),shop(2)],{},lambda:nullcontext(conn),query)
+        load_overview([shop(),shop(2)],
+                      {'periodo':'personalizado','inicio':'2026-10-10','fim':'2026-10-11'},
+                      lambda:nullcontext(conn),query)
         self.assertEqual(len(calls),4)
-        self.assertIn('GROUP BY conexao_id, dia', calls[0][0])
-        self.assertIn('BETWEEN', calls[0][0])
+        self.assertIn('LEFT(criado_em, 10) BETWEEN', calls[0][0])
+        self.assertIn('vendas_verificado_em IS NOT NULL', calls[0][0])
+        self.assertEqual(calls[0][1][1:], ('2026-10-07', '2026-10-12', 4000))
         self.assertIn('NULLS FIRST LIMIT 1', calls[2][0])
         self.assertEqual(conn.options,dict(isolation_level='REPEATABLE READ',readonly=True))
+
+    def test_loader_uses_exact_order_classifier_and_deduplicates_unusual(self):
+        class Conn:
+            def cursor(self):
+                from unittest.mock import MagicMock
+                return MagicMock()
+            def set_session(self, **kwargs):
+                pass
+        sample = orders()
+        def query(conn, sql, params):
+            if 'LEFT(criado_em, 10) BETWEEN' in sql:
+                return sample
+            if 'FROM vendas_cobertura' in sql:
+                return coverage(1)
+            if 'FROM unnest(' in sql:
+                return []
+            if 'keiper_overview_day_v1(criado_em) IS NULL' in sql:
+                return [sample[0]]  # Must not count this order twice.
+            raise AssertionError(sql)
+        from overview import load_overview
+        data = load_overview([shop()], {'periodo': 'personalizado',
+             'inicio': '2026-10-10', 'fim': '2026-10-11'},
+             lambda: nullcontext(Conn()), query)
+        report = data['reports'][0]
+        self.assertEqual(report['current']['orders'], 10)
+        self.assertEqual(report['previous']['orders'], 10)
+        self.assertEqual(report['current']['revenue'], Decimal(100))
 
     def test_safety_limit_never_exposes_truncated_subtotals(self):
         data=build_overview([shop()],orders(),coverage(1),[],BOUNDS,now=NOW,limited=True)

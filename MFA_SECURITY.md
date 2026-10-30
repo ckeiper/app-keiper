@@ -1,0 +1,11 @@
+# Administrator two-factor authentication
+
+Administrators can enroll at `/seguranca`. Enrollment requires the current password, a server-side pending secret bound to the initiating browser, and a valid TOTP code within ten minutes. Enrollment remains disabled until confirmation. QR codes are generated locally; no provisioning secret is sent to an external QR service.
+
+`MFA_ENCRYPTION_KEY` must contain an independent Fernet key, stored only in the Render service secrets. It is separate from the Mercado Livre token key and from the session signing key. Deploy the optional feature, inspect the `mfa_configuration key_present=...` startup metadata, provision the key only if absent, and redeploy before inviting enrollment. Never replace this key after enrollment without migrating existing encrypted seeds. Keep it in the server's secret configuration; never place it in source, logs, or a database export.
+
+After a password is verified for an enrolled account, only a five-minute pending challenge is issued; no authenticated user or role claims are stored until the second factor succeeds. Challenges are hashed server-side, bound to the account revision, limited to five attempts, and consumed once. Persistent rate limits apply across challenges. A used TOTP time step cannot be reused, and a one-step clock skew is accepted in either direction.
+
+Ten random 96-bit recovery codes are displayed once after enrollment; only their SHA-256 hashes are stored. Each code is consumed atomically under the account lock and still requires a password-verified login challenge. Recovery codes work without decrypting the authenticator seed, allowing recovery and disabling if the seed-encryption key is temporarily unavailable. Disabling requires the current password plus a valid authenticator or recovery code. Activation and deactivation increment the account revision, invalidating other sessions and pending challenges.
+
+Existing accounts keep password login until the owner confirms enrollment. A normal password reset preserves the second factor and invalidates pending challenges through the existing account revision trigger. Setup secrets and recovery codes are not stored in browser cookies or shown on subsequent page loads. The authenticated setup page and verification form use the global CSRF protection and no-store headers.

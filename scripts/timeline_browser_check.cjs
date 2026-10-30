@@ -1,0 +1,139 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const http=require('node:http');
+const {chromium}=require('playwright');
+(async()=>{
+ const server=http.createServer((req,res)=>{
+  const args=new URL(req.url,'http://localhost').searchParams;
+  const name=args.get('fatores')==='1'?'timeline-drivers':args.get('janela_linha')==='7'?'timeline-short':args.get('pagina_linha')==='2'?'timeline-page2':args.get('comparar_linha')==='preco'?'timeline-preco':'timeline-visitas';
+  res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(fs.readFileSync('visual-qa/'+name+'.html'));
+ });
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ const browser=await chromium.launch({headless:true});
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ // Use the pinned package locally so the check does not depend on the CDN.
+ const chart=fs.readFileSync(path.join(path.dirname(require.resolve('chart.js')),'chart.umd.js'),'utf8');
+ await page.route('https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',r=>r.fulfill({contentType:'application/javascript',body:chart}));
+ async function ready(){await page.waitForFunction(()=>typeof Chart!=='undefined'&&Object.keys(Chart.instances).length===1);}
+ try{
+  await page.goto('http://127.0.0.1:'+server.address().port+'/diagnostico/1/MLB100000');await ready();
+  assert.ok(await page.getByText('Linha do tempo do anúncio',{exact:true}).isVisible());
+  assert.equal(await page.locator('.item-timeline').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
+  assert.equal(await page.locator('.item-timeline h3').evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
+  assert.equal(await page.locator('.timeline-pages a').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(28, 53, 82)');
+  assert.equal(await page.evaluate(()=>Object.values(Chart.instances)[0].options.plugins.legend.labels.color),'#bdcce1');
+  await page.locator('select[name=comparar_linha]').focus();
+  assert.equal(await page.locator(':focus').getAttribute('name'),'comparar_linha');
+  assert.ok(await page.getByText('Queda confirmada: R$ 245,00',{exact:true}).isVisible());
+  assert.ok(await page.locator('.evidence-next').getByText('Verificar reposição no Full',{exact:false}).isVisible());
+  assert.equal(await page.locator('.evidence-panel').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
+  assert.equal(await page.locator('.evidence-source').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(20, 41, 64)');
+  assert.equal(await page.locator('.evidence-source h4').first().evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
+  await page.locator('.evidence-jump').focus();
+  await page.keyboard.press('Enter');
+  await page.waitForURL(url=>url.hash==='#evidence-action-1');
+  assert.equal(new URL(page.url()).hash,'#evidence-action-1');
+  await page.waitForFunction(()=>{const r=document.getElementById('evidence-action-1').getBoundingClientRect();return r.top>=0&&r.top<innerHeight;},null,{timeout:5000});
+  assert.ok(await page.locator('#evidence-action-1').evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.top<innerHeight;}));
+  const priceAction=page.locator('.evidence-action').filter({hasText:'Revisar aumento de preço observado'});
+  assert.ok(!await priceAction.getByText('Como acompanhar:',{exact:true}).isVisible());
+  await priceAction.locator('summary').focus();await page.keyboard.press('Enter');
+  assert.ok(await priceAction.getByText('Como acompanhar:',{exact:true}).isVisible());
+  await page.locator('.evidence-gaps summary').click();
+  assert.ok(await page.locator('.evidence-gaps').getByText('lacunas não são zero',{exact:false}).isVisible());
+  const summary=await page.evaluate(()=>{const c=Object.values(Chart.instances)[0];return {days:c.data.labels.length,lengths:c.data.datasets.map(d=>d.data.length),events:c.data.datasets.at(-1).data.filter(Boolean).length,zeroGaps:c.data.datasets[1].data.filter(v=>v===null).length};});
+  assert.equal(summary.days,14);assert.ok(summary.lengths.every(n=>n===14));assert.equal(summary.events,5);assert.ok(summary.zeroGaps>0);
+  const eventPixels=await page.evaluate(()=>{const c=Object.values(Chart.instances)[0],n=c.data.datasets.length-1;return c.getDatasetMeta(n).data.map((p,i)=>({i,x:p.x,y:p.y,skip:p.skip,parsed:c.getDatasetMeta(n)._parsed[i],expected:c.scales.x.getPixelForValue(i)})).filter((p,i)=>c.data.datasets[n].data[i]);});
+  console.log('Price event rendering:',JSON.stringify(eventPixels));
+  assert.ok(eventPixels.every(p=>!p.skip&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&Math.abs(p.x-p.expected)<1),'Price events must render at their matching dates');
+  await page.locator('.timeline-chart').scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>{const c=Object.values(Chart.instances)[0];return c.ctx.getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0);});
+  await page.screenshot({path:'visual-qa/timeline-desktop.png',fullPage:true});
+  await page.locator('select[name=comparar_linha]').selectOption('preco');
+  await Promise.all([page.waitForURL(u=>u.searchParams.get('comparar_linha')==='preco'),page.getByRole('button',{name:'Aplicar',exact:true}).click()]);await ready();
+  assert.ok(await page.evaluate(()=>Object.values(Chart.instances)[0].data.datasets.some(d=>d.label.includes('Último preço'))));
+  await Promise.all([page.waitForURL(u=>u.searchParams.get('pagina_linha')==='2'),page.getByRole('link',{name:'Próxima',exact:true}).click()]);await ready();
+  if(!await page.locator('.item-timeline details').getAttribute('open').then(v=>v!==null))await page.locator('.item-timeline details summary').click();
+  assert.equal(await page.locator('.timeline-table tbody tr').count(),7);
+  await page.setViewportSize({width:390,height:844});
+  await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth+1,null,{timeout:5000});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Timeline must not overflow the mobile body');
+  await page.screenshot({path:'visual-qa/timeline-mobile.png',fullPage:true});
+  await page.locator('select[name=janela_linha]').selectOption('7');
+  await Promise.all([page.waitForURL(u=>u.searchParams.get('janela_linha')==='7'),page.getByRole('button',{name:'Aplicar',exact:true}).click()]);await ready();
+  assert.equal(await page.evaluate(()=>Object.values(Chart.instances)[0].data.labels.length),7);
+  await page.goto('http://127.0.0.1:'+server.address().port+'/diagnostico/1/MLB100000?fatores=1');await ready();
+  await page.locator('.evidence-drivers summary').click();
+  assert.equal(await page.locator('.drivers-table tbody tr').count(),3);
+  assert.ok(await page.locator('.drivers-table tbody').getByText('− R$ 647,50',{exact:true}).isVisible());
+  assert.ok(await page.locator('.drivers-table tbody').getByText('+ R$ 647,50',{exact:true}).isVisible());
+  assert.ok(await page.locator('.drivers-table tfoot').getByText('− R$ 245,00',{exact:true}).isVisible());
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Revenue factors must scroll within their table on mobile');
+  assert.ok(await page.locator('.drivers-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
+  await page.locator('.drivers-scroll').evaluate(el=>{el.scrollLeft=el.scrollWidth;});
+  assert.ok(await page.locator('.drivers-scroll').evaluate(el=>el.scrollLeft>0));
+  await page.locator('.drivers-scroll').evaluate(el=>{el.scrollLeft=0;});
+  await page.screenshot({path:'visual-qa/drivers-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1440,height:1000});
+  await page.locator('.evidence-drivers').scrollIntoViewIfNeeded();
+  await page.screenshot({path:'visual-qa/drivers-desktop.png',fullPage:true});
+  await page.unroute('https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js');
+  await page.route('https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',r=>r.abort());
+  await page.reload();
+  assert.ok(await page.getByText('Gráfico indisponível. Confira os dados diários abaixo.',{exact:true}).isVisible());
+  await page.locator('.item-timeline details summary').click();
+  assert.ok(await page.locator('.timeline-table tbody tr').first().isVisible());
+  for(const width of [1440,390,320]) {
+   await page.setViewportSize({width,height:900});
+   await page.setContent(fs.readFileSync('visual-qa/competitiveness-preview.html','utf8'));
+   assert.equal(await page.locator('.price-comparison tbody tr').count(),1);
+   assert.ok((await page.locator('.price-comparison th,.price-comparison td').evaluateAll(els=>els.map(el=>getComputedStyle(el).backgroundColor))).every(color=>color==='rgb(24, 46, 73)'));
+   assert.equal(await page.locator('.offer-investigation a.btn-acoes').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(28, 53, 82)');
+   assert.equal(await page.locator('.offer-investigation a.btn-acoes').evaluate(el=>getComputedStyle(el).color),'rgb(185, 229, 255)');
+   assert.equal(await page.locator('.offer-coverage article').count(),2);
+   assert.ok((await page.locator('.offer-coverage').textContent()).includes('2 de 2'));
+   assert.ok((await page.locator('.offer-coverage').textContent()).includes('Sem leituras no período'));
+   assert.equal(await page.locator('.offer-investigation').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
+   assert.equal(await page.locator('.offer-investigation h3').evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
+   await page.locator('.offer-filter select').focus();
+   assert.equal(await page.locator(':focus').getAttribute('name'),'alteracao_oferta');
+   const sample=page.locator('.price-comparison tbody tr td').first();
+   for(const phrase of ['Atual: 17/10 a 23/10/2026','Anterior: 10/10 a 16/10/2026','2/2 pares válidos / leituras','Próprio acima: 1 · igual: 1 · abaixo: 0','Sem leituras no período']) assert.ok((await sample.textContent()).includes(phrase));
+   assert.ok((await page.locator('.price-comparison').textContent()).includes('Aumentou: 10,00 p.p.'));
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+   assert.equal(await page.locator('.price-comparison h3').evaluate(el=>getComputedStyle(el).color),'rgb(234, 242, 255)');
+   assert.ok(await page.locator('.price-comparison>div').evaluate(el=>el.scrollWidth>=el.clientWidth));
+   await page.screenshot({path:`visual-qa/competitiveness-${width}.png`,fullPage:true});
+  }
+  for(const mode of ['decline','stable','missing-prices','missing-sales','limited','zero']) {
+   for(const width of [1440,390,320]) {
+    await page.setViewportSize({width,height:900});
+    await page.setContent(fs.readFileSync(`visual-qa/competitive-sales-${mode}.html`,'utf8'));
+    assert.equal(await page.locator('.competitive-sales').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    if(mode==='missing-sales') {
+     assert.equal(await page.locator('.competitive-sales article').count(),0);
+     assert.ok((await page.locator('.competitive-sales').textContent()).includes('Dados incompletos não são zero'));
+    } else {
+     assert.equal(await page.locator('.competitive-sales article').count(),3);
+     await page.locator('.competitive-sales summary').focus();await page.keyboard.press('Enter');
+     assert.ok(await page.locator('.competitive-sales table').isVisible());
+     assert.equal(await page.locator('.competitive-sales tbody tr').count(),1);
+     const text=await page.locator('.competitive-sales').textContent();
+     if(mode==='decline')assert.ok(text.includes('Queda bruta e maior proporção'));
+     if(mode==='stable')assert.ok(text.includes('Sem queda bruta entre os períodos'));
+     if(mode==='missing-prices')assert.ok(text.includes('Comparação competitiva pendente'));
+     if(mode==='limited')assert.ok(text.includes('Histórico limitado: ampliar'));
+     if(mode==='zero')assert.ok(text.includes('Sem base percentual anterior'));
+     await page.locator('.competitive-sales-scroll').focus();assert.equal(await page.locator(':focus').getAttribute('role'),'region');
+     if(width<700)assert.ok(await page.locator('.competitive-sales-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
+    }
+    await page.screenshot({path:`visual-qa/competitive-sales-${mode}-${width}.png`,fullPage:true});
+   }
+  }
+  assert.deepEqual(errors,[]);
+  console.log('Timeline chart, sparse event alignment, metric switch, pagination and mobile layout passed.');
+ }finally{await browser.close();await new Promise(r=>server.close(r));}
+})().catch(e=>{console.error(e);process.exitCode=1;});

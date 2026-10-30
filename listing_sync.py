@@ -15,7 +15,7 @@ def pages(token, path, params, request_get):
             raise ValueError(error)
         if (not isinstance(data, dict) or not isinstance(data.get('results'), list)
                 or any(not isinstance(r, dict) for r in data['results'])):
-            raise ValueError('resposta paginada inválida')
+            raise ValueError('resposta paginada inválida em %s: formato=%s, results=%s' % (path, type(data).__name__, type(data.get('results')).__name__ if isinstance(data, dict) else 'ausente') + ('; campos=' + ','.join(sorted(str(k) for k in data.keys())[:12]) if isinstance(data, dict) else ''))
         records = data['results']
         signature = json.dumps(records, sort_keys=True)
         if records and signature in seen:
@@ -86,6 +86,8 @@ def sync_promotions(cid, token, banco, consultar, executar, request_get, registr
             with banco() as conn:
                 executar(conn, 'UPDATE anuncios SET promocoes_json=%s WHERE conexao_id=%s AND item_id=%s',
                          (json.dumps(snap, ensure_ascii=False), cid, item_id))
+                from promotion_observations import record as record_promotion_reading
+                record_promotion_reading(conn,executar,cid,item_id,snap)
             continue
         error = circuit_error
         data = None
@@ -119,6 +121,11 @@ def sync_promotions(cid, token, banco, consultar, executar, request_get, registr
         with banco() as conn:
             executar(conn, 'UPDATE anuncios SET promocoes_json=%s WHERE conexao_id=%s AND item_id=%s',
                      (json.dumps(snap, ensure_ascii=False), cid, item_id))
+            from promotion_observations import record as record_promotion_reading
+            record_promotion_reading(conn,executar,cid,item_id,snap)
+            if include_sale_price:
+                from offer_history import record
+                record(conn,executar,cid,item_id,snap,listing_status=item_status)
     errors = [snap['error'] for _, snap in snapshots if snap.get('error')]
     with banco() as conn:
         if not errors:
