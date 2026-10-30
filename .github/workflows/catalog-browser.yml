@@ -29,9 +29,9 @@ on:
       - 'test_price_observation_export.py'
       - 'test_price_stability.py'
       - 'scripts/price_stability*'
-      - 'listing_sku_overlap.py'
-      - 'test_listing_sku_overlap*.py'
-      - 'scripts/listing_sku_overlap*'
+      - 'listing_sku*.py'
+      - 'test_listing_sku*.py'
+      - 'scripts/listing_sku*'
       - 'listing_reactivation*.py'
       - 'test_listing_reactivation*.py'
       - 'scripts/listing_reactivation*'
@@ -160,6 +160,7 @@ jobs:
       - run: python scripts/installment_comparison_preview.py
       - run: python scripts/listing_fee_quote_preview.py
       - run: python scripts/listing_sku_overlap_preview.py
+      - run: python scripts/listing_sku_variations_preview.py
       - run: python scripts/listing_reactivation_preview.py
       - run: python scripts/goal_observations_preview.py
       - run: python scripts/goal_notifications_preview.py
@@ -195,6 +196,7 @@ jobs:
       - run: node scripts/installment_comparison_browser_check.cjs
       - run: node scripts/listing_fee_quote_browser_check.cjs
       - run: node scripts/listing_sku_overlap_browser_check.cjs
+      - run: node scripts/listing_sku_variations_browser_check.cjs
       - run: node scripts/listing_reactivation_browser_check.cjs
       - run: node scripts/goal_observations_browser_check.cjs
       - run: node scripts/goal_notifications_browser_check.cjs

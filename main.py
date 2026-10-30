@@ -681,6 +681,8 @@ def iniciar_banco():
         from profitability_store import init_schema as init_profitability
         init_profitability(conn, execute)
         init_full_schema(conn, execute)
+        from listing_sku_evidence import init_schema as init_sku_schema
+        init_sku_schema(conn, execute)
         init_competitor_schema(conn, execute)
         from offer_history import init_schema as init_offer_history
         init_offer_history(conn, execute)
@@ -5076,6 +5078,7 @@ def puxar_anuncios(conexao_id, token, user_id):
     agora = int(time.time())
     linhas = []
     full_rows = []
+    sku_rows = []
     change_rows = []
     completo = True
     for i in range(0, len(ids), 20):
@@ -5101,6 +5104,9 @@ def puxar_anuncios(conexao_id, token, user_id):
             if not isinstance(det, dict) or not det.get("id"):
                 completo = False
                 continue
+            from listing_sku_evidence import snapshot as sku_snapshot
+            if det['id'] in lote:
+                sku_rows.append((json.dumps(sku_snapshot(det, user_id, det['id'], agora)), conexao_id, det['id']))
             from automatic_history import listing_values
             change_rows.append((det['id'],int(time.time()),listing_values(det,user_id)))
             full_rows.append((json.dumps(full_metadata(det, user_id, int(time.time()))),
@@ -5153,6 +5159,8 @@ def puxar_anuncios(conexao_id, token, user_id):
         for metadata in full_rows:
             executar(conn, '''UPDATE anuncios SET full_metadata_json=%s::jsonb
                 WHERE conexao_id=%s AND item_id=%s''', metadata)
+        for metadata in sku_rows:
+            executar(conn, "UPDATE anuncios SET sku_metadata_json=%s::jsonb WHERE conexao_id=%s AND item_id=%s", metadata)
         velhos = consultar(conn, "SELECT item_id FROM anuncios WHERE conexao_id=%s", (conexao_id,))
         atuais = set(ids)
         for row in velhos:

@@ -815,40 +815,54 @@
       "area": "Mercado",
       "capacidade": "Anúncios semelhantes",
       "estado": "parcial",
-      "implementado": "Painel por loja de coincidências no SKU cadastrado do anúncio, com comparação exata após remoção de espaços nas extremidades, sem ignorar maiúsculas ou caracteres internos. Filtro exato, totais de cobertura, dez grupos por página, até dez membros por grupo e acesso ao diagnóstico. Status/estoque somente com leitura recente. Não presume equivalência nem canibalização.",
-      "falta": "Falta validação de equivalência real do produto, SKUs exclusivos de variações e análise de sobreposição por público/oferta/desempenho. SKU repetido é candidato para conferência, não prova de produto idêntico, concorrência interna ou perda de vendas.",
+      "implementado": "Painel por loja de coincidências no SKU cadastrado do anúncio, com comparação exata após remoção de espaços nas extremidades, sem ignorar maiúsculas ou caracteres internos. Filtro exato, totais de cobertura, dez grupos por página, até dez membros por grupo e acesso ao diagnóstico. Status/estoque somente com leitura recente. Não presume equivalência nem canibalização. Coleta de SELLER_SKU do anúncio principal e das variações pela resposta existente em lotes. Snapshot com versão, instante e cobertura estrutural separado do campo interno legado; confere vendedor, anúncio e site. Nova tela administrativa agrupa o mesmo código em anúncios distintos, mostra variações de origem, leituras parciais e atualidade. Filtro exato, totais e paginação limitada, sem inferir equivalência ou impacto nas vendas.",
+      "falta": "Falta validação de equivalência real do produto e análise de sobreposição por público, oferta e desempenho. Os SKUs de variações anteriores à nova coleta não são reconstruídos. SKU repetido é candidato para conferência, não prova de produto idêntico, canibalização ou perda de vendas.",
       "fontes": [
-        "listing_sku_overlap.py"
+        "listing_sku_overlap.py",
+        "listing_sku_evidence.py",
+        "listing_sku_variations.py",
+        "docs/listing-sku-variations.md"
       ],
       "testes": [
         "test_listing_sku_overlap.py",
         "test_listing_sku_overlap_integration.py",
-        "scripts/listing_sku_overlap_browser_check.cjs"
+        "scripts/listing_sku_overlap_browser_check.cjs",
+        "test_listing_sku_evidence.py",
+        "test_listing_sku_variations.py",
+        "test_listing_sku_variations_integration.py",
+        "scripts/listing_sku_variations_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-26"
+      "atualizado_em": "2026-10-30"
     },
     {
       "id": "competicao-interna",
       "area": "Mercado",
       "capacidade": "Competição interna",
       "estado": "parcial",
-      "implementado": "Painel por loja de coincidências no SKU cadastrado do anúncio, com comparação exata após remoção de espaços nas extremidades, sem ignorar maiúsculas ou caracteres internos. Filtro exato, totais de cobertura, dez grupos por página, até dez membros por grupo e acesso ao diagnóstico. Status/estoque somente com leitura recente. Não presume equivalência nem canibalização.",
-      "falta": "Falta validação de equivalência real do produto, SKUs exclusivos de variações e análise de sobreposição por público/oferta/desempenho. SKU repetido é candidato para conferência, não prova de produto idêntico, concorrência interna ou perda de vendas.",
+      "implementado": "Painel por loja de coincidências no SKU cadastrado do anúncio, com comparação exata após remoção de espaços nas extremidades, sem ignorar maiúsculas ou caracteres internos. Filtro exato, totais de cobertura, dez grupos por página, até dez membros por grupo e acesso ao diagnóstico. Status/estoque somente com leitura recente. Não presume equivalência nem canibalização. Coleta de SELLER_SKU do anúncio principal e das variações pela resposta existente em lotes. Snapshot com versão, instante e cobertura estrutural separado do campo interno legado; confere vendedor, anúncio e site. Nova tela administrativa agrupa o mesmo código em anúncios distintos, mostra variações de origem, leituras parciais e atualidade. Filtro exato, totais e paginação limitada, sem inferir equivalência ou impacto nas vendas.",
+      "falta": "Falta validação de equivalência real do produto e análise de sobreposição por público, oferta e desempenho. Os SKUs de variações anteriores à nova coleta não são reconstruídos. SKU repetido é candidato para conferência, não prova de produto idêntico, canibalização ou perda de vendas.",
       "fontes": [
-        "listing_sku_overlap.py"
+        "listing_sku_overlap.py",
+        "listing_sku_evidence.py",
+        "listing_sku_variations.py",
+        "docs/listing-sku-variations.md"
       ],
       "testes": [
         "test_listing_sku_overlap.py",
         "test_listing_sku_overlap_integration.py",
-        "scripts/listing_sku_overlap_browser_check.cjs"
+        "scripts/listing_sku_overlap_browser_check.cjs",
+        "test_listing_sku_evidence.py",
+        "test_listing_sku_variations.py",
+        "test_listing_sku_variations_integration.py",
+        "scripts/listing_sku_variations_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-26"
+      "atualizado_em": "2026-10-30"
     },
     {
       "id": "trafego-horarios",
@@ -1471,6 +1485,18 @@
       "prs": [
         321
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-30",
+      "resumo": "SKUs oficiais por anúncio e variação coletados separadamente dos campos internos, com agrupamento entre anúncios e cobertura explícita. Semelhantes e competição interna permanecem parciais.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": []
     }
   ],
   "publicacoes": [
@@ -1533,6 +1559,14 @@
       "titulo": "Conferência de unidades dos atributos",
       "horario_brasilia": "2026-10-29T10:50:19-03:00",
       "deploy": "dep-dbhkt5ivcj2c73883thg"
+    },
+    {
+      "pr": 321,
+      "commit": "bed89293d1eafb6482f901f84c7e8dfbc1f5f4b4",
+      "deploy": "dep-dbi1naks728c739veqm0",
+      "horario_brasilia": "2026-10-30T01:24:43-03:00",
+      "status": "live",
+      "titulo": "Resumo de próximas ações da conferência de conteúdo"
     }
   ]
 }
