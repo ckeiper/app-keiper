@@ -123,11 +123,49 @@
       "frentes": [
         "perguntas-avaliacoes"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 326,
-      "head_sha": "1177e73b51f78de351e25b86a6c91266059c78cf",
-      "atualizado_em": "2026-10-30T17:57:46-03:00",
-      "lacuna": "CI e publicação em validação; sem prova de uso autenticado com anúncio real. A frente permanece parcial por cobertura histórica e análise semântica."
+      "head_sha": "07b54831f408a18621c09fc7d6b5a05c4759c538",
+      "atualizado_em": "2026-10-30T18:09:19.729-03:00",
+      "lacuna": "Entrega publicada. Consulta autenticada de avaliações com anúncio real ainda não exercitada nesta sessão; histórico e análise semântica permanecem fora deste escopo.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41128175131,
+          "resultado": "success",
+          "head_sha": "07b54831f408a18621c09fc7d6b5a05c4759c538"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41128175152,
+          "resultado": "success",
+          "head_sha": "07b54831f408a18621c09fc7d6b5a05c4759c538"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41128175191,
+          "resultado": "success",
+          "head_sha": "07b54831f408a18621c09fc7d6b5a05c4759c538"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbige515efls739hbl3g",
+        "commit": "a0db450b7300bd677606aa0534809497625af597",
+        "status": "live",
+        "horario_brasilia": "2026-10-30T18:09:19.729-03:00"
+      }
+    },
+    {
+      "id": "atributos-lista-327",
+      "escopo": "Conferência de referências explícitas de opções de lista no anúncio e nas variações, sem rejeitar texto personalizado ou certificar validade integral.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 327,
+      "head_sha": "23ec4ada8877daf0a7fbc8fad4ed1b3b6e6b2ec5",
+      "atualizado_em": "2026-10-30T18:09:29-03:00",
+      "lacuna": "Checks, revisão de capturas e publicação em validação. Frente parcial por análise visual, semântica e outros valores."
     }
   ]
 }
