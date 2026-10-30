@@ -78,6 +78,56 @@
       },
       "atualizado_em": "2026-10-30T01:50:02.941-03:00",
       "lacuna": ""
+    },
+    {
+      "id": "perguntas-cobertura-324",
+      "escopo": "Cobertura limitada de perguntas e revisão em rodízio de status antigos, com aviso recente e atualização dedicada; não conclui a frente.",
+      "frentes": [
+        "perguntas-avaliacoes"
+      ],
+      "etapa": "publicada",
+      "pr": 324,
+      "head_sha": "c6d1a113b48466e09137ab8f557ac7d1c429f51f",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41045629403,
+          "resultado": "success",
+          "head_sha": "c6d1a113b48466e09137ab8f557ac7d1c429f51f"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41045629385,
+          "resultado": "success",
+          "head_sha": "c6d1a113b48466e09137ab8f557ac7d1c429f51f"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41045629532,
+          "resultado": "success",
+          "head_sha": "c6d1a113b48466e09137ab8f557ac7d1c429f51f"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbi7o03ncjis73ama3g0",
+        "commit": "2ce93cf36a0ee95ecc53705dcb149375db86a9cb",
+        "status": "live",
+        "horario_brasilia": "2026-10-30T08:15:55.551-03:00"
+      },
+      "atualizado_em": "2026-10-30T08:15:55.551-03:00",
+      "lacuna": ""
+    },
+    {
+      "id": "avaliacoes-produto-326",
+      "escopo": "Consulta sob demanda das avaliações oficiais do produto no anúncio, com distinção de catálogo, paginação limitada e sem armazenamento de compradores.",
+      "frentes": [
+        "perguntas-avaliacoes"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 326,
+      "head_sha": "1177e73b51f78de351e25b86a6c91266059c78cf",
+      "atualizado_em": "2026-10-30T17:57:46-03:00",
+      "lacuna": "CI e publicação em validação; sem prova de uso autenticado com anúncio real. A frente permanece parcial por cobertura histórica e análise semântica."
     }
   ]
 }

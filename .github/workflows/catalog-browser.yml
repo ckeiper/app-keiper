@@ -59,6 +59,9 @@ on:
       - 'listing_onboarding*.py'
       - 'test_listing_onboarding*.py'
       - 'scripts/listing_onboarding*'
+      - 'listing_buyer_reviews.py'
+      - 'test_listing_buyer_reviews.py'
+      - 'scripts/listing_buyer_reviews*'
       - 'listing_questions.py'
       - 'question_sync.py'
       - 'test_question_sync.py'
@@ -172,6 +175,7 @@ jobs:
       - run: python scripts/listing_goals_preview.py
       - run: python scripts/listing_sales_goals_preview.py
       - run: python scripts/listing_onboarding_preview.py
+      - run: python scripts/listing_buyer_reviews_preview.py
       - run: python scripts/listing_questions_preview.py
       - run: python scripts/listing_content_preview.py
       - run: python scripts/listing_content_snapshot_preview.py
@@ -208,6 +212,7 @@ jobs:
       - run: node scripts/listing_goals_browser_check.cjs
       - run: node scripts/listing_sales_goals_browser_check.cjs
       - run: node scripts/listing_onboarding_browser_check.cjs
+      - run: node scripts/listing_buyer_reviews_browser_check.cjs
       - run: node scripts/listing_questions_browser_check.cjs
       - run: node scripts/listing_content_browser_check.cjs
       - run: node scripts/listing_content_snapshot_browser_check.cjs

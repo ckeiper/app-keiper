@@ -519,10 +519,10 @@ def pagina(titulo, corpo):
     return cab + sidebar + topo + marca + links + fim
 
 
-def pagina_loja(titulo, cid, cliente, secao, corpo):
+def pagina_loja(titulo, cid, cliente, secao, corpo, refresh=True):
     from theme_switcher import HEAD as theme_head, SCRIPT as theme_script
     from section_refresh import SCOPES, render as render_refresh
-    if secao in SCOPES and "class='k-refresh'" not in corpo:
+    if refresh and secao in SCOPES and "class='k-refresh'" not in corpo:
         corpo = render_refresh(cid, secao) + corpo
     from store_sidebar import render_store_sidebar
     sidebar = render_store_sidebar(cid, cliente, secao, admin=session.get("tipo") == "admin")
@@ -5736,6 +5736,8 @@ from listing_fee_quote import register as register_fee_quote
 register_fee_quote(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get)
 from listing_content_snapshot import register as register_content_snapshot
 register_content_snapshot(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get)
+from listing_buyer_reviews import register as register_buyer_reviews
+register_buyer_reviews(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
                     is_updating=lambda cid: cid in ATUALIZANDO)
 

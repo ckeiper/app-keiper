@@ -709,23 +709,28 @@
       "area": "Conteúdo",
       "capacidade": "Perguntas e avaliações",
       "estado": "parcial",
-      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder. O botão Atualizar Perguntas usa a fila de atualização por seção, com proteção e exclusão por loja existentes, sem recoletar anúncios, promoções, vendas ou Ads.",
-      "falta": "A busca permanece limitada a 100 perguntas por atualização e a revisão individual a dois registros antigos por rodada. Não certifica histórico integral nem atualização simultânea de todos os status; perguntas anteriormente apagadas não são reconstruídas. Falta fonte e painel de avaliações dos compradores e análise validada de objeções semânticas.",
+      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder. O botão Atualizar Perguntas usa a fila de atualização por seção, com proteção e exclusão por loja existentes, sem recoletar anúncios, promoções, vendas ou Ads. Consulta administrativa sob demanda de avaliações oficiais por anúncio, com conta e propriedade verificadas, média, total, distribuição e até cinco comentários publicados por página. Distingue avaliações compartilhadas do catálogo da reputação da loja, trata falhas como não verificadas e limita a consulta às primeiras 100 posições, sem persistir dados de compradores.",
+      "falta": "A busca de perguntas permanece limitada a 100 por atualização e a dois status antigos por rodada; não certifica histórico integral nem reconstrói perguntas apagadas. Avaliações são consultadas sob demanda, sem histórico persistido ou cobertura integral; comentários limitados a 100 posições e textos abreviados. Falta análise validada de objeções semânticas; opiniões não comprovam defeitos, reputação da loja ou impacto em vendas.",
       "fontes": [
         "listing_questions.py",
         "main.py",
         "question_sync.py",
         "docs/question-collection-coverage.md",
-        "section_refresh.py"
+        "section_refresh.py",
+        "listing_buyer_reviews.py",
+        "docs/listing-buyer-reviews.md"
       ],
       "testes": [
         "test_listing_questions.py",
         "test_listing_questions_integration.py",
         "scripts/listing_questions_browser_check.cjs",
-        "test_question_sync.py"
+        "test_question_sync.py",
+        "test_listing_buyer_reviews.py",
+        "scripts/listing_buyer_reviews_browser_check.cjs"
       ],
       "prs": [
-        324
+        324,
+        326
       ],
       "numero_original": null,
       "prioridade": 3,
@@ -1523,6 +1528,20 @@
       "prs": [
         324
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-30",
+      "resumo": "Avaliações oficiais do produto no painel individual, com escopo de catálogo e leitura limitada sem conclusões sobre reputação da loja. Frente permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        326
+      ]
     }
   ],
   "publicacoes": [
@@ -1599,6 +1618,13 @@
       "titulo": "Etapas de entrega separadas das frentes concluídas",
       "deploy": "dep-dbi25p0473hc73ej36ig",
       "horario_brasilia": "2026-10-30T01:55:31-03:00"
+    },
+    {
+      "pr": 324,
+      "commit": "2ce93cf36a0ee95ecc53705dcb149375db86a9cb",
+      "deploy_id": "dep-dbi7o03ncjis73ama3g0",
+      "status": "live",
+      "horario_brasilia": "2026-10-30T08:15:55.551-03:00"
     }
   ]
 }

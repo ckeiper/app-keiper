@@ -39,7 +39,7 @@ def render(cid,item,data,now):
     out+='</section><section><h2>Tarefas e próximos passos</h2><p>Fonte: tarefas internas deste anúncio. Concluir uma tarefa não comprova alteração executada no marketplace.</p><p>'+esc(' · '.join(TASK_STATES[r['status']]+': '+str(r['n']) for r in data['counts']) or 'Nenhuma tarefa registrada')+'</p>'
     if data['tasks_limited']:out+='<p class="lr-limit">Exibidas as primeiras dez tarefas por prazo e identificador. Consulte a tela de tarefas para a lista completa; os totais acima incluem todas.</p>'
     for r in data['tasks']:out+='<article><h3>'+esc(r['title'])+'</h3><p>Prazo: '+r['due_date'].strftime('%d/%m/%Y')+' · '+TASK_STATES[r['status']]+' · responsável: '+esc(r['responsible'])+' · tarefa #'+str(r['id'])+'</p></article>'
-    out+='</section><section><h2>Perguntas registradas</h2><p>Fonte: base local de perguntas. A coleta consulta até 50 perguntas por loja por atualização; a base preservada pode conter status antigos. Ausência de registros não comprova ausência de dúvidas. Avaliações de compradores não integram este relatório.</p>'
+    out+='</section><section><h2>Perguntas registradas</h2><p>Fonte: base local de perguntas. A coleta consulta até 100 perguntas por loja e revisa dois status antigos por atualização; a base preservada pode conter status antigos. Ausência de registros não comprova ausência de dúvidas. Avaliações de compradores não integram este relatório.</p>'
     out+='<p>'+esc(' · '.join((r['status'] or 'Status não informado')+': '+str(r['n']) for r in data['questions']) or 'Nenhuma pergunta registrada')+'</p></section><footer>Keiper Consultoria · '+esc(item)+' · emissão '+stamp(now)+' · dados restritos ao anúncio e à loja identificados.</footer></main></body></html>'
     return out
 
