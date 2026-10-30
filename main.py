@@ -5190,15 +5190,26 @@ def puxar_envios(conexao_id, token, user_id):
     dados, erro = api_get(token, "/orders/search",
                           {"seller": user_id, "sort": "date_desc",
                            "limit": 50})
-    if erro or not dados:
-        registrar_erro(conexao_id, "envios", erro or "sem resposta")
+    if erro or not isinstance(dados, dict):
+        registrar_erro(conexao_id, "envios", erro or "resposta inválida")
         return False
-    resultados = dados.get("results") or []
+    resultados = dados.get("results")
+    if not isinstance(resultados, list):
+        registrar_erro(conexao_id, "envios", "lista de pedidos inválida")
+        return False
     agora = int(time.time())
     completo = True
     pares = []
     for o in resultados:
+        if not isinstance(o, dict):
+            completo = False
+            registrar_erro(conexao_id, "envios", "pedido inválido na resposta")
+            continue
         ship = o.get("shipping") or {}
+        if not isinstance(ship, dict):
+            completo = False
+            registrar_erro(conexao_id, "envios", "dados de envio inválidos")
+            continue
         sid = ship.get("id")
         if sid:
             par = (str(o.get("id")), str(sid))
@@ -5206,9 +5217,9 @@ def puxar_envios(conexao_id, token, user_id):
                 pares.append(par)
         if len(pares) >= 20:
             break
-    with banco() as conn:
-        executar(conn, "DELETE FROM envios WHERE conexao_id=%s",
-                 (conexao_id,))
+    # Preserve previously synchronized shipments: this refresh only covers
+    # a small recent window, so deleting all rows would lose historical data.
+    # The INSERT ... ON CONFLICT below updates refreshed shipments in place.
     for oid, sid in pares:
         det, det_erro = api_get(token, "/shipments/" + sid)
         if det_erro or not det:
@@ -5225,7 +5236,7 @@ def puxar_envios(conexao_id, token, user_id):
                               tracking=EXCLUDED.tracking,
                               pedido_id=EXCLUDED.pedido_id,
                               data=EXCLUDED.data,
-                              custo_frete=EXCLUDED.custo_frete,
+                              custo_frete=COALESCE(EXCLUDED.custo_frete, envios.custo_frete),
                               atualizado_em=EXCLUDED.atualizado_em""",
                      (conexao_id, sid, det.get("status"),
                       det.get("tracking_number"), oid,
