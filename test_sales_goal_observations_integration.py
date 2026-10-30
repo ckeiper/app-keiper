@@ -42,7 +42,10 @@ class SalesGoalHistoryIntegrationTests(unittest.TestCase):
     import time
     m=self.m;day=reporting_today()-timedelta(days=1);now=int(time.time())
     data=dict(self.data(),start_date=day.isoformat(),end_date=day.isoformat())
-    self.assertEqual(self.c.post(self.path,data=data).status_code,303);gid=self.rows()[0]['id']
+    self.assertEqual(self.c.post(self.path,data=data).status_code,303)
+    goal=self.rows()[0];gid=goal['id']
+    # Collection cannot predate creation when the request crosses a second.
+    now=max(int(time.time()),goal['created_at'])
     with m.banco() as conn:init_schema(conn,m.executar);init_schema(conn,m.executar)
     collect(self.ids[0],m.banco,m.consultar,m.executar,now);collect(self.ids[0],m.banco,m.consultar,m.executar,now)
     with m.banco() as conn:
