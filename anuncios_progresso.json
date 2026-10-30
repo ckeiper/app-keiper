@@ -832,7 +832,9 @@
         "test_listing_sku_variations_integration.py",
         "scripts/listing_sku_variations_browser_check.cjs"
       ],
-      "prs": [],
+      "prs": [
+        322
+      ],
       "numero_original": null,
       "prioridade": 100,
       "atualizado_em": "2026-10-30"
@@ -859,7 +861,9 @@
         "test_listing_sku_variations_integration.py",
         "scripts/listing_sku_variations_browser_check.cjs"
       ],
-      "prs": [],
+      "prs": [
+        322
+      ],
       "numero_original": null,
       "prioridade": 100,
       "atualizado_em": "2026-10-30"
@@ -1496,7 +1500,9 @@
         "pendente": 2
       },
       "total": 44,
-      "prs": []
+      "prs": [
+        322
+      ]
     }
   ],
   "publicacoes": [
