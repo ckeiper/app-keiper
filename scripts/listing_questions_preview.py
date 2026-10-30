@@ -9,7 +9,7 @@ NOW=1793337000
 for mode in ('empty','ready','limited','page2','fresh','unknown','partial'):
     rows=[] if mode=='empty' else [row(i,texto='Pergunta de teste '+str(i%3)+'?',status='ANSWERED' if i%2 else 'UNANSWERED',resposta='Resposta coletada de demonstração.' if i%2 else None) for i in range(1001 if mode=='limited' else 23)]
     if mode in ('fresh','partial'):
-        for r in rows:r.update(consulta_estado='read',status_confirmado_em=NOW,vendedor_confirmado='7',excluida_do_anuncio=False,em_espera=False)
+        for r in rows:r.update(atualizado_em=NOW,consulta_estado='read',status_confirmado_em=NOW,vendedor_confirmado='7',excluida_do_anuncio=False,em_espera=False)
         rows[0]['excluida_do_anuncio']=True
     data=model(rows,dict(pagina='2' if mode=='page2' else '1'),NOW,7)
     if mode in ('fresh','partial'):

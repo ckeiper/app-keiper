@@ -11,6 +11,7 @@ for(const mode of ['empty','ready','limited','page2','fresh','unknown','partial'
  assert.equal(await page.locator('.listing-questions form[method=post]').count(),0);
  await page.locator('.listing-questions select').selectOption('ANSWERED');
  assert.equal(await page.locator('.listing-questions select').inputValue(),'ANSWERED');
+ await page.locator('.listing-questions select').selectOption('all');
  if(mode==='limited')assert.ok((await page.locator('.listing-questions [role=status]').textContent()).includes('1.000'));
  if(mode==='fresh')assert.ok((await page.locator('#perguntas').textContent()).includes('Retirada do anúncio'));
  if(mode==='partial')assert.ok((await page.locator('.lq-coverage').textContent()).includes('Coleta parcial'));

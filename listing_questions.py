@@ -8,6 +8,7 @@ from listing_calendar import STYLE
 from question_sync import STATUSES,FRESH_SECONDS
 
 LIMIT=1000
+STATUS_LABELS={'UNANSWERED':'Sem resposta','ANSWERED':'Respondida','CLOSED_UNANSWERED':'Encerrada sem resposta','BANNED':'Bloqueada','DELETED':'Excluída','DISABLED':'Desativada','UNDER_REVIEW':'Em análise'}
 
 def persist(conn,execute,cid,payload,now,expected_seller=None):
     """Validate the entire fetched batch before writing only question/answer evidence."""
@@ -97,9 +98,11 @@ def render(cid,item,shop,data):
     esc=lambda x:escape(str(x),quote=True)
     path=f'/anuncios/{int(cid)}/{item}/perguntas'
     out=STYLE+'''<style>.lq-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.lq-cards article,.lq-row{background:#182e49;border:1px solid #426184;border-radius:10px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.lq-cards{margin:16px 0}.lq-cards article{display:grid;gap:8px;font-size:12px;margin:0}.lq-cards strong{font-size:24px}.lq-text{white-space:pre-wrap}@media(max-width:650px){.lq-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>'''
-    out+='<section class="lc listing-questions"><h2>Perguntas e recorrências</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><nav><a href="/anuncios/'+str(int(cid))+'/'+item+'/conteudo">Revisar conteúdo</a><a href="/anuncios/'+str(int(cid))+'/'+item+'/tarefas">Planejar ajustes</a></nav><p>Perguntas salvas e status conferidos nas coletas. A ausência de registros não comprova ausência de dúvidas.</p>'
+    out+='<section class="lc listing-questions"><h2>Perguntas e recorrências</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><nav><a href="/anuncios/'+str(int(cid))+'/'+item+'/conteudo">Revisar conteúdo</a><a href="/anuncios/'+str(int(cid))+'/'+item+'/tarefas">Planejar ajustes</a></nav><p>Perguntas salvas e status conferidos nas coletas.</p>'
     if data['limited']:out+='<p role="status">Amostra limitada aos 1.000 registros com coleta mais recente deste anúncio. Cards e recorrências usam somente essa amostra.</p>'
-    out+='<div class="lq-cards">'+''.join('<article><strong>'+str(n)+'</strong><span>'+label+'</span></article>' for n,label in [(data['total'],'Perguntas na base analisada'),(data['pending'],'Sem resposta · consulta recente'),(data['recent'].get('ANSWERED',0),'Respondidas · consulta recente'),(data['unknown'],'Sem verificação recente')])+'</div><p>Outros status: '+str(data['total']-data['counts'].get('UNANSWERED',0)-data['counts'].get('ANSWERED',0))+'. Status sem verificação recente permanecem como último registro salvo.</p>'
+    out+='<div class="lq-cards">'+''.join('<article><strong>'+str(n)+'</strong><span>'+label+'</span></article>' for n,label in [(data['total'],'Perguntas na base analisada'),(data['pending'],'Sem resposta · consulta recente'),(data['recent'].get('ANSWERED',0),'Respondidas · consulta recente'),(data['unknown'],'Sem verificação recente')])+'</div>'
+    other=data['total']-data['counts'].get('UNANSWERED',0)-data['counts'].get('ANSWERED',0)
+    if other:out+='<p>Outros status: '+str(other)+'.</p>'
     coverage=data.get('coverage')
     if coverage and str(coverage.get('vendedor_id'))==str(data.get('seller_id')):
         try:
@@ -111,8 +114,8 @@ def render(cid,item,shop,data):
         if coverage.get('estado')!='read':out+='<p>Coleta parcial ou não verificada. Nenhuma conclusão sobre histórico completo.</p>'
         out+='</section>'
     else:
-        out+='<p>Sem evidência de cobertura nesta versão. A próxima atualização da loja registra a consulta.</p>'
-    out+='<details><summary>Critérios de atualização e cobertura</summary><p>Até duas páginas de 50 perguntas e duas consultas individuais por atualização. Perguntas antigas entram em rodízio pela consulta mais antiga. Consulta recente corresponde às últimas seis horas, na mesma conta. O aviso de resposta exige status sem resposta e visibilidade confirmada, sem espera ou remoção.</p><p>Totais da coleta referem-se à loja; cards e filtros referem-se a este anúncio e à amostra local. Paginação lida não certifica histórico integral: perguntas excluídas anteriormente não são reconstruídas e o conjunto pode mudar entre páginas. Uma consulta indisponível não confirma exclusão nem resposta.</p></details>'
+        out+='<p>Cobertura da coleta ainda não verificada.</p>'
+    out+='<details><summary>Critérios de atualização e cobertura</summary><p>Até duas páginas de 50 perguntas e duas consultas individuais por atualização. Perguntas antigas entram em rodízio pela consulta mais antiga. Consulta recente corresponde às últimas seis horas, na mesma conta. O aviso de resposta exige status sem resposta e visibilidade confirmada, sem espera ou remoção.</p><p>Totais da coleta referem-se à loja; cards e filtros referem-se a este anúncio e à amostra local. Paginação lida não certifica histórico integral: perguntas excluídas anteriormente não são reconstruídas e o conjunto pode mudar entre páginas. Uma consulta indisponível não confirma exclusão nem resposta. O agrupamento literal ignora maiúsculas e espaços repetidos. Não identifica intenção, objeção, sentimento ou avaliação de compradores.</p></details>'
     def pages(p,total,key,anchor):
         text='<nav aria-label="Paginação de '+anchor+'">Página '+str(p)+' de '+str(total)
         for label,target in [('Anterior',p-1),('Próxima',p+1)]:
@@ -120,7 +123,7 @@ def render(cid,item,shop,data):
                 params=dict(status=data['status'],pagina=data['page'],recorrencias=data['group_page']);params[key]=target
                 text+=' <a href="'+esc(path+'?'+urlencode(params)+'#'+anchor)+'">'+label+'</a>'
         return text+'</nav>'
-    out+='<section id="recorrencias"><h3>Textos repetidos</h3><p>Agrupamento literal: ignora somente maiúsculas e espaços repetidos. Não identifica intenção, objeção, sentimento ou avaliação de compradores. '+str(data['group_total'])+' grupos repetidos na base analisada, considerando todos os status.</p>'
+    out+='<section id="recorrencias"><h3>Textos repetidos</h3><p>'+str(data['group_total'])+' grupos de textos iguais na base analisada, considerando todos os status salvos.</p>'
     for group in data['groups']:out+='<article class="lq-row"><strong>'+str(group['n'])+' ocorrências · '+str(group['pending'])+' sem resposta registrada</strong><p class="lq-text">'+esc(group['text'])+'</p></article>'
     if not data['groups']:out+='<p>Nenhum texto repetido identificado nesta base.</p>'
     out+=pages(data['group_page'],data['group_pages'],'recorrencias','recorrencias')+'</section><section id="perguntas"><h3>Perguntas salvas</h3><form method="get"><label>Último status salvo<select name="status">'+''.join('<option value="'+s+'"'+(' selected' if data['status']==s else '')+'>'+label+'</option>' for s,label in [('all','Todos'),('UNANSWERED','Sem resposta no registro'),('ANSWERED','Respondidas no registro')])+'</select></label><button>Filtrar</button></form><p>'+str(data['filtered'])+' perguntas neste filtro. Ordenação por coleta mais recente; datas em Brasília.</p>'
@@ -136,7 +139,7 @@ def render(cid,item,shop,data):
         confirmed=verified_status(row,data['now'],data.get('seller_id'))
         visibility='Retirada do anúncio na última consulta' if row.get('excluida_do_anuncio') is True else 'Em espera na última consulta' if row.get('em_espera') is True else 'Visibilidade não verificada' if row.get('excluida_do_anuncio') is None or row.get('em_espera') is None else ''
         evidence='Status consultado nas últimas seis horas' if confirmed else 'Status sem verificação recente · último registro salvo'
-        out+='<article class="lq-row"><strong>Pergunta #'+esc(row.get('pergunta_id',''))+'</strong><p>'+stamp(row.get('data'))+' · '+evidence+' · '+esc(row.get('status') or 'não informado')+' · coleta '+collected+'</p><p>'+esc(visibility)+'</p><p class="lq-text">'+esc(row.get('texto') or 'Texto não disponível')+'</p><p class="lq-text">Resposta registrada: '+esc('não disponível · '+str(row['resposta_status']) if row.get('resposta_status') in ('BANNED','DISABLED') else row.get('resposta') or 'não disponível')+'</p></article>'
+        out+='<article class="lq-row"><strong>Pergunta #'+esc(row.get('pergunta_id',''))+'</strong><p>'+stamp(row.get('data'))+' · '+evidence+' · '+esc(STATUS_LABELS.get(row.get('status'),row.get('status') or 'não informado'))+' · coleta '+collected+'</p><p>'+esc(visibility)+'</p><p class="lq-text">'+esc(row.get('texto') or 'Texto não disponível')+'</p><p class="lq-text">Resposta registrada: '+esc('não disponível · '+str(row['resposta_status']) if row.get('resposta_status') in ('BANNED','DISABLED') else row.get('resposta') or 'não disponível')+'</p></article>'
     if not data['rows']:out+='<p>Nenhuma pergunta salva neste filtro. Ausência de registros não comprova ausência de dúvidas.</p>'
     return out+pages(data['page'],data['pages'],'pagina','perguntas')+'</section></section>'
 
