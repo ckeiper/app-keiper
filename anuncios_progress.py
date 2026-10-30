@@ -56,7 +56,10 @@ def validate(model,root=ROOT,check_files=True):
 
 @lru_cache(maxsize=1)
 def read():
-    return validate(json.loads((ROOT/'anuncios_progresso.json').read_text(encoding='utf-8')),check_files=False)
+    model = validate(json.loads((ROOT/'anuncios_progresso.json').read_text(encoding='utf-8')),check_files=False)
+    from delivery_progress import read as read_deliveries
+    model['entregas'] = read_deliveries({row['id'] for row in model['capacidades']})
+    return model
 
 
 def summary(model):

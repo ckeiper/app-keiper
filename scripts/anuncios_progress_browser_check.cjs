@@ -17,6 +17,8 @@ const {chromium}=require('playwright');
    await page.setContent(fs.readFileSync(`visual-qa/anuncios-progress-${state}.html`,'utf8'));
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
    assert.equal(await page.locator('.ap-progress svg').count(),1);
+   assert.ok(await page.locator('.ap-delivery-stage').isVisible());
+   assert.ok((await page.locator('.ap-delivery-stage').textContent()).includes('Etapa da entrega'));
    assert.equal(await page.locator('.ap-progress a,.ap-progress form,.ap-progress table,.ap-progress ul,.ap-progress ol').count(),0);
    assert.equal(await page.locator('.ap-progress .ap-column').count(),state==='current'?1:2);
    assert.equal(await page.locator('.ap-progress polyline').count(),0);

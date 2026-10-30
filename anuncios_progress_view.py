@@ -1,6 +1,7 @@
 """A single, read-only evolution chart; no lists or external links."""
 from datetime import date
 from html import escape
+from delivery_progress import render_latest
 
 COLORS={'concluida':'#69d6b5','parcial':'#f2bf68','pendente':'#849bb8','em_andamento':'#65b4ff','bloqueada':'#ed929e'}
 LABELS={'concluida':'Concluídas','parcial':'Parciais','pendente':'Pendentes','em_andamento':'Em desenvolvimento','bloqueada':'Bloqueadas'}
@@ -43,6 +44,7 @@ def render(data,model):
         out+='<span><i style="background:'+COLORS[code]+'" aria-hidden="true"></i>'+LABELS[code]+': <b>'+str(n)+'</b></span>'
     out+='</div>'
     if len(records)==1:out+='<p class="ap-footnote">Primeiro dia registrado. Cada dia mostra somente a última medição publicada.</p>'
+    out += render_latest(data.get('entregas', []))
     return out+'</section></main>'
 
 

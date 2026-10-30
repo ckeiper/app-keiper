@@ -1,0 +1,83 @@
+{
+  "versao": 1,
+  "criterio": "Etapas de entregas individuais. Não alteram os totais nem certificam conclusão de frentes auditadas ou da lista original de 90.",
+  "entregas": [
+    {
+      "id": "conteudo-acoes-321",
+      "escopo": "Resumo de próximas ações na conferência do conteúdo, sem concluir a análise visual, semântica e todos os tipos de valores.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "publicada",
+      "pr": 321,
+      "head_sha": "c413f1632fc6cb722852c88c16bba6db39e80b99",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41002331091,
+          "resultado": "success",
+          "head_sha": "c413f1632fc6cb722852c88c16bba6db39e80b99"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41002330998,
+          "resultado": "success",
+          "head_sha": "c413f1632fc6cb722852c88c16bba6db39e80b99"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41002330992,
+          "resultado": "success",
+          "head_sha": "c413f1632fc6cb722852c88c16bba6db39e80b99"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbi1naks728c739veqm0",
+        "commit": "bed89293d1eafb6482f901f84c7e8dfbc1f5f4b4",
+        "status": "live",
+        "horario_brasilia": "2026-10-30T01:24:43-03:00"
+      },
+      "atualizado_em": "2026-10-30T01:24:43-03:00",
+      "lacuna": ""
+    },
+    {
+      "id": "skus-variacoes-322",
+      "escopo": "Coleta de SKUs oficiais do anúncio e de cada variação, com agrupamento entre anúncios distintos, origem e cobertura. Não conclui a validação de equivalência ou competição interna.",
+      "frentes": [
+        "semelhantes",
+        "competicao-interna"
+      ],
+      "etapa": "publicada",
+      "pr": 322,
+      "head_sha": "ee4afe9547a46f6704c26589f251f6fa8c2533ef",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41004655174,
+          "resultado": "success",
+          "head_sha": "ee4afe9547a46f6704c26589f251f6fa8c2533ef"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41004655340,
+          "resultado": "success",
+          "head_sha": "ee4afe9547a46f6704c26589f251f6fa8c2533ef"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41004655159,
+          "resultado": "success",
+          "head_sha": "ee4afe9547a46f6704c26589f251f6fa8c2533ef"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbi236h5efls73999jl0",
+        "commit": "ad595374e3d72029d680707e8ed92f9d44d8956c",
+        "status": "live",
+        "horario_brasilia": "2026-10-30T01:50:02.941-03:00"
+      },
+      "atualizado_em": "2026-10-30T01:50:02.941-03:00",
+      "lacuna": ""
+    }
+  ]
+}
