@@ -55,6 +55,9 @@ class FreightComparisonTests(unittest.TestCase):
         self.assertIn("Dentro da tolerancia", html)
         self.assertIn("R$ 18,50", html)
         self.assertIn("R$ -3,00", html)
+        self.assertIn("Resumo ficticio:", html)
+        self.assertIn("Total acima: R$ 3,50", html)
+        self.assertIn("total abaixo: R$ 3,00", html)
         self.assertEqual(html.count("<tr>"), 4)
 
     def test_invalid_inputs(self):
