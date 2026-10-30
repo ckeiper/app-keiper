@@ -15,6 +15,6 @@ for(const mode of ['initial','ready','catalog','empty','unknown','incomplete','p
  if(mode==='empty')assert.ok((await page.locator('#buyer-review-result').textContent()).includes('não comprova ausência'));
  if(mode==='incomplete')assert.ok((await page.locator('.pf-grid').textContent()).includes('Não verificado'));
  if(mode==='page2')assert.equal(await page.getByRole('button',{name:'Página anterior'}).count(),1);
- if(read){await page.locator('summary').first().click();assert.ok(await page.locator('.br-levels').isVisible());}
+ if(read){await page.locator('.buyer-reviews summary').first().click();assert.ok(await page.locator('.br-levels').isVisible());}
  await page.screenshot({path:`visual-qa/buyer-reviews-${mode}-${theme}-${width}.png`,fullPage:true});
 }console.log('42 review states/themes/viewports passed; scope, forms, unknown states and pagination verified.');}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});
