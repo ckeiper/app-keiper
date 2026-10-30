@@ -1,0 +1,13 @@
+# Avaliações do produto por anúncio
+
+Consulta administrativa sob demanda em `/anuncios/<cid>/<item_id>/avaliacoes`, acessível pelo checklist e perguntas. GET somente apresenta o formulário; POST protegido por sessão, autorização por loja e CSRF faz no máximo três GETs oficiais: `/users/me`, `/items/{id}` e `/reviews/item/{id}`. Confere conta, vendedor, item, site MLB e status ativo antes das avaliações. Não grava comentários, identidades, mídias ou respostas brutas; não altera anúncios, perguntas ou avaliações. Nenhuma migração de banco é necessária.
+
+Fonte oficial consultada em 30/10/2026: https://developers.mercadolivre.com.br/pt_br/opinioes-sobre-um-produto . Usa `catalog_product_id` retornado pelo item para produto vinculado. O painel distingue avaliações compartilhadas do produto de reputação e atendimento da loja. Só mostra textos `published` vinculados ao item ou ao produto confirmado. Não apresenta mídias ou links enviados pelos compradores. HTML escapado e textos limitados a 200 caracteres de título e 4.000 de conteúdo, com aviso de abreviação.
+
+A média, o total e a distribuição são validados independentemente; números ausentes, não finitos, de tipo incorreto ou contraditórios não viram zero. A distribuição inconsistente com o total não é certificada. Zero de avaliações só é mostrado quando explicitamente retornado; uma página vazia não comprova ausência. HTTP 404, 401, 403, 429, redirecionamentos ou falhas encerram a leitura sem retry automático ou conclusão de ausência. Timeout `(3,8)`, host fixo, bearer sem exibição em mensagens. Cada navegação exige POST com CSRF e repete a conferência de propriedade; a consulta pode mudar entre páginas.
+
+Cinco registros por página. Usa `paging.total_pageable`, nunca o campo depreciado `reviews_with_comment`; ausência de metadados confiáveis impede avançar. Limite **local** de 100 posições, que não é apresentado como restrição oficial. Resultados não representam histórico integral, análise de sentimento, causa de vendas ou confirmação de defeitos. Não há notificações automáticas nem persistência/histórico nesta etapa. A frente Perguntas e avaliações permanece parcial.
+
+O shell recebe `refresh=False` explicitamente para não oferecer Atualizar Anúncios numa leitura exclusivamente de avaliações, preservando o menu Anúncios e o comportamento padrão das outras páginas.
+
+Validação: testes de normalização, propriedade, sessão/CSRF, limite de requisições, erros, catálogo, paginação e escape; 42 combinações de estados/temas/larguras no navegador, com capturas no CI. Testes usam dados sintéticos somente em ambiente descartável. A consulta autenticada da API com um anúncio real deve ser distinguida de deploy e proteção HTTP; não simular prova em produção.

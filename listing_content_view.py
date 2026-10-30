@@ -16,6 +16,7 @@ def render(cid,item,shop,model,token,values=None,message=''):
     out+='<p><a href="/anuncios/'+str(int(cid))+'/'+item+'/conteudo-atual">Conferir conteúdo atual no Mercado Livre ↗</a></p>'
     out+='<p><a href="/anuncios/'+str(int(cid))+'/'+item+'/perguntas">Consultar perguntas registradas</a></p>'
     out+='<p>Última contagem coletada: fotos '+esc(photos if photos is not None else 'não verificadas')+' · clips '+esc(clips if clips is not None else 'não verificados')+'. Contagem não mede qualidade. Confira o anúncio antes de registrar.</p>'
+    out+='<p><a href="/anuncios/'+str(int(cid))+'/'+item+'/avaliacoes">Consultar avaliações do produto</a></p>'
     if message:out+='<p role="status">'+esc(message)+'</p>'
     counts={s:sum(r['verdict']==s for r in model['latest'].values()) for s in STATES}
     out+='<div class="cr-counts">'+''.join('<article><strong>'+str(n)+'</strong><span>'+label+'</span></article>' for label,n in [('Sem revisão',len(CRITERIA)-len(model['latest'])),('Conferidos',counts['approved']),('Para ajustar',counts['revise']),('Não se aplicam',counts['na'])])+'</div>'
