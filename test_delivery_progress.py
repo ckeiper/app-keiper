@@ -1,6 +1,4 @@
-import json
 from copy import deepcopy
-from pathlib import Path
 import unittest
 from delivery_progress import STAGES, validate, render_latest
 from anuncios_progress import read, summary
@@ -8,7 +6,11 @@ from anuncios_progress_view import render
 
 
 def fixture():
-    return json.loads(Path('anuncios_entregas.json').read_text())
+    return dict(versao=1, entregas=[dict(id='synthetic-content', escopo='Escopo sintético de teste',
+        frentes=['conteudo-checklist'], etapa='publicada', pr=1, head_sha='c'*40, lacuna='',
+        checks=[dict(nome='Sales tests', run_id=1, resultado='success', head_sha='c'*40)],
+        publicacao=dict(deploy_id='dep-synthetic', commit='d'*40, status='live', horario_brasilia='2026-10-30T01:24:43-03:00'),
+        atualizado_em='2026-10-30T01:24:43-03:00')])
 
 
 class DeliveryProgressTests(unittest.TestCase):
