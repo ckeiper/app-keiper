@@ -71,11 +71,13 @@ let alertIndex=0,lastUpdated=0;
 const states=new Map(cards.map(card=>[card,'waiting']));
 const adsStatus=document.getElementById('kh-ads-status');
 function updateAdsStatus(){
- const finished=[...states.values()].filter(state=>state==='done'||state==='failed').length;
+ const finished=[...states.values()].filter(state=>state==='done'||state==='failed'||state==='busy').length;
  const failures=[...states.values()].filter(state=>state==='failed').length;
+ const occupied=[...states.values()].filter(state=>state==='busy').length;
  if(finished<cards.length){adsStatus.textContent='Atualizando Ads… '+finished+'/'+cards.length;return;}
  if(!cards.length){adsStatus.textContent='';return;}
  const time=lastUpdated?new Date(lastUpdated*1000).toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'}):'';
+ if(occupied){adsStatus.textContent='Coletas em andamento em '+occupied+' loja(s) · exibindo dados disponíveis'+(failures?' · há falhas em outras lojas':'');return;}
  adsStatus.textContent=failures?(time?'Ads atualizados parcialmente às '+time:'Não foi possível atualizar os Ads'):'Ads atualizados às '+time;
 }
 updateAdsStatus();
@@ -87,7 +89,7 @@ async function refreshAds(id){
  if(!response.ok)throw Error('refresh');const job=await response.json();
  const deadline=Date.now()+600000;
  while(Date.now()<deadline){await pause(1500);const r=await fetch(endpoint,{cache:'no-store',headers:{Accept:'application/json'}});if(!r.ok)throw Error('status');const state=await r.json();
- if(state.id!==job.id)throw Error('changed');if(state.status==='concluida')return state;
+ if(state.id!==job.id)throw Error('changed');if(state.status==='concluida'||state.status==='ocupada')return state;
  if(!['aguardando','executando'].includes(state.status))throw Error('failed');}
  throw Error('timeout');
 }
@@ -101,7 +103,8 @@ async function loadCard(card){
  try{const state=await refreshAds(card.dataset.id);const response=await fetch('/painel/alertas/'+encodeURIComponent(card.dataset.id),{credentials:'same-origin',cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();box.replaceChildren();
  if(data.alerts.length){const first=data.alerts[0];link(first.label,data.url+'#alert-'+first.code,first.severity);if(data.alerts.length>1)link('+'+(data.alerts.length-1)+(data.alerts.length===2?' alerta':' alertas'),data.url,'kh-alert-more');}
  else{link(data.known?'Nenhum alerta nos dados disponíveis':'Campanhas ainda não sincronizadas',data.url,'kh-alert-muted');}
- states.set(card,'done');lastUpdated=Math.max(lastUpdated,Number(state.fim_em)||0);
+ if(state.status==='ocupada'){const note=document.createElement('span');note.className='kh-alert-muted';note.textContent='Coleta da loja em andamento · dados disponíveis';box.appendChild(note);states.set(card,'busy');}
+ else{states.set(card,'done');lastUpdated=Math.max(lastUpdated,Number(state.fim_em)||0);}
  }catch(e){states.set(card,'failed');box.replaceChildren();const retry=document.createElement('button');retry.type='button';retry.textContent='Falha ao atualizar Ads · tentar novamente';retry.className='kh-alert-muted';retry.addEventListener('click',()=>loadCard(card));box.appendChild(retry);}finally{box.setAttribute('aria-busy','false');updateAdsStatus();}
 }
 async function loadAlerts(){while(alertIndex<cards.length){await loadCard(cards[alertIndex++]);}}
