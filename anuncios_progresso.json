@@ -709,21 +709,24 @@
       "area": "Conteúdo",
       "capacidade": "Perguntas e avaliações",
       "estado": "parcial",
-      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento.",
-      "falta": "A coleta atual consulta até 50 perguntas por loja por atualização e não certifica cobertura integral nem atualiza todos os status antigos. Perguntas anteriormente apagadas não são reconstruídas. Falta fonte e painel de avaliações dos compradores e análise validada de objeções semânticas.",
+      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder.",
+      "falta": "A busca permanece limitada a 100 perguntas por atualização e a revisão individual a dois registros antigos por rodada. Não certifica histórico integral nem atualização simultânea de todos os status; perguntas anteriormente apagadas não são reconstruídas. Falta fonte e painel de avaliações dos compradores e análise validada de objeções semânticas.",
       "fontes": [
         "listing_questions.py",
-        "main.py"
+        "main.py",
+        "question_sync.py",
+        "docs/question-collection-coverage.md"
       ],
       "testes": [
         "test_listing_questions.py",
         "test_listing_questions_integration.py",
-        "scripts/listing_questions_browser_check.cjs"
+        "scripts/listing_questions_browser_check.cjs",
+        "test_question_sync.py"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 3,
-      "atualizado_em": "2026-10-26"
+      "atualizado_em": "2026-10-30"
     },
     {
       "id": "reativacao",
@@ -1503,6 +1506,18 @@
       "prs": [
         322
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-30",
+      "resumo": "Cobertura explícita da coleta de perguntas, revisão em rodízio de status antigos e correção do aviso de pendência. Perguntas e avaliações permanece parcial, sem aumento da contagem de frentes concluídas.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": []
     }
   ],
   "publicacoes": [
@@ -1573,6 +1588,12 @@
       "horario_brasilia": "2026-10-30T01:24:43-03:00",
       "status": "live",
       "titulo": "Resumo de próximas ações da conferência de conteúdo"
+    },
+    {
+      "pr": 323,
+      "titulo": "Etapas de entrega separadas das frentes concluídas",
+      "deploy": "dep-dbi25p0473hc73ej36ig",
+      "horario_brasilia": "2026-10-30T01:55:31-03:00"
     }
   ]
 }

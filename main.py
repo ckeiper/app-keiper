@@ -743,6 +743,8 @@ def iniciar_banco():
             status TEXT, resposta TEXT, data TEXT, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, pergunta_id)
         )""")
+        from question_sync import init_schema as init_question_sync
+        init_question_sync(conn, execute)
         execute(conn, "CREATE INDEX IF NOT EXISTS perguntas_listing_coleta ON perguntas(conexao_id,item_id,atualizado_em DESC NULLS LAST,pergunta_id DESC)")
         execute(conn, """CREATE TABLE IF NOT EXISTS envios (
             conexao_id INTEGER, envio_id TEXT, status TEXT, tracking TEXT,
@@ -4647,15 +4649,14 @@ def painel_detalhe(cid):
                                    "AND data >= %s ORDER BY data",
                              (cid, (datetime.date.today()
                                     - datetime.timedelta(days=6)).isoformat()))
-        perg_pend = consultar(conn, "SELECT COUNT(*) AS n FROM perguntas "
-                                    "WHERE conexao_id=%s AND status != 'ANSWERED'", (cid,))
+        from question_sync import pending_count
+        perguntas_pendentes = pending_count(conn,consultar,cid,c['user_id'],int(time.time()))
         envios_hoje = consultar(conn, "SELECT COUNT(*) AS n FROM envios "
                                       "WHERE conexao_id=%s AND SUBSTRING(data,1,10)=%s",
                                 (cid, hoje_iso))
         ult = consultar(conn, "SELECT MAX(atualizado_em) AS ult FROM anuncios "
                               "WHERE conexao_id=%s", (cid,))
     ultima = ult[0]["ult"] if ult and ult[0]["ult"] else None
-    perguntas_pendentes = perg_pend[0]["n"] if perg_pend else 0
     envios_dia = envios_hoje[0]["n"] if envios_hoje else 0
     atualizando = False
     if (ultima is None or (int(time.time()) - ultima) > GATILHO_AUTO_SEG) \
@@ -4707,8 +4708,8 @@ def painel_detalhe(cid):
     if perguntas_pendentes > 0:
         corpo += ("<div class='aviso'>💬 Você tem <b>"
                   + str(perguntas_pendentes)
-                  + " pergunta(s) pendente(s)</b> para responder nos anúncios. "
-                  "Responder rápido aumenta a chance de fechar a venda.</div>")
+                  + " pergunta(s) sem resposta na consulta recente</b> do Mercado Livre. "
+                  "Confira os anúncios antes de responder.</div>")
     if lucro_dia <= 0:
         lucro_html = "<span class='alerta urgente'>R$ %.2f</span>" % lucro_dia
     else:
@@ -5179,20 +5180,8 @@ def puxar_metricas(conexao_id, token):
     return
 
 def puxar_perguntas(conexao_id, token, user_id):
-    dados, erro = api_get(token, "/questions/search",
-                          {"seller_id": user_id, "api_version": 4,
-                           "limit": 50})
-    if erro or not dados:
-        registrar_erro(conexao_id, "perguntas", erro or "sem resposta")
-        return False
-    from listing_questions import persist
-    try:
-        with banco() as conn:
-            persist(conn, executar, conexao_id, dados, int(time.time()))
-    except ValueError as exc:
-        registrar_erro(conexao_id, "perguntas", str(exc))
-        return False
-    return True
+    from question_sync import collect
+    return collect(conexao_id,token,user_id,banco,consultar,executar,requests.get,registrar_erro)
 
 
 def puxar_envios(conexao_id, token, user_id):

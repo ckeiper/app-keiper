@@ -60,6 +60,8 @@ on:
       - 'test_listing_onboarding*.py'
       - 'scripts/listing_onboarding*'
       - 'listing_questions.py'
+      - 'question_sync.py'
+      - 'test_question_sync.py'
       - 'test_listing_questions*.py'
       - 'scripts/listing_questions*'
       - 'listing_content*.py'
