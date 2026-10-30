@@ -48,4 +48,3 @@ class AdsOpportunityTests(unittest.TestCase):
     def test_today_alone_has_no_complete_comparison(self):
         self.assertNotIn('queda de ',self.page(today_only=True))
         self.assertFalse(any('AS dias_atual' in s for s,p in self.queries))
-

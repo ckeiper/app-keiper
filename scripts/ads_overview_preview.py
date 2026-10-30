@@ -29,6 +29,7 @@ def render_fixture(empty=False, args='', admin=True, campaign_updates=None):
     def query(conn,sql,params):
         if 'FROM conexoes' in sql:return [dict(id=1,cliente='Loja de demonstração')]
         if 'FROM ads_dia' in sql:return [] if empty else rows
+        if 'AS dias_atual' in sql:return []  # No comparison coverage in this visual fixture.
         if 'FROM ads_campanha_dia' in sql:return [] if empty else campaigns
         raise AssertionError(sql)
     app=Flask('ads-design-preview')
