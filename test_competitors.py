@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 import os
 import time
 import unittest
@@ -121,7 +122,7 @@ class CompetitorIntegrationTests(unittest.TestCase):
                 row=self.m.consultar(conn,"INSERT INTO conexoes(cliente,status,access_token,expires_at) VALUES(%s,'ativa','test-token',%s) RETURNING id",(name,int(time.time())+86400))[0]
                 self.ids.append(row['id'])
         self.client=self.m.app.test_client()
-        with self.client.session_transaction() as s:
+        with database_session(self.client) as s:
             s.update(usuario_id=1,tipo='cliente',conexao_id=self.ids[0],competitor_csrf='csrf-test')
         self.path=f'/anuncios/{self.ids[0]}/concorrencia'
 
@@ -240,3 +241,37 @@ class CompetitorIntegrationTests(unittest.TestCase):
         history=self.client.get(self.path+f'/{tid}?alteracoes=1').text
         self.assertIn('R$ 80,00',history)
         self.assertIn('−R$ 20,00',history)
+
+
+    def test_link_to_own_listing_is_tenant_checked_and_preserved(self):
+        own,foreign='MLB1111111111','MLB2222222222'
+        try:
+            with self.m.banco() as conn:
+                self.m.executar(conn,'INSERT INTO anuncios(conexao_id,item_id) VALUES (%s,%s),(%s,%s)',(self.ids[0],own,self.ids[1],foreign))
+            rejected=self.client.post(self.path,data={'link':ITEM,'meu_anuncio':foreign,'csrf_token':'csrf-test'})
+            self.assertEqual(rejected.status_code,400)
+            accepted=self.client.post(self.path,data={'link':ITEM,'meu_anuncio':own,'csrf_token':'csrf-test'})
+            self.assertEqual(accepted.status_code,303)
+            self.assertEqual(self.client.post(self.path,data={'link':ITEM,'csrf_token':'csrf-test'}).status_code,303)
+            with self.m.banco() as conn:
+                rows=self.m.consultar(conn,'SELECT own_item_id FROM competitor_targets WHERE conexao_id=%s',(self.ids[0],))
+            self.assertEqual(rows[0]['own_item_id'],own)
+            self.assertEqual(self.client.post(self.path,data={'link':ITEM,'meu_anuncio':ITEM,'csrf_token':'csrf-test'}).status_code,400)
+        finally:
+            with self.m.banco() as conn:
+                self.m.executar(conn,'DELETE FROM anuncios WHERE conexao_id=ANY(%s)',(self.ids,))
+
+    def test_offer_history_persists_and_reads_only_linked_store_evidence(self):
+        from offer_history import record,load
+        from datetime import date
+        stamp=int(datetime(2026,10,19,12,tzinfo=BR).timestamp())
+        snap={'sale_price':{'checked_at':stamp,'data':{'amount':80,'regular_amount':100,'currency_id':'BRL','metadata':{'promotion_id':'x'}}}}
+        with self.m.banco() as conn:
+            for cid in self.ids:
+                record(conn,self.m.executar,cid,'MLB1111111111',snap)
+            record(conn,self.m.executar,self.ids[0],'MLB1111111111',snap)
+            data=load(conn,self.m.consultar,self.ids[0],'MLB1111111111',date(2026,10,20))
+        self.assertEqual(len(data['own']),1)
+        self.assertEqual(data['own'][0]['price'],Decimal('80'))
+        self.assertTrue(data['own'][0]['promotion'])
+        self.assertEqual(data['targets'],[])

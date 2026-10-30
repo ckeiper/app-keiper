@@ -243,8 +243,8 @@ IMPORT = """<div class="card"><h3>{{ 'Adicionar reunião ao lead' if lead else '
 <form method="post" enctype="multipart/form-data" class="grid"><input type="hidden" name="csrf_token" value="{{ csrf }}"><div><label for="arquivo">Arquivo de transcrição</label><input id="arquivo" type="file" name="arquivo" accept=".txt,.vtt,.srt,.docx,.pdf"></div><div><label for="reuniao">Data da reunião (opcional)</label><input type="date" id="reuniao" name="data_reuniao" value="{{ meeting_date }}"></div><div class="wide"><label for="texto">Ou cole o texto</label><textarea id="texto" name="texto" maxlength="120000" rows="12">{{ text }}</textarea></div><button class="btn-acoes" type="submit">Extrair e revisar</button></form></div></main>"""
 DETAIL = """<div class="card"><h3>Registrar contato</h3><form method="post" action="/crm/{{ lead.id }}/contato" class="grid"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="versao" value="{{ version }}"><div class="wide"><label for="resultado">Resultado da conversa</label><textarea id="resultado" name="resultado" required maxlength="5000"></textarea></div><div><label for="acao_contato">Próxima ação</label><input id="acao_contato" name="proxima_acao" maxlength="300"></div><div><label for="data_contato">Próximo follow-up</label><input id="data_contato" name="data_followup" type="date"></div><div class="wide"><button class="btn-acoes">Registrar contato e atualizar acompanhamento</button><p class="muted">Sem nova data, o retorno anterior será concluído e o lead ficará sem data.</p></div></form></div>
 <div class="card"><div class="actions"><h3>Histórico</h3><a href="/crm/importar?lead={{ lead.id }}">+ Importar outra reunião</a></div>{% for item in history %}<article class="leadrow"><div><strong>{{ item.tipo }}</strong> · {{ item.criado_em.astimezone(tz).strftime('%d/%m/%Y %H:%M') }}{% if item.data_reuniao %} · Reunião {{ item.data_reuniao.strftime('%d/%m/%Y') }}{% endif %}<pre>{{ item.texto }}</pre>{% if item.transcricao %}<details><summary>Transcrição original</summary><pre>{{ item.transcricao }}</pre></details>{% endif %}</div></article>{% else %}<p>Sem contatos registrados.</p>{% endfor %}</div></main>"""
-SUMMARY = """<section class="card" aria-label="Acompanhamento de leads"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><h3>Quem preciso contatar hoje</h3><a href="/crm">Abrir CRM →</a></div><p><strong>{{ overdue }}</strong> atrasados · <strong>{{ due }}</strong> para hoje · <strong>{{ undated }}</strong> sem próxima data</p>{% for lead in leads %}<div style="padding:9px 0;border-top:1px solid #e5eaf0"><a href="/crm/{{ lead.id }}"><strong>{{ lead.nome }}</strong></a> · {{ lead.data_followup.strftime('%d/%m') }}<div>{{ lead.dados.get('proxima_acao','') }}</div></div>{% else %}<p>Nenhum retorno pendente para hoje.</p>{% endfor %}<p><a href="/crm/novo">+ Novo lead</a> · <a href="/crm/importar">Importar transcrição</a></p></section>"""
-HOME_WIDGET = """<div id="crm-home-summary"><section class="card"><h3>Acompanhamento de leads</h3><p><a href="/crm">Abrir CRM</a> · <a href="/crm/importar">Importar transcrição</a></p></section></div><script>fetch('/crm/resumo',{credentials:'same-origin'}).then(function(r){if(!r.ok)throw Error();return r.text();}).then(function(s){document.getElementById('crm-home-summary').innerHTML=s;}).catch(function(){});</script>"""
+from crm_home import SUMMARY, HOME_WIDGET
+
 
 
 def contact_phone(value):
@@ -361,15 +361,16 @@ def register_crm(app, bank, query, execute, page):
     @app.route('/crm/resumo')
     @admin
     def crm_summary():
+        day = today()
         with bank() as conn:
             counts = query(conn, """SELECT COUNT(*) FILTER(WHERE data_followup < %s) overdue,
                 COUNT(*) FILTER(WHERE data_followup = %s) due,
                 COUNT(*) FILTER(WHERE data_followup IS NULL) undated
-                FROM crm_leads WHERE etapa NOT IN (%s,%s)""", (today(), today(), *CLOSED))[0]
+                FROM crm_leads WHERE etapa NOT IN (%s,%s)""", (day, day, *CLOSED))[0]
             rows = query(conn, """SELECT id,nome,dados,data_followup FROM crm_leads
                 WHERE etapa NOT IN (%s,%s) AND data_followup <= %s
-                ORDER BY data_followup,id LIMIT 6""", (*CLOSED, today()))
-        return render_template_string(SUMMARY, leads=rows, **counts)
+                ORDER BY data_followup,id LIMIT 6""", (*CLOSED, day))
+        return render_template_string(SUMMARY, leads=rows, today=day, **counts)
 
     @app.route('/crm/novo', methods=['GET','POST'])
     @app.route('/crm/<int:lead_id>', methods=['GET','POST'])

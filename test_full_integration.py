@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 import json
 import os
 import time
@@ -29,7 +30,7 @@ class FullIntegrationTests(unittest.TestCase):
                 self.ids.append(cid)
                 m.executar(conn,"INSERT INTO anuncios(conexao_id,item_id,titulo) VALUES(%s,'MLBFULL',%s)",(cid,name))
         self.client = m.app.test_client()
-        with self.client.session_transaction() as session:
+        with database_session(self.client) as session:
             session.update(usuario_id=1,tipo='cliente',conexao_id=self.ids[0])
         self.url = '/full/' + str(self.ids[0]) + '?item_id=MLBFULL&periodo=personalizado&inicio=2026-01-02&fim=2026-01-03'
 

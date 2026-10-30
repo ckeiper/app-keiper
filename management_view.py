@@ -24,11 +24,12 @@ def number(value,digits=1,suffix=''):
 def compare(current, previous, money=False):
     delta=change(current,previous)
     text='Sem base de comparação' if delta is None else ('+' if delta>0 else '')+number(delta,1,'%')
-    return 'Anterior: '+fmt(previous,money)+' · '+text
+    tone='neutral' if delta is None or delta == 0 else 'up' if delta > 0 else 'down'
+    return ('Anterior: '+fmt(previous,money),text,tone)
 
 
 def card(label,value,note):
-    return metric_card(label,value,note)
+    return metric_card(label,value,note[0],note[1],note[2]) if isinstance(note,tuple) else metric_card(label,value,note)
 
 
 def select(name,options,value):
@@ -66,7 +67,7 @@ def render_management(cid,report,args):
     period_params.update({key:args[key] for key in ('inicio','fim') if args.get(key)})
     sales_url=f'/vendas/{cid}?'+urlencode({'periodo':'personalizado','inicio':start.isoformat(),'fim':end.isoformat()})
     ads_url=f'/ads/{cid}?'+urlencode({'de':start.isoformat(),'ate':end.isoformat()})
-    body=STYLE+"<div class='mgmt-dashboard'><header class='mgmt-header'><div><span class='mgmt-eyebrow'>Visão de performance</span><h2>"+escape(report['shop']['cliente'])+"</h2><p>Acompanhe os resultados. Escolha o próximo passo.</p></div>"
+    body=STYLE+"<div class='mgmt-dashboard'><header class='mgmt-header'><div><span class='mgmt-eyebrow'>Keiper Consultoria · Performance da loja</span><h2>"+escape(report['shop']['cliente'])+"</h2></div>"
     body+=f"<div class='mgmt-links'><a class='btn-acoes' href='/atualizar/resumo/{cid}'>Atualizar dados</a><a class='btn-acoes cinza' href='/painel/{cid}/operacao'>Operação do dia →</a></div></header>"
     if report.get('updating'):
         body+="<div class='aviso' role='status'>Sincronização em andamento. Os indicadores mostram a última leitura disponível; recarregue esta página após a conclusão.</div>"
@@ -96,9 +97,52 @@ def render_management(cid,report,args):
     body+='</div></section>'
     body+='<p class="muted">Publicidade no período · impressões: '+fmt(ad['impressions'],False)+' · cliques: '+fmt(ad['clicks'],False)+' · CTR: '+number(ad['ctr'],2,'%')+'.</p>'
     if ad['coverage']<ad['expected']:
-        body+=f"<p class='muted'>Ads: {ad['coverage']} de {ad['expected']} dias com registros. Totais incompletos ficam indisponíveis.</p>"
-    body+="<nav class='mgmt-links' aria-label='Análises detalhadas'>"+''.join("<a class='btn-acoes cinza' href='"+escape(url,quote=True)+"'>"+label+'</a>' for url,label in [(sales_url,'Analisar vendas'),(ads_url,'Ads e alertas de campanhas'),(f'/anuncios/{cid}/concorrencia','Concorrência'),(f'/custos/{cid}','Custos e margens'),(f'/full/{cid}','Full e vendas')])+'</nav>'
+        missing=ad.get('missing_dates',[])
+        dates=', '.join(datetime.strptime(day,'%Y-%m-%d').strftime('%d/%m') for day in missing[:10])
+        if len(missing)>10:
+            dates+=f' e mais {len(missing)-10}'
+        body+=("<div class='mgmt-notice' role='status'><b>Publicidade: histórico incompleto</b>"
+               +f"<p>Dados coletados em {ad['coverage']} de {ad['expected']} dias. "
+               +"Faltam: "+escape(dates)+". Investimento, ROAS, ACOS e TACOS "
+               +"aguardam a recuperação automática; não tratamos lacunas como gasto zero.</p>"
+               +f"<a class='btn-acoes cinza' href='/ads/{int(cid)}'>Sincronizar Ads agora</a></div>")
+    body+="<section class='mgmt-shortcuts' aria-label='Acessos rápidos'><div class='mgmt-section-title'><h2>Explore a operação</h2><span>Detalhes da loja</span></div><nav class='mgmt-shortcut-grid'>"+''.join("<a class='mgmt-shortcut' href='"+escape(url,quote=True)+"'><span>"+label+"</span><small>"+detail+"</small><b aria-hidden='true'>↗</b></a>" for url,label,detail in [(sales_url,'Vendas','Pedidos e resultados'),(ads_url,'Publicidade','Campanhas e alertas'),(f'/anuncios/{cid}/concorrencia','Concorrência','Preço e logística'),(f'/custos/{cid}','Custos','Margens e cadastro'),(f'/full/{cid}','Full','Estoque e vendas')])+'</nav></section>'
     body+=priorities(cid,report,args)
+    # The current store home is /painel/<cid>; the legacy /operacao page is
+    # different. Load verified item priorities after the visible dashboard.
+    # Do not block KPI rendering on the more expensive ranking calculation.
+    priority_url=f'/ranking-anuncios/{int(cid)}?dias=7&modo=prioridades'
+    body+=("<section id='mgmt-auto-priorities' aria-label='Anúncios prioritários' "
+           "data-priority-url='"+escape(priority_url,quote=True)+"'>"
+           "<div class='card'><h2>Anúncios que precisam de atenção</h2>"
+           "<p class='muted'>Verificando as quedas de faturamento dos anúncios…</p>"
+           "</div></section>")
+    body+="""<script>
+    (function(){
+      var section=document.getElementById('mgmt-auto-priorities');
+      if(!section)return;
+      var url=section.getAttribute('data-priority-url');
+      fetch(url,{credentials:'same-origin'})
+        .then(function(response){
+          if(!response.ok)throw new Error('priority-load');
+          return response.text();
+        }).then(function(html){
+          if(section)section.innerHTML=html;
+        }).catch(function(){
+          if(section){
+            section.textContent='';
+            var error=document.createElement('p');
+            error.className='muted';
+            error.textContent='Não foi possível carregar as prioridades. Consulte o ranking dos anúncios.';
+            var link=document.createElement('a');
+            link.href=url.split('?')[0];
+            link.textContent='Abrir ranking de anúncios →';
+            section.appendChild(error);
+            section.appendChild(link);
+          }
+        });
+    })();
+    </script>"""
     body+="<div class='mgmt-overview-bottom'><section class='card mgmt-catalog'><h2>Saúde do catálogo</h2><div class='mgmt-kpis'>"
     body+=card('Anúncios com vendas',fmt(report['selling'],False),f"Entre {report['listing_count']} anúncios cadastrados")
     body+=card('Sem vendas no período',fmt(report['no_sales'],False),'Ausência de vendas não comprova falta de demanda')

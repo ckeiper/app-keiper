@@ -3,6 +3,7 @@ import ast
 import html
 import sys
 import time
+from datetime import timedelta
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from test_listing_details import main_function
@@ -20,3 +21,46 @@ for name,args in [('catalog',{}),('catalog-filtered',{'status':'active','estoque
     body=render_catalog(1,rows,args,refresh="<a href='/atualizar/anuncios/1'>Atualizar agora</a> · Última leitura disponível",now=now,admin=True)
     (dest/(name+'.html')).write_text(page('Anúncios',1,'Loja de demonstração','anuncios',body),encoding='utf-8')
 print('Synthetic catalog previews rendered.')
+
+from listing_diagnostic_design import hero,priorities
+checks=[dict(priority='alta',title='Conferir disponibilidade',evidence='Leitura sintética de estoque zero.',action='Conferir reposição e a leitura mais recente.'),dict(priority='revisar',title='Revisar oferta',evidence='Alteração sintética de preço.',action='Conferir fontes e condições comerciais.')]
+(dest/'diagnostic-navy.html').write_text(page('Diagnóstico do anúncio',1,'Loja de demonstração','anuncios',hero(dict(titulo='Produto de demonstração'),1,'MLB100',checks)+priorities(checks)),encoding='utf-8')
+
+from test_catalog_price_order import snapshot
+from test_listing_catalog import item as price_item,NOW as price_now
+from unittest.mock import patch
+with patch('listing_details.time.time',return_value=price_now):
+    price_rows=[dict(price_item(1),preco=200,promocoes_json=snapshot()),dict(price_item(2),preco=100)]
+    (dest/'catalog-price-sort.html').write_text(page('Catálogo por preço',1,'Loja de demonstração','anuncios',render_catalog(1,price_rows,dict(ordem='preco'),now=price_now)),encoding='utf-8')
+
+from listing_comparison import render as render_comparison
+from test_listing_comparison import sample as comparison_sample,END as comparison_end
+for mode in ['two','four','pending','partial','zero']:
+    ranking,listings=comparison_sample()
+    for index,listing in enumerate(listings):
+        listing.update(quantidade=0 if mode=='zero' else 12,atualizado_em=1792846800-(21601 if mode=='partial' and index==0 else 0))
+    args={f'comparar{i}':'MLB'+str(i) for i in range(1,3 if mode=='two' else 5)}
+    if mode=='pending':ranking['available']=False
+    from listing_comparison import load_visits
+    from test_listing_comparison_visits import observations
+    visit_rows=observations()
+    if mode=='partial':visit_rows=[r for r in visit_rows if not (r['item_id']=='MLB1' and r['dia']==comparison_end.isoformat())]
+    if mode=='zero':
+        for r in visit_rows:
+            if r['item_id']=='MLB1' and r['dia']>=(comparison_end-timedelta(days=6)).isoformat():r['visitas']=0
+    visit_data=load_visits(None,lambda *args:visit_rows,1,list(args.values()),comparison_end)
+    body='<p>Dados fictícios para teste.</p>'+render_comparison(1,ranking,listings,args,comparison_end,visits=visit_data,now=1792846800)
+    (dest/('listing-comparison-'+mode+'.html')).write_text(page('Comparar anúncios',1,'Loja de demonstração','desempenho',body),encoding='utf-8')
+
+from listing_abc import render as render_abc
+from test_listing_abc import fixture as abc_fixture
+for mode in ['all','filtered','pending','zero','second']:
+    ranking,listings=abc_fixture()
+    args={}
+    if mode=='filtered':args=dict(abc_classe='C',abc_busca='MLB4')
+    if mode=='pending':ranking['available']=False
+    if mode=='zero':
+        for metrics in ranking['rows'].values():metrics.update(value=0,previous_value=0)
+    if mode=='second':args=dict(abc_pagina='2',dias='30')
+    body='<p>Dados fictícios para teste.</p>'+render_abc(1,ranking,listings,args,comparison_end,days=30 if mode=='second' else 7)
+    (dest/('listing-abc-'+mode+'.html')).write_text(page('Curva ABC',1,'Loja de demonstração','desempenho',body),encoding='utf-8')

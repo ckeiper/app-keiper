@@ -1,13 +1,16 @@
 """OAuth route regression tests; no production database or ML calls."""
 import ast
+import os
 from contextlib import nullcontext
 from pathlib import Path
 import secrets
 import time
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from urllib.parse import urlencode, urlparse, parse_qs
 
+from cryptography.fernet import Fernet
+from ml_token_crypto import seal_token, reveal_token, KEY_ENV, ENABLE_ENV
 import requests
 from flask import Flask, request, session, redirect
 
@@ -30,7 +33,7 @@ class StoreConnectTests(unittest.TestCase):
         self.read = Mock(return_value=[])
         self.env = dict(app=app, request=request, session=session, redirect=redirect,
                         secrets=secrets, time=time, urlencode=urlencode,
-                        requests=self.http, CLIENT_ID="123", CLIENT_SECRET="secret",
+                        requests=self.http, seal_token=seal_token, CLIENT_ID="123", CLIENT_SECRET="secret",
                         REDIRECT_URI="https://example.org/oauth?x=1&y=2",
                         AUTH_URL=next(ast.literal_eval(n.value) for n in tree.body
                                       if isinstance(n, ast.Assign) and any(
@@ -135,6 +138,23 @@ class StoreConnectTests(unittest.TestCase):
         self.http.post.side_effect = requests.Timeout("secret-timeout")
         self.assertEqual(self.finish(self.start()).status_code, 502)
         self.write.assert_not_called()
+
+
+    def test_new_and_existing_oauth_connections_store_only_ciphertext_when_enabled(self):
+        with patch.dict(os.environ, {KEY_ENV: Fernet.generate_key().decode(), ENABLE_ENV: '1'}):
+            for existing in (False, True):
+                self.read.return_value = [{'id': 9}] if existing else []
+                self.write.reset_mock()
+                response = self.finish(self.start())
+                self.assertEqual(response.status_code, 200)
+                params = self.write.call_args.args[2]
+                access, refresh = params[:2] if existing else params[2:4]
+                self.assertNotEqual(access, 'secret-access')
+                self.assertNotEqual(refresh, 'secret-refresh')
+                self.assertEqual(reveal_token(access), 'secret-access')
+                self.assertEqual(reveal_token(refresh), 'secret-refresh')
+                self.assertNotIn(access, response.text)
+                self.assertNotIn(refresh, response.text)
 
 
 if __name__ == "__main__":

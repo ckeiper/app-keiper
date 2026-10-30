@@ -6,7 +6,7 @@ const {chromium}=require('playwright');
 
 (async()=>{
   const html=fs.readFileSync('visual-qa/management-preview.html');
-  const server=http.createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(html);});
+  const server=http.createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});if(req.url.startsWith('/ranking-anuncios/')){res.end('<section class="kp-queue"><h2>Anúncios que precisam de atenção</h2><p>Dados de teste</p></section>');return;}res.end(html);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const browser=await chromium.launch({headless:true});
   const page=await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
@@ -15,9 +15,22 @@ const {chromium}=require('playwright');
   try{
     await page.goto('http://127.0.0.1:'+server.address().port+'/management-preview.html');
     assert.equal(await page.locator('#mgmt-panel-overview').isVisible(),true);
+    await page.locator('#mgmt-auto-priorities .kp-queue').waitFor();
+    assert.equal(await page.locator('#mgmt-panel-overview').count(),1);
     assert.equal(await page.locator('#mgmt-panel-actions').isVisible(),false);
     assert.equal(await page.locator('#mgmt-panel-analysis').isVisible(),false);
     assert.equal(await page.locator('.mgmt-preview-card').count(),3);
+    assert.equal(await page.locator('.mgmt-preview-card[href]').count(),3);
+    assert.equal(await page.locator('.mgmt-shortcut').count(),5);
+    assert.ok((await page.locator('.mgmt-shortcut').first().getAttribute('href')).startsWith('/vendas/1?'));
+    assert.equal(await page.locator('.mgmt-dashboard .card').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(17, 36, 58)');
+    assert.equal(await page.locator('.mgmt-header h2').evaluate(el=>getComputedStyle(el).color),'rgb(237, 245, 255)');
+    assert.equal(await page.locator('.mgmt-kpis .stat .num').first().evaluate(el=>getComputedStyle(el).color),'rgb(244, 249, 255)');
+    assert.equal(await page.locator('.mgmt-header').textContent().then(t=>t.includes('Resultados, oportunidades e próximos passos')),false);
+    assert.ok(await page.locator('.mgmt-variation-down').count());
+    assert.equal(await page.locator('.mgmt-variation-down').first().evaluate(el=>getComputedStyle(el).color),'rgb(255, 177, 184)');
+    assert.ok(await page.locator('.mgmt-variation-up').count());
+    assert.equal(await page.locator('.mgmt-variation-up').first().evaluate(el=>getComputedStyle(el).color),'rgb(128, 240, 183)');
     assert.ok(await page.locator('[data-chart-panel=daily] svg').isVisible());
     const chartBox=await page.locator('[data-chart-panel=daily] .mgmt-chart').boundingBox();
     assert.ok(chartBox.y<800,'Revenue chart should be prominent in the first desktop screen');
@@ -43,10 +56,26 @@ const {chromium}=require('playwright');
     assert.equal(await page.locator('#mgmt-panel-overview').isVisible(),true);
     await page.setViewportSize({width:390,height:844});
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Mobile page overflows');
+    await page.setViewportSize({width:320,height:844});
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Small mobile page overflows');
+    await page.setViewportSize({width:390,height:844});
     await page.screenshot({path:'visual-qa/mobile.png',fullPage:true});
     await page.getByText('Ver todas as oportunidades').click();
     assert.equal(await page.locator('#mgmt-panel-actions').isVisible(),true);
     assert.equal(await page.locator('#mgmt-tab-actions').getAttribute('aria-selected'),'true');
+    for(const width of [1440,390,320]) {
+      await page.setViewportSize({width,height:900});
+      await page.setContent(fs.readFileSync('visual-qa/ledger-preview.html','utf8'));
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+      assert.equal(await page.locator('.ledger-check .frete-metrica').count(),3);
+      assert.equal(await page.locator('.ledger-groups tbody tr').count(),2);
+      await page.locator('.ledger-check details summary').click();
+      assert.ok((await page.locator('.ledger-check details').innerText()).includes('Linha 6'));
+      assert.equal(await page.locator('.ledger-groups th').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(24, 46, 73)');
+      assert.deepEqual(await page.locator('.ledger-check h3').evaluateAll(els=>els.map(el=>getComputedStyle(el).color)),['rgb(234, 242, 255)','rgb(234, 242, 255)']);
+      assert.ok((await page.locator('.ledger-check').innerText()).includes('1 com diferença'));
+      await page.screenshot({path:`visual-qa/ledger-${width}.png`,fullPage:true});
+    }
     assert.deepEqual(errors,[]);
     console.log('Desktop/mobile width, tabs, keyboard navigation, filter state and priority shortcuts passed.');
   }finally{

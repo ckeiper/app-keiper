@@ -89,7 +89,8 @@ class FullTests(unittest.TestCase):
             sync_full(7,'secret',lambda:nullcontext(None),Mock(return_value=rows),execute,getter,
                       clock=lambda:NOW,monotonic=lambda:0)
         self.assertEqual(getter.call_count,2)
-        self.assertEqual(execute.call_count,2)
+        self.assertEqual(sum('INSERT INTO full_observations' in c.args[1] for c in execute.call_args_list),2)
+        self.assertEqual(sum('record_listing_changes' in c.args[1] for c in execute.call_args_list),2)
         self.assertNotIn('private',str(execute.call_args_list))
         self.assertLessEqual(getter.call_args.kwargs['timeout'][1],8)
 

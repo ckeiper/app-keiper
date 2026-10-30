@@ -92,8 +92,8 @@ def register_competitors(app, login_required, can_view, bank, query, execute, pa
         if search:
             # Treat wildcard characters literally in the search box.
             pattern = '%' + search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
-            clauses.append('(t.label ILIKE %s OR t.title ILIKE %s OR t.item_id ILIKE %s)')
-            values += [pattern] * 3
+            clauses.append('(t.label ILIKE %s OR t.title ILIKE %s OR t.item_id ILIKE %s OR t.own_item_id ILIKE %s)')
+            values += [pattern] * 4
         status = request.args.get('status', 'ativos')
         if status == 'pausados':
             clauses.append('NOT t.active')
@@ -133,10 +133,17 @@ def register_competitors(app, login_required, can_view, bank, query, execute, pa
                 label = request.form.get('nome', '').strip()
                 if len(label) > 150:
                     raise ValueError('Use até 150 caracteres para o nome do concorrente.')
+                own=request.form.get('meu_anuncio','').strip()
+                own=item_from_link(own) if own else None
+                if own==item_id:
+                    raise ValueError('O concorrente deve ser diferente do seu anúncio.')
                 with bank() as conn:
-                    execute(conn, '''INSERT INTO competitor_targets(conexao_id,item_id,label,created_at)
-                        VALUES(%s,%s,%s,%s) ON CONFLICT(conexao_id,item_id)
-                        DO UPDATE SET label=EXCLUDED.label,active=TRUE''', (cid,item_id,label,int(time.time())))
+                    if own and not query(conn,'SELECT item_id FROM anuncios WHERE conexao_id=%s AND item_id=%s',(cid,own)):
+                        raise ValueError('O anúncio próprio não pertence a esta loja.')
+                    execute(conn, '''INSERT INTO competitor_targets(conexao_id,item_id,label,created_at,own_item_id)
+                        VALUES(%s,%s,%s,%s,%s) ON CONFLICT(conexao_id,item_id)
+                        DO UPDATE SET label=EXCLUDED.label,active=TRUE,
+                        own_item_id=COALESCE(EXCLUDED.own_item_id,competitor_targets.own_item_id)''', (cid,item_id,label,int(time.time()),own))
                 return redirect(path + '?cadastrado=1', code=303)
             except ValueError as exc:
                 message, status_code = str(exc), 400
@@ -167,6 +174,8 @@ def register_competitors(app, login_required, can_view, bank, query, execute, pa
                  + escape(request.form.get('nome', '')[:150],quote=True) + "'></label>"
                  + "<label>Link ou código MLB do anúncio<input name='link' required maxlength='3000' placeholder='Cole o link da oferta do vendedor' value='"
                  + escape(request.form.get('link', '')[:3000],quote=True) + "'></label>"
+                 + "<label>Seu anúncio para comparação (opcional)<input name='meu_anuncio' maxlength='3000' placeholder='Código MLB do seu produto' value='"
+                 + escape(request.form.get('meu_anuncio',request.args.get('meu_anuncio',''))[:3000],quote=True) + "'></label>"
                  + "<button class='btn-acoes' type='submit'>Monitorar anúncio</button></form>"
                  + "<p class='muted'>Preço final para 1 unidade, incluindo promoção disponível ao público. "
                  "Cupons pessoais e frete não entram no valor. O vendedor da oferta fica fixo no monitoramento.</p>"
@@ -192,6 +201,7 @@ def register_competitors(app, login_required, can_view, bank, query, execute, pa
             body += ("<tr><td><b>" + escape(row['label'] or 'Concorrente') + '</b><br>'
                      + f"<a href='https://produto.mercadolivre.com.br/{row['item_id']}' target='_blank' rel='noopener noreferrer'>" + title + '</a><br><small>' + row['item_id']
                      + (' · vendedor ' + str(row['seller_id']) if row['seller_id'] else '') + '</small>'
+                     + ('<small>Seu anúncio: '+escape(str(row['own_item_id']))+'</small>' if row.get('own_item_id') else '')
                      + ('<br><b>Pausado</b>' if not row['active'] else '') + '</td><td>'
                      + brl(row['price']) + '<small>Confirmado: ' + date_time(row['price_at']) + '</small>' + stale + '</td><td>'
                      + (brl(row['previous_price']) if row['previous_price'] is not None else '—')

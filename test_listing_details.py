@@ -240,15 +240,21 @@ class RequestTests(unittest.TestCase):
 
 
 class SyncTests(unittest.TestCase):
-    def test_pilot_manual_refresh_only_enqueues_even_when_consumer_is_stopped(self):
+    def test_pilot_section_links_do_not_enqueue_full_collection(self):
         enqueue, token, thread = Mock(), Mock(), Mock()
         ns = dict(pode_ver_loja=lambda cid:True,loja_habilitada_fila_persistente=lambda cid:True,
                   enfileirar_atualizacao=enqueue,redirect=lambda path:path,token_atual=token,
                   threading=SimpleNamespace(Thread=thread))
         route=main_function('atualizar_tipo',ns)
-        for tipo in ('anuncios','promocoes','desempenho','custos','campanhas'):
-            self.assertEqual(route(tipo,9),'/'+tipo+'/9')
-        self.assertEqual(enqueue.call_count,5)
+        for tipo, expected_path in (
+                ('anuncios', '/anuncios/9'),
+                ('promocoes', '/promocoes/9'),
+                ('desempenho', '/desempenho/9'),
+                ('custos', '/custos/9'),
+                ('campanhas', '/ads/9')):
+            with self.subTest(tipo=tipo):
+                self.assertEqual(route(tipo,9), expected_path)
+        enqueue.assert_not_called()
         token.assert_not_called()
         thread.assert_not_called()
 
@@ -292,7 +298,7 @@ class SyncTests(unittest.TestCase):
         snap = json.loads(next(params[0] for sql, params in self.sql if 'UPDATE anuncios' in sql))
         self.assertEqual(details.effective_promotion(snap)['price'], 80)
 
-    def test_manual_refresh_returns_without_waiting_for_collection_and_deduplicates(self):
+    def test_legacy_refresh_link_displays_explicit_section_button_without_collection(self):
         self.setup_sync(1)
         thread = Mock()
         running = set()
@@ -305,8 +311,8 @@ class SyncTests(unittest.TestCase):
         route = main_function('atualizar_tipo', namespace)
         self.assertEqual(route('anuncios', 1), '/anuncios/1')
         self.assertEqual(route('anuncios', 1), '/anuncios/1')
-        self.assertEqual(thread.call_count, 1)
-        thread.return_value.start.assert_called_once()
+        thread.assert_not_called()
+        query.assert_not_called()
         namespace['atualizar_anuncios_bg'].assert_not_called()
 
     def test_campaign_cache_keeps_empty_campaign_and_only_active_items(self):
@@ -430,5 +436,3 @@ class SyncTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-

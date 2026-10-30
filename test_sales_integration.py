@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 """Opt-in checks: KEIPER_TEST_DATABASE_URL must point at a disposable database."""
 import os
 import unittest
@@ -55,14 +56,14 @@ class DatabaseIntegrationTests(unittest.TestCase):
         app.app.config['TESTING'] = True
         client = app.app.test_client()
         self.assertEqual(client.get('/vendas/' + str(self.cid)).status_code, 302)
-        with client.session_transaction() as session:
+        with database_session(client) as session:
             session['usuario_id'] = 1
             session['tipo'] = 'cliente'
             session['conexao_id'] = self.cid + 1
         denied = client.get('/vendas/' + str(self.cid)).get_data(as_text=True)
         self.assertIn('Acesso restrito', denied)
         self.assertNotIn('Indicadores de vendas pagas', denied)
-        with client.session_transaction() as session:
+        with database_session(client) as session:
             session['usuario_id'] = 1
             session['tipo'] = 'admin'
         response = client.get('/vendas/' + str(self.cid) + '?periodo=7')

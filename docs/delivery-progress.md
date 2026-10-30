@@ -1,0 +1,9 @@
+# Etapas de entrega e conclusão de frentes
+
+anuncios_entregas.json registra entregas individuais e sua etapa atual: planejada, em desenvolvimento, aguardando testes, aprovada, publicada em produção, parcialmente concluída ou concluída. Esses estados não substituem anuncios_progresso.json: uma entrega publicada pode resolver apenas parte de uma frente. Os totais do gráfico, a associação à lista original e a regra de uma coluna por dia permanecem na fonte anterior. O painel mostra apenas uma nota de etapa da última entrega registrada, sem lista nem links externos.
+
+O validador exige PR e head SHA desde a espera por testes. Aprovação exige referências aos workflows aprovados no mesmo head. Publicação exige deploy live, commit de produção e instante em Brasília; registro não pode anteceder publicação. Parcial exige lacuna; conclusão de uma entrega exige escopo conferido e nenhuma lacuna dessa entrega. Não implica conclusão da frente associada. Etapas anteriores à publicação não podem alegar deploy live. Não invente históricos de transição: registre somente estados efetivamente verificados.
+
+O validador confere consistência do registro, sem chamadas externas. Quem atualiza deve consultar GitHub e Render e registrar evidências verdadeiras; IDs ou formato válido isoladamente não provam execução. Não escrever estado publicada após somente criar PR ou disparar deploy. A publicação da própria versão disponibiliza o registro na tela, sem gravação de dados de clientes. Uma falha no registro impede mostrar progresso como se estivesse íntegro. A atualização de estágio isolada não cria medição de avanço na série histórica.
+
+O registro inicial inclui somente entregas com evidência verificada nesta execução. Nenhum status antigo foi reconstruído por suposição e nenhuma das 90 melhorias foi reclassificada por uma entrega isolada.

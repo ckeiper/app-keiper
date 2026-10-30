@@ -211,23 +211,31 @@ def promotion_status(promotion):
     return status
 
 
+def recent_promotion_snapshot(stamp):
+    now=time.time()
+    return type(stamp) in (int,float) and 0<stamp<=now and now-stamp<=7200
+
+
 def active_promotions(snapshot):
-    if not snapshot or snapshot.get('error'):
+    if not isinstance(snapshot,dict) or not snapshot or snapshot.get('error'):
         return []
     # Old snapshots must never silently keep an expired promotion active.
-    if time.time() - snapshot.get('checked_at', 0) > 7200:
+    if not recent_promotion_snapshot(snapshot.get('checked_at')):
         return []
-    return [p for p in snapshot.get('promotions', []) if promotion_status(p) == 'active']
+    rows=snapshot.get('promotions')
+    return [p for p in rows if promotion_status(p)=='active'] if isinstance(rows,list) and all(valid_promotion_record(p) for p in rows) else []
 
 
 def effective_promotion(snapshot):
-    if not snapshot or snapshot.get('not_applicable'):
+    if not isinstance(snapshot,dict) or not snapshot or snapshot.get('not_applicable'):
         return None
     price = snapshot.get('sale_price') or {}
-    if time.time() - price.get('checked_at', 0) > 7200 or price.get('error'):
+    if not isinstance(price,dict) or not recent_promotion_snapshot(price.get('checked_at')) or price.get('error'):
         return None
     data = price.get('data') or {}
+    if not isinstance(data,dict):return None
     metadata = data.get('metadata') or {}
+    if not isinstance(metadata,dict):return None
     original, amount = positive(data.get('regular_amount')), positive(data.get('amount'))
     # Only the official sale_price response with promotional metadata proves
     # the effective offer. Never infer from items.price or pick the lowest campaign.
@@ -252,19 +260,41 @@ def display_date(value):
         return str(value)
 
 
+def valid_promotion_record(record):
+    """Only render the normalized campaign contract; never repair financial values."""
+    if not isinstance(record, dict):
+        return False
+    if any(not isinstance(record.get(key), str) or not record[key]
+           for key in ('status', 'type')):
+        return False
+    if record.get('raw') is not None and not isinstance(record['raw'], dict):
+        return False
+    if isinstance(record.get('raw'), dict) and record['raw'].get('name') is not None and not isinstance(record['raw']['name'], str):
+        return False
+    for key in ('price', 'original', 'discount'):
+        value = record.get(key)
+        if value is not None and (type(value) not in (int, float) or value < 0 or value > 1e100 or not math.isfinite(value)):
+            return False
+    return True
+
+
 def render_promotions(value):
     snap = read_json(value, {})
     if not snap:
         return 'Não verificado — atualize os anúncios'
     if snap.get('not_applicable'):
-        return html.escape(snap['not_applicable'])
+        return html.escape(str(snap['not_applicable']))
     winner = effective_promotion(snap)
     if snap.get('error') and not winner:
-        return html.escape('Não disponível — ' + snap['error']) + '<br>Dados anteriores não confirmados'
-    if not winner and time.time() - snap.get('checked_at', 0) > 7200:
+        return html.escape('Não disponível — ' + str(snap['error'])) + '<br>Dados anteriores não confirmados'
+    if not winner and not recent_promotion_snapshot(snap.get('checked_at')):
         return 'Dados desatualizados — atualize os anúncios'
-    active = active_promotions(snap)
-    proposals = [p for p in snap.get('promotions', []) if p not in active] if not snap.get('error') else []
+    records = snap.get('promotions')
+    valid_records = isinstance(records, list) and all(valid_promotion_record(p) for p in records)
+    campaigns_confirmed = (not snap.get('error') and
+                           recent_promotion_snapshot(snap.get('checked_at')) and valid_records)
+    active = active_promotions(snap) if campaigns_confirmed else []
+    proposals = [p for p in records if p not in active] if campaigns_confirmed else []
     if winner:
         summary = ('<b>Por ' + br_money(winner['price']) + '</b><br><small>De '
                    + br_money(winner['original']) + ' · -' + str(winner['discount']).replace('.', ',')
@@ -274,7 +304,7 @@ def render_promotions(value):
         # price. Campaign prices may still be displayed as *campaign data*,
         # never as the effective sale price. In case of competing offers,
         # avoid selecting an arbitrary campaign.
-        summary = ('<b>' + str(len(active)) + (' promoção ativa</b>' if len(active) == 1 else ' promoções ativas</b>')) if active else 'Sem promoção ativa confirmada'
+        summary = ('<b>' + str(len(active)) + (' promoção ativa</b>' if len(active) == 1 else ' promoções ativas</b>')) if active else ('Sem promoção ativa confirmada' if campaigns_confirmed else 'Campanhas não confirmadas — atualize os anúncios')
         campaign_prices = {p['price'] for p in active if p.get('price') is not None}
         if active and len(campaign_prices) == 1 and all(p.get('price') is not None for p in active):
             summary += ('<br><b>Preço informado pela campanha: '
@@ -313,5 +343,5 @@ def render_promotions(value):
     if proposals:
         summary += '<details><summary>Outras campanhas (' + str(len(proposals)) + ')</summary>' + ''.join(detail(p) for p in proposals) + '</details>'
     if snap.get('error'):
-        summary += '<details><summary>Campanhas não confirmadas</summary>' + html.escape(snap['error']) + '</details>'
+        summary += '<details><summary>Campanhas não confirmadas</summary>' + html.escape(str(snap['error'])) + '</details>'
     return '<div style="min-width:190px;max-width:320px">' + summary + '</div>'

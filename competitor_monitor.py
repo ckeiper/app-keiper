@@ -1,3 +1,4 @@
+from ml_token_crypto import reveal_token
 """Competitor observations from official ML endpoints; no checkout/coupon inference.
 
 Sources: developers.mercadolivre.com.br/pt_br/api-de-precos (sale_price.amount)
@@ -137,6 +138,8 @@ def init_competitor_schema(conn, execute):
         price NUMERIC(14,2), previous_price NUMERIC(14,2), price_at BIGINT, price_changed_at BIGINT,
         full_state BOOLEAN, previous_full BOOLEAN, full_at BIGINT, full_changed_at BIGINT,
         UNIQUE(conexao_id,item_id))''')
+    execute(conn, 'ALTER TABLE competitor_targets ADD COLUMN IF NOT EXISTS own_item_id TEXT')
+    execute(conn, 'CREATE INDEX IF NOT EXISTS idx_competitor_own ON competitor_targets(conexao_id,own_item_id) WHERE active AND own_item_id IS NOT NULL')
     execute(conn, '''CREATE INDEX IF NOT EXISTS idx_competitor_due
         ON competitor_targets(last_slot,id) WHERE active''')
     execute(conn, '''CREATE TABLE IF NOT EXISTS competitor_observations (
@@ -178,7 +181,7 @@ def collect_due(bank, query, execute, getter, clock=time.time, monotonic=time.mo
             result = dict(price=None, full=None, title=None, seller_id=None,
                           error='Aguardando renovação da conexão da loja com o Mercado Livre')
         else:
-            result = observe(target['item_id'], target['seller_id'], shop['access_token'], getter)
+            result = observe(target['item_id'], target['seller_id'], reveal_token(shop['access_token']), getter)
         stamp = int(clock())
         price_changed = result['price'] is not None and target['price'] is not None and result['price'] != target['price']
         full_changed = result['full'] is not None and target['full_state'] is not None and result['full'] != target['full_state']

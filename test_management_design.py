@@ -4,6 +4,13 @@ from management_design import active_tab,panel,daily_chart,metric_card,product
 
 
 class ManagementDesignTests(unittest.TestCase):
+    def test_variation_colors_follow_comparison_without_inventing_a_baseline(self):
+        from management_view import compare, card
+        for current, previous, text, tone in [(120,100,'+20,0%','up'),(80,100,'-20,0%','down'),(100,100,'0,0%','neutral'),(10,0,'Sem base de comparação','neutral'),(None,100,'Sem base de comparação','neutral')]:
+            rendered=card('Pedidos pagos','100',compare(current,previous))
+            self.assertIn("mgmt-variation-"+tone,rendered)
+            self.assertIn(text,rendered)
+
     def test_filter_navigation_keeps_the_relevant_panel_visible(self):
         self.assertEqual(active_tab({}),'overview')
         self.assertEqual(active_tab({'area':'estoque'}),'actions')
@@ -41,3 +48,32 @@ class ProductTests(unittest.TestCase):
         self.assertIn('<img',html)
         self.assertIn('&lt;script&gt;',html)
         self.assertIn('/diagnostico/1/MLB1',html)
+
+
+class PriorityPlacementTests(unittest.TestCase):
+    def test_current_store_home_loads_priority_queue_after_opportunities(self):
+        import inspect
+        from management_view import render_management
+        from management_routes import register_management
+        source=inspect.getsource(render_management)
+        route=inspect.getsource(register_management)
+        self.assertIn("@app.route('/painel/<int:cid>')",route)
+        self.assertIn("body+=priorities(cid,report,args)",source)
+        self.assertIn("id='mgmt-auto-priorities'",source)
+        self.assertGreater(source.index("id='mgmt-auto-priorities'"),
+                           source.index("body+=priorities(cid,report,args)"))
+        self.assertIn("modo=prioridades",source)
+        self.assertIn("fetch(url,{credentials:'same-origin'})",source)
+        self.assertIn("if(!response.ok)throw",source)
+        self.assertIn("ranking de anúncios",source)
+
+
+class MobileSidebarLayoutTests(unittest.TestCase):
+    def test_performance_sidebar_stays_off_canvas_without_layout_gap(self):
+        from management_design import STYLE
+        mobile=STYLE.split('/* Performance page must preserve the shared off-canvas mobile navigation.')[1]
+        self.assertIn('.layout:has(.mgmt-dashboard){display:flex;flex-direction:row',mobile)
+        self.assertIn('position:fixed;top:0;left:0;bottom:0',mobile)
+        self.assertIn('transform:translateX(-105%)',mobile)
+        self.assertIn('body.sidebar-open .layout:has(.mgmt-dashboard)>.menu-lateral',mobile)
+        self.assertIn('width:100%;padding:0 0 20px',mobile)

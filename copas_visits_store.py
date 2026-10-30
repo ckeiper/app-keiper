@@ -1,14 +1,17 @@
-"""Copas-only bounded daily visits collector and coverage tracking."""
+from ml_token_crypto import reveal_token
+"""Bounded daily visits collector and coverage tracking."""
 import datetime as dt
 import json
 import os
 import urllib.error
 import urllib.request
+from zoneinfo import ZoneInfo
 
 import psycopg2
 
 CONNECTION_ID = 5
 API = "https://api.mercadolibre.com"
+HISTORY_DAYS = 14
 
 
 def _parse_day(value):
@@ -18,7 +21,7 @@ def _parse_day(value):
 def _fetch_visits(item, token, today):
     """Fetch outside the database transaction; bounded network parallelism."""
     req = urllib.request.Request(
-        f"{API}/items/{item}/visits/time_window?last=7&unit=day",
+        f"{API}/items/{item}/visits/time_window?last={HISTORY_DAYS}&unit=day&ending={today.isoformat()}",
         headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
     )
     try:
@@ -26,17 +29,35 @@ def _fetch_visits(item, token, today):
             payload = json.load(response)
         if not isinstance(payload, dict) or payload.get("item_id") != item or not isinstance(payload.get("results"), list):
             raise ValueError("Unexpected API response")
-        parsed = []
+        parsed, seen = [], set()
         for entry in payload["results"]:
             day = _parse_day(entry["date"])
+            if day in seen:
+                raise ValueError("Duplicate visit day")
+            seen.add(day)
             visits = entry["total"]
             if type(visits) is not int or visits < 0:
                 raise ValueError("Invalid daily visits")
-            if today - dt.timedelta(days=7) <= day < today:
+            if today - dt.timedelta(days=HISTORY_DAYS) <= day < today:
                 parsed.append((day, visits))
         return item, parsed, None
     except (urllib.error.HTTPError, urllib.error.URLError, ValueError, KeyError, TypeError, TimeoutError) as exc:
         return item, [], str(exc)[:120]
+
+
+def _save_attempt(conn, connection_id, item, parsed, error):
+    """Rotate failed attempts too, preserving all prior daily observations."""
+    with conn.cursor() as cur:
+        if error is None:
+            for day, visits in parsed:
+                cur.execute("""INSERT INTO item_visits_daily (conexao_id,item_id,dia,visitas)
+                    VALUES (%s,%s,%s,%s)
+                    ON CONFLICT (conexao_id,item_id,dia) DO UPDATE
+                    SET visitas=EXCLUDED.visitas,atualizado_em=NOW()""",
+                    (connection_id,item,day,visits))
+        cur.execute("""INSERT INTO item_visits_checked (conexao_id,item_id)
+            VALUES (%s,%s) ON CONFLICT (conexao_id,item_id)
+            DO UPDATE SET consultado_em=NOW()""",(connection_id,item))
 
 
 def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
@@ -53,7 +74,7 @@ def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
             record = cur.fetchone()
             if not record or record[1] != "ativa" or not record[2]:
                 raise RuntimeError("Connection unavailable")
-            token = record[2]
+            token = reveal_token(record[2])
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS item_visits_checked (
                     conexao_id INTEGER NOT NULL, item_id TEXT NOT NULL,
@@ -86,33 +107,23 @@ def collect(limit=10, offset=0, connection_id=CONNECTION_ID, rotate=False):
         conn.commit()
         results = {"loja": record[0], "conexao_id": connection_id, "offset": offset,
                    "proximo_offset": offset + len(items), "itens_solicitados": len(items),
-                   "itens_atualizados": 0, "dias_gravados": 0, "falhas": 0}
-        today = dt.datetime.now(dt.timezone.utc).date()
+                   "itens_atualizados": 0, "dias_gravados": 0, "falhas": 0, "erros_amostra": []}
+        today = dt.datetime.now(ZoneInfo("America/Sao_Paulo")).date()
         from concurrent.futures import ThreadPoolExecutor, as_completed
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = [executor.submit(_fetch_visits, item, token, today) for item in items]
             for future in as_completed(futures):
                 item, parsed, error = future.result()
-                if error is not None:
-                    results["falhas"] += 1
-                    continue
                 try:
-                    with conn.cursor() as cur:
-                        for day, visits in parsed:
-                            cur.execute("""
-                                INSERT INTO item_visits_daily (conexao_id, item_id, dia, visitas)
-                                VALUES (%s, %s, %s, %s)
-                                ON CONFLICT (conexao_id, item_id, dia) DO UPDATE
-                                SET visitas=EXCLUDED.visitas, atualizado_em=NOW()
-                            """, (connection_id, item, day, visits))
-                        cur.execute("""
-                            INSERT INTO item_visits_checked (conexao_id, item_id)
-                            VALUES (%s, %s)
-                            ON CONFLICT (conexao_id, item_id) DO UPDATE SET consultado_em=NOW()
-                        """, (connection_id, item))
+                    _save_attempt(conn,connection_id,item,parsed,error)
                     conn.commit()
-                    results["itens_atualizados"] += 1
-                    results["dias_gravados"] += len(parsed)
+                    if error is not None:
+                        results["falhas"] += 1
+                        if len(results["erros_amostra"]) < 3:
+                            results["erros_amostra"].append({"item_id":item,"erro":error[:120]})
+                    else:
+                        results["itens_atualizados"] += 1
+                        results["dias_gravados"] += len(parsed)
                 except psycopg2.Error:
                     conn.rollback()
                     results["falhas"] += 1

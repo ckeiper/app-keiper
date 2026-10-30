@@ -1,6 +1,7 @@
 """Compare report charges to the same freight calculation used by Vendas.
 
-Identifiers stay in memory. Only aggregate comparison results leave this module.
+By default only aggregates leave this module. An explicit details list receives
+minimal per-order evidence for the authorized store-scoped freight review.
 Multiple movements per order are left unresolved rather than added or deduplicated.
 """
 import io
@@ -10,7 +11,7 @@ from freight_reconciliation import schema_columns, normalize, _amount
 from freight_comparison import compare_freight, format_brl, money
 
 
-def compare_sales_rows(rows, columns, references, payment_links, shipment_links):
+def compare_sales_rows(rows, columns, references, payment_links, shipment_links, details=None):
     links = defaultdict(set)
     for link in payment_links:
         links[('operation', str(link['operation_id']))].add(str(link['pedido_id']))
@@ -21,7 +22,7 @@ def compare_sales_rows(rows, columns, references, payment_links, shipment_links)
                   ambiguous_orders=0, unavailable_orders=0, invalid_orders=0,
                   compared_orders=0, real_orders=0, estimated_orders=0,
                   above=0, below=0, within=0)
-    paid = expected = excess = Decimal('0.00')
+    paid = expected = excess = below_total = Decimal('0.00')
     for row in rows:
         if normalize(row[columns['operation_type']]) not in ('venda', 'envio'):
             continue
@@ -69,12 +70,24 @@ def compare_sales_rows(rows, columns, references, payment_links, shipment_links)
         expected += baseline
         if comparison['status'] == 'acima':
             excess += charged - baseline
-    result.update(charged_total=str(paid),sales_total=str(expected),above_total=str(excess))
+        elif comparison['status'] == 'abaixo':
+            below_total += baseline - charged
+        if details is not None and status != 'within':
+            methods=[]
+            if str(row[columns['operation_id']])==order_id:methods.append('pedido')
+            if order_id in links.get(('operation',str(row[columns['operation_id']])),set()):methods.append('pagamento')
+            if order_id in links.get(('shipment',str(row[columns['shipment_id']])),set()):methods.append('envio')
+            shipment=row[columns['shipment_id']]
+            details.append(dict(order_id=order_id,shipment_id=str(shipment) if shipment is not None else '',
+                charged=format(charged,'.2f'),baseline=format(baseline,'.2f'),delta=format(charged-baseline,'.2f'),
+                source=reference['frete_fonte'],status=status,matched_by=', '.join(methods),
+                sale_date=str(reference.get('fechado_em') or '')))
+    result.update(charged_total=str(paid),sales_total=str(expected),above_total=str(excess),below_total=str(below_total))
     return result
 
 
 def audit_against_sales(cid, filename, payload, summary, banco, query, calculate,
-                        parsed_rows=None, parsed_columns=None):
+                        parsed_rows=None, parsed_columns=None, details=None):
     if not summary.get('period_start'):
         return compare_sales_rows([],{}, {},[],[])
     _, sales = calculate(cid, inicio=summary['period_start'])
@@ -97,14 +110,14 @@ def audit_against_sales(cid, filename, payload, summary, banco, query, calculate
         if len(identifiers) > 1 and order_id in refs:
             refs[order_id]['frete_verificavel'] = False
     if parsed_rows is not None and parsed_columns is not None:
-        return compare_sales_rows(parsed_rows,parsed_columns,refs,payments,shipments)
+        return compare_sales_rows(parsed_rows,parsed_columns,refs,payments,shipments,details=details)
     from openpyxl import load_workbook
     wb = load_workbook(io.BytesIO(payload),read_only=True,data_only=False,keep_links=False)
     try:
         ws = wb.active
         columns = schema_columns(next(ws.iter_rows(min_row=3,max_row=3,max_col=45,values_only=True)))
         return compare_sales_rows(ws.iter_rows(min_row=4,max_col=45,values_only=True),
-                                  columns,refs,payments,shipments)
+                                  columns,refs,payments,shipments,details=details)
     finally:
         wb.close()
 

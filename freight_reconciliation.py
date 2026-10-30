@@ -93,14 +93,21 @@ def inspect_sales_reconciliation(filename, payload, bundle=False):
                       missing_operation_rows=0, absent_shipping_rows=0,
                       invalid_date_rows=0)
         totals = [Decimal('0.00') for _ in range(3)]
+        from ledger_arithmetic import empty as empty_financial, accumulate
+        header=next(ws.iter_rows(min_row=3,max_row=3,max_col=45,values_only=True))
+        gross_labels=[i for i,v in enumerate(header) if normalize(v)==normalize('Valor bruto (=)')]
+        gross_column=gross_labels[0] if len(gross_labels)==1 else None
+        result['financial']=empty_financial(gross_column is not None)
         dates = set()
         daily = {}
         seen = set()
-        for row in ws.iter_rows(min_row=4, max_row=MAX_LEDGER_ROWS + 4,
-                                max_col=45, values_only=True):
+        for line_number,row in enumerate(ws.iter_rows(min_row=4, max_row=MAX_LEDGER_ROWS + 4,
+                                max_col=45, values_only=True),start=4):
             if all(v is None or v == '' for v in row):
                 continue
             result['rows'] += 1
+            if gross_column is not None:
+                accumulate(result['financial'],row[gross_column],row[columns['total_fees']],row[columns['net_after_fees']],row[columns['operation_type']],line_number)
             if result['rows'] > MAX_LEDGER_ROWS:
                 raise PreviewError('Relatório excede o limite de lançamentos.')
             if bundle:
@@ -180,7 +187,8 @@ def render_sales_reconciliation(result):
         ('Sem informação de frete', 'absent_shipping_rows'),
         ('Diferença aritmética', 'inconsistent_shipping_rows'),
     )
-    return (
+    from ledger_arithmetic import render as render_financial
+    return render_financial(result.get('financial')) + (
         '<section class="card frete-resultado"><h3>Resumo do arquivo</h3>'
         '<p>Confira o volume processado e os valores informados no relatório.</p>'
         '<div class="frete-metricas">'

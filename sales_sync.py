@@ -14,6 +14,110 @@ def init_sales_schema(conn, execute):
         PRIMARY KEY (conexao_id, dia))""")
 
 
+def _read_window(token, user_id, api_get, lower, upper, budget):
+    offset, rows, complete = 0, {}, False
+    reason = "limite de paginação de 1000 resultados atingido"
+    expected_total = None
+    while offset < 1000:
+        if budget[0] <= 0:
+            return rows, False, 'limite de requisições da recuperação atingido'
+        budget[0] -= 1
+        data, error = api_get(token, "/orders/search", {
+            "seller": user_id, "sort": "date_desc", "limit": 50, "offset": offset,
+            "order.date_created.from": lower.isoformat(timespec="milliseconds"),
+            "order.date_created.to": upper.isoformat(timespec="milliseconds")})
+        if error or not isinstance(data, dict):
+            reason = error or "resposta inválida"
+            break
+        results = data.get("results")
+        total = (data.get("paging") or {}).get("total")
+        if not isinstance(results, list) or type(total) is not int or total < 0:
+            reason = "resposta inválida: results ou paging.total"
+            break
+        if expected_total is not None and total != expected_total:
+            reason = "total alterado durante a paginação; nova coleta necessária"
+            break
+        expected_total = total
+        valid = True
+        before = len(rows)
+        for order in results:
+            if not isinstance(order, dict) or not order.get("id"):
+                valid = False
+                reason = "resposta inválida: pedido sem identificador"
+                break
+            rows[str(order["id"])] = order
+        if not valid:
+            break
+        if results and len(rows) - before != len(results):
+            reason = "paginação repetida: identificadores duplicados"
+            break
+        offset += len(results)
+        if offset >= total:
+            complete = len(rows) == total
+            if not complete:
+                reason = "quantidade recebida diferente de paging.total"
+            break
+        if not results:
+            reason = "página vazia antes de paging.total"
+            break
+    return rows, complete, reason
+
+
+def collect_day(token, user_id, api_get, day):
+    """Recover pagination with hour-aligned, half-open reporting windows.
+
+    Orders search discards minutes/seconds in date filters. Query complete
+    hours (including the next boundary) and assign returned orders locally
+    to [start, end), after validating every raw page and paging.total.
+    """
+    zone = datetime.timezone(datetime.timedelta(hours=-3))
+    lower = datetime.datetime.combine(day, datetime.time(), zone)
+    upper = lower + datetime.timedelta(days=1)
+    budget = [80]
+    hour = datetime.timedelta(hours=1)
+
+    def read(start, end, depth=0):
+        rows, complete, reason = _read_window(token, user_id, api_get, start, end, budget)
+        assigned = {}
+        for oid, row in rows.items():
+            try:
+                stamp = datetime.datetime.fromisoformat(row.get('date_created', '').replace('Z', '+00:00'))
+                valid = stamp.tzinfo is not None
+            except (TypeError, ValueError, AttributeError):
+                valid = False
+            if not valid:
+                if depth:
+                    return rows, False, 'resposta fora do intervalo solicitado ou sem data verificável'
+                # Preserve unknown dates for the existing integrity indicators.
+                assigned[oid] = row
+                continue
+            if not start <= stamp < end + hour:
+                return rows, False, 'resposta fora do intervalo solicitado ou sem data verificável'
+            if stamp < end:
+                assigned[oid] = row
+        if complete:
+            return assigned, True, reason
+        recoverable = any(text in reason for text in
+                          ('identificadores duplicados', 'total alterado', '1000 resultados'))
+        hours = int((end-start).total_seconds()//3600)
+        if not recoverable or not rows or hours < 2 or budget[0] < 2:
+            return rows, False, reason
+        if any(created_day(row.get('date_created')) is None for row in rows.values()):
+            return rows, False, reason
+        middle = start + hour * (hours//2)
+        left, ok, failure = read(start, middle, depth+1)
+        if not ok:
+            return rows, False, failure
+        right, ok, failure = read(middle, end, depth+1)
+        if not ok:
+            return rows, False, failure
+        if left.keys() & right.keys():
+            return rows, False, 'identificadores duplicados entre intervalos'
+        return {**left, **right}, True, ''
+
+    return read(lower, upper)
+
+
 def sync_orders(cid, token, user_id, banco, query, execute, api_get, log):
     now = int(time.time())
     today = reporting_today()
@@ -24,48 +128,7 @@ def sync_orders(cid, token, user_id, banco, query, execute, api_get, log):
     success = True
     for day in selected:
         iso = day.isoformat()
-        offset, rows, complete = 0, {}, False
-        reason = "limite de paginação de 1000 resultados atingido"
-        expected_total = None
-        while offset < 1000:
-            data, error = api_get(token, "/orders/search", {
-                "seller": user_id, "sort": "date_desc", "limit": 50, "offset": offset,
-                "order.date_created.from": iso + "T00:00:00.000-03:00",
-                "order.date_created.to": iso + "T23:59:59.999-03:00"})
-            if error or not isinstance(data, dict):
-                reason = error or "resposta inválida"
-                break
-            results = data.get("results")
-            total = (data.get("paging") or {}).get("total")
-            if not isinstance(results, list) or type(total) is not int or total < 0:
-                reason = "resposta inválida: results ou paging.total"
-                break
-            if expected_total is not None and total != expected_total:
-                reason = "total alterado durante a paginação; nova coleta necessária"
-                break
-            expected_total = total
-            valid = True
-            before = len(rows)
-            for order in results:
-                if not isinstance(order, dict) or not order.get("id"):
-                    valid = False
-                    reason = "resposta inválida: pedido sem identificador"
-                    break
-                rows[str(order["id"])] = order
-            if not valid:
-                break
-            if results and len(rows) - before != len(results):
-                reason = "paginação repetida: identificadores duplicados"
-                break
-            offset += len(results)
-            if offset >= total:
-                complete = len(rows) == total
-                if not complete:
-                    reason = "quantidade recebida diferente de paging.total"
-                break
-            if not results:
-                reason = "página vazia antes de paging.total"
-                break
+        rows, complete, reason = collect_day(token, user_id, api_get, day)
         with banco() as conn:
             for oid, order in rows.items():
                 created, payments, units = order_fields(order)
@@ -129,3 +192,4 @@ def select_sync_days(today, now, coverage, older_limit=4):
         0 if (today - d).days < 60 else 1,
         coverage.get(d.isoformat(), 0), -d.toordinal()))
     return recent + eligible[:older_limit]
+

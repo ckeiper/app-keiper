@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 import os
 import time
 import unittest
@@ -158,7 +159,7 @@ class ManagementIntegrationTests(unittest.TestCase):
                 VALUES(%s,'management-order','paid',400,'BRL',%s,'[{"status":"approved"}]'::jsonb,4,%s)''',(self.ids[0],day+'T12:00:00-03:00',now))
             self.m.executar(conn,"INSERT INTO pedidos_itens(conexao_id,pedido_id,item_id,quantidade,preco_unitario) VALUES(%s,'management-order','MLB1000001',4,100)",(self.ids[0],))
         self.client=self.m.app.test_client()
-        with self.client.session_transaction() as s:s.update(usuario_id=1,tipo='cliente',conexao_id=self.ids[0])
+        with database_session(self.client) as s:s.update(usuario_id=1,tipo='cliente',conexao_id=self.ids[0])
         self.path='/painel/'+str(self.ids[0])
 
     def tearDown(self):
@@ -173,7 +174,7 @@ class ManagementIntegrationTests(unittest.TestCase):
         response=self.client.get(self.path)
         self.assertEqual(response.status_code,200)
         self.assertNotIn('SECRET MANAGEMENT B',response.text)
-        with self.client.session_transaction() as s:s['tipo']='admin'
+        with database_session(self.client) as s:s['tipo']='admin'
         self.assertEqual(self.client.get('/painel/2147483647').status_code,404)
 
     def test_cached_dashboard_with_real_sql_and_scoped_visits(self):
