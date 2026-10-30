@@ -24,9 +24,9 @@ class QuestionTests(unittest.TestCase):
     data=model([row(i,texto='texto '+str(i)) for i in range(1001)],dict(pagina='999',recorrencias='bad'))
     self.assertTrue(data['limited']);self.assertEqual(data['total'],1000);self.assertEqual(data['page'],100);self.assertEqual(len(data['rows']),10)
  def test_render_escape_limits_unknown_dates_and_no_inference(self):
-    data=model([row(texto='<script>',resposta='<img>',status='CLOSED',data='invalid')],{})
+    data=model([row(texto='<script>questionPayload()</script>',resposta='<img>',status='CLOSED',data='invalid')],{})
     text=render(7,'MLB1',dict(titulo='<script>'),data)
-    self.assertNotIn('<script>',text);self.assertNotIn('<img>',text);self.assertIn('Data não verificada',text)
+    self.assertNotIn('<script>questionPayload()',text);self.assertIn('&lt;script&gt;questionPayload()',text);self.assertNotIn('<img>',text);self.assertIn('Data não verificada',text)
     self.assertIn('Outros status: 1',text);self.assertIn('Não identifica intenção',text);self.assertIn('Até duas páginas de 50 perguntas',text)
     text=render(7,'MLB1',{},model([],{}));self.assertIn('não comprova ausência de dúvidas',text)
  def test_route_scope_readonly_and_roles(self):

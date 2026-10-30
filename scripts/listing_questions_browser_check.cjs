@@ -5,6 +5,8 @@ for(const mode of ['empty','ready','limited','page2','fresh','unknown','partial'
  await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  assert.equal(await page.locator('.lq-cards article').count(),4);
+ assert.equal(await page.locator('.k-refresh').count(),1);
+ assert.equal(await page.locator('.k-refresh button').textContent(),'Atualizar Perguntas');
  if(theme==='dark')assert.equal(await page.locator('.listing-questions').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(16, 34, 56)');
  assert.equal(await page.locator('.listing-questions #perguntas .lq-row').count(),mode==='empty'?0:10);
  assert.equal(await page.locator('.listing-questions #recorrencias .lq-row').count(),mode==='empty'?0:3);

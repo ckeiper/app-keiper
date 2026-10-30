@@ -709,13 +709,14 @@
       "area": "Conteúdo",
       "capacidade": "Perguntas e avaliações",
       "estado": "parcial",
-      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder.",
+      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder. O botão Atualizar Perguntas usa a fila de atualização por seção, com proteção e exclusão por loja existentes, sem recoletar anúncios, promoções, vendas ou Ads.",
       "falta": "A busca permanece limitada a 100 perguntas por atualização e a revisão individual a dois registros antigos por rodada. Não certifica histórico integral nem atualização simultânea de todos os status; perguntas anteriormente apagadas não são reconstruídas. Falta fonte e painel de avaliações dos compradores e análise validada de objeções semânticas.",
       "fontes": [
         "listing_questions.py",
         "main.py",
         "question_sync.py",
-        "docs/question-collection-coverage.md"
+        "docs/question-collection-coverage.md",
+        "section_refresh.py"
       ],
       "testes": [
         "test_listing_questions.py",

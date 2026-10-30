@@ -11,7 +11,7 @@ from sync_exclusion import store_sync_lock
 
 SCOPES = {'ads': 'Ads', 'campanhas': 'Campanhas', 'anuncios': 'Anúncios',
           'promocoes': 'Promoções', 'vendas': 'Vendas', 'full': 'Full e vendas',
-          'custos': 'Custos', 'desempenho': 'Desempenho', 'demandas': 'Demandas'}
+          'custos': 'Custos', 'desempenho': 'Desempenho', 'demandas': 'Demandas', 'perguntas': 'Perguntas'}
 
 
 def collector_names(scope):
@@ -21,6 +21,7 @@ def collector_names(scope):
         'vendas': ('puxar_pedidos', 'puxar_envios'), 'full': ('puxar_full',),
         'custos': ('puxar_anuncios',), 'desempenho': ('puxar_anuncios',),
         'demandas': ('puxar_anuncios', 'puxar_promocoes'),
+        'perguntas': ('puxar_perguntas',),
     }[scope]
 
 

@@ -126,3 +126,33 @@ class QuestionSyncTests(unittest.TestCase):
         bad=question();del bad['text']
         with self.assertRaises(ValueError):persist(None,execute,9,dict(questions=[bad]),NOW,7)
         execute.assert_not_called()
+
+class QuestionRefreshTests(unittest.TestCase):
+    def test_refresh_collects_only_questions_with_existing_dispatcher(self):
+        from test_section_refresh import production_function
+        import section_refresh
+        functions={name:Mock(side_effect=AssertionError('unrelated collector')) for name in ('puxar_ads','puxar_anuncios','puxar_pedidos','puxar_envios','puxar_full','puxar_promocoes')}
+        functions['puxar_perguntas']=Mock(return_value=True)
+        collect=production_function('coletar_secao',dict(functions,banco=lambda:contextlib.nullcontext(None),
+            consultar=Mock(return_value=[dict(user_id=7)]),token_atual=lambda c:'synthetic'))
+        self.assertEqual(section_refresh.collector_names('perguntas'),('puxar_perguntas',))
+        self.assertTrue(collect(9,'perguntas'))
+        functions['puxar_perguntas'].assert_called_once_with(9,'synthetic',7)
+        for name,fn in functions.items():
+            if name!='puxar_perguntas':fn.assert_not_called()
+
+    def test_page_has_one_question_refresh_and_keeps_listing_navigation(self):
+        import html
+        from flask import Flask
+        from listing_questions import render
+        from test_listing_details import main_function
+        app=Flask(__name__);app.secret_key='isolated'
+        page=main_function('pagina_loja',dict(session={'tipo':'admin'},esc=html.escape,CSS='',VISUAL_CSS='',SCRIPT='',img_logo=lambda size:''))
+        with app.test_request_context('/'):
+            text=page('Perguntas',9,'Loja','anuncios',render(9,'MLB123',{},model([],{},NOW,7)))
+        self.assertEqual(text.count("class='k-refresh'"),1)
+        self.assertIn("data-endpoint='/atualizacoes/9/perguntas'",text)
+        self.assertIn('Atualizar Perguntas',text)
+        self.assertNotIn('Atualizar Anúncios',text)
+        import re
+        self.assertTrue(bool(re.search(r"<a[^>]*href='/anuncios/9'[^>]*aria-current='page'",text)))
