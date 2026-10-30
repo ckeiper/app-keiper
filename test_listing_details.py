@@ -11,7 +11,9 @@ from unittest.mock import Mock, patch
 
 import listing_details as details
 from listing_pagination import listing_page
+from competitor_routes import tabs as listing_tabs
 from listing_sync import sync_promotions, sync_campaign_cache, pages
+from full_monitor import full_metadata
 
 
 def attr(value='1500 g', kind='WEIGHT'):
@@ -170,6 +172,22 @@ class PromotionTests(unittest.TestCase):
 
 
 class RequestTests(unittest.TestCase):
+    def test_promotion_conflict_recovers_with_bounded_retry(self):
+        get = Mock(side_effect=[response(409), response(data=[])])
+        sleep = Mock()
+        self.assertEqual(details.get_json('secret', '/seller-promotions/items/MLB123', {}, get, sleep), ([], None))
+        self.assertEqual(get.call_count, 2)
+        sleep.assert_called_once_with(1)
+
+    def test_persistent_conflict_is_failure_and_other_endpoints_do_not_retry_it(self):
+        for path, attempts in [('/seller-promotions/items/MLB123', 3), ('/items/MLB123', 1)]:
+            get, sleep = Mock(return_value=response(409)), Mock()
+            data, error = details.get_json('secret', path, {}, get, sleep)
+            self.assertIsNone(data)
+            self.assertIn('HTTP 409', error)
+            self.assertEqual(get.call_count, attempts)
+            self.assertEqual(sleep.call_count, attempts - 1)
+
     def test_error_reason_is_retained_without_credentials(self):
         get = Mock(return_value=response(400, data={'error': 'invalid_item',
                          'message': 'Invalid item id. Bearer secret access_token=other',
@@ -222,6 +240,24 @@ class RequestTests(unittest.TestCase):
 
 
 class SyncTests(unittest.TestCase):
+    def test_pilot_section_links_do_not_enqueue_full_collection(self):
+        enqueue, token, thread = Mock(), Mock(), Mock()
+        ns = dict(pode_ver_loja=lambda cid:True,loja_habilitada_fila_persistente=lambda cid:True,
+                  enfileirar_atualizacao=enqueue,redirect=lambda path:path,token_atual=token,
+                  threading=SimpleNamespace(Thread=thread))
+        route=main_function('atualizar_tipo',ns)
+        for tipo, expected_path in (
+                ('anuncios', '/anuncios/9'),
+                ('promocoes', '/promocoes/9'),
+                ('desempenho', '/desempenho/9'),
+                ('custos', '/custos/9'),
+                ('campanhas', '/ads/9')):
+            with self.subTest(tipo=tipo):
+                self.assertEqual(route(tipo,9), expected_path)
+        enqueue.assert_not_called()
+        token.assert_not_called()
+        thread.assert_not_called()
+
     def setup_sync(self, count=2):
         self.sql, self.errors = [], []
         self.items = [{'item_id': 'MLB' + str(i), 'promocoes_json': json.dumps({'checked_at': 10, 'promotions': []})}
@@ -256,26 +292,27 @@ class SyncTests(unittest.TestCase):
 
     def test_official_price_is_collected_even_when_campaign_is_unavailable(self):
         self.setup_sync(1)
-        get = Mock(side_effect=[response(409), response(data={'amount': 80, 'regular_amount': 100,
+        get = Mock(side_effect=[response(409), response(409), response(409), response(data={'amount': 80, 'regular_amount': 100,
                                 'currency_id': 'BRL', 'metadata': {'promotion_id': 'P1'}})])
         self.assertFalse(sync_promotions(1, 'secret', self.banco, self.consultar, self.executar, get, self.error))
         snap = json.loads(next(params[0] for sql, params in self.sql if 'UPDATE anuncios' in sql))
         self.assertEqual(details.effective_promotion(snap)['price'], 80)
 
-    def test_manual_refresh_returns_without_waiting_for_collection_and_deduplicates(self):
+    def test_legacy_refresh_link_displays_explicit_section_button_without_collection(self):
         self.setup_sync(1)
         thread = Mock()
         running = set()
         query = Mock(return_value=[{'id': 1, 'user_id': 2}])
-        namespace = dict(banco=self.banco, consultar=query, pode_ver_loja=lambda cid: True,
+        namespace = dict(loja_habilitada_fila_persistente=lambda cid:False,
+                         banco=self.banco, consultar=query, pode_ver_loja=lambda cid: True,
                          token_atual=lambda c: 'fake', LOCK_ATUALIZACAO=threading.Lock(),
                          ATUALIZANDO=running, threading=SimpleNamespace(Thread=thread),
                          atualizar_anuncios_bg=Mock(), redirect=lambda path: path)
         route = main_function('atualizar_tipo', namespace)
         self.assertEqual(route('anuncios', 1), '/anuncios/1')
         self.assertEqual(route('anuncios', 1), '/anuncios/1')
-        self.assertEqual(thread.call_count, 1)
-        thread.return_value.start.assert_called_once()
+        thread.assert_not_called()
+        query.assert_not_called()
         namespace['atualizar_anuncios_bg'].assert_not_called()
 
     def test_campaign_cache_keeps_empty_campaign_and_only_active_items(self):
@@ -333,12 +370,12 @@ class SyncTests(unittest.TestCase):
         namespace = dict(time=time, json=json, banco=self.banco, consultar=self.consultar,
                          executar=self.executar, registrar_erro=self.error, get_json=api,
                          requests=SimpleNamespace(get=Mock()), registered_weights=details.registered_weights,
-                         legacy_weight=details.legacy_weight)
+                         legacy_weight=details.legacy_weight, full_metadata=full_metadata)
         main_function('puxar_anuncios', namespace)(1, 'secret', 2)
         inserts = [params for sql, params in self.sql if 'INSERT INTO anuncios' in sql]
         self.assertEqual(len(inserts), 1)
         self.assertEqual(inserts[0][11], 2)
-        self.assertEqual(len(inserts[0]), 15)
+        self.assertEqual(len(inserts[0]), 16)
         self.assertEqual(api.call_args_list[1].args[2]['include_attributes'], 'all')
 
     def test_incomplete_search_never_deletes(self):
@@ -364,7 +401,7 @@ class SyncTests(unittest.TestCase):
         namespace = dict(time=time, json=json, banco=self.banco, consultar=self.consultar,
                          executar=self.executar, registrar_erro=self.error, get_json=api,
                          requests=SimpleNamespace(get=Mock()), registered_weights=details.registered_weights,
-                         legacy_weight=details.legacy_weight)
+                         legacy_weight=details.legacy_weight, full_metadata=full_metadata)
         main_function('puxar_anuncios', namespace)(1, 'secret', 2)
         self.assertEqual(sum('INSERT INTO anuncios' in sql for sql, _ in self.sql), 201)
         self.assertEqual(calls[1][1]['scroll_id'], 'a')
@@ -376,8 +413,9 @@ class SyncTests(unittest.TestCase):
                    fotos=1, clips=0, status='active', tags='[]', vendidos=1, peso=2,
                    pesos_json=None, promocoes_json=None)
         query = Mock(side_effect=[[{'cliente': 'Loja'}], [row], []])
-        namespace = dict(banco=self.banco, consultar=query, pode_ver_loja=lambda cid: True,
-                         listing_page=listing_page, request=SimpleNamespace(args={}),
+        namespace = dict(loja_habilitada_fila_persistente=lambda cid:False,
+                         banco=self.banco, consultar=query, pode_ver_loja=lambda cid: True,
+                         listing_page=listing_page, listing_tabs=listing_tabs, session={'tipo':'admin'}, request=SimpleNamespace(args={}),
                          pagina_loja=lambda *args: args[-1], ultima_atualizacao=lambda cid: None,
                          barra_atualizar=lambda *args: '', esc=html.escape, json=json,
                          render_promotions=details.render_promotions, read_json=details.read_json,
@@ -386,16 +424,15 @@ class SyncTests(unittest.TestCase):
                          effective_promotion=details.effective_promotion,
                          frete_esperado=lambda *args: 10, TAGS_RUINS=set(), TAGS_BOAS=set())
         output = main_function('anuncios', namespace)(1)
-        self.assertIn("title='PACKAGE_WEIGHT'>Peso cadastrado", output)
-        self.assertIn("title='SELLER_PACKAGE_WEIGHT'>Peso logístico", output)
+        self.assertIn("Peso cadastrado · PACKAGE_WEIGHT", output)
+        self.assertIn("Peso logístico · SELLER_PACKAGE_WEIGHT", output)
         self.assertIn('Declarado pelo vendedor', output)
-        self.assertIn('<td>Não disponível</td>', output)
+        self.assertIn('Não disponível', output)
         self.assertNotIn('de R$ 100.00', output)
-        self.assertNotIn('<script>', output)
-        self.assertEqual(output.count('</th>'), 12)
-        self.assertEqual(output.count('<td>'), 12)
+        self.assertNotIn('Produto <script>', output)
+        self.assertEqual(output.count('</th>'), 5)
+        self.assertEqual(output.count('<td>'), 5)
 
 
 if __name__ == '__main__':
     unittest.main()
-

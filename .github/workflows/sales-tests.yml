@@ -10,6 +10,9 @@ permissions:
 jobs:
   sales:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.12', '3.14']
     services:
       postgres:
         image: postgres:16
@@ -26,9 +29,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python-version }}
       - run: python -m pip install -r requirements.txt
+      - run: python scripts/check_anuncios_progress.py
       - run: python -m unittest -v
         env:
           KEIPER_TEST_DATABASE_URL: postgresql://keiper_test:test_only@localhost:5432/keiper_test
           SECRET_KEY: isolated-test-key
+
+      - name: Validate Gunicorn configuration
+        run: gunicorn --check-config 'flask:Flask("config-check")'

@@ -10,8 +10,9 @@ from sales_view import filters, fmt
 from overview_store import PERIOD_ROWS_SQL, UNUSUAL_SQL, LATEST_ERRORS_SQL
 from overview_read import bounded_query
 
-EXCEPTION_BATCH_SIZE = 500
-PERIOD_BATCH_SIZE = 1000
+# Fewer database round trips for multi-store overviews while bounding reads.
+EXCEPTION_BATCH_SIZE = 1000
+PERIOD_BATCH_SIZE = 4000
 STALE_SECONDS = 3 * 60 * 60
 HISTORICAL_STALE_SECONDS = 7 * 24 * 60 * 60
 
@@ -91,6 +92,10 @@ def daily_summary(rows, start, end, covered):
         result[key] = sum((r[key] for r in selected.values()), Decimal(0) if key == 'revenue' else 0)
     result['daily'] = [None if d not in covered or selected.get(d,{}).get('invalid',0)
                        else float(selected.get(d,{}).get('revenue',0)) for d in result['days']]
+    for key in ('orders','units'):
+        result['daily_'+key] = [None if d not in covered or selected.get(d,{}).get('invalid',0) or (key=='units' and selected.get(d,{}).get('unknown_units',0))
+                               else selected.get(d,{}).get(key,0) for d in result['days']]
+    result['daily_ticket'] = [a/b if a is not None and b else None for a,b in zip(result['daily'],result['daily_orders'])]
     if not result['complete'] or result['invalid']:
         for key in ('revenue','orders','units'):
             result[key] = None
@@ -116,6 +121,9 @@ def merge_summary(left, right):
         result[key] = left[key] + right[key]
     result['daily'] = [a+b if a is not None and b is not None else None
                        for a,b in zip(left['daily'],right['daily'])]
+    for key in ('daily_orders','daily_units'):
+        result[key] = [a+b if a is not None and b is not None else None for a,b in zip(left[key],right[key])]
+    result['daily_ticket'] = [a/b if a is not None and b else None for a,b in zip(result['daily'],result['daily_orders'])]
     return recalculate(result)
 
 
@@ -203,6 +211,34 @@ def variation(current, previous):
 
 
 STYLE = """<style>
+/* Keiper compact hybrid shell: dark navigation, quiet light workspace. */
+.overview-layout{gap:0;background:#f5f7fb;border-radius:14px;overflow:hidden;min-height:calc(100vh - 130px)}
+.overview-layout>.menu-lateral{background:#111c2e!important;color:#e2e8f0!important;padding:14px 10px!important;border-radius:0!important;box-shadow:none!important}
+.overview-layout>.menu-lateral a.item,.overview-layout>.menu-lateral a.voltar{color:#d5deeb!important;border-radius:7px!important;padding:9px 11px!important;font-size:12.5px!important;line-height:1.35}
+.overview-layout>.menu-lateral a.item:hover,.overview-layout>.menu-lateral a.voltar:hover{background:#253650!important;color:white!important}
+.overview-layout>.conteudo{background:#f5f7fb!important;padding:20px 22px!important;min-width:0}
+.overview-hero{background:transparent!important;color:#162238!important;border-radius:0!important;padding:0!important;margin:0 0 14px!important}
+.overview-hero small{color:#64748b!important;font-size:10px!important;letter-spacing:1px}
+.overview-hero h2{color:#142137!important;font-size:21px!important;line-height:1.25;margin:4px 0 3px!important;letter-spacing:-.5px}
+.overview-hero p{display:none}
+.overview-layout .card{background:#fff;border:1px solid #e7ecf3!important;border-radius:10px!important;padding:15px!important;box-shadow:0 1px 3px rgba(16,31,55,.035)!important;margin-bottom:13px!important}
+.overview-layout .card h2{font-size:15px!important;letter-spacing:-.2px;margin-bottom:10px!important}
+.overview-kpis{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important;margin:13px 0!important}
+.overview-kpis .stat{background:#fff!important;border:1px solid #e7ecf3!important;border-top:1px solid #e7ecf3!important;border-radius:10px!important;padding:13px 14px!important;min-width:0;box-shadow:0 1px 3px rgba(16,31,55,.03)!important}
+.overview-kpis .stat .lab{font-size:11px!important;font-weight:600;color:#64748b!important;line-height:1.3}
+.overview-kpis .stat .num{font-size:22px!important;font-weight:750!important;line-height:1.25!important;letter-spacing:-.6px;margin:7px 0 4px!important;overflow-wrap:anywhere}
+.overview-kpis .stat p{font-size:10.5px!important;color:#64748b!important;line-height:1.4;margin:0!important}
+.overview-table{border-collapse:collapse;font-size:12px!important}
+.overview-table th{background:#f8fafc!important;color:#64748b!important;font-size:10.5px!important;font-weight:650!important;text-transform:uppercase;letter-spacing:.3px}
+.overview-table td,.overview-table th{padding:9px 10px!important;vertical-align:middle!important;border-bottom:1px solid #edf1f6}
+.overview-table td{line-height:1.4}
+.overview-status{font-size:10px!important;margin-top:3px!important;line-height:1.3}
+.overview-alert{border-left:2px solid #d8a34c!important;background:#fffbf2!important;padding:9px 11px!important;margin:6px 0!important;border-radius:6px;font-size:12px}
+.overview-layout .aviso{padding:9px 11px!important;font-size:11px!important;line-height:1.45!important;margin:10px 0!important}
+.overview-actions{gap:7px!important;margin:10px 0!important}
+@media(max-width:1150px){.overview-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:700px){.overview-layout>.conteudo{padding:14px!important}.overview-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}.overview-kpis .stat{padding:10px!important}.overview-kpis .stat .num{font-size:19px!important}.overview-hero h2{font-size:19px!important}}
+
 .overview-hero{background:#122d3b;color:white;border-radius:18px;padding:28px;margin-bottom:20px}
 .overview-hero h2{color:white;margin:4px 0 12px;font-size:30px}.overview-hero p{color:#cbdce3}
 .overview-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0}
@@ -297,10 +333,10 @@ document.addEventListener('keydown', function(event) {
             + controls + body + "</div></div>" + script)
 
 
-def render_overview(data, args, admin=False):
+def render_overview(data, args, admin=False, visits_card=None):
     start, end, prev_start, prev_end = data['bounds']
-    out = STYLE + "<section class='overview-hero'><small>KEIPER CONSULTORIA · CENTRAL ADMINISTRATIVA</small>"
-    out += "<h2>Visão Geral 2.0</h2><p>Desempenho das lojas às quais você tem acesso.</p></section>"
+    out = STYLE + "<section class='overview-hero'><small>KEIPER / VISÃO GERAL</small>"
+    out += "<h2>Visão geral</h2><p>Indicadores das lojas.</p></section>"
     out += filters(None, args, action='/painel')
     out += (f"<p>{start:%d/%m/%Y} a {end:%d/%m/%Y} · Anterior: "
             f"{prev_start:%d/%m/%Y} a {prev_end:%d/%m/%Y}</p>"
@@ -314,7 +350,34 @@ def render_overview(data, args, admin=False):
         out += ("<div class='stat'><div class='lab'>" + title + "</div><div class='num'>"
                 + fmt(value,money) + "</div><p>Anterior: " + fmt(previous,money)
                 + " · " + variation(value,previous) + "</p></div>")
-    out += "</div><section class='card'><h2>Atenção às lojas</h2>"
+    visits = visits_card or {"available": False}
+    if visits.get("available"):
+        visits_text = f"{visits['visits']:,}".replace(",", ".")
+        out += ("<div class='stat'><div class='lab'>Visitas registradas · últimos 7 dias completos</div>"
+                + "<div class='num'>" + visits_text + "</div>"
+                + "<p>Dados parciais: " + str(visits['shops_with_data']) + " de "
+                + str(visits['shops_total']) + " lojas, " + str(visits['days_with_data'])
+                + " de 7 dias com registros. Período: " + visits['start'] + " a "
+                + visits['end'] + ". Não representa o total de lojas sem dados.</p></div>")
+    else:
+        out += ("<div class='stat'><div class='lab'>Visitas · últimos 7 dias</div>"
+                "<div class='num'>Indisponível</div>"
+                "<p>Aguardando sincronização das visitas oficiais.</p></div>")
+    if visits.get("available"):
+        import json
+        dates = sorted(visits["daily"])
+        values = [visits["daily"][day] for day in dates]
+        out += ("</div><section class='card'><h2>Visitas por dia · registros disponíveis</h2>"
+                "<p>Somente dias com dados oficiais. Datas ausentes não são zeros.</p>"
+                "<div style='height:260px'><canvas id='visitsDailyOverview'></canvas></div></section>")
+        out += ("<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
+                "<script>new Chart(document.getElementById('visitsDailyOverview'),"
+                "{type:'line',data:{labels:" + json.dumps(dates) + ",datasets:[{label:'Visitas registradas',data:"
+                + json.dumps(values) + ",borderColor:'#3483FA',tension:.25}]},options:{responsive:true,"
+                "maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});</script>")
+    else:
+        out += "</div>"
+    out += "<section class='card'><h2>Atenção às lojas</h2>"
     if not data['alerts']:
         out += "<p>Nenhum alerta pelos critérios atuais.</p>"
     for a in data['alerts']:
@@ -323,7 +386,7 @@ def render_overview(data, args, admin=False):
                 + escape(a['name']) + "</a> · " + escape(a['text'])
                 + "<span class='overview-status'>" + impact + "</span></div>")
     out += "</section><section class='card'><h2>Desempenho por loja</h2><div style='overflow-x:auto'>"
-    out += "<table class='overview-table'><thead><tr><th>Loja</th><th>Faturamento</th><th>Pedidos</th><th>Ticket médio</th><th>Variação de faturamento</th><th>Painel</th></tr></thead><tbody>"
+    out += "<table class='overview-table'><thead><tr><th>Loja</th><th>Faturamento</th><th>Pedidos</th><th>Ticket médio</th><th>Visitas (7 dias)</th><th>Variação de faturamento</th><th>Painel</th></tr></thead><tbody>"
     for r in data['reports']:
         s, cur = r['shop'], r['current']
         # A capped batch is not a usable subtotal even for an apparently complete shop.
@@ -332,11 +395,12 @@ def render_overview(data, args, admin=False):
         out += (f"<tr><td><b id='nome-{s['id']}'>" + escape(s['cliente']) + "</b><span class='overview-status'>"
                 + escape(status) + "</span></td><td data-label='Faturamento'>" + fmt(value('revenue'),True)
                 + "</td><td data-label='Pedidos'>" + fmt(value('orders'),False) + "</td><td data-label='Ticket médio'>" + fmt(value('ticket'),True)
+                + "</td><td data-label='Visitas'>" + (str(visits.get('by_shop', {}).get(s['id'], 'Indisponível')) if visits.get('available') else 'Indisponível')
                 + "</td><td data-label='Variação'>" + (variation(cur['revenue'],r['previous']['revenue']) if r['eligible'] else 'Indisponível')
                 + f"</td><td data-label='Ações'><a class='link' href='/painel/{s['id']}'>Abrir painel</a> "
                 + f"<a class='link' href='#' onclick='editarNome({s['id']});return false'>Renomear</a></td></tr>")
     if not data['reports']:
-        out += "<tr><td colspan='6'>Nenhuma loja disponível. Conecte uma loja para começar.</td></tr>"
+        out += "<tr><td colspan='7'>Nenhuma loja disponível. Conecte uma loja para começar.</td></tr>"
     out += ("</tbody></table></div></section><details class='card'><summary>Critérios e limites</summary>"
             "<p>Faturamento: pedidos pagos com pagamento aprovado em BRL, por criação em Brasília. "
             "Hoje está em andamento. Ticket consolidado = faturamento total ÷ pedidos totais.</p>"

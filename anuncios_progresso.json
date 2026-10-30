@@ -1,0 +1,1604 @@
+{
+  "versao": 1,
+  "data_auditoria": "2026-10-25",
+  "base_sha": "756ef95022acd1dfe03e58ba4b5ecb1619a2c1b7",
+  "origem": "Resumo aprovado preservado no contexto e escolhas finais explicitamente registradas; lista literal integral não recuperada.",
+  "lista_original_completa": false,
+  "contagem_das_90": null,
+  "criterio": "Unidades de capacidade agrupadas para auditoria; não equivalem a itens nem posições da lista original de 90.",
+  "deploy_base": {
+    "id": "dep-dbf9e995efls73bp109g",
+    "status": "live",
+    "horario_brasilia": "2026-10-25T20:57:23-03:00"
+  },
+  "validacao_base": {
+    "testes": 940,
+    "python": [
+      "3.12",
+      "3.14"
+    ],
+    "postgres": true,
+    "workflow_runs": [
+      40246764917,
+      40246764924,
+      40246764966
+    ]
+  },
+  "capacidades": [
+    {
+      "id": "concorrentes-links",
+      "area": "Concorrência",
+      "capacidade": "Cadastro de links de concorrentes por loja",
+      "estado": "concluida",
+      "implementado": "Cadastro, vínculo ao anúncio e isolamento por loja.",
+      "falta": "",
+      "fontes": [
+        "competitor_routes.py",
+        "competitor_monitor.py"
+      ],
+      "testes": [
+        "test_competitors.py"
+      ],
+      "prs": [
+        145
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "concorrentes-frequencia",
+      "area": "Concorrência",
+      "capacidade": "Programação de dez leituras diárias",
+      "estado": "concluida",
+      "implementado": "Dez slots por dia em Brasília, coleta limitada e proteção entre workers. A execução efetiva de cada loja depende de conexão e respostas da API.",
+      "falta": "",
+      "fontes": [
+        "competitor_monitor.py",
+        "main.py"
+      ],
+      "testes": [
+        "test_competitors.py"
+      ],
+      "prs": [
+        145
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "concorrentes-full",
+      "area": "Concorrência",
+      "capacidade": "Observação de Full dos concorrentes",
+      "estado": "concluida",
+      "implementado": "Estados observados e histórico sem preencher lacunas como estoque zero.",
+      "falta": "",
+      "fontes": [
+        "competitor_monitor.py",
+        "competitor_routes.py",
+        "offer_history.py"
+      ],
+      "testes": [
+        "test_competitors.py",
+        "test_offer_history.py"
+      ],
+      "prs": [
+        145,
+        166
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "concorrentes-preco",
+      "area": "Concorrência",
+      "capacidade": "Monitoramento do preço final e promoção",
+      "estado": "concluida",
+      "implementado": "Preço confirmado, fonte, histórico e tratamento de leitura inválida. Não presume cupom ou frete.",
+      "falta": "",
+      "fontes": [
+        "competitor_monitor.py",
+        "offer_history.py"
+      ],
+      "testes": [
+        "test_competitors.py",
+        "test_offer_reading_coverage.py"
+      ],
+      "prs": [
+        145,
+        259
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "competitividade-perdas",
+      "area": "Concorrência",
+      "capacidade": "Competitividade e vendas observadas nos mesmos períodos",
+      "estado": "concluida",
+      "implementado": "Histórico da distância entre preços e comparação das amostras com vendas verificadas nas mesmas janelas. Mostra coincidências para conferência, sem atribuir causa da queda ou inferir vendas perdidas por preço.",
+      "falta": "",
+      "fontes": [
+        "listing_competitiveness.py",
+        "competitive_sales_context.py"
+      ],
+      "testes": [
+        "test_listing_competitiveness.py",
+        "test_competitive_sales_context.py"
+      ],
+      "prs": [
+        248,
+        258,
+        272
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "visitas-coleta",
+      "area": "Visitas",
+      "capacidade": "Coleta e persistência de visitas por anúncio",
+      "estado": "concluida",
+      "implementado": "Coleta incremental, cobertura e falhas explícitas; dados disponíveis em gráficos e tabelas.",
+      "falta": "",
+      "fontes": [
+        "copas_visits_store.py",
+        "main.py"
+      ],
+      "testes": [
+        "test_visits_history.py",
+        "test_visits_refresh.py"
+      ],
+      "prs": [
+        124,
+        133,
+        164,
+        165
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "conversao-oficial",
+      "area": "Visitas",
+      "capacidade": "Conversão real/oficial",
+      "estado": "parcial",
+      "implementado": "Razão observacional de pedidos pagos por visitas com cobertura verificada e denominadores positivos.",
+      "falta": "Não há equivalência comprovada com a métrica oficial de conversão do marketplace; definição, numerador, janela e fonte precisam ser validados.",
+      "fontes": [
+        "listing_comparison.py",
+        "investigation_evidence.py"
+      ],
+      "testes": [
+        "test_listing_comparison_visits.py"
+      ],
+      "prs": [
+        268
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "comparador-quatro",
+      "area": "Visitas",
+      "capacidade": "Comparação de até quatro anúncios",
+      "estado": "concluida",
+      "implementado": "Mesmas janelas verificadas, vendas, visitas, cobertura diária e estoque atual separado do histórico.",
+      "falta": "",
+      "fontes": [
+        "listing_comparison.py",
+        "listing_comparison_stock.py"
+      ],
+      "testes": [
+        "test_listing_comparison.py",
+        "test_listing_comparison_visits.py",
+        "test_comparison_daily_visits.py",
+        "test_comparison_stock.py"
+      ],
+      "prs": [
+        267,
+        268,
+        269,
+        270
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "historico-completo",
+      "area": "Visitas",
+      "capacidade": "Histórico completo de visitas",
+      "estado": "parcial",
+      "implementado": "Histórico persistido desde as coletas e inspeção diária com lacunas explícitas.",
+      "falta": "Não há reconstrução de todo o período anterior à coleta; cobertura real varia por anúncio. Não certificar histórico integral de todas as contas.",
+      "fontes": [
+        "copas_visits_store.py",
+        "listing_timeline.py"
+      ],
+      "testes": [
+        "test_visits_history.py",
+        "test_listing_timeline.py"
+      ],
+      "prs": [
+        168,
+        269
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "estoque-full-historico",
+      "area": "Estoque",
+      "capacidade": "Histórico de estoque Full",
+      "estado": "concluida",
+      "implementado": "Observações de disponibilidade, fontes e integração com vendas e diagnóstico. Ausência é desconhecida.",
+      "falta": "",
+      "fontes": [
+        "full_monitor.py",
+        "listing_full_sales_chart.py",
+        "investigation_evidence.py"
+      ],
+      "testes": [
+        "test_full.py",
+        "test_listing_full_sales_chart.py"
+      ],
+      "prs": [
+        158,
+        161,
+        260
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "estoque-ruptura",
+      "area": "Estoque",
+      "capacidade": "Previsão de ruptura",
+      "estado": "parcial",
+      "implementado": "Cobertura aritmética pelo estoque recente e unidades vendidas verificadas.",
+      "falta": "Ainda não é previsão validada de demanda ou data de ruptura; falta modelo e validação histórica apropriados.",
+      "fontes": [
+        "listing_priority_sources.py",
+        "listing_comparison_stock.py"
+      ],
+      "testes": [
+        "test_stock_priority_details.py",
+        "test_comparison_stock.py"
+      ],
+      "prs": [
+        257,
+        270
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "estoque-variacoes",
+      "area": "Estoque",
+      "capacidade": "Estoque por variação",
+      "estado": "concluida",
+      "implementado": "Conferência de inventários por variação e histórico de quantidade nas consultas carregadas, com lacunas, vínculos compartilhados e troca de inventário explícitos. Não prevê demanda nem atribui vendas à variação.",
+      "falta": "",
+      "fontes": [
+        "full_report_components.py",
+        "full_variation_history.py",
+        "full_view.py"
+      ],
+      "testes": [
+        "test_full_report.py",
+        "test_full_variation_history.py"
+      ],
+      "prs": [
+        273,
+        274
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "curva-abc",
+      "area": "Estoque",
+      "capacidade": "Curva ABC",
+      "estado": "concluida",
+      "implementado": "Classes por valor bruto, empates juntos, duas janelas, filtros e paginação.",
+      "falta": "",
+      "fontes": [
+        "listing_abc.py"
+      ],
+      "testes": [
+        "test_listing_abc.py"
+      ],
+      "prs": [
+        271
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "metas-alertas",
+      "area": "Execução",
+      "capacidade": "Metas com alertas por anúncio",
+      "estado": "concluida",
+      "implementado": "Cadastro administrativo de metas de estoque mínimo por anúncio, com valor, período e responsável informados, histórico de cadastro/cancelamento preservado e paginação. Alertas no painel calculados ao abrir a tela com leitura do catálogo de até seis horas; dados antigos, inválidos ou ausentes ficam não verificados. Metas encerradas não usam estoque atual para fabricar resultado histórico. Sincronizações avaliam metas elegíveis e persistem data da avaliação, data da leitura, estoque verificado ou ausência e resultado. Histórico por meta com paginação, preservado após cancelamento; sem reconstrução retroativa. Metas de pedidos pagos, unidades e valor bruto dos itens por anúncio, com período e responsável, cadastro idempotente e cancelamento preservado. Avaliação na abertura usa somente dias completos e cobertura de vendas verificada. Abaixo da meta durante o prazo é andamento; alerta somente depois do encerramento, sem projetar ritmo ou inventar zeros. Sincronizações de pedidos persistem avaliações das metas de vendas, com data de corte, resultado, valor verificado ou ausência e impressão da base. Histórico paginado por anúncio e meta, preservado após cancelamento. Metas encerradas são revisitadas por 30 dias; GET somente consulta. Avisos opcionais por e-mail para a própria conta administrativa, desativados por padrão e condicionados a consentimento explícito por meta. Usa nova avaliação verificada, última leitura de estoque coincidente com o catálogo, prazo encerrado para vendas e até uma tentativa por dia de Brasília. Bloqueia metas canceladas, lojas inativas e e-mail alterado. Persistência de tentativas com deduplicação concorrente e estado SMTP aceito ou incerto, sem repetir automaticamente a tentativa diária. Escopo entregue: metas administrativas de estoque geral e vendas, avaliações persistidas e avisos opcionais. Limites operacionais: depende das sincronizações e SMTP configurado, não garante entrega ou coleta contínua, não prevê ruptura e não reconstrói avaliações anteriores.",
+      "falta": "",
+      "fontes": [
+        "listing_goals.py",
+        "listing_goal_routes.py",
+        "listing_goal_view.py",
+        "goal_observations.py",
+        "listing_sales_goals.py",
+        "listing_sales_goal_routes.py",
+        "listing_sales_goal_view.py",
+        "sales_goal_observations.py",
+        "goal_notifications.py",
+        "goal_notification_routes.py",
+        "goal_notification_view.py"
+      ],
+      "testes": [
+        "test_listing_goals.py",
+        "test_listing_goals_integration.py",
+        "scripts/listing_goals_browser_check.cjs",
+        "test_goal_observations.py",
+        "test_goal_observations_integration.py",
+        "scripts/goal_observations_browser_check.cjs",
+        "test_listing_sales_goals.py",
+        "test_listing_sales_goals_integration.py",
+        "scripts/listing_sales_goals_browser_check.cjs",
+        "test_sales_goal_observations.py",
+        "test_sales_goal_observations_integration.py",
+        "scripts/sales_goal_observations_browser_check.cjs",
+        "test_goal_notifications.py",
+        "test_goal_notifications_integration.py",
+        "scripts/goal_notifications_browser_check.cjs"
+      ],
+      "prs": [
+        251,
+        313,
+        314,
+        316
+      ],
+      "numero_original": null,
+      "prioridade": 5,
+      "atualizado_em": "2026-10-29"
+    },
+    {
+      "id": "vendas-paralisadas",
+      "area": "Estoque",
+      "capacidade": "Sinais de vendas paralisadas",
+      "estado": "concluida",
+      "implementado": "Interrupção de pedidos entre períodos verificados, com checklist e sem inferir demanda a partir de zero isolado.",
+      "falta": "",
+      "fontes": [
+        "listing_opportunities.py",
+        "listing_ranking.py"
+      ],
+      "testes": [
+        "test_listing_opportunities.py",
+        "test_listing_ranking.py"
+      ],
+      "prs": [],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "rentabilidade",
+      "area": "Rentabilidade",
+      "capacidade": "Rentabilidade por anúncio",
+      "estado": "parcial",
+      "implementado": "Contribuição documentada, componentes, versões, fontes, fingerprint e comparação histórica.",
+      "falta": "Custos exigem registro documental do administrador; coleta automática completa e reconciliação dos componentes não estão implementadas. Não é lucro líquido.",
+      "fontes": [
+        "profitability_routes.py",
+        "profitability_store.py",
+        "profitability_comparison.py"
+      ],
+      "testes": [
+        "test_profitability.py",
+        "test_profitability_comparison.py"
+      ],
+      "prs": [
+        235,
+        236,
+        263,
+        264,
+        265
+      ],
+      "numero_original": null,
+      "prioridade": 6,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "simulador",
+      "area": "Rentabilidade",
+      "capacidade": "Simulador financeiro",
+      "estado": "concluida",
+      "implementado": "Premissas explícitas, até cinco faixas, composição e meta opcional sem valores presumidos.",
+      "falta": "",
+      "fontes": [
+        "profitability_scenarios.py"
+      ],
+      "testes": [
+        "test_profitability_scenarios.py",
+        "test_discount_margin_target.py"
+      ],
+      "prs": [
+        247,
+        251
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "recuperacao-margem",
+      "area": "Rentabilidade",
+      "capacidade": "Diagnóstico e ações de revisão da margem",
+      "estado": "concluida",
+      "implementado": "Componentes documentados, déficit aritmético e ações de conferência. Não promete recuperação nem executa alterações.",
+      "falta": "",
+      "fontes": [
+        "margin_recovery.py"
+      ],
+      "testes": [
+        "test_margin_recovery.py"
+      ],
+      "prs": [
+        239
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "tarifas",
+      "area": "Rentabilidade",
+      "capacidade": "Tarifas por anúncio",
+      "estado": "parcial",
+      "implementado": "Tarifas podem ser documentadas nos custos e informadas explicitamente nos simuladores. Comparador de dois ou três pedidos mantém tarifa total e financiamento incluído separados para conferência, sem cobrar financiamento duas vezes; referência e data declaradas por opção. Cotação sob demanda em /sites/MLB/listing_prices após validar conta, propriedade, preço unitário sem variações, categoria, modalidade e logística atuais. Separa tarifa de venda e detalhe fixo incluído, desconhecido de zero, sem persistir como custo histórico.",
+      "falta": "Falta conferência automática contra cobranças de vendas históricas e cobertura de variações e contextos comerciais específicos. Cotação atual é estimativa da API, não cobrança confirmada nem custo histórico.",
+      "fontes": [
+        "listing_profitability.py",
+        "profitability_scenarios.py",
+        "installment_comparison.py",
+        "listing_fee_quote.py",
+        "docs/TARIFAS_COTACAO.md"
+      ],
+      "testes": [
+        "test_listing_profitability.py",
+        "test_profitability_scenarios.py",
+        "test_installment_comparison.py",
+        "test_listing_fee_quote.py"
+      ],
+      "prs": [
+        235,
+        247
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-26"
+    },
+    {
+      "id": "parcelamento",
+      "area": "Rentabilidade",
+      "capacidade": "Análise específica de parcelamento",
+      "estado": "parcial",
+      "implementado": "Comparador manual por anúncio de duas ou três opções identificadas por quantidade de parcelas, bruto e tarifa total com financiamento incluído, referência e data obrigatórias, custos comuns explícitos, contribuição e diferença para a primeira opção. Sem persistir ou alterar anúncio.",
+      "falta": "Falta coleta e validação oficial das opções elegíveis e dos respectivos custos. Referências são declaradas pelo administrador, não verificadas; não calcula prestações, juros, calendário de recebimento nem impacto nas vendas.",
+      "fontes": [
+        "profitability_scenarios.py",
+        "installment_comparison.py"
+      ],
+      "testes": [
+        "test_profitability_scenarios.py",
+        "test_installment_comparison.py"
+      ],
+      "prs": [],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-26"
+    },
+    {
+      "id": "descontos-progressivos",
+      "area": "Rentabilidade",
+      "capacidade": "Descontos progressivos e simulação de novas faixas",
+      "estado": "concluida",
+      "implementado": "Quantidades e descontos progressivos, rentabilidade sob premissas explícitas e distância da meta opcional.",
+      "falta": "",
+      "fontes": [
+        "profitability_scenarios.py"
+      ],
+      "testes": [
+        "test_profitability_scenarios.py",
+        "test_discount_margin_target.py"
+      ],
+      "prs": [
+        247,
+        251
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "promocoes-resultados",
+      "area": "Rentabilidade",
+      "capacidade": "Promoções: comparação de resultados e rentabilidade",
+      "estado": "parcial",
+      "implementado": "Histórico de participação e antes/depois de ações de preço/promoção, inclusive contribuição com custos documentados. Preservação incremental das consultas de promoções por item, incluindo falhas, status, datas e condições selecionadas. Painel histórico com comparação descritiva de janelas equivalentes de 7/30 dias a partir de calendário com fuso explícito, sem usar a detecção como início. Exclui dias parciais/futuros, candidatos/removidos, variações e tipos condicionais sem regra validada. Contribuição depende de custos documentados das datas exatas e fingerprint de vendas válido.",
+      "falta": "Calendário e leituras isoladas não comprovam participação contínua e condições constantes durante toda a janela. Persistem a lacuna de comprovação integral da vigência efetiva e a coleta automática completa dos custos; sem reconstrução retroativa.",
+      "fontes": [
+        "promo_history.py",
+        "profitability_action.py",
+        "promotion_observations.py",
+        "promotion_comparison.py",
+        "docs/PROMOCOES_CALENDARIO.md"
+      ],
+      "testes": [
+        "test_promo_history.py",
+        "test_profitability_action.py",
+        "test_action_finance_volume.py",
+        "test_promotion_observations.py",
+        "test_promotion_observations_integration.py",
+        "scripts/promotion_comparison_browser_check.cjs"
+      ],
+      "prs": [
+        205,
+        249,
+        266,
+        312
+      ],
+      "numero_original": null,
+      "prioridade": 4,
+      "atualizado_em": "2026-10-29"
+    },
+    {
+      "id": "tendencia",
+      "area": "Diagnóstico",
+      "capacidade": "Tendência inteligente",
+      "estado": "parcial",
+      "implementado": "Comparação entre períodos e sinais determinísticos de alta, queda e novas vendas.",
+      "falta": "Não foi identificado modelo específico de tendência com controle de sazonalidade e validação histórica; comparação simples não certifica todo o requisito amplo.",
+      "fontes": [
+        "listing_trends.py",
+        "listing_diagnostic_rules.py"
+      ],
+      "testes": [
+        "test_listing_trends.py",
+        "test_listing_diagnostic_rules.py"
+      ],
+      "prs": [],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "anomalias",
+      "area": "Diagnóstico",
+      "capacidade": "Detector de anomalias",
+      "estado": "parcial",
+      "implementado": "Regras de queda com limites explícitos e cobertura verificada. Regra explícita de desvio de preço: leitura única confirmada recente fora da faixa anterior e diferença absoluta de pelo menos 20% da mediana anterior, exigindo suficiência da amostra de referência. Dados ausentes, falha recente ou amostra insuficiente mantêm sinal não verificado.",
+      "falta": "Ainda não há modelo estatístico/preditivo validado de anomalias gerais do anúncio ou das vendas com sazonalidade e validação histórica. Regras descritivas de preço/queda não atribuem causa ou impacto financeiro.",
+      "fontes": [
+        "listing_diagnostic_rules.py",
+        "investigation_triage.py",
+        "price_deviation.py"
+      ],
+      "testes": [
+        "test_listing_diagnostic_rules.py",
+        "test_investigation_triage.py",
+        "test_price_deviation.py",
+        "scripts/price_deviation_browser_check.cjs"
+      ],
+      "prs": [],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-26"
+    },
+    {
+      "id": "antes-depois",
+      "area": "Diagnóstico",
+      "capacidade": "Comparação antes e depois de ações",
+      "estado": "concluida",
+      "implementado": "Janelas encerradas equivalentes, vendas, visitas e contribuição quando documentada; sem atribuição causal.",
+      "falta": "",
+      "fontes": [
+        "listing_interventions.py",
+        "intervention_routes.py",
+        "profitability_action.py"
+      ],
+      "testes": [
+        "test_listing_interventions.py",
+        "test_profitability_action.py"
+      ],
+      "prs": [
+        173,
+        249,
+        266
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "indice-estabilidade",
+      "area": "Diagnóstico",
+      "capacidade": "Índice de estabilidade",
+      "estado": "parcial",
+      "implementado": "Índice descritivo de constância dos preços finais confirmados, com comparação entre períodos, critérios explícitos de suficiência, quebra de pares por falhas/duplicidades/intervalo acima de seis horas, cobertura diária, mínimo/máximo e amplitude amostral. Sem fonte suficiente, não exibe índice; não extrapola duração, vendas ou mercado. Exportação administrativa das leituras dos dois períodos em CSV, com preço confirmado ou ausência explícita, limite de 5.000 e escopo por loja/anúncio.",
+      "falta": "O indicador descreve somente as leituras de preço carregadas, sem estabilidade geral do anúncio, ponderação por tempo ou validação preditiva. Cobertura contínua entre coletas não é comprovada.",
+      "fontes": [
+        "price_stability.py",
+        "main.py",
+        "price_observation_export.py"
+      ],
+      "testes": [
+        "test_price_stability.py",
+        "scripts/price_stability_browser_check.cjs",
+        "test_price_observation_export.py"
+      ],
+      "prs": [],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-26"
+    },
+    {
+      "id": "conteudo-checklist",
+      "area": "Conteúdo",
+      "capacidade": "Checklist, fotos e qualidade do anúncio",
+      "estado": "parcial",
+      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade. Consulta sob demanda do conteúdo atual após validar conta e propriedade: título, fotos retornadas, atributos principais e descrição em texto simples; diferencia vazio de desconhecido e não modifica pareceres. Conferência de presença das regras obrigatórias e condicionais retornadas pela categoria, com evidência no anúncio principal ou em cada variação e estados desconhecidos explícitos. Detalhamento dos valores retornados em cada variação, inclusive quando o atributo está presente no anúncio principal, sem presumir erro ou obrigatoriedade por variação. Consulta sob demanda das regras condicionais na API oficial quando os dados básicos e a descrição estão disponíveis; falhas permanecem não verificadas. Compara o comprimento de valores simples retornados com value_max_length da categoria quando disponível, incluindo variações. Conferência de unidades de atributos number_unit com value_struct e allowed_units retornados pela categoria, inclusive atributos opcionais informados e grupos das variações. Separa compatibilidade da unidade, divergência para conferência e informação não verificável. Não interpreta texto livre, valores compostos ou ausência como erro, nem recomenda edição direta de campos gerenciados pelo Mercado Livre. Consulta opcional da ficha técnica oficial da categoria, com comparação de presença no anúncio e variações. Distingue campos exigidos na ficha, regras de publicação confirmadas, contexto condicional e requisitos de publicação não verificados. Sinal de ficha incompleta é mostrado somente quando retornado pelo item; não presume perda de exposição. Uma chamada adicional somente por solicitação, com preservação das leituras anteriores em caso de falha. Conferência dos identificadores de atributos booleanos contra duas opções distintas retornadas pela categoria, no anúncio e variações. Separa ID encontrado, divergência para conferência e valor não verificável; não interpreta texto, ausência ou não aplicável como sim/não. Reutiliza as respostas existentes sem novas chamadas à API e preserva valores personalizados de outros tipos. Resumo de próximas ações no início da leitura, separando conferências de preenchimento, divergências e informação não verificável. Regras condicionais não confirmadas pedem avaliação de aplicabilidade; campos gerenciados não recomendam edição direta. Sem novas consultas ou alterações de anúncios.",
+      "falta": "Faltam análise visual de imagens e clips, avaliação semântica da descrição e validação abrangente dos demais tipos de valores e ficha técnica. Unidades compatíveis e presença não certificam validade integral; a conferência é limitada a 100 resultados e 5.000 entradas por leitura.",
+      "fontes": [
+        "listing_content.py",
+        "listing_content_routes.py",
+        "listing_content_view.py",
+        "listing_content_snapshot.py",
+        "docs/CONTEUDO_CONSULTA.md",
+        "content_required_attributes.py",
+        "content_conditional_attributes.py",
+        "content_attribute_units.py",
+        "docs/content-attribute-units.md",
+        "content_technical_specs.py",
+        "docs/content-technical-specs.md",
+        "content_boolean_attributes.py",
+        "docs/content-boolean-attributes.md",
+        "content_action_summary.py"
+      ],
+      "testes": [
+        "test_listing_content.py",
+        "test_listing_content_integration.py",
+        "scripts/listing_content_browser_check.cjs",
+        "test_listing_content_snapshot.py",
+        "test_listing_content_requirements.py",
+        "test_content_conditional_attributes.py",
+        "test_content_attribute_units.py",
+        "scripts/content_attribute_units_browser_check.cjs",
+        "test_content_technical_specs.py",
+        "scripts/content_technical_specs_browser_check.cjs",
+        "test_content_boolean_attributes.py",
+        "scripts/content_boolean_attributes_browser_check.cjs",
+        "test_content_action_summary.py"
+      ],
+      "prs": [
+        291,
+        294,
+        317,
+        319,
+        320,
+        321
+      ],
+      "numero_original": null,
+      "prioridade": 2,
+      "atualizado_em": "2026-10-30"
+    },
+    {
+      "id": "perguntas-avaliacoes",
+      "area": "Conteúdo",
+      "capacidade": "Perguntas e avaliações",
+      "estado": "parcial",
+      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder. O botão Atualizar Perguntas usa a fila de atualização por seção, com proteção e exclusão por loja existentes, sem recoletar anúncios, promoções, vendas ou Ads.",
+      "falta": "A busca permanece limitada a 100 perguntas por atualização e a revisão individual a dois registros antigos por rodada. Não certifica histórico integral nem atualização simultânea de todos os status; perguntas anteriormente apagadas não são reconstruídas. Falta fonte e painel de avaliações dos compradores e análise validada de objeções semânticas.",
+      "fontes": [
+        "listing_questions.py",
+        "main.py",
+        "question_sync.py",
+        "docs/question-collection-coverage.md",
+        "section_refresh.py"
+      ],
+      "testes": [
+        "test_listing_questions.py",
+        "test_listing_questions_integration.py",
+        "scripts/listing_questions_browser_check.cjs",
+        "test_question_sync.py"
+      ],
+      "prs": [
+        324
+      ],
+      "numero_original": null,
+      "prioridade": 3,
+      "atualizado_em": "2026-10-30"
+    },
+    {
+      "id": "reativacao",
+      "area": "Conteúdo",
+      "capacidade": "Reativação de anúncios",
+      "estado": "parcial",
+      "implementado": "Tela dedicada à revisão de reativação por anúncio: status recente e estoque verificado, orientações de conferência de motivo/restrições/oferta, tarefa de elegibilidade com descrição/responsável/prazo explícitos, calendário e histórico das tarefas. Acompanha mudanças de status observadas nas coletas, com datas anterior/detecção e limite explícito de dez eventos. Nenhuma alteração no marketplace.",
+      "falta": "Motivo oficial da pausa e validação automática de elegibilidade não foram coletados. A decisão e eventual reativação são externas e manuais; tarefas concluídas não comprovam oferta reativada ou impacto em vendas.",
+      "fontes": [
+        "listing_reactivation.py",
+        "listing_reactivation_routes.py"
+      ],
+      "testes": [
+        "test_listing_reactivation.py",
+        "test_listing_reactivation_integration.py",
+        "scripts/listing_reactivation_browser_check.cjs"
+      ],
+      "prs": [],
+      "numero_original": null,
+      "prioridade": 7,
+      "atualizado_em": "2026-10-26"
+    },
+    {
+      "id": "catalogo",
+      "area": "Conteúdo",
+      "capacidade": "Catálogo gerencial de anúncios",
+      "estado": "concluida",
+      "implementado": "Busca, filtros, paginação, preço confirmado e leitura de campanhas, com estados de erro e dados técnicos.",
+      "falta": "",
+      "fontes": [
+        "listing_catalog.py",
+        "listing_details.py"
+      ],
+      "testes": [
+        "test_listing_catalog.py",
+        "test_catalog_campaign_reading.py",
+        "test_promotion_render_resilience.py"
+      ],
+      "prs": [
+        253,
+        254,
+        255,
+        256
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "mapa-estados",
+      "area": "Mercado",
+      "capacidade": "Mapa de vendas por estado",
+      "estado": "concluida",
+      "implementado": "Mapa geográfico das 27 UFs por pedidos ou faturamento, tabela com ticket/participação, filtros de período, cobertura diária e destinos desconhecidos. Coleta incremental de UF em envios confirmados do vendedor, sem endereços ou dados pessoais. Cobertura de destinos preenchida progressivamente nas sincronizações existentes, com ausência explícita e sem certificação de histórico integral. Checks de PostgreSQL e navegador aprovados na revisão 624aa48b4b78a7b289d9a683f97e1360c851d15f. Publicação confirmada no Render: dep-dbh93r95efls738if6v0, commit b09dfca469ab091664162a194590aa9bf84f586d.",
+      "falta": "",
+      "fontes": [
+        "sales_geography.py",
+        "sales_geography_view.py",
+        "docs/MAPA_VENDAS.md"
+      ],
+      "testes": [
+        "test_sales_geography.py",
+        "test_sales_geography_integration.py",
+        "scripts/sales_geography_browser_check.cjs"
+      ],
+      "prs": [
+        309
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-28"
+    },
+    {
+      "id": "sazonalidade",
+      "area": "Mercado",
+      "capacidade": "Sazonalidade",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Não foi identificado módulo de análise sazonal por anúncio com histórico suficiente e método definido.",
+      "fontes": [],
+      "testes": [],
+      "prs": [],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "semelhantes",
+      "area": "Mercado",
+      "capacidade": "Anúncios semelhantes",
+      "estado": "parcial",
+      "implementado": "Painel por loja de coincidências no SKU cadastrado do anúncio, com comparação exata após remoção de espaços nas extremidades, sem ignorar maiúsculas ou caracteres internos. Filtro exato, totais de cobertura, dez grupos por página, até dez membros por grupo e acesso ao diagnóstico. Status/estoque somente com leitura recente. Não presume equivalência nem canibalização. Coleta de SELLER_SKU do anúncio principal e das variações pela resposta existente em lotes. Snapshot com versão, instante e cobertura estrutural separado do campo interno legado; confere vendedor, anúncio e site. Nova tela administrativa agrupa o mesmo código em anúncios distintos, mostra variações de origem, leituras parciais e atualidade. Filtro exato, totais e paginação limitada, sem inferir equivalência ou impacto nas vendas.",
+      "falta": "Falta validação de equivalência real do produto e análise de sobreposição por público, oferta e desempenho. Os SKUs de variações anteriores à nova coleta não são reconstruídos. SKU repetido é candidato para conferência, não prova de produto idêntico, canibalização ou perda de vendas.",
+      "fontes": [
+        "listing_sku_overlap.py",
+        "listing_sku_evidence.py",
+        "listing_sku_variations.py",
+        "docs/listing-sku-variations.md"
+      ],
+      "testes": [
+        "test_listing_sku_overlap.py",
+        "test_listing_sku_overlap_integration.py",
+        "scripts/listing_sku_overlap_browser_check.cjs",
+        "test_listing_sku_evidence.py",
+        "test_listing_sku_variations.py",
+        "test_listing_sku_variations_integration.py",
+        "scripts/listing_sku_variations_browser_check.cjs"
+      ],
+      "prs": [
+        322
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-30"
+    },
+    {
+      "id": "competicao-interna",
+      "area": "Mercado",
+      "capacidade": "Competição interna",
+      "estado": "parcial",
+      "implementado": "Painel por loja de coincidências no SKU cadastrado do anúncio, com comparação exata após remoção de espaços nas extremidades, sem ignorar maiúsculas ou caracteres internos. Filtro exato, totais de cobertura, dez grupos por página, até dez membros por grupo e acesso ao diagnóstico. Status/estoque somente com leitura recente. Não presume equivalência nem canibalização. Coleta de SELLER_SKU do anúncio principal e das variações pela resposta existente em lotes. Snapshot com versão, instante e cobertura estrutural separado do campo interno legado; confere vendedor, anúncio e site. Nova tela administrativa agrupa o mesmo código em anúncios distintos, mostra variações de origem, leituras parciais e atualidade. Filtro exato, totais e paginação limitada, sem inferir equivalência ou impacto nas vendas.",
+      "falta": "Falta validação de equivalência real do produto e análise de sobreposição por público, oferta e desempenho. Os SKUs de variações anteriores à nova coleta não são reconstruídos. SKU repetido é candidato para conferência, não prova de produto idêntico, canibalização ou perda de vendas.",
+      "fontes": [
+        "listing_sku_overlap.py",
+        "listing_sku_evidence.py",
+        "listing_sku_variations.py",
+        "docs/listing-sku-variations.md"
+      ],
+      "testes": [
+        "test_listing_sku_overlap.py",
+        "test_listing_sku_overlap_integration.py",
+        "scripts/listing_sku_overlap_browser_check.cjs",
+        "test_listing_sku_evidence.py",
+        "test_listing_sku_variations.py",
+        "test_listing_sku_variations_integration.py",
+        "scripts/listing_sku_variations_browser_check.cjs"
+      ],
+      "prs": [
+        322
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-30"
+    },
+    {
+      "id": "trafego-horarios",
+      "area": "Mercado",
+      "capacidade": "Tráfego e horários",
+      "estado": "pendente",
+      "implementado": "",
+      "falta": "Visitas atuais são diárias; não foi identificado histórico de tráfego por hora com fonte própria. Horário do pedido não substitui horário da visita.",
+      "fontes": [
+        "copas_visits_store.py"
+      ],
+      "testes": [
+        "test_visits_history.py"
+      ],
+      "prs": [],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "compradores-ticket",
+      "area": "Mercado",
+      "capacidade": "Compradores e ticket",
+      "estado": "parcial",
+      "implementado": "Valor médio dos itens por pedido/anúncio a partir de vendas verificadas.",
+      "falta": "Não foi identificado perfil de compradores ou coortes; média por anúncio/pedido não é ticket único de comprador e não deve ser somada entre anúncios.",
+      "fontes": [
+        "listing_kpis.py",
+        "listing_comparison.py"
+      ],
+      "testes": [
+        "test_listing_kpis.py",
+        "test_listing_comparison.py"
+      ],
+      "prs": [
+        267
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "kits",
+      "area": "Mercado",
+      "capacidade": "Análise de kits",
+      "estado": "concluida",
+      "implementado": "Fluxo administrativo de composição declarada de até cinco componentes com quantidades, custos e fontes; simulação de contribuição e margem por kit. Versões preservadas, reenvio idempotente e histórico paginado. Evidências de vendas do anúncio e componentes nas janelas encerradas, separadas da demanda ainda não validada de propostas. Limite aritmético de estoque somente com vínculos e leituras recentes de todos os componentes. Composição e referências são declaradas pelo administrador; propostas nunca recebem demanda presumida. Nenhuma alteração é enviada ao marketplace. Checks de PostgreSQL (3.12/3.14) e navegador aprovados na revisão 3561bf3c2146b5e3627dc82b1b8308d07928baf4.",
+      "falta": "",
+      "fontes": [
+        "listing_kits.py",
+        "listing_kit_view.py",
+        "docs/ANALISE_KITS.md"
+      ],
+      "testes": [
+        "test_listing_kits.py",
+        "test_listing_kits_integration.py",
+        "scripts/listing_kits_browser_check.cjs"
+      ],
+      "prs": [
+        311
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-29"
+    },
+    {
+      "id": "registro-alteracoes",
+      "area": "Execução",
+      "capacidade": "Registro manual e automático de alterações",
+      "estado": "concluida",
+      "implementado": "Histórico de eventos observados e ações manuais, autoria, datas e possibilidade de desconsiderar preservando histórico.",
+      "falta": "",
+      "fontes": [
+        "automatic_history.py",
+        "intervention_routes.py"
+      ],
+      "testes": [
+        "test_automatic_history.py",
+        "test_listing_interventions.py"
+      ],
+      "prs": [
+        173,
+        175
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "tarefas",
+      "area": "Execução",
+      "capacidade": "Tarefas por anúncio",
+      "estado": "concluida",
+      "implementado": "Tarefas administrativas por anúncio com responsável, prazo, filtros, conclusão, cancelamento, reabertura e trilha de auditoria. Controle de reenvio e concorrência; separadas das ações executadas.",
+      "falta": "",
+      "fontes": [
+        "listing_tasks.py",
+        "listing_task_routes.py",
+        "listing_task_view.py"
+      ],
+      "testes": [
+        "test_listing_tasks.py",
+        "test_listing_tasks_integration.py"
+      ],
+      "prs": [
+        275
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "central-acoes",
+      "area": "Execução",
+      "capacidade": "Central de ações e prioridades",
+      "estado": "concluida",
+      "implementado": "Fila por perda verificada, evidências e acesso administrativo/por loja.",
+      "falta": "",
+      "fontes": [
+        "client_priorities.py",
+        "listing_priority_queue.py"
+      ],
+      "testes": [
+        "test_client_priorities.py",
+        "test_listing_priority_queue.py"
+      ],
+      "prs": [
+        200,
+        234
+      ],
+      "numero_original": null,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "calendario",
+      "area": "Execução",
+      "capacidade": "Calendário de ações",
+      "estado": "concluida",
+      "implementado": "Calendário mensal por anúncio dos prazos informados nas tarefas, com responsáveis na agenda, filtros de status, dias com contagem de todas as páginas, destaque de hoje, atrasadas e agenda paginada de dez registros. Gerenciamento e histórico preservados na tela de tarefas.",
+      "falta": "",
+      "fontes": [
+        "listing_calendar.py",
+        "listing_task_routes.py",
+        "listing_task_view.py"
+      ],
+      "testes": [
+        "test_listing_calendar.py",
+        "test_listing_tasks_integration.py",
+        "scripts/listing_calendar_browser_check.cjs"
+      ],
+      "prs": [],
+      "numero_original": null,
+      "prioridade": 1,
+      "atualizado_em": "2026-10-26"
+    },
+    {
+      "id": "pdf",
+      "area": "Execução",
+      "capacidade": "Relatório PDF de anúncios",
+      "estado": "concluida",
+      "implementado": "Relatório consolidado por anúncio implementado: vendas e comparação, visitas e razão observacional, série diária de vendas/visitas/Full/preço, conteúdo, Ads da loja sem rateio, contribuição documentada com verificação da base, ações, tarefas e perguntas locais. Download real em PDF A4 gerado no servidor, com fontes incorporadas, paginação e limites explícitos. Preserva indisponibilidade das fontes e limites de amostra; não certifica métricas ainda não existentes no sistema. Checks de PostgreSQL e navegador aprovados na revisão 9fab2d65ba10ad582d159b88f19f6258f8972d8d.",
+      "falta": "",
+      "fontes": [
+        "listing_review_report.py",
+        "listing_consolidated_report.py",
+        "docs/RELATORIO_CONSOLIDADO.md"
+      ],
+      "testes": [
+        "test_listing_review_report.py",
+        "test_listing_review_report_integration.py",
+        "scripts/listing_review_report_browser_check.cjs",
+        "test_listing_consolidated_report.py",
+        "test_listing_consolidated_report_integration.py",
+        "scripts/listing_consolidated_report_browser_check.cjs"
+      ],
+      "prs": [
+        310
+      ],
+      "numero_original": null,
+      "prioridade": 8,
+      "atualizado_em": "2026-10-28"
+    },
+    {
+      "id": "primeiros-30",
+      "area": "Execução",
+      "capacidade": "Plano de acompanhamento dos primeiros trinta dias por anúncio",
+      "estado": "concluida",
+      "implementado": "Plano por anúncio com início e responsável explicitamente informados, quatro tarefas nos dias 1, 7, 14 e 30, integração com calendário e histórico das tarefas, progresso por conclusão humana e indicação de atrasos/cancelamentos. Criação atômica e idempotente, sem executar alterações no marketplace nem presumir data oficial de publicação.",
+      "falta": "",
+      "fontes": [
+        "listing_onboarding.py",
+        "listing_onboarding_routes.py",
+        "listing_onboarding_view.py"
+      ],
+      "testes": [
+        "test_listing_onboarding.py",
+        "test_listing_onboarding_integration.py",
+        "scripts/listing_onboarding_browser_check.cjs"
+      ],
+      "prs": [],
+      "numero_original": null,
+      "prioridade": 9,
+      "atualizado_em": "2026-10-26"
+    },
+    {
+      "id": "ranking-plano",
+      "area": "Execução",
+      "capacidade": "Ranking de prioridades com diagnóstico e plano de ação",
+      "estado": "concluida",
+      "implementado": "Fila verificada e plano de revisão com evidências, conferência e acompanhamento, sem alegar execução automática.",
+      "falta": "",
+      "fontes": [
+        "listing_priority_queue.py",
+        "listing_action_plan.py",
+        "investigation_evidence.py"
+      ],
+      "testes": [
+        "test_listing_priority_queue.py",
+        "test_listing_action_plan.py",
+        "test_diagnostic_navigation.py"
+      ],
+      "prs": [
+        250,
+        261
+      ],
+      "numero_original": 90,
+      "prioridade": 100,
+      "atualizado_em": "2026-10-25"
+    }
+  ],
+  "meta_original": 90,
+  "historico": [
+    {
+      "data": "2026-10-25",
+      "resumo": "Controle inicial das frentes conhecidas, com evidências de código e publicações confirmadas até o PR #275.",
+      "contagens": {
+        "concluida": 20,
+        "parcial": 13,
+        "pendente": 11
+      },
+      "total": 44,
+      "prs": [
+        271,
+        272,
+        273,
+        274,
+        275
+      ],
+      "base": "frentes_auditadas"
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Calendário mensal dos prazos e responsáveis por anúncio, integrado às tarefas.",
+      "contagens": {
+        "concluida": 21,
+        "parcial": 13,
+        "pendente": 10
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Checklist manual de conteúdo com evidência, autoria e histórico; frente permanece parcial pela análise automática ainda ausente.",
+      "contagens": {
+        "concluida": 21,
+        "parcial": 13,
+        "pendente": 10
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Perguntas por anúncio com recorrências literais e preservação atômica da base coletada; avaliações e cobertura integral seguem pendentes.",
+      "contagens": {
+        "concluida": 21,
+        "parcial": 13,
+        "pendente": 10
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Plano por anúncio com quatro etapas de acompanhamento em trinta dias, tarefas e progresso confirmado manualmente.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 13,
+        "pendente": 9
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Metas de estoque mínimo com responsável, período e alertas na abertura do painel; frente passa de pendente a parcial.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 14,
+        "pendente": 8
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Relatório operacional de revisão por anúncio com evidências e layout A4 para exportação pelo navegador; relatório completo segue parcial.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 14,
+        "pendente": 8
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Avaliações de metas de estoque persistidas pelas sincronizações com histórico por meta; demais métricas e notificações seguem pendentes.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 14,
+        "pendente": 8
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Revisão dedicada de reativação com tarefa de elegibilidade e acompanhamento de mudanças observadas; validação oficial segue parcial.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 14,
+        "pendente": 8
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Coincidências de SKU por loja para revisão de possíveis anúncios semelhantes e sobreposição interna; ambas as frentes seguem parciais sem inferir equivalência ou canibalização.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 16,
+        "pendente": 6
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Constância e amplitude dos preços observados com comparação de períodos e evidência diária; índice geral de estabilidade permanece parcial.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 17,
+        "pendente": 5
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Regra de desvio do preço recente contra mediana e faixa da amostra anterior; detector geral de anomalias continua parcial.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 17,
+        "pendente": 5
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Comparação manual de tarifas e parcelamento com referências declaradas e impacto na contribuição; obtenção e elegibilidade oficiais continuam pendentes.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Cotação de tarifa sob demanda na API Mercado Livre, com contexto logístico e conta verificados; cobrança histórica continua sem conferência automática.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Consulta sob demanda do conteúdo atual para apoiar a revisão manual; análise visual e semântica, requisitos da categoria e variações continuam parciais.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-26",
+      "resumo": "Conferência de presença dos atributos obrigatórios e condicionais da categoria no anúncio e nas variações; validade, aplicabilidade condicional e qualidade do conteúdo continuam parciais.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-27",
+      "resumo": "Detalhamento dos atributos retornados por variação; aplicabilidade condicional e validação de valores permanecem parciais.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": [
+        294
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-27",
+      "resumo": "Consulta oficial de atributos condicionais com dados disponíveis; validade dos valores e qualidade do conteúdo permanecem parciais.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-28",
+      "resumo": "Conferência de comprimento dos valores simples com limite oficial retornado para a categoria; a análise de conteúdo continua parcial.",
+      "contagens": {
+        "concluida": 22,
+        "parcial": 18,
+        "pendente": 4
+      },
+      "total": 44,
+      "prs": []
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-28",
+      "resumo": "Mapa de vendas por estado: 27 UFs, filtros, pedidos/faturamento, ticket, participação e cobertura explícita; coleta incremental com isolamento por loja.",
+      "contagens": {
+        "concluida": 23,
+        "parcial": 18,
+        "pendente": 3
+      },
+      "total": 44,
+      "prs": [
+        309
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-28",
+      "resumo": "Relatório consolidado de anúncio: indicadores, séries diárias, contexto Ads, contribuição documentada, ações e download real em PDF no servidor.",
+      "contagens": {
+        "concluida": 24,
+        "parcial": 17,
+        "pendente": 3
+      },
+      "total": 44,
+      "prs": [
+        310
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Análise de kits: composição documentada, simulação de contribuição, evidências de vendas e estoque, versões preservadas e acesso por loja/anúncio.",
+      "contagens": {
+        "concluida": 25,
+        "parcial": 17,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        311
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Promoções: histórico de consultas, distinção entre calendário e participação observada e comparação com períodos equivalentes; frente permanece parcial pelas lacunas de vigência efetiva e custos.",
+      "contagens": {
+        "concluida": 25,
+        "parcial": 17,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        312
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Metas de pedidos, unidades e valor bruto por anúncio, com avaliação verificável após dias completos; frente parcial enquanto faltam notificações externas e histórico de avaliações de vendas.",
+      "contagens": {
+        "concluida": 25,
+        "parcial": 17,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        313
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Histórico persistido de avaliações de metas de vendas nas sincronizações, sem reconstrução retroativa; frente parcial enquanto faltam notificações externas.",
+      "contagens": {
+        "concluida": 25,
+        "parcial": 17,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        314
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Metas com alertas concluídas no escopo de estoque e vendas: avaliações persistidas e avisos opcionais por e-mail, com consentimento, proteção de destinatário e deduplicação diária; checks funcionais aprovados antes do registro final.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        316
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Conferência de unidades estruturadas com metadados oficiais da categoria, no anúncio e variações, sem novas chamadas ou presunção de erro; conteúdo permanece parcial pelas demais análises pendentes.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        317
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Conferência opcional da ficha técnica por categoria, separando exigências de ficha e publicação, com presença por variação e falhas não verificadas. Conteúdo permanece parcial pelas análises visuais, semânticas e demais validações.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        319
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-29",
+      "resumo": "Conferência dos identificadores de atributos booleanos com regras retornadas pela categoria e detalhe por variação; conteúdo permanece parcial pelas análises visuais, semânticas e demais validações.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        320
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-30",
+      "resumo": "Resumo das próximas ações da leitura de conteúdo; requisitos condicionais pendentes e valores não verificáveis separados das conferências. Conteúdo permanece parcial, sem mudança na contagem de frentes concluídas.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        321
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-30",
+      "resumo": "SKUs oficiais por anúncio e variação coletados separadamente dos campos internos, com agrupamento entre anúncios e cobertura explícita. Semelhantes e competição interna permanecem parciais.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        322
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-30",
+      "resumo": "Cobertura explícita da coleta de perguntas, revisão em rodízio de status antigos e correção do aviso de pendência. Perguntas e avaliações permanece parcial, sem aumento da contagem de frentes concluídas.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        324
+      ]
+    }
+  ],
+  "publicacoes": [
+    {
+      "pr": 271,
+      "titulo": "Curva ABC dos anúncios",
+      "horario_brasilia": "2026-10-25T16:52:11-03:00",
+      "deploy": "dep-dbf5qvm7bikc73bsavdg"
+    },
+    {
+      "pr": 272,
+      "titulo": "Vendas e competitividade observadas",
+      "horario_brasilia": "2026-10-25T19:54:04-03:00",
+      "deploy": "dep-dbf8gdajnfac73egufmg"
+    },
+    {
+      "pr": 273,
+      "titulo": "Full: cobertura, paginação e inventários",
+      "horario_brasilia": "2026-10-25T20:27:06-03:00",
+      "deploy": "dep-dbf900jbc2fs738v7rv0"
+    },
+    {
+      "pr": 274,
+      "titulo": "Histórico de quantidade por variação Full",
+      "horario_brasilia": "2026-10-25T20:37:11-03:00",
+      "deploy": "dep-dbf94n8473hc739r5oo0"
+    },
+    {
+      "pr": 275,
+      "titulo": "Tarefas com responsável, prazo e histórico",
+      "horario_brasilia": "2026-10-25T20:57:23-03:00",
+      "deploy": "dep-dbf9e995efls73bp109g"
+    },
+    {
+      "pr": 290,
+      "titulo": "Consulta atual de tarifa",
+      "horario_brasilia": "2026-10-26T16:34:07-03:00",
+      "deploy": "dep-dbfqlbqjnfac73ekulu0"
+    },
+    {
+      "pr": 291,
+      "titulo": "Consulta atual de conteúdo",
+      "horario_brasilia": "2026-10-26T16:43:37-03:00",
+      "deploy": "dep-dbfqpqvf3r2c73aurplg"
+    },
+    {
+      "pr": 314,
+      "titulo": "Histórico das avaliações de metas de vendas por anúncio",
+      "horario_brasilia": "2026-10-29T10:26:40-03:00",
+      "deploy": "dep-dbhkibcs728c73d7ugh0"
+    },
+    {
+      "pr": 316,
+      "titulo": "Avisos opcionais por e-mail para metas de anúncios",
+      "horario_brasilia": "2026-10-29T10:46:58-03:00",
+      "deploy": "dep-dbhkrccs728c73d8cl30"
+    },
+    {
+      "pr": 317,
+      "titulo": "Conferência de unidades dos atributos",
+      "horario_brasilia": "2026-10-29T10:50:19-03:00",
+      "deploy": "dep-dbhkt5ivcj2c73883thg"
+    },
+    {
+      "pr": 321,
+      "commit": "bed89293d1eafb6482f901f84c7e8dfbc1f5f4b4",
+      "deploy": "dep-dbi1naks728c739veqm0",
+      "horario_brasilia": "2026-10-30T01:24:43-03:00",
+      "status": "live",
+      "titulo": "Resumo de próximas ações da conferência de conteúdo"
+    },
+    {
+      "pr": 323,
+      "titulo": "Etapas de entrega separadas das frentes concluídas",
+      "deploy": "dep-dbi25p0473hc73ej36ig",
+      "horario_brasilia": "2026-10-30T01:55:31-03:00"
+    }
+  ]
+}

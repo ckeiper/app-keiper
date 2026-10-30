@@ -1,16 +1,25 @@
 import os, time, html, json, datetime, csv, io, threading, smtplib, secrets, hashlib
 from email.mime.text import MIMEText
 from functools import wraps
+from urllib.parse import urlencode
 from flask import Flask, request, redirect, jsonify, Response, session, send_from_directory, g
 import requests
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from apscheduler.schedulers.background import BackgroundScheduler
 from werkzeug.security import generate_password_hash, check_password_hash
+from account_mfa import init_mfa_schema, register_mfa, issue_challenge
+from ml_token_crypto import seal_token, reveal_token, migrate_tokens, validate_token_config, enabled as token_encryption_enabled
+from session_security import init_session_schema, install_session_guard
+from web_security import session_key, install_security, init_security_schema, auth_attempt_allowed
 from listing_details import (registered_weights, legacy_weight, render_weights,
                              render_promotions, active_promotions, read_json, get_json,
                              render_weight_column, effective_promotion)
 from listing_sync import sync_promotions
+from full_monitor import init_full_schema, full_metadata, sync_full
+from full_routes import register_full
+from competitor_monitor import init_competitor_schema, collect_due
+from competitor_routes import register_competitors, tabs as listing_tabs
 from listing_diagnostics import inspect_listing
 from listing_health import diagnose_listing
 from listing_sales import listing_sales_summary
@@ -21,15 +30,21 @@ from listing_opportunities import listing_opportunities, opportunity_actions
 from freight_import import (preview_reconciliation_upload, render_reconciliation_preview,
                             PreviewError, MAX_UPLOAD_BYTES, render_reconciliation_column_hints)
 from freight_comparison import render_freight_comparison_demo
+from freight_reconciliation import inspect_sales_reconciliation, render_sales_reconciliation
+from freight_store import (init_freight_schema, save_report, report_history, render_history,
+                           consolidate_report, consolidated_history, render_consolidated)
+from freight_sales_compare import audit_against_sales, render_sales_comparison
 from visual_theme import VISUAL_CSS
 from crm import init_crm_schema, register_crm, HOME_WIDGET
 from page_performance import ranking_query_bounds
 from sales_sync import init_sales_schema, sync_orders
 from overview_store import init_overview_schema
 from sync_runner import run_stages
+from sync_exclusion import store_sync_lock
 from listing_pagination import listing_page
 from sales_view import render_sales
 from overview import load_overview, render_overview, overview_layout
+from management_routes import register_management
 try:
     import openpyxl
 except Exception:
@@ -39,10 +54,11 @@ CLIENT_ID = os.getenv("ML_CLIENT_ID")
 CLIENT_SECRET = os.getenv("ML_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("ML_REDIRECT_URI")
 DATABASE_URL = os.getenv("DATABASE_URL")
-SECRET_KEY = os.getenv("SECRET_KEY", "troque-esta-chave")
+SECRET_KEY = session_key()
+validate_token_config()
 
 API = "https://api.mercadolibre.com"
-AUTH_URL = "https://auth.mercadolibre.com.br/authorization"
+AUTH_URL = "https://auth.mercadolivre.com.br/authorization"
 TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -50,6 +66,12 @@ LOGO_PATH = os.path.join(BASE_DIR, "logo_Keiper_Consultoria.png")
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+install_session_guard(app, lambda uid: carregar_usuario_sessao(uid))
+install_security(app)
+app.logger.warning("ml_token_encryption_configuration enabled=%s key_present=%s",
+                   token_encryption_enabled(), bool(os.getenv("ML_TOKEN_ENCRYPTION_KEY")))
+app.logger.warning("mfa_configuration key_present=%s", bool(os.getenv("MFA_ENCRYPTION_KEY")))
+DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(32))
 
 @app.before_request
 def registrar_inicio_requisicao():
@@ -450,7 +472,9 @@ function gerarSenha(){
   if (!campo) { return; }
   var chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%';
   var s = '';
-  for (var i = 0; i < 10; i++) { s += chars.charAt(Math.floor(Math.random() * chars.length)); }
+  var bytes = new Uint32Array(16);
+  crypto.getRandomValues(bytes);
+  for (var i = 0; i < bytes.length; i++) { s += chars.charAt(bytes[i] % chars.length); }
   campo.value = s;
 }
 </script>
@@ -477,60 +501,40 @@ document.addEventListener("DOMContentLoaded", function () {
 """
 
 def pagina(titulo, corpo):
+    from theme_switcher import HEAD as theme_head, SCRIPT as theme_script
+    is_home = "<main class='kh-home'>" in corpo
+    is_progress = "<main class='ap-progress'>" in corpo
+    use_sidebar = bool(session.get("tipo"))
     topo = "<div class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1>"
     marca = "<div class='brand'>Painel de lojas Mercado Livre</div></div>"
-    links = ""
-    links += "<a class='btn' href='/conectar'>+ Conectar loja</a></div>"
+    links = ("<a class='btn sair' href='/logout'>Sair</a>" if session.get("tipo") else "") + "</div>"
     cab = "<!doctype html><html><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS + "</head><body>"
-    fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + "</body></html>"
-    return cab + topo + marca + links + fim
+    cab += "<title>" + esc(titulo) + "</title>" + theme_head + CSS + VISUAL_CSS + "</head><body>"
+    fim = "<div class='wrap'>" + corpo + "</div>" + SCRIPT + theme_script + "</body></html>"
+    sidebar = ""
+    if use_sidebar:
+        from home_sidebar import render_home_sidebar
+        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin", active="progress" if is_progress else ("home" if is_home else ("diagnostic" if titulo == "Diagnóstico" else "")))
+    return cab + sidebar + topo + marca + links + fim
 
 
 def pagina_loja(titulo, cid, cliente, secao, corpo):
-    itens = [
-        ("resumo", "📊 Resumo", "/painel/" + str(cid)),
-        ("anuncios", "📦 Anúncios", "/anuncios/" + str(cid)),
-        ("desempenho", "📈 Desempenho", "/desempenho/" + str(cid)),
-        ("demandas", "🟡 Demandas", "/demandas/" + str(cid)),
-        ("promocoes", "🏷️ Promoções", "/promocoes/" + str(cid)),
-        ("campanhas", "📢 Campanhas", "/campanhas/" + str(cid)),
-        ("custos", "💰 Custos", "/custos/" + str(cid)),
-        ("vendas", "🛒 Vendas", "/vendas/" + str(cid)),
-        ("auditoria_frete", "🚚 Auditoria de Frete", "/auditoria-frete/" + str(cid)),
-    ]
-    menu = "<div class='menu-lateral'>"
-    menu += "<a class='voltar' href='/painel'>← Todas as lojas</a>"
-    for chave, rotulo, href in itens:
-        classe = "item"
-        if secao == chave:
-            classe += " atual"
-        menu += "<a class='" + classe + "' href='" + href + "'>"
-        menu += rotulo + "</a>"
-    menu += "<a class='item' href='/atualizar?cid=" + str(cid) + "'>"
-    menu += "🔄 Atualizar dados</a>"
-    menu += "<a class='item' href='/diagnostico'>🔍 Diagnóstico</a>"
-    menu += "<a class='item perigo' href='/excluir/" + str(cid) + "'>"
-    menu += "🗑️ Excluir loja</a></div>"
-    links = ""
-    links += "<a class='btn sair' href='/logout'>Sair</a></div>"
-    cab = "<!doctype html><html><head><meta charset='utf-8'>"
+    from theme_switcher import HEAD as theme_head, SCRIPT as theme_script
+    from section_refresh import SCOPES, render as render_refresh
+    if secao in SCOPES and "class='k-refresh'" not in corpo:
+        corpo = render_refresh(cid, secao) + corpo
+    from store_sidebar import render_store_sidebar
+    sidebar = render_store_sidebar(cid, cliente, secao, admin=session.get("tipo") == "admin")
+    cab = "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'>"
     cab += "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    cab += "<title>" + esc(titulo) + "</title>" + CSS + VISUAL_CSS
-    cab += "</head><body><div class='top'>"
-    cab += "<div><h1>" + img_logo(34) + "Keiper Consultoria</h1></div>"
-    cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>"
-    cab += esc(str(cliente)) + "</div>"
-    cab += links
-    cab += ("<button type='button' class='sidebar-toggle' aria-label='Abrir menu lateral'"
-            " aria-expanded='false' onclick='alternarMenuLateral()'>☰ Menu</button>")
-    cab += ("<div class='sidebar-overlay' onclick='alternarMenuLateral(false)'"
-            " aria-hidden='true'></div>")
-    cab += "<div class='wrap'><div class='layout'>" + menu
-    cab += "<div class='conteudo'>" + corpo
-    cab += "</div></div></div>" + SCRIPT + "<script>\nfunction alternarMenuLateral(forcar) {\n  var aberto = typeof forcar === 'boolean'\n    ? forcar : !document.body.classList.contains('sidebar-open');\n  document.body.classList.toggle('sidebar-open', aberto);\n  var botao = document.querySelector('.sidebar-toggle');\n  if (botao) botao.setAttribute('aria-expanded', String(aberto));\n}\ndocument.addEventListener('keydown', function(e) {\n  if (e.key === 'Escape' && document.body.classList.contains('sidebar-open'))\n    alternarMenuLateral(false);\n});\n</script>" + "</body></html>"
-    return cab
+    cab += "<title>" + esc(titulo) + "</title>" + theme_head + CSS + VISUAL_CSS + "</head><body>"
+    cab += sidebar + "<header class='top'><div><h1>" + img_logo(34) + "Keiper Consultoria</h1></div>"
+    cab += "<div class='top-store' title='" + esc(str(cliente), quote=True) + "'>" + esc(str(cliente)) + "</div>"
+    cab += "<a class='btn sair' href='/logout'>Sair</a></header>"
+    cab += "<div class='wrap'><div class='layout'><main class='conteudo'>" + corpo
+    from chart_personalization import CONTROLS as chart_controls
+    return cab + "</main></div></div>" + chart_controls + SCRIPT + theme_script + "</body></html>"
 
 
 FUSO_BR = datetime.timezone(datetime.timedelta(hours=-3))
@@ -544,6 +548,9 @@ def hora_br(ts):
 
 
 def barra_atualizar(cid, ultima, tipo="resumo"):
+    from section_refresh import SCOPES, render as render_refresh
+    if tipo in SCOPES:
+        return render_refresh(cid, tipo, hora_br(ultima))
     ult_txt = hora_br(ultima)
     return ("<div style='display:flex;gap:12px;align-items:center;"
             "flex-wrap:wrap;margin-bottom:14px'>"
@@ -565,6 +572,15 @@ def banco():
     return psycopg2.connect(DATABASE_URL)
 
 
+def carregar_usuario_sessao(uid):
+    conn = banco()
+    try:
+        rows = consultar(conn, "SELECT id, tipo, conexao_id, auth_version FROM usuarios WHERE id=%s", (uid,))
+        return rows[0] if rows else None
+    finally:
+        conn.close()
+
+
 def consultar(conn, sql, params=None):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(sql, params or ())
@@ -578,8 +594,11 @@ def executar(conn, sql, params=None):
 
 
 def iniciar_banco():
+    from startup_schema import schema_executor
+    execute = schema_executor(executar)
     with banco() as conn:
-        executar(conn, """CREATE TABLE IF NOT EXISTS conexoes (
+        init_security_schema(conn, execute)
+        execute(conn, """CREATE TABLE IF NOT EXISTS conexoes (
             id SERIAL PRIMARY KEY,
             cliente TEXT NOT NULL,
             user_id BIGINT,
@@ -588,12 +607,11 @@ def iniciar_banco():
             expires_at BIGINT,
             status TEXT DEFAULT 'ativa'
         )""")
-        try:
-            executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS aliquota_imposto REAL DEFAULT 0")
-            executar(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS comissao_pct REAL DEFAULT 12")
-        except Exception:
-            pass
-        executar(conn, """CREATE TABLE IF NOT EXISTS usuarios (
+        execute(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS aliquota_imposto REAL DEFAULT 0")
+        execute(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS comissao_pct REAL DEFAULT 12")
+        execute(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS mc_meta_pct REAL")
+        execute(conn, "ALTER TABLE conexoes ADD COLUMN IF NOT EXISTS mc_meta_atualizada_em BIGINT")
+        execute(conn, """CREATE TABLE IF NOT EXISTS usuarios (
             id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             senha_hash TEXT NOT NULL,
@@ -602,30 +620,29 @@ def iniciar_banco():
             conexao_id INTEGER,
             criado_em BIGINT
         )""")
-        try:
-            executar(conn, "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email TEXT")
-        except Exception:
-            pass
+        execute(conn, "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email TEXT")
+        init_session_schema(conn, execute)
+        init_mfa_schema(conn, execute)
         admin = consultar(conn, "SELECT id FROM usuarios WHERE username=%s", ("admin",))
         if not admin:
             # Existing accounts are untouched. New installations require a secret.
             bootstrap_password = os.getenv("KEIPER_ADMIN_INITIAL_PASSWORD", "")
             if len(bootstrap_password) >= 16:
-                executar(conn, "INSERT INTO usuarios (username, senha_hash, nome, tipo, criado_em) VALUES (%s,%s,%s,%s,%s)",
+                execute(conn, "INSERT INTO usuarios (username, senha_hash, nome, tipo, criado_em) VALUES (%s,%s,%s,%s,%s)",
                          ("admin", generate_password_hash(bootstrap_password), "Administrador", "admin", int(time.time())))
             else:
                 app.logger.error("Admin bootstrap skipped: configure KEIPER_ADMIN_INITIAL_PASSWORD (16+ chars).")
-        executar(conn, """CREATE TABLE IF NOT EXISTS reset_tokens (
+        execute(conn, """CREATE TABLE IF NOT EXISTS reset_tokens (
             token_hash TEXT PRIMARY KEY,
             usuario_id INTEGER,
             expira_em BIGINT
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS dados_conta (
+        execute(conn, """CREATE TABLE IF NOT EXISTS dados_conta (
             conexao_id INTEGER PRIMARY KEY,
             user_id BIGINT, nickname TEXT, nome TEXT, sobrenome TEXT,
             reputacao TEXT, pontos INTEGER, atualizado_em BIGINT
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS anuncios (
+        execute(conn, """CREATE TABLE IF NOT EXISTS anuncios (
             id SERIAL PRIMARY KEY,
             conexao_id INTEGER, item_id TEXT, titulo TEXT, preco REAL,
             quantidade INTEGER, status TEXT, vendidos INTEGER, atualizado_em BIGINT,
@@ -633,99 +650,192 @@ def iniciar_banco():
             custo REAL, sku TEXT,
             UNIQUE(conexao_id, item_id)
         )""")
-        try:
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS fotos INTEGER DEFAULT 0")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS clips INTEGER DEFAULT 0")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS tags TEXT")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS peso REAL")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS custo REAL")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS sku TEXT")
-            executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS original_price REAL")
-        except Exception:
-            pass
-        executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pesos_json TEXT")
-        executar(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS promocoes_json TEXT")
-        executar(conn, """CREATE TABLE IF NOT EXISTS pedidos (
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS fotos INTEGER DEFAULT 0")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS clips INTEGER DEFAULT 0")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS tags TEXT")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS peso REAL")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS custo REAL")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS sku TEXT")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS original_price REAL")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS thumbnail TEXT")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pesos_json TEXT")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS promocoes_json TEXT")
+        execute(conn, """CREATE TABLE IF NOT EXISTS pedidos (
             id SERIAL PRIMARY KEY,
             conexao_id INTEGER, pedido_id TEXT, status TEXT,
             total REAL, moeda TEXT, fechado_em TEXT, atualizado_em BIGINT,
             UNIQUE(conexao_id, pedido_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS pedidos_itens (
+        execute(conn, """CREATE TABLE IF NOT EXISTS pedidos_itens (
             conexao_id INTEGER, pedido_id TEXT, item_id TEXT,
             quantidade INTEGER, preco_unitario REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, pedido_id, item_id)
         )""")
-        init_sales_schema(conn, executar)
-        executar(conn, """CREATE TABLE IF NOT EXISTS metricas (
+        init_sales_schema(conn, execute)
+        from promotion_observations import init_schema as init_promotion_readings
+        init_promotion_readings(conn, execute)
+        from listing_kits import init_schema as init_kit_schema
+        init_kit_schema(conn, execute)
+        from sales_geography import init_schema as init_sales_geography
+        init_sales_geography(conn, execute)
+        from profitability_store import init_schema as init_profitability
+        init_profitability(conn, execute)
+        init_full_schema(conn, execute)
+        from listing_sku_evidence import init_schema as init_sku_schema
+        init_sku_schema(conn, execute)
+        init_competitor_schema(conn, execute)
+        from offer_history import init_schema as init_offer_history
+        init_offer_history(conn, execute)
+        from listing_interventions import init_schema as init_interventions
+        init_interventions(conn, execute)
+        from listing_tasks import init_schema as init_listing_tasks
+        init_listing_tasks(conn, execute)
+        from listing_goals import init_schema as init_listing_goals
+        init_listing_goals(conn, execute)
+        from listing_sales_goals import init_schema as init_sales_goals
+        init_sales_goals(conn, execute)
+        from sales_goal_observations import init_schema as init_sales_goal_observations
+        init_sales_goal_observations(conn, execute)
+        from goal_notifications import init_schema as init_goal_notifications
+        init_goal_notifications(conn, execute)
+        from goal_observations import init_schema as init_goal_observations
+        init_goal_observations(conn, execute)
+        from listing_onboarding import init_schema as init_listing_onboarding
+        init_listing_onboarding(conn, execute)
+        from listing_content import init_schema as init_listing_content
+        init_listing_content(conn, execute)
+        from automatic_history import init_schema as init_automatic_history
+        init_automatic_history(conn, execute)
+        from automatic_history import seed_existing
+        # Backfilling legacy observations is optional. It must not prevent
+        # Gunicorn from booting when a live collector holds conflicting locks.
+        # Savepoints keep the rest of the schema transaction healthy after a
+        # PostgreSQL deadlock or lock timeout.
+        execute(conn, "SAVEPOINT automatic_history_backfill")
+        try:
+            execute(conn, "SET LOCAL lock_timeout = '3s'")
+            lock = consultar(conn, "SELECT pg_try_advisory_xact_lock(783420, 1) AS acquired")
+            if lock and lock[0]["acquired"]:
+                seed_existing(conn, execute)
+            else:
+                app.logger.warning("automatic_history_seed_skipped concurrent_migration")
+            execute(conn, "SET LOCAL lock_timeout = DEFAULT")
+        except (psycopg2.errors.DeadlockDetected,
+                psycopg2.errors.LockNotAvailable,
+                psycopg2.errors.QueryCanceled) as exc:
+            execute(conn, "ROLLBACK TO SAVEPOINT automatic_history_backfill")
+            app.logger.warning("automatic_history_seed_deferred error=%s", type(exc).__name__)
+        finally:
+            execute(conn, "RELEASE SAVEPOINT automatic_history_backfill")
+        init_freight_schema(conn, execute)
+        execute(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
             visitas INTEGER, conversao REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, item_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS desempenho_historico (
+        execute(conn, """CREATE TABLE IF NOT EXISTS desempenho_historico (
             conexao_id INTEGER, item_id TEXT, data TEXT,
             visitas INTEGER DEFAULT 0, vendidos INTEGER DEFAULT 0, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, item_id, data)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS perguntas (
+        execute(conn, """CREATE TABLE IF NOT EXISTS perguntas (
             conexao_id INTEGER, pergunta_id TEXT, item_id TEXT, texto TEXT,
             status TEXT, resposta TEXT, data TEXT, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, pergunta_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS envios (
+        from question_sync import init_schema as init_question_sync
+        init_question_sync(conn, execute)
+        execute(conn, "CREATE INDEX IF NOT EXISTS perguntas_listing_coleta ON perguntas(conexao_id,item_id,atualizado_em DESC NULLS LAST,pergunta_id DESC)")
+        execute(conn, """CREATE TABLE IF NOT EXISTS envios (
             conexao_id INTEGER, envio_id TEXT, status TEXT, tracking TEXT,
             pedido_id TEXT, data TEXT, custo_frete REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, envio_id)
         )""")
-        try:
-            executar(conn, "ALTER TABLE envios ADD COLUMN IF NOT EXISTS custo_frete REAL")
-        except Exception:
-            pass
-        executar(conn, """CREATE TABLE IF NOT EXISTS promocoes (
+        execute(conn, "ALTER TABLE envios ADD COLUMN IF NOT EXISTS custo_frete REAL")
+        execute(conn, """CREATE TABLE IF NOT EXISTS promocoes (
             conexao_id INTEGER, promocao_id TEXT, tipo TEXT, nome TEXT,
             status TEXT, inicio TEXT, fim TEXT, qtd_itens INTEGER, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, promocao_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS promocoes_itens (
+        execute(conn, """CREATE TABLE IF NOT EXISTS promocoes_itens (
             conexao_id INTEGER, item_id TEXT, promocao_id TEXT,
             preco_promocional REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, item_id, promocao_id)
         )""")
-        try:
-            executar(conn, "ALTER TABLE promocoes_itens ADD COLUMN IF NOT EXISTS preco_promocional REAL")
-        except Exception:
-            pass
-        executar(conn, """CREATE TABLE IF NOT EXISTS ads_campanhas (
+        execute(conn, """CREATE TABLE IF NOT EXISTS promocoes_adesoes (
+            conexao_id INTEGER NOT NULL,
+            promocao_id TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            usuario_id INTEGER NOT NULL,
+            preco DECIMAL(14,2) NOT NULL,
+            margem_pct DECIMAL(7,2) NOT NULL,
+            status TEXT NOT NULL,
+            criado_em BIGINT NOT NULL,
+            atualizado_em BIGINT NOT NULL,
+            resposta TEXT,
+            PRIMARY KEY(conexao_id,promocao_id,item_id)
+        )""")
+        execute(conn, "ALTER TABLE promocoes_itens ADD COLUMN IF NOT EXISTS preco_promocional REAL")
+        execute(conn, """CREATE TABLE IF NOT EXISTS ads_campanhas (
             conexao_id INTEGER, campanha_id TEXT, nome TEXT, status TEXT,
             tipo TEXT, data_inicio TEXT, data_fim TEXT, orcamento REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, campanha_id)
         )""")
-        try:
-            executar(conn, "ALTER TABLE ads_campanhas ADD COLUMN IF NOT EXISTS roas_objetivo REAL")
-        except Exception:
-            pass
-        executar(conn, """CREATE TABLE IF NOT EXISTS ads_metricas (
+        execute(conn, "ALTER TABLE ads_campanhas ADD COLUMN IF NOT EXISTS roas_objetivo REAL")
+        from ads_change_history import CREATE_SQL, INDEX_SQL
+        execute(conn, CREATE_SQL)
+        execute(conn, INDEX_SQL)
+        execute(conn, """CREATE TABLE IF NOT EXISTS ads_metricas (
             conexao_id INTEGER, ad_id TEXT, campanha_id TEXT, item_id TEXT,
             impressoes INTEGER, cliques INTEGER, ctr REAL, gasto REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, ad_id)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS ads_dia (
+        execute(conn, """CREATE TABLE IF NOT EXISTS ads_dia (
             conexao_id INTEGER, data TEXT,
             gasto REAL, faturamento REAL, impressoes INTEGER, cliques INTEGER, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, data)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS ads_campanha_dia (
+        execute(conn, """CREATE TABLE IF NOT EXISTS ads_orcamento_esgotado (conexao_id INTEGER NOT NULL, campanha_id TEXT NOT NULL, data TEXT NOT NULL, detectado_em BIGINT NOT NULL, PRIMARY KEY(conexao_id,campanha_id,data))""")
+        execute(conn, """CREATE TABLE IF NOT EXISTS ads_campanha_dia (
             conexao_id INTEGER, campanha_id TEXT, data TEXT,
             gasto REAL, faturamento REAL, atualizado_em BIGINT,
             PRIMARY KEY (conexao_id, campanha_id, data)
         )""")
-        executar(conn, """CREATE TABLE IF NOT EXISTS erros (
+        execute(conn, """CREATE TABLE IF NOT EXISTS erros (
             conexao_id INTEGER, categoria TEXT, mensagem TEXT, quando BIGINT,
             PRIMARY KEY (conexao_id, categoria)
         )""")
-        executar(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
-        init_overview_schema(conn, executar)
-        init_crm_schema(conn, executar)
+        execute(conn, "ALTER TABLE erros ADD COLUMN IF NOT EXISTS resolvido_em BIGINT")
+        from ads_official_metrics import init_schema as init_ads_sales_schema
+        init_ads_sales_schema(conn, execute)
+        from section_refresh import init_schema as init_section_refresh
+        init_section_refresh(conn, execute)
+        init_overview_schema(conn, execute)
+        from keiper_ai_store import init_schema as init_keiper_ai
+        init_keiper_ai(conn, execute)
+        from kyra_reviews import init_schema as init_kyra_reviews
+        init_kyra_reviews(conn, execute)
+        init_crm_schema(conn, execute)
+        execute(conn, """CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro (
+            usuario_id INTEGER PRIMARY KEY,
+            conexao_id INTEGER NOT NULL,
+            custos_importados_em BIGINT,
+            imposto_confirmado_em BIGINT,
+            concluido_em BIGINT
+        )""")
+        execute(conn, """CREATE TABLE IF NOT EXISTS cliente_prioridades_acessos (
+            conexao_id INTEGER PRIMARY KEY,
+            habilitado BOOLEAN NOT NULL DEFAULT FALSE,
+            atualizado_em BIGINT NOT NULL
+        )""")
+        # Existing clients are enrolled when the portal is explicitly enabled;
+        # this avoids abruptly locking long-standing accounts before rollout.
+        execute(conn, """INSERT INTO cliente_onboarding_financeiro(usuario_id,conexao_id)
+            SELECT u.id,u.conexao_id FROM usuarios u
+            JOIN cliente_prioridades_acessos a ON a.conexao_id=u.conexao_id
+            WHERE u.tipo='cliente' AND a.habilitado=TRUE
+            ON CONFLICT(usuario_id) DO NOTHING""")
+
         # ---------- AUTENTICAÇÃO ----------
 
 def login_required(f):
@@ -743,7 +853,7 @@ def admin_required(f):
         if "usuario_id" not in session:
             return redirect("/login")
         if session.get("tipo") != "admin":
-            return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
+            return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>"), 403
         return f(*args, **kwargs)
     return wrapper
 
@@ -799,15 +909,32 @@ def login():
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         senha = request.form.get("senha") or ""
+        if len(username) > 200 or len(senha) > 256:
+            return "Credenciais inválidas.", 400
+        if not auth_attempt_allowed(banco, executar, "login", username):
+            return "Muitas tentativas. Aguarde 15 minutos e tente novamente.", 429, {"Retry-After": "900"}
         with banco() as conn:
             u = consultar(conn, "SELECT * FROM usuarios WHERE username=%s", (username,))
         u = u[0] if u else None
-        if u and check_password_hash(u["senha_hash"], senha):
+        valid_password = check_password_hash(u["senha_hash"] if u else DUMMY_PASSWORD_HASH, senha)
+        if u and valid_password:
+            if u.get("mfa_enabled"):
+                if not issue_challenge(u, banco, consultar, executar):
+                    return redirect("/login")
+                return redirect("/login/verificar")
+            session.clear()
+            session.permanent = True
             session["usuario_id"] = u["id"]
             session["username"] = u["username"]
             session["nome"] = u["nome"]
             session["tipo"] = u["tipo"]
             session["conexao_id"] = u["conexao_id"]
+            session["auth_version"] = u["auth_version"]
+            if u["tipo"] == "cliente" and u["conexao_id"]:
+                with banco() as conn:
+                    enrolled=consultar(conn,"""SELECT 1 FROM cliente_onboarding_financeiro
+                        WHERE usuario_id=%s AND conexao_id=%s""",(u["id"],u["conexao_id"]))
+                session['onboarding_requerido']=bool(enrolled)
             if u["tipo"] == "cliente" and u["conexao_id"]:
                 return redirect("/painel/" + str(u["conexao_id"]))
             return redirect("/painel")
@@ -828,13 +955,16 @@ def form_login():
             "<input name='username' required placeholder='Usuário' class='input'>"
             "<input type='password' name='senha' required placeholder='Senha' class='input'>"
             "<button class='btn-salvar' style='width:100%'>Entrar</button></form>"
-            "<p style='margin-top:12px'><a class='link' href='/recuperar'>Esqueci minha senha</a></p>")
+            "<p style='margin-top:12px'><a class='link' href='/recuperar'>Esqueci minha senha</a></p>"
+            "<p><a class='btn' href='/conectar'>+ Conectar loja</a></p>")
 
 
 @app.route("/recuperar", methods=["GET", "POST"])
 def recuperar():
     if request.method == "POST":
         ident = (request.form.get("ident") or "").strip()
+        if not auth_attempt_allowed(banco, executar, "reset", ident):
+            return "Muitas solicitações. Aguarde 15 minutos.", 429, {"Retry-After": "900"}
         if not smtp_configurado():
             corpo = ("<div class='card' style='max-width:460px;margin:60px auto;text-align:center'>"
                      "<h2>Recuperar senha</h2>"
@@ -849,7 +979,7 @@ def recuperar():
         u = u[0] if u else None
         if u and u["email"]:
             token = criar_token_reset(u["id"])
-            link = request.url_root.rstrip("/") + "/redefinir/" + token
+            link = "https://app.keiperconsultoria.com.br/redefinir/" + token
             texto = ("Olá " + (u["nome"] or u["username"]) + ",\n\n"
                      "Recebemos um pedido de redefinição de senha do painel "
                      "Keiper Consultoria.\n"
@@ -890,13 +1020,20 @@ def redefinir(token):
     erro = ""
     if request.method == "POST":
         senha = request.form.get("senha") or ""
-        if len(senha) < 6:
-            erro = "A senha precisa ter pelo menos 6 caracteres."
+        if not 12 <= len(senha) <= 256:
+            erro = "A senha precisa ter de 12 a 256 caracteres."
         else:
             with banco() as conn:
+                # Lock the account before consuming the token: simultaneous resets
+                # for this user cannot both pass, including two different tokens.
+                consultar(conn, "SELECT id FROM usuarios WHERE id=%s FOR UPDATE", (r["usuario_id"],))
+                consumed = consultar(conn, "DELETE FROM reset_tokens WHERE token_hash=%s AND expira_em >= %s RETURNING usuario_id",
+                                     (th, int(time.time())))
+                if not consumed:
+                    return "Link inválido ou já utilizado.", 400
                 executar(conn, "UPDATE usuarios SET senha_hash=%s WHERE id=%s",
                          (generate_password_hash(senha), r["usuario_id"]))
-                executar(conn, "DELETE FROM reset_tokens WHERE token_hash=%s", (th,))
+                executar(conn, "DELETE FROM reset_tokens WHERE usuario_id=%s", (r["usuario_id"],))
             corpo = ("<div class='card' style='max-width:460px;margin:60px auto;text-align:center'>"
                      "<h2>Senha alterada com sucesso!</h2>"
                      "<div class='sucesso'>Agora você pode entrar com a nova senha.</div>"
@@ -907,7 +1044,7 @@ def redefinir(token):
              + ("<div class='aviso'>" + esc(erro) + "</div>" if erro else "")
              + "<form method='post' action='/redefinir/" + esc(token) + "'>"
              "<input type='password' name='senha' required "
-             "placeholder='Nova senha (mín. 6 caracteres)' class='input'>"
+             "placeholder='Nova senha (mín. 12 caracteres)' class='input'>"
              "<button class='btn-salvar' style='width:100%'>Salvar senha</button></form></div>")
     return pagina("Redefinir senha", corpo)
 
@@ -918,6 +1055,110 @@ def logout():
     return redirect("/login")
 
 
+@app.route("/admin/diagnostico-visitas-copas")
+@admin_required
+def diagnostico_visitas_copas():
+    """Manual, read-only API probe for Copas. Never expose access tokens."""
+    from scripts.copas_visits_render_probe import probe
+    try:
+        resultado = probe()
+    except Exception:
+        app.logger.exception("copas_visits_probe_failed")
+        return jsonify({"erro": "Falha no diagnóstico de visitas da Copas"}), 503
+    return jsonify({"loja": "Copas Ind", "item_id": "MLB5325240286", **resultado})
+
+
+@app.route("/admin/progresso-visitas", methods=["GET"])
+@admin_required
+def progresso_visitas_todas():
+    """Admin-only read-only progress by account; incomplete visits are not store totals."""
+    import html
+    from copas_visits_store import progress
+    try:
+        with banco() as conn:
+            cur = executar(conn, """
+                SELECT c.id, c.cliente FROM conexoes c
+                WHERE c.status='ativa' AND EXISTS (
+                    SELECT 1 FROM anuncios a WHERE a.conexao_id=c.id AND a.status='active'
+                ) ORDER BY c.id
+            """)
+            lojas = cur.fetchall()
+        linhas = []
+        for conexao_id, nome in lojas:
+            dados = progress(connection_id=conexao_id)
+            ativos = dados["anuncios_ativos"]
+            consultados = dados["anuncios_consultados"]
+            percentual = round(100 * consultados / ativos, 1) if ativos else 0
+            data = dados["ultima_consulta"] or "Ainda não consultado"
+            linhas.append(
+                "<tr><td>" + html.escape(str(nome)) + "</td><td>" + str(consultados)
+                + " / " + str(ativos) + "</td><td>" + str(percentual)
+                + "%</td><td>" + str(dados["visitas_registradas"])
+                + "</td><td>" + html.escape(str(data)) + "</td></tr>"
+            )
+        corpo = (
+            "<div class='card'><h2>Coleta de visitas por loja</h2>"
+            "<p>Os números de visitas são parciais até que todos os anúncios tenham sido consultados. "
+            "A coleta automática avança em lotes de até 10 anúncios.</p>"
+            "<div style='overflow-x:auto'><table><thead><tr><th>Loja</th><th>Consultados</th>"
+            "<th>Cobertura</th><th>Visitas (7 dias, parcial)</th><th>Última consulta (UTC)</th>"
+            "</tr></thead><tbody>" + "".join(linhas) + "</tbody></table></div></div>"
+        )
+        return pagina("Progresso de visitas", corpo)
+    except Exception:
+        app.logger.exception("visits_all_accounts_progress_failed")
+        return jsonify({"erro": "Falha ao consultar progresso das visitas"}), 503
+
+
+@app.route("/admin/progresso-visitas-copas", methods=["GET"])
+@admin_required
+def progresso_visitas_copas():
+    """Read-only administrative coverage report; never starts a collection."""
+    from copas_visits_store import progress
+    try:
+        return jsonify(progress())
+    except Exception:
+        app.logger.exception("copas_visits_progress_failed")
+        return jsonify({"erro": "Falha ao consultar cobertura de visitas"}), 503
+
+
+@app.route("/admin/coleta-visitas-copas", methods=["GET", "POST"])
+@admin_required
+def coleta_visitas_copas():
+    """Admin-confirmed bounded pilot; never run collection on GET."""
+    import hmac
+    if request.method == "GET":
+        nonce = secrets.token_urlsafe(24)
+        session["copas_visits_nonce"] = nonce
+        corpo = ("<div class='card'><h2>Coleta piloto de visitas — Copas Ind</h2>"
+                 "<p>Consulta um lote de até 10 anúncios ativos, apenas os últimos sete dias completos. "
+                 "Não altera vendas nem outras lojas.</p>"
+                 "<form method='post' action='/admin/coleta-visitas-copas'>"
+                 "<input type='hidden' name='nonce' value='" + esc(nonce) + "'>"
+                 "<label for='offset'>Início do lote (0, 10, 20...)</label>"
+                 "<input id='offset' name='offset' type='number' min='0' step='10' value='0' required>"
+                 "<button class='btn-acoes' type='submit'>Executar coleta piloto</button>"
+                 "</form></div>")
+        return pagina("Coleta piloto de visitas", corpo)
+    nonce = session.pop("copas_visits_nonce", "")
+    submitted = request.form.get("nonce", "")
+    if not nonce or not hmac.compare_digest(nonce, submitted):
+        return jsonify({"erro": "Confirmação inválida ou expirada"}), 403
+    from copas_visits_store import collect
+    try:
+        raw_offset = request.form.get("offset", "0")
+        if not raw_offset.isascii() or not raw_offset.isdecimal():
+            return jsonify({"erro": "Lote inválido"}), 400
+        offset = int(raw_offset)
+        if offset > 10000 or offset % 10:
+            return jsonify({"erro": "Lote inválido"}), 400
+        result = collect(limit=10, offset=offset)
+    except Exception:
+        app.logger.exception("copas_visits_collection_failed")
+        return jsonify({"erro": "Falha na coleta piloto"}), 503
+    return jsonify(result)
+
+
 @app.route("/")
 def home():
     if "usuario_id" not in session:
@@ -925,7 +1166,6 @@ def home():
     return redirect("/painel")
 
 @app.route("/conectar")
-@login_required
 def conectar():
     if not CLIENT_ID or not REDIRECT_URI:
         return pagina("Erro",
@@ -933,38 +1173,58 @@ def conectar():
                       "<div class='aviso'>As variáveis ML_CLIENT_ID e "
                       "ML_REDIRECT_URI precisam estar no Render "
                       "(Environment).</div></div>")
-    url = (AUTH_URL + "?response_type=code&client_id=" + CLIENT_ID
-           + "&redirect_uri=" + REDIRECT_URI)
+    state = secrets.token_urlsafe(32)
+    session["ml_oauth"] = {"state": state, "created_at": int(time.time()),
+                           "usuario_id": session.get("usuario_id")}
+    url = AUTH_URL + "?" + urlencode({
+        "response_type": "code", "client_id": CLIENT_ID,
+        "redirect_uri": REDIRECT_URI, "state": state})
     return redirect(url)
 
 
 @app.route("/callback")
 @app.route("/oauth")
-@login_required
 def callback_ml():
+    pending = session.get("ml_oauth") or {}
+    state = request.args.get("state") or ""
+    age = int(time.time()) - pending.get("created_at", 0)
+    if (not state or not secrets.compare_digest(state.encode(), pending.get("state", "").encode())
+            or not 0 <= age <= 900
+            or pending.get("usuario_id") != session.get("usuario_id")):
+        return pagina("Autorização", "<div class='card'><h2>Autorização inválida ou expirada</h2>"
+                      "<p>Inicie novamente a conexão neste navegador.</p>"
+                      "<p><a class='link' href='/conectar'>Conectar loja</a></p></div>"), 400
+    session.pop("ml_oauth", None)
     code = request.args.get("code")
     if not code:
         return pagina("Autorização",
                       "<div class='card'><h2>Autorização não concluída</h2>"
                       "<div class='sub'>O Mercado Livre não devolveu o código. "
                       "Tente conectar de novo.</div></div>")
-    resp = requests.post(TOKEN_URL, data={
-        "grant_type": "authorization_code",
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "code": code,
-        "redirect_uri": REDIRECT_URI,
-    }, timeout=25)
-    dados = resp.json()
-    if "access_token" not in dados:
+    try:
+        resp = requests.post(TOKEN_URL, data={
+            "grant_type": "authorization_code",
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+            "code": code,
+            "redirect_uri": REDIRECT_URI,
+        }, timeout=25)
+        dados = resp.json()
+        if resp.status_code != 200 or not all(dados.get(k) for k in
+                ("access_token", "refresh_token", "expires_in")):
+            raise ValueError("oauth_token_failed")
+        r = requests.get(API + "/users/me",
+                         headers={"Authorization": "Bearer "
+                                  + dados["access_token"]}, timeout=25)
+        eu = r.json() if r.status_code == 200 else {}
+        if not eu.get("id") or str(eu["id"]) != str(dados.get("user_id")):
+            raise ValueError("oauth_identity_failed")
+    except (requests.RequestException, ValueError, TypeError):
         return pagina("Erro",
                       "<div class='card'><h2>Falha ao autorizar</h2>"
-                      "<div class='aviso'>" + esc(str(dados)[:200])
-                      + "</div></div>")
-    r = requests.get(API + "/users/me",
-                     headers={"Authorization": "Bearer "
-                              + dados["access_token"]}, timeout=25)
-    eu = r.json() if r.status_code == 200 else {}
+                      "<div class='aviso'>Não foi possível concluir a conexão com o Mercado Livre. "
+                      "Tente novamente.</div><p><a class='link' href='/conectar'>"
+                      "Conectar loja</a></p></div>"), 502
     with banco() as conn:
         existe = consultar(conn, "SELECT id FROM conexoes WHERE user_id=%s",
                            (eu.get("id"),))
@@ -972,7 +1232,7 @@ def callback_ml():
             executar(conn, "UPDATE conexoes SET access_token=%s, "
                            "refresh_token=%s, expires_at=%s, status='ativa' "
                            "WHERE id=%s",
-                     (dados["access_token"], dados["refresh_token"],
+                     (seal_token(dados["access_token"]), seal_token(dados["refresh_token"]),
                       int(time.time()) + dados["expires_in"],
                       existe[0]["id"]))
             cid = existe[0]["id"]
@@ -983,10 +1243,17 @@ def callback_ml():
                                expires_at, status)
                               VALUES (%s,%s,%s,%s,%s,'ativa') RETURNING id""",
                            (eu.get("nickname") or "Nova loja", eu.get("id"),
-                            dados["access_token"], dados["refresh_token"],
+                            seal_token(dados["access_token"]), seal_token(dados["refresh_token"]),
                             int(time.time()) + dados["expires_in"]))
             cid = cur.fetchone()[0]
-    return redirect("/painel/" + str(cid))
+    if session.get("usuario_id") and pode_ver_loja(cid):
+        return redirect("/painel/" + str(cid))
+    return pagina("Loja conectada",
+                  "<div class='card'><h2>Loja conectada com sucesso</h2>"
+                  "<p>A autorização do Mercado Livre foi concluída. "
+                  "A Keiper Consultoria poderá finalizar a configuração do seu acesso.</p>"
+                  "<p>Se você já recebeu seu usuário e senha, entre no painel.</p>"
+                  "<p><a class='link' href='/login'>Ir para o login</a></p></div>")
 @app.route("/status")
 @login_required
 def status():
@@ -1024,6 +1291,8 @@ def renomear(cid):
         return jsonify({"ok": False}), 400
     with banco() as conn:
         executar(conn, "UPDATE conexoes SET cliente=%s WHERE id=%s", (novo, cid))
+    from overview_cache import invalidate_overview_cache
+    invalidate_overview_cache()
     return jsonify({"ok": True})
 
 
@@ -1055,11 +1324,110 @@ def salvar_roas(cid, campanha_id):
         return jsonify({"ok": False}), 400
     if roas < 0:
         return jsonify({"ok": False}), 400
+    from ads_change_history import number, record_changes
+    if number(roas) is None:
+        return jsonify({"ok": False}), 400
     with banco() as conn:
+        anterior = consultar(conn, """SELECT roas_objetivo FROM ads_campanhas
+            WHERE conexao_id=%s AND campanha_id=%s FOR UPDATE""", (cid,campanha_id))
+        if not anterior:
+            return jsonify({"ok": False, "error":"Campanha não encontrada"}), 404
+        record_changes(conn, executar, cid, campanha_id, anterior[0],
+                       {"roas_objetivo":roas}, int(time.time()), "painel")
         executar(conn, "UPDATE ads_campanhas SET roas_objetivo=%s "
                        "WHERE conexao_id=%s AND campanha_id=%s",
                  (roas, cid, campanha_id))
     return jsonify({"ok": True})
+
+
+def financeiro_status_usuario(uid,cid):
+    """Always validate progress server-side, never rely on a client cookie."""
+    from client_onboarding import status
+    with banco() as conn:
+        row=consultar(conn,"SELECT * FROM cliente_onboarding_financeiro WHERE usuario_id=%s AND conexao_id=%s",(uid,cid))
+        if not row:
+            return status(None,0,0)
+        count=consultar(conn,"""SELECT COUNT(*) FILTER(WHERE LOWER(status)='active') AS total,
+             COUNT(*) FILTER(WHERE LOWER(status)='active' AND custo IS NOT NULL AND custo>=0) AS com_custo
+             FROM anuncios WHERE conexao_id=%s""",(cid,))
+    metrics=count[0] if count else {}
+    return status(row[0] if row else None,int(metrics.get('total') or 0),int(metrics.get('com_custo') or 0))
+
+
+@app.before_request
+def exigir_onboarding_financeiro_cliente():
+    if session.get('tipo')!='cliente' or not session.get('usuario_id'):
+        return None
+    cid=session.get('conexao_id')
+    if not isinstance(cid,int):
+        return None
+    if session.get('onboarding_financeiro_concluido')==cid:
+        return None
+    # The login records whether the client was enrolled. Legacy sessions
+    # keep their previous access; entering the shared portal always rechecks.
+    if not session.get('onboarding_requerido') and request.endpoint!='prioridades_loja':
+        return None
+    if request.endpoint in {'login','logout','logo_arquivo','static',
+                            'primeiro_acesso','primeiro_acesso_imposto',
+                            'modelo_custos','upload_custos'}:
+        return None
+    progress=financeiro_status_usuario(session['usuario_id'],cid)
+    if not progress['required']:
+        session['onboarding_requerido']=False
+        return None
+    session['onboarding_requerido']=True
+    if progress['done']:
+        session['onboarding_financeiro_concluido']=cid
+        return None
+    return redirect('/primeiro-acesso')
+
+
+@app.route('/primeiro-acesso')
+@login_required
+def primeiro_acesso():
+    if session.get('tipo')!='cliente' or not isinstance(session.get('conexao_id'),int):
+        return redirect('/painel')
+    cid=session['conexao_id']
+    progress=financeiro_status_usuario(session['usuario_id'],cid)
+    if not progress['required']:
+        return redirect('/painel/'+str(cid))
+    if progress['done']:
+        session['onboarding_financeiro_concluido']=cid
+        return redirect('/painel/'+str(cid))
+    with banco() as conn:
+        rows=consultar(conn,'SELECT cliente,aliquota_imposto FROM conexoes WHERE id=%s',(cid,))
+    if not rows:
+        return pagina('Configuração inicial','<div class="card">Loja não encontrada.</div>'),404
+    from client_onboarding import onboarding_page
+    message={'arquivo':'O arquivo precisa ser um Excel .xlsx válido.',
+             'sem_itens':'A planilha não atualizou nenhum SKU desta loja. Confira o modelo.',
+             'taxa':'Informe uma alíquota válida entre 0% e 100%.',
+             'tamanho':'O arquivo é muito grande. Limite: 4 MB.',
+             'custos':'A planilha contém custos inválidos ou negativos.'}.get(request.args.get('erro'),'')
+    return pagina('Configuração inicial',onboarding_page(cid,rows[0]['cliente'],progress,
+        rows[0]['aliquota_imposto'] if rows[0]['aliquota_imposto'] is not None else '',message))
+
+
+@app.route('/primeiro-acesso/imposto',methods=['POST'])
+@login_required
+def primeiro_acesso_imposto():
+    if session.get('tipo')!='cliente' or not isinstance(session.get('conexao_id'),int):
+        return 'Acesso restrito',403
+    from client_onboarding import validate_tax
+    try:
+        aliquota=validate_tax(request.form.get('aliquota'))
+    except ValueError:
+        return redirect('/primeiro-acesso?erro=taxa')
+    cid=session['conexao_id']
+    with banco() as conn:
+        executar(conn,'UPDATE conexoes SET aliquota_imposto=%s WHERE id=%s',(aliquota,cid))
+        executar(conn,"""INSERT INTO cliente_onboarding_financeiro
+            (usuario_id,conexao_id,imposto_confirmado_em) VALUES (%s,%s,%s)
+            ON CONFLICT (usuario_id) DO UPDATE SET
+            conexao_id=EXCLUDED.conexao_id,
+            imposto_confirmado_em=EXCLUDED.imposto_confirmado_em""",
+            (session['usuario_id'],cid,int(time.time())))
+    return redirect('/primeiro-acesso')
 
 
 @app.route("/salvar_config/<int:cid>", methods=["POST"])
@@ -1085,50 +1453,81 @@ def salvar_config(cid):
 @login_required
 def upload_custos(cid):
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>")
+        return pagina("Acesso negado", "<div class='card'><h2>Acesso restrito</h2></div>"),403
+    onboarding=(session.get('tipo')=='cliente' and session.get('onboarding_financeiro_concluido')!=cid
+                and financeiro_status_usuario(session['usuario_id'],cid)['required'])
+    base='/primeiro-acesso' if onboarding else '/custos/'+str(cid)
     if openpyxl is None:
-        return redirect("/custos/" + str(cid) + "?erro=biblioteca")
-    arquivo = request.files.get("arquivo")
+        return redirect(base+'?erro=biblioteca')
+    arquivo=request.files.get('arquivo')
     if not arquivo or not arquivo.filename:
-        return redirect("/custos/" + str(cid) + "?erro=sem_arquivo")
+        return redirect(base+'?erro=sem_arquivo')
+    if not arquivo.filename.lower().endswith('.xlsx'):
+        return redirect(base+'?erro=arquivo_invalido')
+    from client_onboarding import parse_cost
     try:
-        wb = openpyxl.load_workbook(arquivo, data_only=True, read_only=True)
-        ws = wb.active
+        arquivo.stream.seek(0,2)
+        size=arquivo.stream.tell()
+        arquivo.stream.seek(0)
+        if size>4*1024*1024:
+            return redirect(base+'?erro=tamanho')
+        wb=openpyxl.load_workbook(arquivo,data_only=True,read_only=True)
+        ws=wb.active
     except Exception:
-        return redirect("/custos/" + str(cid) + "?erro=arquivo_invalido")
-    with banco() as conn:
-        anuncios = consultar(conn, "SELECT item_id, sku FROM anuncios WHERE conexao_id=%s", (cid,))
-    mapa = {}
-    for a in anuncios:
-        if a["sku"]:
-            mapa[str(a["sku"]).strip().upper()] = a["item_id"]
-        mapa[str(a["item_id"]).strip().upper()] = a["item_id"]
-    atualizados = 0
-    nao_achados = []
-    for row in ws.iter_rows(min_row=2, max_col=2, values_only=True):
-        sku = row[0] if len(row) > 0 else None
-        custo = row[1] if len(row) > 1 else None
-        if sku is None or custo is None:
-            continue
+        return redirect(base+'?erro=arquivo_invalido')
+    try:
+        with banco() as conn:
+            anuncios=consultar(conn,"SELECT item_id,sku FROM anuncios WHERE conexao_id=%s",(cid,))
+        mapa={}
+        for a in anuncios:
+            for key in (a.get('sku'),a['item_id']):
+                if key is not None:
+                    mapa.setdefault(str(key).strip().upper(),set()).add(a['item_id'])
+        atualizacoes={}
+        nao_achados=set()
+        for index,row in enumerate(ws.iter_rows(min_row=2,max_col=2,values_only=True)):
+            if index>=20000:
+                return redirect(base+'?erro=tamanho')
+            sku=row[0] if len(row)>0 else None
+            custo=row[1] if len(row)>1 else None
+            if sku is None and custo is None:
+                continue
+            if sku is None or custo is None:
+                return redirect(base+'?erro=custos')
+            value=parse_cost(custo)
+            if value is None:
+                return redirect(base+'?erro=custos')
+            ids=mapa.get(str(sku).strip().upper())
+            if ids:
+                for item_id in ids:
+                    atualizacoes[item_id]=value
+            else:
+                nao_achados.add(str(sku))
+    except Exception:
+        app.logger.exception('cost_import_invalid cid=%s',cid)
+        return redirect(base+'?erro=arquivo_invalido')
+    finally:
         try:
-            custo_v = float(str(custo).replace("R$", "").replace(" ", "").replace(",", "."))
+            wb.close()
         except Exception:
-            continue
-        item_id = mapa.get(str(sku).strip().upper())
-        if item_id:
-            with banco() as conn:
-                executar(conn, "UPDATE anuncios SET custo=%s "
-                               "WHERE conexao_id=%s AND item_id=%s",
-                         (custo_v, cid, item_id))
-            atualizados += 1
-        else:
-            nao_achados.append(str(sku))
-    try:
-        wb.close()
-    except Exception:
-        pass
-    return redirect("/custos/" + str(cid) + "?ok=" + str(atualizados)
-                    + "&faltam=" + str(len(nao_achados)))
+            pass
+    if not atualizacoes:
+        return redirect(base+'?erro=sem_itens')
+    from psycopg2.extras import execute_batch
+    with banco() as conn:
+        with conn.cursor() as cursor:
+            execute_batch(cursor,"UPDATE anuncios SET custo=%s WHERE conexao_id=%s AND item_id=%s",
+                          [(value,cid,item_id) for item_id,value in atualizacoes.items()],page_size=200)
+        if onboarding:
+            executar(conn,"""INSERT INTO cliente_onboarding_financeiro
+                (usuario_id,conexao_id,custos_importados_em) VALUES (%s,%s,%s)
+                ON CONFLICT (usuario_id) DO UPDATE SET
+                conexao_id=EXCLUDED.conexao_id,
+                custos_importados_em=EXCLUDED.custos_importados_em""",
+                (session['usuario_id'],cid,int(time.time())))
+    if onboarding:
+        return redirect('/primeiro-acesso')
+    return redirect('/custos/'+str(cid)+'?ok='+str(len(atualizacoes))+'&faltam='+str(len(nao_achados)))
 
 
 @app.route("/modelo_custos/<int:cid>")
@@ -1180,7 +1579,8 @@ def custos(cid):
     aliquota = c["aliquota_imposto"] if c["aliquota_imposto"] is not None else 0
     comissao = c["comissao_pct"] if c["comissao_pct"] is not None else 12
     ultima = ultima_atualizacao(cid)
-    corpo = "<h2 style='margin-bottom:10px'>Custos</h2>" + barra_atualizar(cid, ultima, "custos")
+    from costs_theme import STYLE as costs_style
+    corpo = costs_style + "<h2 style='margin-bottom:10px'>Custos</h2>" + barra_atualizar(cid, ultima, "custos")
     if erro == "sem_arquivo":
         corpo += "<div class='aviso'>Nenhum arquivo selecionado. " \
                  "Escolha a planilha e clique em Importar.</div>"
@@ -1325,6 +1725,7 @@ def calcular_vendas(cid, inicio=None):
         frete = 0.0
         sem_custo = False
         sem_itens = not itens_p
+        frete_verificavel = bool(itens_p)
         for it in itens_p:
             qtd = it["quantidade"] or 1
             pu = it["preco_unitario"] or 0
@@ -1335,11 +1736,14 @@ def calcular_vendas(cid, inicio=None):
             f = frete_esperado(pu, it["peso"])
             if f is not None:
                 frete += f * qtd
+            else:
+                frete_verificavel = False
         frete_fonte = "estimado"
         frete_real = frete_por_pedido.get(p["pedido_id"])
         if frete_real is not None:
             frete = frete_real
             frete_fonte = "real"
+            frete_verificavel = True
         imposto = receita * aliquota
         comissao_v = receita * comissao
         mc = receita - custo_prod - imposto - comissao_v - frete
@@ -1354,6 +1758,7 @@ def calcular_vendas(cid, inicio=None):
             "comissao": comissao_v,
             "frete": frete,
             "frete_fonte": frete_fonte,
+            "frete_verificavel": frete_verificavel,
             "mc": mc,
             "mc_pct": mc_pct,
             "sem_itens": sem_itens,
@@ -1379,6 +1784,7 @@ def vendas(cid):
              + str(cid) + "'>⬇ Exportar CSV</a>"
              "</div></div>"
              + barra_atualizar(cid, ultima, "vendas"))
+    corpo += "<a class='btn-acoes' href='/vendas/" + str(cid) + "/estados'>Mapa de vendas por estado →</a>"
     corpo += render_sales(cid, request.args, banco, consultar)
     if not vendas:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
@@ -1518,6 +1924,9 @@ def diagnostico():
     corpo = ("<p style='margin-bottom:10px'><a class='link' href='/painel'>"
              "← Voltar ao painel</a></p>"
              "<h2 style='margin-bottom:14px'>Diagnóstico</h2>")
+    if session.get('tipo')=='admin':
+        from collection_health import render as render_health,CSS as health_css
+        corpo += health_css+render_health(snapshot_saude_coletas())
     if FILA_ATUALIZACAO:
         fila_txt = str(len(FILA_ATUALIZACAO)) + " na fila"
     else:
@@ -1557,7 +1966,8 @@ def diagnostico():
               "<table><thead><tr><th>Loja</th><th>Situação</th><th>Categoria</th><th>Mensagem</th>"
               "<th>Quando</th></tr></thead><tbody>"
               + linhas_e + "</tbody></table></div>")
-    return pagina("Diagnóstico", corpo)
+    from diagnostic_theme import CSS as diagnostic_css
+    return pagina("Diagnóstico", diagnostic_css + "<main class='sync-diagnostic'>" + corpo + "</main>")
 FILA_ATUALIZACAO = []
 LOCK_FILA = threading.Lock()
 WORKER_VIVO = False
@@ -1593,22 +2003,29 @@ def processar_tarefa_persistente_uma():
     tarefa_id = tarefa["id"]
     execucao_id = None
     try:
-        execucao_id = registrar_execucao_inicio(cid)
-        if execucao_id is None:
-            # Another process is already synchronizing this store.
-            reagendar_tarefa_persistente(tarefa_id, "Loja ja em execucao")
-            return False
-        parar_heartbeat = iniciar_heartbeat_tarefa(tarefa_id, execucao_id)
-        try:
-            sucesso = executar_atualizacao(cid)
-        finally:
-            parar_heartbeat.set()
-        registrar_execucao_fim(execucao_id, "concluida" if sucesso else "falhou")
-        if sucesso:
-            finalizar_tarefa_persistente(tarefa_id, True)
-        else:
-            reagendar_tarefa_persistente(tarefa_id, "Atualizacao retornou False")
-        return bool(sucesso)
+        with store_sync_lock(banco, cid) as acquired:
+            if not acquired:
+                reagendar_tarefa_persistente(tarefa_id, "Loja ja em execucao")
+                return False
+            # Only the holder of the full-collection lock may retire abandoned
+            # telemetry. No active collector can hold this same lock now.
+            encerrar_execucoes_abandonadas(cid)
+            execucao_id = registrar_execucao_inicio(cid)
+            if execucao_id is None:
+                # Another process is already synchronizing this store.
+                reagendar_tarefa_persistente(tarefa_id, "Loja ja em execucao")
+                return False
+            parar_heartbeat = iniciar_heartbeat_tarefa(tarefa_id, execucao_id)
+            try:
+                sucesso = executar_atualizacao(cid)
+            finally:
+                parar_heartbeat.set()
+            registrar_execucao_fim(execucao_id, "concluida" if sucesso else "falhou")
+            if sucesso:
+                finalizar_tarefa_persistente(tarefa_id, True)
+            else:
+                reagendar_tarefa_persistente(tarefa_id, "Atualizacao retornou False")
+            return bool(sucesso)
     except Exception as exc:
         if execucao_id is not None:
             try:
@@ -1617,6 +2034,16 @@ def processar_tarefa_persistente_uma():
                 pass
         reagendar_tarefa_persistente(tarefa_id, type(exc).__name__)
         return False
+
+
+def encerrar_execucoes_abandonadas(cid):
+    """Caller must hold store_sync_lock for the complete claim/collect cycle."""
+    with banco() as conn:
+        executar(conn, """UPDATE sincronizacao_execucoes
+            SET status='interrompida', fim_em=%s,
+                detalhe='Retomada sob trava exclusiva; coletor anterior ausente'
+            WHERE conexao_id=%s AND status='executando'""",
+            (int(time.time()), cid))
 
 
 def loja_habilitada_fila_persistente(cid):
@@ -1695,21 +2122,21 @@ def processar_fila():
                 return
             cid = FILA_ATUALIZACAO[0]
         execucao_id = None
-        reserva_disponivel = False
         try:
-            try:
+            with store_sync_lock(banco, cid) as acquired:
+                if not acquired:
+                    continue  # A live collector owns this store.
+                # A free collection lock proves previous telemetry is abandoned.
+                encerrar_execucoes_abandonadas(cid)
                 execucao_id = registrar_execucao_inicio(cid)
-                reserva_disponivel = True
-            except Exception:
-                pass  # Telemetry failure must not prevent order collection.
-            if reserva_disponivel and execucao_id is None:
-                continue  # Another worker already owns this store.
-            atualizacao_ok = executar_atualizacao(cid)
-            if execucao_id is not None:
-                try:
-                    registrar_execucao_fim(execucao_id, "concluida" if atualizacao_ok else "falhou", None if atualizacao_ok else "Atualizacao retornou False")
-                except Exception:
-                    pass
+                if execucao_id is None:
+                    continue  # Shared execution claim is required even under the lock.
+                atualizacao_ok = executar_atualizacao(cid)
+                if execucao_id is not None:
+                    try:
+                        registrar_execucao_fim(execucao_id, "concluida" if atualizacao_ok else "falhou", None if atualizacao_ok else "Atualizacao retornou False")
+                    except Exception:
+                        pass
         except Exception as exc:
             if execucao_id is not None:
                 try:
@@ -1733,23 +2160,38 @@ def processar_fila():
 def auditoria_frete(cid):
     if not pode_ver_loja(cid):
         return redirect("/painel")
+    with banco() as conn:
+        lojas = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
+    if not lojas:
+        return "Loja não encontrada", 404
     if "freight_preview_csrf" not in session:
         session["freight_preview_csrf"] = secrets.token_urlsafe(32)
-    corpo = (
-        "<section class='card'><h2>🚚 Auditoria de Frete</h2>"
-        "<p>Envie a planilha de <b>Conciliação Bancária do Mercado Livre</b> "
-        "para conferir o formato antes da auditoria.</p>"
-        "<div class='aviso'>Pré-visualização apenas: nenhuma divergência "
-        "é calculada e o arquivo não é armazenado.</div>"
-        "<form method='post' enctype='multipart/form-data'>"
-        "<input type='hidden' name='csrf_token' value='"
-        + esc(session["freight_preview_csrf"]) + "'>"
-        "<input type='file' name='arquivo' accept='.xlsx,.csv' required>"
-        "<button class='btn' type='submit'>Pré-visualizar planilha</button>"
-        "</form><p>Formatos XLSX e CSV · máximo 2 MB.</p></section>"
-    )
-    corpo += render_freight_comparison_demo()
+    from freight_audit_view import render_page
+    import json
+    from freight_store import report_detail, save_review
+    from datetime import datetime as review_datetime, timezone as review_timezone
+    admin = session.get('tipo') == 'admin'
+    reports, days = [], []
+    current_report, selected_id = None, None
+    if admin:
+        with banco() as conn:
+            reports = report_history(conn, consultar, cid)
+            days = consolidated_history(conn, consultar, cid)
+            raw_id = request.args.get('relatorio') or (str(reports[0]['id']) if reports else None)
+            if raw_id is not None:
+                if not raw_id.isascii() or not raw_id.isdigit() or len(raw_id)>19 or not 0 < int(raw_id) < 2**63:
+                    return 'Relatório inválido', 400
+                selected_id = int(raw_id)
+                selected = report_detail(conn, consultar, cid, selected_id)
+                if not selected:
+                    return 'Relatório não encontrado nesta loja', 404
+                current_report = selected[0]['resumo']
+                if isinstance(current_report, str):
+                    current_report = json.loads(current_report)
+    corpo = ''
     if request.method == "POST":
+        if request.form.get('acao') in ('importar', 'consolidar') and session.get('tipo') != 'admin':
+            return 'Acesso restrito ao administrador', 403
         valid_csrf = secrets.compare_digest(
             session.get("freight_preview_csrf", ""),
             request.form.get("csrf_token", "")) and bool(session.get("freight_preview_csrf"))
@@ -1761,21 +2203,286 @@ def auditoria_frete(cid):
         if arquivo is None:
             return "Selecione um arquivo", 400
         try:
-            abas = preview_reconciliation_upload(
-                arquivo.filename, arquivo.read(MAX_UPLOAD_BYTES + 1))
+            payload = arquivo.read(MAX_UPLOAD_BYTES + 1)
+            bundle = None
+            if (arquivo.filename or '').lower().endswith('.xlsx'):
+                try:
+                    bundle = inspect_sales_reconciliation(arquivo.filename, payload, bundle=True)
+                except PreviewError:
+                    pass
+            abas = bundle[1] if bundle is not None else preview_reconciliation_upload(arquivo.filename, payload)
         except PreviewError as exc:
             return esc(str(exc)), 400
-        corpo += render_reconciliation_preview(abas)
-        corpo += render_reconciliation_column_hints(abas)
-    response = Response(pagina("Auditoria de Frete", corpo, cid=cid,
-                              secao="auditoria_frete"), mimetype="text/html")
+        detalhes_planilha = ("<details class='card frete-detalhes'><summary>Ver pré-visualização e campos identificados</summary>"
+            + render_reconciliation_preview(abas)
+            + render_reconciliation_column_hints(abas) + "</details>")
+        try:
+            if bundle is None:
+                raise PreviewError('Formato não reconhecido para conferência e comparação por vendas.')
+            resumo, _, linhas_comparacao, colunas_comparacao = bundle
+            corpo += render_sales_reconciliation(resumo)
+            order_differences = []
+            resumo['sales_comparison'] = audit_against_sales(
+                cid, arquivo.filename, payload, resumo, banco, consultar, calcular_vendas,
+                parsed_rows=linhas_comparacao, parsed_columns=colunas_comparacao,
+                details=order_differences)
+            resumo['freight_review'] = dict(version=1,
+                checked_at=review_datetime.now(review_timezone.utc).isoformat(),
+                comparison=resumo['sales_comparison'], details=order_differences)
+            current_report, selected_id = resumo, None
+            corpo += render_sales_comparison(resumo['sales_comparison'])
+            corpo += detalhes_planilha
+            if request.form.get('acao') in ('importar', 'consolidar'):
+                try:
+                    with banco() as conn:
+                        if request.form.get('acao') == 'consolidar':
+                            novo = consolidate_report(conn, consultar, cid, payload, resumo,
+                                request.form.get('periodo_inicio'), request.form.get('periodo_fim'),
+                                request.form.get('completo') == 'sim')
+                            days = consolidated_history(conn, consultar, cid)
+                        else:
+                            novo = save_report(conn, consultar, cid, payload, resumo)
+                        selected_id = save_review(conn, consultar, cid, payload, resumo['freight_review'])
+                        reports = report_history(conn, consultar, cid)
+                    corpo = corpo.replace('Nenhum dado foi salvo.', 'Os indicadores agregados deste relatório estão registrados nesta loja.')
+                    corpo += "<div class='aviso'>" + ('Indicadores importados.' if novo else 'Este arquivo já foi importado nesta loja. Conferência por venda atualizada, sem substituir os indicadores originais.') + '</div>'
+                except ValueError as exc:
+                    return esc(str(exc)), 400
+        except PreviewError as exc:
+            corpo += "<div class='aviso'>" + esc(str(exc)) + "</div>"
+            corpo += detalhes_planilha
+    response = Response(pagina_loja("Auditoria de Frete", cid, lojas[0]["cliente"],
+                                   "auditoria_frete", render_page(session["freight_preview_csrf"],
+                                       admin, lojas[0]["cliente"], reports, days, corpo,
+                                       current=current_report, report_id=selected_id,
+                                       args=request.args, cid=cid)), mimetype="text/html")
     response.headers["Cache-Control"] = "no-store"
     return response
+
+
+from freight_difference_view import register_export as register_freight_export
+register_freight_export(app, login_required, pode_ver_loja, banco, consultar)
 
 
 @app.route("/painel")
 @login_required
 def painel():
+    # The landing page is a client directory, not an expensive sales report.
+    with banco() as conn:
+        if session.get("tipo") == "admin":
+            lojas = consultar(conn, "SELECT id, cliente, status FROM conexoes ORDER BY cliente, id")
+        else:
+            lojas = consultar(conn, "SELECT id, cliente, status FROM conexoes WHERE id=%s ORDER BY cliente, id",
+                              (session.get("conexao_id"),))
+    lojas = [loja for loja in lojas if pode_ver_loja(loja["id"])]
+    from client_home import render_client_home
+    corpo = render_client_home(lojas, admin=session.get("tipo") == "admin")
+    if session.get("tipo") == "admin":
+        # Async collection-health snapshot keeps the client directory fast.
+        corpo += """<div id="kh-collection-health" aria-live="polite"></div>
+        <script>(function(){
+          var panel=document.getElementById('kh-collection-health');
+          fetch('/painel/saude',{credentials:'same-origin'})
+            .then(function(r){if(!r.ok)throw Error();return r.text();})
+            .then(function(html){if(panel)panel.innerHTML=html;})
+            .catch(function(){if(panel)panel.innerHTML='<p class="muted">Saúde das coletas indisponível. <a href="/diagnostico">Abrir diagnóstico</a></p>';});
+        })();</script>"""
+        # CRM stays beneath the client cards and health summary.
+        corpo += HOME_WIDGET
+    return pagina("Suas lojas", corpo)
+
+
+
+@app.route('/painel/alertas/<int:cid>')
+@login_required
+def painel_alertas(cid):
+    if not pode_ver_loja(cid):
+        return jsonify(error='Acesso restrito'), 403
+    from home_alerts import load, LABELS, label
+    try:
+        groups, known = load(cid, banco, consultar)
+    except Exception:
+        app.logger.exception('Falha ao consultar alertas da loja %s', cid)
+        return jsonify(error='Alertas indisponíveis'), 503
+    response = jsonify(known=known, url='/painel/alertas/'+str(cid)+'/detalhes',
+        alerts=[dict(code=code, severity=LABELS[code][0], label=label(code,len(groups[code])))
+                for code in LABELS if groups.get(code)])
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.route('/painel/alertas/<int:cid>/detalhes')
+@login_required
+def painel_alertas_detalhes(cid):
+    if not pode_ver_loja(cid):
+        return pagina('Acesso negado', '<p>Acesso restrito</p>'), 403
+    from home_alerts import load, render
+    try:
+        groups, known = load(cid, banco, consultar)
+    except Exception:
+        app.logger.exception('Falha ao consultar detalhes de alertas da loja %s', cid)
+        return pagina('Alertas indisponíveis', '<p>Não foi possível consultar os alertas. Tente novamente.</p>'), 503
+    response = Response(pagina('Alertas da loja', render(groups, cid, known)), mimetype='text/html')
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+def snapshot_saude_coletas():
+    """A few bounded reads; no order load or marketplace API calls."""
+    from collection_health import assess
+    from sales_metrics import reporting_today
+    hoje=reporting_today()
+    semana=(hoje-datetime.timedelta(days=7)).isoformat()
+    ontem=(hoje-datetime.timedelta(days=1)).isoformat()
+    with banco() as conn:
+        shops=consultar(conn,"SELECT id,cliente,status FROM conexoes ORDER BY cliente")
+        catalog=consultar(conn,"SELECT conexao_id,MAX(atualizado_em) AS latest FROM anuncios GROUP BY conexao_id")
+        ads=consultar(conn,"""SELECT conexao_id,MIN(data) AS first_day,MAX(data) AS last_day,
+            COUNT(*) FILTER(WHERE data >= %s AND data <= %s) AS days_7
+            FROM ads_dia GROUP BY conexao_id""",(semana,ontem))
+        sales=consultar(conn,"SELECT conexao_id,MAX(dia) AS latest_day FROM vendas_cobertura WHERE dia <= %s GROUP BY conexao_id",(ontem,))
+        runs=consultar(conn,"""SELECT DISTINCT ON(conexao_id) conexao_id,status,inicio_em,heartbeat_em
+            FROM sincronizacao_execucoes ORDER BY conexao_id,id DESC""")
+        errors=consultar(conn,"SELECT conexao_id,categoria FROM erros WHERE resolvido_em IS NULL")
+    return assess(shops,catalog,ads,sales,runs,errors,today=hoje)
+
+
+@app.route("/painel/saude")
+@login_required
+@admin_required
+def painel_saude():
+    from collection_health import render,CSS
+    response=Response(CSS+render(snapshot_saude_coletas(),compact=True),mimetype="text/html")
+    response.headers['Cache-Control']='private, max-age=180'
+    return response
+
+
+
+@app.route("/prioridades")
+@login_required
+def central_prioridades():
+    if session.get('tipo') != 'admin':
+        cid=session.get('conexao_id')
+        if not isinstance(cid,int):
+            return pagina('Acesso negado', '<div class="card">Conta sem loja vinculada.</div>'),403
+        return redirect('/prioridades/'+str(cid))
+    from client_priorities import admin_index
+    with banco() as conn:
+        shops=consultar(conn,"SELECT id,cliente,status FROM conexoes ORDER BY cliente")
+        enabled=consultar(conn,"SELECT conexao_id FROM cliente_prioridades_acessos WHERE habilitado=TRUE")
+    csrf=session.get('prioridades_csrf')
+    if not csrf:
+        csrf=secrets.token_urlsafe(32)
+        session['prioridades_csrf']=csrf
+    body=admin_index(shops,{int(r['conexao_id']) for r in enabled},snapshot_saude_coletas(),csrf)
+    response=Response(pagina('Central de Prioridades',body),mimetype='text/html')
+    response.headers['Cache-Control']='no-store'
+    return response
+
+
+@app.route("/prioridades/<int:cid>")
+@login_required
+def prioridades_loja(cid):
+    if not pode_ver_loja(cid):
+        return pagina('Acesso negado','<div class="card">Acesso restrito</div>'),403
+    is_admin=session.get('tipo')=='admin'
+    if not is_admin:
+        with banco() as conn:
+            enabled=consultar(conn,"SELECT habilitado FROM cliente_prioridades_acessos WHERE conexao_id=%s",(cid,))
+        if not enabled or not enabled[0]['habilitado']:
+            return pagina('Acesso não liberado','<div class="card">A Central de Prioridades ainda não foi liberada para esta loja.</div>'),403
+    from client_priorities import store_portal
+    from management_data import load_management
+    from overview_read import TIMEOUT_MESSAGE
+    try:
+        report=load_management(cid,{'dias':'7'},banco,consultar)
+        if report is None:
+            return pagina('Loja não encontrada','<div class="card">Loja não encontrada</div>'),404
+        body=store_portal(report,cid,client_view=not is_admin)
+    except ValueError:
+        return pagina('Prioridades indisponíveis','<div class="card">'+esc(TIMEOUT_MESSAGE)+'</div>'),503
+    response=Response(pagina('Central de Prioridades',body),mimetype='text/html')
+    response.headers['Cache-Control']='no-store'
+    return response
+
+
+@app.route("/prioridades/<int:cid>/acesso",methods=['POST'])
+@admin_required
+def acesso_prioridades_cliente(cid):
+    expected=session.get('prioridades_csrf')
+    token=request.form.get('csrf_token','')
+    if not expected or not secrets.compare_digest(expected,token):
+        return 'Solicitação inválida',403
+    flag=request.form.get('enabled')
+    if flag not in ('0','1'):
+        return 'Parâmetro inválido',400
+    with banco() as conn:
+        exists=consultar(conn,'SELECT id FROM conexoes WHERE id=%s',(cid,))
+        if not exists:
+            return 'Loja não encontrada',404
+        executar(conn,"""INSERT INTO cliente_prioridades_acessos (conexao_id,habilitado,atualizado_em)
+            VALUES (%s,%s,%s) ON CONFLICT (conexao_id) DO UPDATE SET
+            habilitado=EXCLUDED.habilitado,atualizado_em=EXCLUDED.atualizado_em""",
+            (cid,flag=='1',int(time.time())))
+        if flag=='1':
+            executar(conn,"""INSERT INTO cliente_onboarding_financeiro(usuario_id,conexao_id)
+                SELECT id,conexao_id FROM usuarios WHERE tipo='cliente' AND conexao_id=%s
+                ON CONFLICT(usuario_id) DO NOTHING""",(cid,))
+    return redirect('/prioridades')
+
+
+@app.route("/painel/tendencias")
+@login_required
+def painel_tendencias():
+    """Lightweight, separately loaded seven-day sales direction per authorized shop."""
+    from zoneinfo import ZoneInfo
+    hoje = datetime.datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    fim = hoje.isoformat()
+    inicio_atual = (hoje - datetime.timedelta(days=7)).isoformat()
+    inicio_anterior = (hoje - datetime.timedelta(days=14)).isoformat()
+    with banco() as conn:
+        if session.get("tipo") == "admin":
+            lojas = consultar(conn, "SELECT id FROM conexoes")
+        else:
+            lojas = consultar(conn, "SELECT id FROM conexoes WHERE id=%s",
+                               (session.get("conexao_id"),))
+        ids = [int(loja["id"]) for loja in lojas if pode_ver_loja(loja["id"])]
+        if not ids:
+            response = jsonify({})
+            response.headers["Cache-Control"] = "private, max-age=60"
+            return response
+        linhas = consultar(conn, """
+            SELECT conexao_id,
+                   COALESCE(SUM(CASE WHEN LEFT(fechado_em,10) >= %s
+                                      AND LEFT(fechado_em,10) < %s
+                                THEN total ELSE 0 END),0) AS atual,
+                   COALESCE(SUM(CASE WHEN LEFT(fechado_em,10) >= %s
+                                      AND LEFT(fechado_em,10) < %s
+                                THEN total ELSE 0 END),0) AS anterior
+            FROM pedidos
+            WHERE conexao_id = ANY(%s)
+              AND fechado_em IS NOT NULL
+              AND LEFT(fechado_em,10) >= %s
+              AND LEFT(fechado_em,10) < %s
+              AND (status IS NULL OR status NOT IN ('cancelled', 'cancelada'))
+            GROUP BY conexao_id
+        """, (inicio_atual, fim, inicio_anterior, inicio_atual,
+              ids, inicio_anterior, fim))
+    tendencias = {}
+    for linha in linhas:
+        atual = float(linha["atual"] or 0)
+        anterior = float(linha["anterior"] or 0)
+        tendencias[str(linha["conexao_id"])] = (
+            "up" if atual > anterior else "down" if atual < anterior else "flat"
+        )
+    response = jsonify(tendencias)
+    response.headers["Cache-Control"] = "private, max-age=60"
+    return response
+
+
+@app.route("/painel/analise")
+@login_required
+def painel_analise():
     with banco() as conn:
         if session.get("tipo") == "admin":
             lojas = consultar(conn, "SELECT id, cliente, status FROM conexoes ORDER BY cliente, id")
@@ -1785,9 +2492,21 @@ def painel():
     # Keep the existing access policy and apply it before any sales/coverage read.
     lojas = [loja for loja in lojas if pode_ver_loja(loja["id"])]
     admin = session.get("tipo") == "admin"
+    inicio_painel = time.perf_counter()
     try:
-        dados = load_overview(lojas, request.args, banco, consultar)
-        corpo = render_overview(dados, request.args, admin=admin)
+        from overview_cache import load_cached_overview
+        dados = load_cached_overview(lojas, request.args, banco, consultar, load_overview)
+        apos_vendas = time.perf_counter()
+        from visits_overview import load_visits_card
+        visitas_card = load_visits_card(banco, lojas)
+        apos_visitas = time.perf_counter()
+        corpo = render_overview(dados, request.args, admin=admin, visits_card=visitas_card)
+        apos_render = time.perf_counter()
+        if (apos_render - inicio_painel) > 0.5:
+            app.logger.warning(
+                "painel_etapas lojas=%d vendas_ms=%.0f visitas_ms=%.0f render_ms=%.0f",
+                len(lojas),(apos_vendas-inicio_painel)*1000,
+                (apos_visitas-apos_vendas)*1000,(apos_render-apos_visitas)*1000)
     except ValueError as erro:
         from sales_view import filters
         corpo = ("<div class='aviso'>" + esc(str(erro))
@@ -2058,8 +2777,10 @@ def usuarios_criar():
     email = (request.form.get("email") or "").strip()
     tipo = request.form.get("tipo") or "cliente"
     conexao_id = request.form.get("conexao_id") or None
-    if not username or not senha:
-        return redirect("/usuarios?msg=Preencha usuário e senha")
+    if not username or not 12 <= len(senha) <= 256:
+        return redirect("/usuarios?msg=Informe usuário e senha de 12 a 256 caracteres")
+    if tipo not in ("admin", "cliente"):
+        return "Tipo de usuário inválido", 400
     try:
         conexao_id = int(conexao_id) if conexao_id else None
     except Exception:
@@ -2070,6 +2791,11 @@ def usuarios_criar():
                        "VALUES (%s,%s,%s,%s,%s,%s,%s)",
                  (username, generate_password_hash(senha), nome, email,
                   tipo, conexao_id, int(time.time())))
+        if tipo=='cliente' and conexao_id is not None:
+            new_user=consultar(conn,"SELECT id FROM usuarios WHERE username=%s",(username,))
+            executar(conn,"""INSERT INTO cliente_onboarding_financeiro(usuario_id,conexao_id)
+                VALUES (%s,%s) ON CONFLICT(usuario_id) DO NOTHING""",
+                (new_user[0]['id'],conexao_id))
     return redirect("/usuarios?msg=Usuário criado com sucesso")
 
 
@@ -2089,6 +2815,8 @@ def usuarios_editar(uid):
         tipo = request.form.get("tipo") or "cliente"
         conexao_id = request.form.get("conexao_id") or None
         nova_senha = request.form.get("senha") or ""
+        if (nova_senha and not 12 <= len(nova_senha) <= 256) or tipo not in ("admin", "cliente"):
+            return "Informe uma senha de 12 a 256 caracteres e um tipo válido.", 400
         try:
             conexao_id = int(conexao_id) if conexao_id else None
         except Exception:
@@ -2137,7 +2865,7 @@ def usuarios_editar(uid):
     return pagina("Editar usuário", corpo)
 
 
-@app.route("/usuarios/excluir/<int:uid>")
+@app.route("/usuarios/excluir/<int:uid>", methods=["GET", "POST"])
 @admin_required
 def usuarios_excluir(uid):
     with banco() as conn:
@@ -2145,8 +2873,14 @@ def usuarios_excluir(uid):
         u = u[0] if u else None
     if u and u["username"] == "admin":
         return redirect("/usuarios?msg=Não é possível excluir o usuário admin")
+    if u and request.method == "GET":
+        return pagina("Excluir usuário", "<div class='card'><h2>Excluir usuário "
+                      + esc(str(u["username"])) + "?</h2><form method='post'>"
+                      "<button class='btn-danger'>Confirmar exclusão</button></form>"
+                      "<p><a href='/usuarios'>Cancelar</a></p></div>")
     if u:
         with banco() as conn:
+            executar(conn, "DELETE FROM reset_tokens WHERE usuario_id=%s", (uid,))
             executar(conn, "DELETE FROM usuarios WHERE id=%s", (uid,))
     return redirect("/usuarios?msg=Usuário excluído")
 
@@ -2162,7 +2896,7 @@ def excluir(cid):
                       "<div class='card'><h2>Loja não encontrada</h2></div>")
     if request.method == "POST":
         with banco() as conn:
-            for tabela in ("dados_conta", "anuncios", "pedidos", "pedidos_itens",
+            for tabela in ("vendas_destinos", "full_observations", "dados_conta", "anuncios", "pedidos", "pedidos_itens",
                            "metricas", "desempenho_historico", "perguntas",
                            "envios", "promocoes", "promocoes_itens",
                            "ads_campanhas", "ads_metricas", "ads_dia",
@@ -2192,204 +2926,658 @@ def excluir(cid):
     return pagina("Excluir loja", corpo)
 
 
+@app.route("/ads/<int:cid>/campanha/<path:campanha_id>")
+@login_required
+def painel_ads_campanha(cid, campanha_id):
+    """Campaign detail: scoped DB-only reporting, no on-demand API calls."""
+    if not pode_ver_loja(cid):
+        return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
+    if not campanha_id or len(campanha_id) > 120 or "/" in campanha_id:
+        return pagina("Campanha inválida", "<div class='card'>Código inválido.</div>"), 400
+    from sales_metrics import reporting_today
+    hoje = reporting_today()
+    dias = request.args.get("dias", "30")
+    if dias not in ("7", "15", "30", "60", "90"):
+        dias = "30"
+    inicio = (hoje - datetime.timedelta(days=int(dias)*2-1)).isoformat()
+    with banco() as conn:
+        loja = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
+        camp = consultar(conn, """SELECT campanha_id,nome,status,orcamento,roas_objetivo,tipo,atualizado_em
+            FROM ads_campanhas WHERE conexao_id=%s AND campanha_id=%s""", (cid,campanha_id))
+        if loja and camp:
+            diario = consultar(conn, """SELECT data,gasto,faturamento,atualizado_em,
+                vendas_atribuidas,outras_vendas,faturamento_sem_ads
+                FROM ads_campanha_dia WHERE conexao_id=%s AND campanha_id=%s
+                AND data BETWEEN %s AND %s ORDER BY data""",
+                (cid,campanha_id,inicio,hoje.isoformat()))
+            historico_alteracoes = consultar(conn, """SELECT campo,valor_anterior,
+                valor_novo,observado_em,origem FROM ads_campanha_alteracoes
+                WHERE conexao_id=%s AND campanha_id=%s ORDER BY observado_em DESC,id DESC LIMIT 50""",
+                (cid,campanha_id))
+    if not loja:
+        return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
+    if not camp:
+        return pagina_loja("Campanha não encontrada", cid, loja[0]["cliente"],
+            "ads", "<div class='card'>Campanha não encontrada para esta loja.</div>"), 404
+    from ads_campaign_detail import render
+    corpo = render(cid, camp[0], diario, int(dias), hoje,
+                   changes=historico_alteracoes)
+    return pagina_loja("Campanha Ads", cid, loja[0]["cliente"], "ads", corpo)
+
+
+@app.route("/ads/<int:cid>")
+@login_required
+def painel_ads(cid):
+    """Read-only ads overview using stored daily API metrics only."""
+    if not pode_ver_loja(cid):
+        return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
+    from urllib.parse import urlencode
+    from sales_metrics import reporting_today
+    from ads_overview_design import header, alert_card, daily_chart, ratio, budget_progress, campaign_configuration
+    hoje = reporting_today()
+    dias = request.args.get("dias", "30")
+    if dias not in ("7", "30", "90"):
+        dias = "30"
+    inicio = hoje - datetime.timedelta(days=int(dias) - 1)
+    fim = hoje
+    de, ate = request.args.get("de", ""), request.args.get("ate", "")
+    if de or ate:
+        try:
+            inicio = datetime.date.fromisoformat(de)
+            fim = datetime.date.fromisoformat(ate)
+            if fim < inicio or fim > hoje or (fim - inicio).days > 89:
+                raise ValueError()
+        except ValueError:
+            return pagina("Ads", "<div class='card'>Período inválido: selecione até 90 dias, sem datas futuras.</div>"), 400
+    inicio_iso, fim_iso = inicio.isoformat(), fim.isoformat()
+    with banco() as conn:
+        lojas = consultar(conn, "SELECT id, cliente FROM conexoes WHERE id=%s", (cid,))
+        if not lojas:
+            return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
+        dias_ads = consultar(conn, """
+            SELECT data, gasto, faturamento, impressoes, cliques, atualizado_em
+            FROM ads_dia WHERE conexao_id=%s AND data BETWEEN %s AND %s
+            ORDER BY data DESC
+        """, (cid, inicio_iso, fim_iso))
+    # Local business day and observation freshness matter for budget pacing.
+    from zoneinfo import ZoneInfo
+    agora_local = datetime.datetime.now(ZoneInfo("America/Sao_Paulo"))
+    ontem = (hoje - datetime.timedelta(days=1)).isoformat()
+    with banco() as conn:
+        alert_rows = consultar(conn, """
+            SELECT d.campanha_id,
+                COALESCE(NULLIF(c.nome,''), 'Campanha ' || d.campanha_id) AS nome,
+                c.status, c.orcamento, c.roas_objetivo,
+                MAX(e.detectado_em) AS esgotado_em,
+                COALESCE(SUM(d.gasto) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS gasto_periodo,
+                COALESCE(SUM(d.faturamento) FILTER (WHERE d.data BETWEEN %s AND %s),0) AS fat_periodo,
+                COALESCE(SUM(d.gasto) FILTER (WHERE d.data=%s),0) AS gasto_hoje,
+                MAX(d.atualizado_em) FILTER (WHERE d.data=%s) AS hoje_atualizado,
+                COALESCE(SUM(d.gasto) FILTER (WHERE d.data=%s),0) AS gasto_ontem,
+                COALESCE(SUM(d.faturamento) FILTER (WHERE d.data=%s),0) AS fat_ontem,
+                COUNT(*) FILTER (WHERE d.data=%s) AS tem_ontem
+            FROM ads_campanha_dia d
+            LEFT JOIN ads_campanhas c ON c.conexao_id=d.conexao_id AND c.campanha_id=d.campanha_id
+            LEFT JOIN ads_orcamento_esgotado e ON e.conexao_id=d.conexao_id AND e.campanha_id=d.campanha_id AND e.data=%s
+            WHERE d.conexao_id=%s AND d.data BETWEEN %s AND %s
+            GROUP BY d.campanha_id,c.nome,c.status,c.orcamento,c.roas_objetivo
+        """, (inicio_iso,fim_iso,inicio_iso,fim_iso,hoje.isoformat(),
+              hoje.isoformat(),ontem,ontem,ontem,hoje.isoformat(),
+              cid,min(inicio_iso,ontem),max(fim_iso,hoje.isoformat())))
+    alertas_orcamento, alertas_risco, alertas_roas, alertas_sem_venda = [], [], [], []
+    campanhas_configuradas = sum(1 for camp in alert_rows if camp["status"] is not None)
+    for camp in alert_rows:
+        nome = esc(str(camp["nome"]))
+        ativa = str(camp["status"] or "").lower() in ("active","running")
+        budget = float(camp["orcamento"] or 0)
+        gasto_hoje = float(camp["gasto_hoje"] or 0)
+        updated = camp["hoje_atualizado"]
+        dados_recentes = (updated is not None and
+                         0 <= time.time() - float(updated) <= 2 * 3600)
+        if ativa and budget > 0 and dados_recentes:
+            consumo = gasto_hoje / budget
+            info = "R$ %.2f de R$ %.2f (%.0f%%)" % (gasto_hoje,budget,consumo*100)
+            info = info.replace(".", ",")
+            if consumo >= 1:
+                alertas_orcamento.append((nome,info))
+            elif consumo >= 0.8 and agora_local.hour < 18:
+                alertas_risco.append((nome,info+" · atenção antes das 18h"))
+        gasto = float(camp["gasto_periodo"] or 0)
+        fat = float(camp["fat_periodo"] or 0)
+        alvo = float(camp["roas_objetivo"] or 0)
+        if ativa and alvo > 0 and gasto > 0 and fat/gasto >= 1.3*alvo:
+            alertas_roas.append((nome,"ROAS %.2fx · objetivo %.2fx" % (fat/gasto,alvo)))
+        if camp["tem_ontem"] and float(camp["gasto_ontem"] or 0) > 0 and float(camp["fat_ontem"] or 0) == 0:
+            alertas_sem_venda.append((nome,"R$ %.2f investidos ontem · nenhuma venda atribuída" %
+                                     float(camp["gasto_ontem"] or 0)))
+    def quadro_alertas(titulo, descricao, itens, vazio):
+        return alert_card(titulo, descricao, itens, vazio, opportunity='ROAS' in titulo)
+    alertas_html = ("<div class='ka-section-title'><h3>Oportunidades e atenção</h3><span>Leituras recentes de Ads</span></div>"
+        + ("<div class='aviso'>Configuração de campanhas ainda não sincronizada nesta loja. "
+           "Alertas de orçamento e ROAS objetivo ficam pendentes.</div>"
+           if not campanhas_configuradas else "")
+        + "<div class='ka-alert-grid'>"
+        + quadro_alertas("Orçamento diário esgotado",
+            "Campanhas ativas cujo gasto observado hoje atingiu o orçamento diário; leitura recente (até 2h).",
+            alertas_orcamento,"Nenhuma campanha com limite atingido e dados recentes.")
+        + quadro_alertas("Risco de orçamento esgotar cedo",
+            "Mais de 80% do orçamento consumido antes das 18h, com leitura recente. "
+            "É um sinal de atenção, não uma previsão de horário.",
+            alertas_risco,"Nenhuma campanha nesta condição com dados recentes.")
+        + quadro_alertas("ROAS pelo menos 30% acima do objetivo",
+            "Considera o ROAS do período selecionado e a meta cadastrada.",
+            alertas_roas,"Nenhuma campanha identificada ou objetivo ainda não importado.")
+        + quadro_alertas("Sem vendas de Ads ontem",
+            "Campanhas com investimento ontem e nenhuma venda atribuída.",
+            alertas_sem_venda,"Nenhuma campanha nesta condição.") + "</div>")
+    titulo = "Publicidade · Product Ads"
+    abertura = header(cid, lojas[0]["cliente"], inicio, fim)
+    filtro = ("<section class='card'><h2>Filtros de publicidade</h2>"
+             "<form method='get' action='/ads/" + str(cid) + "' "
+             "style='display:flex;gap:10px;align-items:end;flex-wrap:wrap'>"
+             "<label>Período <select name='dias'>"
+             + "".join("<option value='" + n + "'" + (" selected" if dias == n else "")
+                       + ">" + n + " dias</option>" for n in ("7","30","90"))
+             + "</select></label><label>De <input type='date' name='de' value='"
+             + esc(de) + "'></label><label>Até <input type='date' name='ate' value='"
+             + esc(ate) + "'></label><button class='btn' type='submit'>Aplicar filtros</button>"
+             "</form><p class='muted'>Período exibido: " + inicio.strftime("%d/%m")
+             + " a " + fim.strftime("%d/%m") + "</p></section>")
+    if not dias_ads:
+        corpo = (abertura + filtro
+                 + "<section class='card'><h3>Sem dados de publicidade para este período</h3>"
+                 "<p>Confira se Product Ads está ativo, se a sincronização da loja terminou "
+                 "e se existe investimento no intervalo selecionado.</p>"
+                 "<p>Use Atualizar Ads acima para carregar as campanhas e os resultados.</p></section>")
+        return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo + alertas_html + "</div>")
+    def soma(campo):
+        return sum(float(row[campo] or 0) for row in dias_ads)
+    gasto = soma("gasto")
+    receita = soma("faturamento")
+    impressoes = int(soma("impressoes"))
+    cliques = int(soma("cliques"))
+    roas = receita / gasto if gasto > 0 else None
+    acos = gasto / receita * 100 if receita > 0 else None
+    ctr = cliques / impressoes * 100 if impressoes > 0 else None
+    cpc = gasto / cliques if cliques > 0 else None
+    def brl(valor):
+        return "R$ " + format(float(valor), ",.2f").replace(",", "X").replace(".", ",").replace("X", ".")
+    # TACOS requires verified total shop sales for the *same* selected period.
+    # Reuse the sales overview classifier and coverage rules; never substitute
+    # attributed Ads revenue (which would be ACOS, not TACOS).
+    faturamento_loja = None
+    motivo_tacos = None
+    try:
+        from overview import load_overview
+        argumentos_vendas = {
+            "periodo": "personalizado",
+            "inicio": inicio_iso,
+            "fim": fim_iso,
+        }
+        loja_vendas = [{"id": cid, "cliente": lojas[0]["cliente"], "status": "ativa"}]
+        dados_vendas = load_overview(loja_vendas, argumentos_vendas, banco, consultar)
+        resumo_vendas = dados_vendas["reports"][0]
+        atual = resumo_vendas["current"]
+        dias_venda = (fim - inicio).days + 1
+        # A previous-period sync is not required to evaluate the selected
+        # current period, but completeness, integrity and freshness are.
+        if (not atual["complete"] or atual["invalid"] or atual["unallocated_dates"]
+                or atual["revenue"] is None):
+            motivo_tacos = "Histórico de vendas incompleto ou com inconsistências no período."
+        else:
+            faturamento_loja = float(atual["revenue"])
+    except (ValueError, KeyError, TypeError, IndexError, OSError) as exc:
+        app.logger.warning("ads_tacos_sales_unavailable loja=%s tipo=%s", cid, type(exc).__name__)
+        motivo_tacos = "Não foi possível validar o faturamento total da loja."
+    tacos_geral = gasto / faturamento_loja * 100 if faturamento_loja and faturamento_loja > 0 else None
+    # Filter and page campaign comparisons without changing the sales baseline.
+    filtro_nome = (request.args.get("campanha", "") or "").strip()[:80]
+    situacao = request.args.get("situacao", "todas")
+    if situacao not in ("todas", "com_gasto", "sem_vendas", "com_vendas", "ativas_sem_vendas"):
+        situacao = "todas"
+    ordem_camp = request.args.get("ordem_campanha", "gasto")
+    if ordem_camp not in ("gasto", "faturamento", "roas", "acos", "tacos"):
+        ordem_camp = "gasto"
+    linhas_tacos = []
+    for camp in alert_rows:
+        nome = str(camp["nome"])
+        investimento = float(camp["gasto_periodo"] or 0)
+        atribuida = float(camp["fat_periodo"] or 0)
+        if filtro_nome and filtro_nome.casefold() not in nome.casefold():
+            continue
+        if situacao == "ativas_sem_vendas" and (str(camp["status"] or "").lower() not in ("active", "running") or atribuida > 0):
+            continue
+        if situacao == "com_gasto" and investimento <= 0:
+            continue
+        if situacao == "sem_vendas" and not (investimento > 0 and atribuida <= 0):
+            continue
+        if situacao == "com_vendas" and atribuida <= 0:
+            continue
+        roas_camp = atribuida / investimento if investimento > 0 else None
+        acos_camp = investimento / atribuida * 100 if atribuida > 0 else None
+        tacos_camp = investimento / faturamento_loja * 100 if faturamento_loja and faturamento_loja > 0 else None
+        linhas_tacos.append((nome, investimento, atribuida, roas_camp, acos_camp, tacos_camp, str(camp["campanha_id"])))
+    ordem_indices = {"gasto":1, "faturamento":2, "roas":3, "acos":4, "tacos":5}
+    indice = ordem_indices[ordem_camp]
+    linhas_tacos.sort(key=lambda item: (item[indice] is None,
+        -(item[indice] or 0), item[0].casefold()))
+    try:
+        pagina_tacos = max(1, int(request.args.get("pagina_campanhas", "1")))
+    except (TypeError, ValueError):
+        pagina_tacos = 1
+    try:
+        tamanho_tacos = int(request.args.get("por_pagina_campanhas", 20))
+    except (TypeError, ValueError):
+        tamanho_tacos = 20
+    if tamanho_tacos not in (10, 20, 50):
+        tamanho_tacos = 20
+    paginas_tacos = max(1, (len(linhas_tacos) + tamanho_tacos - 1) // tamanho_tacos)
+    pagina_tacos = min(pagina_tacos, paginas_tacos)
+    def url_tacos(numero):
+        params = request.args.to_dict(flat=True)
+        params["pagina_campanhas"] = numero
+        return "/ads/" + str(cid) + "?" + urlencode(params)
+    linhas_tacos_pagina = linhas_tacos[
+        (pagina_tacos - 1) * tamanho_tacos:pagina_tacos * tamanho_tacos]
+    tacos_campanhas_html = (
+        "<section id='ka-campaign-list' class='card kc-campaigns'><h3>Desempenho por campanha</h3>"
+        "<p class='muted'>Compare investimento, retorno e participação no faturamento total da loja.</p>"
+        "<form method='get' action='/ads/" + str(cid) + "' "
+        "style='display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:14px 0'>"
+        + "".join("<input type='hidden' name='" + esc(k,quote=True) + "' value='"
+                  + esc(str(request.args.get(k, "")),quote=True) + "'>"
+                  for k in ("dias","de","ate") if request.args.get(k))
+        + "<label>Buscar campanha <input name='campanha' placeholder='Nome da campanha' value='"
+        + esc(filtro_nome,quote=True) + "'></label>"
+        + "<label>Situação <select name='situacao'>"
+        + "".join("<option value='" + valor + "'" + (" selected" if situacao == valor else "")
+            + ">" + rotulo + "</option>" for valor,rotulo in (
+                ("todas","Todas"),("com_gasto","Com investimento"),
+                ("sem_vendas","Com gasto e sem vendas"),("com_vendas","Com vendas"),("ativas_sem_vendas","Ativas sem vendas")))
+        + "</select></label>"
+        + "<label>Ordenar por <select name='ordem_campanha'>"
+        + "".join("<option value='" + valor + "'" + (" selected" if ordem_camp == valor else "")
+            + ">" + rotulo + "</option>" for valor,rotulo in (
+                ("gasto","Maior investimento"),("faturamento","Maior faturamento Ads"),
+                ("roas","Maior ROAS"),("acos","Maior ACOS"),("tacos","Maior TACOS")))
+        + "</select></label>"
+        + "<label>Por página <select name='por_pagina_campanhas'>"
+        + "".join("<option value='" + str(n) + "'" + (" selected" if tamanho_tacos == n else "")
+            + ">" + str(n) + "</option>" for n in (10,20,50))
+        + "</select></label><button class='btn' type='submit'>Aplicar</button></form>")
+    if faturamento_loja and faturamento_loja > 0:
+        tacos_campanhas_html += ("<p>Faturamento total validado da loja: <strong>"
+                                 + brl(faturamento_loja) + "</strong></p>")
+    else:
+        tacos_campanhas_html += ("<div class='aviso'>TACOS indisponível: "
+            + esc(motivo_tacos or "Não há faturamento total positivo validado.")
+            + "</div>")
+    tacos_campanhas_html += (
+        "<div class='kc-table-wrap'><table class='kc-campaign-table'><thead><tr>"
+        "<th>Campanha</th><th title='Configuração atual salva da campanha'>Orçamento diário</th><th>Investimento</th><th>Faturamento Ads</th>"
+        "<th>ROAS</th><th>ACOS</th><th title='Equivalente ao ROAS objetivo atual salvo: 100 ÷ ROAS'>ACOS objetivo</th><th>TACOS</th></tr></thead><tbody>")
+    from urllib.parse import quote
+    budget_by_id = {str(c["campanha_id"]): c for c in alert_rows}
+    for nome, investimento, atribuida, roas_camp, acos_camp, tacos_valor, camp_id in linhas_tacos_pagina:
+        detalhe = "/ads/" + str(cid) + "/campanha/" + quote(camp_id, safe="")
+        url_segura = esc(detalhe, quote=True)
+        budget_row = budget_by_id.get(camp_id, {})
+        daily_budget, target_acos = campaign_configuration(budget_row)
+        budget_html = budget_progress(budget_row.get("orcamento"), budget_row.get("gasto_hoje"), budget_row.get("hoje_atualizado"), time.time(), budget_row.get("esgotado_em"))
+        tacos_campanhas_html += (
+            "<tr class='kc-campaign-row' tabindex='0' role='link' data-href='"
+            + url_segura + "' aria-label='Abrir campanha " + esc(nome,quote=True) + "'>"
+            "<td data-label='Campanha'><a class='kc-campaign-name' href='" + url_segura
+            + "'>" + esc(nome) + "</a>" + budget_html + "</td>"
+            "<td data-label='Orçamento diário'>" + daily_budget + "</td>"
+            "<td data-label='Investimento'>" + brl(investimento) + "</td>"
+            "<td data-label='Faturamento Ads'>" + brl(atribuida) + "</td>"
+            "<td data-label='ROAS'>" + (ratio(roas_camp, "x") if roas_camp is not None else "—") + "</td>"
+            "<td data-label='ACOS'>" + (ratio(acos_camp, "%") if acos_camp is not None else "—") + "</td>"
+            "<td data-label='ACOS objetivo'>" + target_acos + "</td>"
+            "<td data-label='TACOS'>" + (ratio(tacos_valor, "%") if tacos_valor is not None else "—")
+            + "</td></tr>")
+    if not linhas_tacos:
+        tacos_campanhas_html += "<tr><td colspan='8'>Nenhuma campanha atende aos filtros.</td></tr>"
+    tacos_campanhas_html += ("</tbody></table></div><nav aria-label='Paginação de campanhas'>"
+        + "Exibindo " + str(len(linhas_tacos_pagina)) + " de " + str(len(linhas_tacos))
+        + " campanhas · Página " + str(pagina_tacos) + " de " + str(paginas_tacos))
+    if pagina_tacos > 1:
+        tacos_campanhas_html += (" · <a href='" + esc(url_tacos(pagina_tacos - 1),quote=True)
+            + "'>Anterior</a>")
+    if pagina_tacos < paginas_tacos:
+        tacos_campanhas_html += (" · <a href='" + esc(url_tacos(pagina_tacos + 1),quote=True)
+            + "'>Próxima</a>")
+    tacos_campanhas_html += """<style>
+    .kc-campaigns .kc-table-wrap{width:100%;overflow-x:auto}
+    .kc-campaigns .kc-campaign-table{width:100%;border-collapse:collapse}
+    .kc-campaigns .kc-campaign-table th{font-size:11px;letter-spacing:.03em;white-space:nowrap;padding:13px 12px;background:#f5f7fc}
+    .kc-campaigns .kc-campaign-table td{padding:17px 12px;border-bottom:1px solid #e8edf5;vertical-align:middle;font-variant-numeric:tabular-nums;font-size:12px}
+    .kc-campaigns .kc-campaign-table .kc-campaign-row{cursor:pointer;transition:background .15s ease,box-shadow .15s ease}
+    .kc-campaigns .kc-campaign-row:hover{background:#f0f5ff;box-shadow:inset 3px 0 #5269e7}
+    .kc-campaigns .kc-campaign-row:focus-visible{outline:3px solid #6265dc;outline-offset:-3px;background:#f0f5ff}
+    .kc-campaigns a.kc-campaign-name,.kc-campaigns a.kc-campaign-name:visited{display:block;color:#253657!important;text-decoration:none!important;font-weight:750;line-height:1.45;font-size:12px;overflow-wrap:anywhere}
+    .kc-campaigns .kc-campaign-row:hover a.kc-campaign-name{color:#415fdb!important}
+    .kc-campaigns .kc-campaign-row a.kc-campaign-name:focus-visible{outline:2px solid #5966dc;outline-offset:3px;border-radius:3px}
+    @media(max-width:760px){
+      .kc-campaigns .kc-table-wrap{overflow:visible}
+      .kc-campaigns .kc-campaign-table,.kc-campaigns .kc-campaign-table tbody{display:block;width:100%}
+      .kc-campaigns .kc-campaign-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+      .kc-campaigns .kc-campaign-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:15px;border:1px solid #e1e8f3;border-radius:13px;margin:0 0 11px;background:#fff;box-shadow:0 3px 12px #2436550a}
+      .kc-campaigns .kc-campaign-table td{display:block;padding:0;border:0;font-size:13px;min-width:0;overflow-wrap:anywhere}
+      .kc-campaigns .kc-campaign-table td::before{content:attr(data-label);display:block;margin-bottom:5px;color:#7c8aa2;font-size:10px;font-weight:750;letter-spacing:.02em}
+      .kc-campaigns .kc-campaign-table td:first-child{grid-column:1/-1;border-bottom:1px solid #ebeff6;padding-bottom:11px}
+      .kc-campaigns .kc-campaign-table td:first-child::before{display:none}
+      .kc-campaigns a.kc-campaign-name,.kc-campaigns a.kc-campaign-name:visited{font-size:14px!important}
+    }
+    @media(prefers-reduced-motion:reduce){.kc-campaigns .kc-campaign-row{transition:none}}
+    </style><script>
+    (function(){var table=document.querySelector('.kc-campaigns .kc-campaign-table');if(!table)return;
+      table.addEventListener('click',function(e){var row=e.target.closest('tr[data-href]');
+        if(!row||e.target.closest('a,button,input,select'))return;window.location.assign(row.dataset.href);
+      });
+      table.addEventListener('keydown',function(e){var row=e.target.closest('tr[data-href]');
+        if(!row||e.target!==row||!(e.key==='Enter'||e.key===' '))return;
+        e.preventDefault();window.location.assign(row.dataset.href);
+      });
+    })();
+    </script>"""
+    tacos_campanhas_html += (
+        "</nav><p class='muted'>ROAS = faturamento atribuído ÷ investimento; "
+        "ACOS = investimento ÷ faturamento atribuído; "
+        "TACOS = investimento da campanha ÷ faturamento total da loja.</p></section>")
+    def card(t, val, nota=""):
+        return ("<div class='stat'><div class='num'>" + esc(str(val))
+                + "</div><div class='lab'>" + esc(t) + "</div>"
+                + ("<small class='muted'>" + esc(nota) + "</small>" if nota else "")
+                + "</div>")
+    corpo = (abertura + filtro
+             + "<div class='ka-kpis'>"
+             + card("Investimento", brl(gasto))
+             + card("Faturamento atribuído", brl(receita))
+             + card("ROAS", ratio(roas, "x") if roas is not None else "—")
+             + card("ACOS", ratio(acos, "%") if acos is not None else "—")
+             + card("TACOS geral", ratio(tacos_geral, "%") if tacos_geral is not None else "—", "Ads ÷ faturamento total da loja")
+             + card("Impressões", f"{impressoes:,}".replace(",", "."))
+             + card("Cliques", f"{cliques:,}".replace(",", "."))
+             + card("CTR", ratio(ctr, "%") if ctr is not None else "—")
+             + card("CPC médio", brl(cpc) if cpc is not None else "—")
+             + "</div>")
+    corpo += alertas_html + tacos_campanhas_html
+    cobertura = (fim - inicio).days + 1
+    if len(dias_ads) < cobertura:
+        corpo += ("<div class='aviso'>Cobertura parcial: " + str(len(dias_ads)) + " de "
+                  + str(cobertura) + " dias com registros de Ads. "
+                  "Os totais abaixo representam somente os dias registrados.</div>")
+    corpo += daily_chart(dias_ads)
+    try:
+        por_pagina = int(request.args.get("por_pagina", 20))
+    except (ValueError, TypeError):
+        por_pagina = 20
+    if por_pagina not in (10,20,50):
+        por_pagina = 20
+    try:
+        pag = max(1, int(request.args.get("pagina", 1)))
+    except (ValueError, TypeError):
+        pag = 1
+    total = len(dias_ads)
+    paginas = max(1, (total + por_pagina - 1) // por_pagina)
+    pag = min(pag, paginas)
+    def link(numero):
+        return "/ads/" + str(cid) + "?" + urlencode({
+            "dias": dias, "de": de, "ate": ate,
+            "por_pagina": por_pagina, "pagina": numero})
+    bloco = dias_ads[(pag - 1) * por_pagina: pag * por_pagina]
+    corpo += ("<section class='card'><h3>Detalhamento diário</h3>"
+              "<form method='get' action='/ads/" + str(cid) + "'>"
+              + "".join("<input type='hidden' name='" + k + "' value='" + esc(str(v)) + "'>"
+                        for k, v in (("dias",dias),("de",de),("ate",ate)))
+              + "<label>Linhas por página <select name='por_pagina'>"
+              + "".join("<option value='" + str(n) + "'" + (" selected" if n == por_pagina else "")
+                        + ">" + str(n) + "</option>" for n in (10,20,50))
+              + "</select></label> <button class='btn' type='submit'>Aplicar</button></form>"
+              "<div style='overflow-x:auto'><table><thead><tr><th>Dia</th>"
+              "<th>Investimento</th><th>Faturamento Ads</th><th>ROAS</th>"
+              "<th>Impressões</th><th>Cliques</th></tr></thead><tbody>")
+    for row in bloco:
+        g = float(row["gasto"] or 0)
+        f = float(row["faturamento"] or 0)
+        corpo += ("<tr><td>" + datetime.date.fromisoformat(str(row["data"])).strftime("%d/%m") + "</td><td>" + brl(g)
+                  + "</td><td>" + brl(f) + "</td><td>"
+                  + (ratio(f/g, "x") if g > 0 else "—") + "</td><td>"
+                  + str(int(row["impressoes"] or 0)) + "</td><td>"
+                  + str(int(row["cliques"] or 0)) + "</td></tr>")
+    corpo += "</tbody></table></div><nav aria-label='Paginação de Ads'>"
+    corpo += "Página " + str(pag) + " de " + str(paginas) + " · " + str(total) + " dias"
+    if pag > 1:
+        corpo += " · <a href='" + esc(link(pag - 1)) + "'>Anterior</a>"
+    if pag < paginas:
+        corpo += " · <a href='" + esc(link(pag + 1)) + "'>Próxima</a>"
+    corpo += ("</nav><p class='muted'>Indicadores de Product Ads importados da API. "
+              "Vendas atribuídas não representam o faturamento total da loja. "
+              "ROAS = vendas atribuídas ÷ investimento; ACOS = investimento ÷ vendas atribuídas.</p>"
+              "<p><a class='link' href='#ka-campaign-list'>Escolher uma campanha para abrir sua análise →</a></p></section>")
+    return pagina_loja("Ads", cid, lojas[0]["cliente"], "ads", corpo + "</div>")
+
+
 @app.route("/campanhas/<int:cid>")
 @login_required
 def campanhas(cid):
+    """Compatibility link: Publicidade is the only campaign list."""
     if not pode_ver_loja(cid):
-        return pagina("Acesso negado",
-                      "<div class='card'><h2>Acesso restrito</h2></div>")
-    hoje = datetime.date.today().isoformat()
-    sem_vendas = request.args.get("sem_vendas", type=int, default=0)
+        return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
+    from urllib.parse import urlencode
+    from sales_metrics import reporting_today
+    params = request.args.to_dict(flat=True)
+    raw = params.pop("sem_vendas", "0")
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        days = 0
+    if 0 < days < 90:
+        today = reporting_today()
+        params.update(situacao="ativas_sem_vendas", de=(today-datetime.timedelta(days=days)).isoformat(), ate=today.isoformat())
+    return redirect("/ads/" + str(cid) + ("?"+urlencode(params) if params else ""))
+
+
+@app.route("/promocoes/meta/<int:cid>",methods=["POST"])
+@login_required
+def salvar_meta_promocoes(cid):
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito',403
+    from client_onboarding import validate_tax
+    try:
+        meta=validate_tax(request.form.get('mc_meta'))
+    except ValueError:
+        return redirect('/promocoes/'+str(cid)+'?meta_erro=1')
     with banco() as conn:
-        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        c = c[0] if c else None
-        if c:
-            campanhas = consultar(conn, "SELECT * FROM ads_campanhas "
-                                        "WHERE conexao_id=%s ORDER BY data_inicio DESC", (cid,))
-            gastos = consultar(conn, """SELECT campanha_id, COALESCE(SUM(gasto),0) AS gasto
-                                        FROM ads_metricas WHERE conexao_id=%s
-                                        GROUP BY campanha_id""", (cid,))
-            camp_dia = consultar(conn, "SELECT * FROM ads_campanha_dia WHERE conexao_id=%s", (cid,))
-            ads_dia = consultar(conn, "SELECT * FROM ads_dia WHERE conexao_id=%s "
-                                      "AND data >= %s ORDER BY data",
-                                (cid, (datetime.date.today()
-                                       - datetime.timedelta(days=6)).isoformat()))
-            filtro_ativo = sem_vendas > 0
-            if filtro_ativo:
-                data_limite = (datetime.date.today()
-                               - datetime.timedelta(days=sem_vendas)).isoformat()
-                fat_janela = consultar(conn, """SELECT campanha_id,
-                    COALESCE(SUM(faturamento),0) AS fat
-                    FROM ads_campanha_dia
-                    WHERE conexao_id=%s AND data >= %s
-                    GROUP BY campanha_id""", (cid, data_limite))
-    if not c:
-        return pagina("Não encontrada",
-                      "<div class='card'><h2>Loja não encontrada</h2></div>")
-    ultima = ultima_atualizacao(cid)
-    if filtro_ativo:
-        fat_por_camp = {r["campanha_id"]: (r["fat"] or 0) for r in fat_janela}
-        campanhas = [c2 for c2 in campanhas
-                     if str(c2["status"]) in ("active", "ACTIVE", "running")
-                     and fat_por_camp.get(c2["campanha_id"], 0) <= 0]
-    gasto_por_camp = {g["campanha_id"]: g["gasto"] for g in gastos}
-    camp_dia_map = {}
-    for r in camp_dia:
-        camp_dia_map[(r["campanha_id"], r["data"])] = r
-    ads_map = {r["data"]: r for r in ads_dia}
-    ad_hoje = ads_map.get(hoje)
-    gasto_total = ad_hoje["gasto"] if ad_hoje and ad_hoje["gasto"] is not None else None
-    fat_total = ad_hoje["faturamento"] if ad_hoje and ad_hoje["faturamento"] is not None else None
-    roas_total = (fat_total / gasto_total) if (gasto_total and fat_total
-                                               is not None and gasto_total > 0) else None
-    corpo = "<h2 style='margin-bottom:10px'>Campanhas Ads</h2>" \
-        + barra_atualizar(cid, ultima, "campanhas")
-    filtros = [("", "Todas"), (3, "3 dias sem vender"), (7, "7 dias sem vender"),
-               (15, "15 dias sem vender"), (30, "30 dias sem vender")]
-    corpo += ("<div class='card no-print'><h2>Filtro: X dias sem vendas</h2>"
-              "<div class='sub'>Mostra apenas campanhas <b>ativas</b> sem "
-              "faturamento de Ads nos últimos X dias</div>"
-              "<div style='display:flex;flex-wrap:wrap;gap:8px'>")
-    for val, rotulo in filtros:
-        classe = "filtro"
-        if (val == 0 and not filtro_ativo) or (val != 0 and sem_vendas == val):
-            classe += " filtro-btn"
-        if val == 0:
-            href = "/campanhas/" + str(cid)
+        executar(conn,"UPDATE conexoes SET mc_meta_pct=%s,mc_meta_atualizada_em=%s WHERE id=%s",
+                 (meta,int(time.time()),cid))
+    return redirect('/promocoes/'+str(cid)+'?meta_ok=1')
+
+
+def carregar_deal_e_anuncio(cid,pid,item_id=None):
+    """Tenant-checked local campaign and product; no cross-shop item injection."""
+    from promo_participation import safe_promo,safe_item
+    safe_promo(pid)
+    if item_id is not None:
+        safe_item(item_id)
+    with banco() as conn:
+        campaign=consultar(conn,"SELECT * FROM promocoes WHERE conexao_id=%s AND promocao_id=%s AND tipo='DEAL'",(cid,pid))
+        shop=consultar(conn,"SELECT * FROM conexoes WHERE id=%s",(cid,))
+        item=(consultar(conn,"SELECT * FROM anuncios WHERE conexao_id=%s AND item_id=%s",(cid,item_id))
+              if item_id else [])
+    if not campaign or not shop or (item_id and not item):
+        raise ValueError('Campanha ou anúncio não encontrado nesta loja.')
+    return campaign[0],shop[0],item[0] if item else None
+
+
+@app.route('/promocoes/candidatos/<int:cid>/<pid>')
+@login_required
+def promocoes_candidatos(cid,pid):
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito',403
+    from promo_participation import candidate_table
+    try:
+        campaign,shop,_=carregar_deal_e_anuncio(cid,pid)
+    except ValueError:
+        return 'Campanha indisponível',404
+    token=token_atual(shop)
+    if not token:
+        return pagina_loja('Promoções',cid,shop['cliente'],'promocoes',
+                           '<div class="aviso">Reconecte a conta do Mercado Livre para consultar candidatos.</div>'),503
+    try:
+        offset=max(0,min(int(request.args.get('offset','0')),10000))
+    except ValueError:
+        offset=0
+    data,error=api_get(token,'/seller-promotions/promotions/'+pid+'/items',
+                       {'promotion_type':'DEAL','app_version':'v2','limit':50,'offset':offset})
+    if error or not isinstance(data,dict) or not isinstance(data.get('results'),list):
+        return pagina_loja('Promoções',cid,shop['cliente'],'promocoes',
+                           '<div class="aviso">Não foi possível consultar os candidatos agora.</div>'),503
+    ids=[str(x.get('id')) for x in data['results'] if isinstance(x,dict) and x.get('id')]
+    with banco() as conn:
+        names=consultar(conn,'SELECT item_id,titulo FROM anuncios WHERE conexao_id=%s AND item_id=ANY(%s)',(cid,ids))
+    html='<p><a class="link" href="/promocoes/'+str(cid)+'">Voltar às promoções</a></p>'
+    html+=candidate_table(cid,pid,data['results'],{a['item_id']:a['titulo'] for a in names})
+    paging=data.get('paging') or {}
+    if len(data['results'])==50 or offset+len(data['results'])<int(paging.get('total') or 0):
+        html+='<p><a class="filtro-btn" href="/promocoes/candidatos/'+str(cid)+'/'+pid+'?offset='+str(offset+50)+'">Próximos 50 candidatos</a></p>'
+    return pagina_loja('Candidatos',cid,shop['cliente'],'promocoes',html)
+
+
+def validar_adesao_deal(cid,pid,item_id,raw_price):
+    """Re-read live ML candidate and financial configuration on every POST."""
+    from promo_participation import parse_price,find_deal,check_candidate,margin_pct
+    price=parse_price(raw_price)
+    campaign,shop,item=carregar_deal_e_anuncio(cid,pid,item_id)
+    if str(item.get('status') or '').lower()!='active':
+        raise ValueError('Anúncio não está ativo.')
+    if item.get('custo') is None or shop.get('mc_meta_pct') is None:
+        raise ValueError('Cadastre o custo do produto e a meta de MC antes de participar.')
+    if shop.get('aliquota_imposto') is None or shop.get('comissao_pct') is None:
+        raise ValueError('Configure imposto e comissão antes de participar.')
+    if session.get('tipo')=='cliente':
+        with banco() as conn:
+            finance=consultar(conn,"SELECT imposto_confirmado_em,custos_importados_em FROM cliente_onboarding_financeiro WHERE usuario_id=%s AND conexao_id=%s",(session['usuario_id'],cid))
+        if not finance or not finance[0].get('imposto_confirmado_em') or not finance[0].get('custos_importados_em'):
+            raise ValueError('Conclua a configuração financeira antes de participar.')
+    token=token_atual(shop)
+    if not token:
+        raise ValueError('Autorização do Mercado Livre indisponível.')
+    rows,error=api_get(token,'/seller-promotions/items/'+item_id,{'app_version':'v2'})
+    if error:
+        raise ValueError('Não foi possível validar o convite atualizado no Mercado Livre.')
+    deal=find_deal(rows,pid)
+    check_candidate(deal,price)
+    mc=margin_pct(price,item['custo'],shop['aliquota_imposto'],shop['comissao_pct'])
+    if mc < float(shop['mc_meta_pct']):
+        raise ValueError('A margem estimada fica abaixo da meta definida para a loja.')
+    return token,price,mc,shop,deal
+
+
+@app.route('/promocoes/participar/<int:cid>/<pid>/<item_id>',methods=['GET','POST'])
+@login_required
+def participar_deal(cid,pid,item_id):
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito',403
+    from promo_participation import confirmation_form,find_deal,is_participating
+    try:
+        campaign,shop,item=carregar_deal_e_anuncio(cid,pid,item_id)
+    except ValueError:
+        return 'Campanha ou anúncio indisponível',404
+    with banco() as conn:
+        previous=consultar(conn,"SELECT status FROM promocoes_adesoes WHERE conexao_id=%s AND promocao_id=%s AND item_id=%s",(cid,pid,item_id))
+    if previous:
+        from promo_participation import find_deal,is_participating
+        state=previous[0]['status']
+        # Read-only reconciliation; never resend a request with an uncertain outcome.
+        token=token_atual(shop)
+        if token:
+            rows,error=api_get(token,'/seller-promotions/items/'+item_id,{'app_version':'v2'})
+            if not error and is_participating(find_deal(rows,pid)):
+                state='confirmed'
+                if previous[0]['status']!='confirmed':
+                    with banco() as conn:
+                        executar(conn,"""UPDATE promocoes_adesoes SET status='confirmed',
+                            resposta=%s,atualizado_em=%s WHERE conexao_id=%s
+                            AND promocao_id=%s AND item_id=%s""",
+                            ('Participação verificada novamente no Mercado Livre.',
+                             int(time.time()),cid,pid,item_id))
+        label={'confirmed':'Confirmada no Mercado Livre','rejected':'Recusada pelo Mercado Livre',
+               'uncertain':'Aguardando confirmação','sending':'Envio em andamento'}.get(state,'Em análise')
+        return pagina_loja('Participação',cid,shop['cliente'],'promocoes',
+            '<div class="card"><h2>'+esc(label)+'</h2><p>Campanha: '+esc(pid)+
+            ' · Anúncio: '+esc(item_id)+'</p><p>Verificamos novamente o Mercado Livre. '
+            'Para evitar adesões duplicadas, esta solicitação não será reenviada.</p>'
+            '<p><a class="link" href="/promocoes/'+str(cid)+'">Voltar às promoções</a></p></div>')
+    if request.method=='GET':
+        token=token_atual(shop)
+        if not token:
+            return pagina_loja('Participação',cid,shop['cliente'],'promocoes',
+                '<div class="aviso">Conta do Mercado Livre sem autorização válida.</div>'),503
+        rows,error=api_get(token,'/seller-promotions/items/'+item_id,{'app_version':'v2'})
+        if error:
+            return pagina_loja('Participação',cid,shop['cliente'],'promocoes',
+                '<div class="aviso">Não foi possível validar o convite no Mercado Livre.</div>'),503
+        deal=find_deal(rows,pid)
+        if not deal or str(deal.get('status','')).lower()!='candidate':
+            return pagina_loja('Participação',cid,shop['cliente'],'promocoes',
+                '<div class="aviso">O anúncio não é candidato a esta campanha.</div>'),409
+        suggested=deal.get('suggested_discounted_price')
+        default=esc(str(request.args.get('preco') or suggested or ''),quote=True)
+        content=('<h2>Analisar participação</h2><p class="sub">'+esc(str(item.get('titulo') or item_id))+'</p>'
+                 '<form method="get"><label>Preço promocional (R$)</label> '
+                 '<input type="number" name="preco" min="0.01" step="0.01" required class="filtro" value="'+default+'"> '
+                 '<button type="submit" class="filtro-btn">Calcular MC</button></form>')
+        if request.args.get('preco'):
+            try:
+                _,price,mc,_,_=validar_adesao_deal(cid,pid,item_id,request.args['preco'])
+                content+=confirmation_form(cid,pid,item_id,price,mc,shop['mc_meta_pct'],deal.get('original_price') or item['preco'] or 0)
+            except ValueError as e:
+                content+='<div class="aviso" role="alert">'+esc(str(e))+'</div>'
+        return pagina_loja('Analisar participação',cid,shop['cliente'],'promocoes',content)
+    if request.form.get('confirmar')!='sim':
+        return 'Confirmação explícita obrigatória',400
+    try:
+        token,price,mc,shop,deal=validar_adesao_deal(cid,pid,item_id,request.form.get('deal_price'))
+    except ValueError as e:
+        return pagina_loja('Participação não enviada',cid,shop['cliente'],'promocoes',
+                          '<div class="aviso" role="alert">'+esc(str(e))+'</div>'),409
+    now=int(time.time())
+    with banco() as conn:
+        cursor=executar(conn,"""INSERT INTO promocoes_adesoes
+            (conexao_id,promocao_id,item_id,usuario_id,preco,margem_pct,status,criado_em,atualizado_em)
+            VALUES (%s,%s,%s,%s,%s,%s,'sending',%s,%s)
+            ON CONFLICT DO NOTHING""",(cid,pid,item_id,session['usuario_id'],price,mc,now,now))
+        reserved=cursor.rowcount==1
+    if not reserved:
+        return 'Já existe uma solicitação para esta campanha e anúncio.',409
+    # The user authorized a real API write. Never retry automatically after timeout.
+    state='uncertain'
+    detail='Envio realizado; confirmação ainda não verificada.'
+    try:
+        response=requests.post(API+'/seller-promotions/items/'+item_id,
+            params={'app_version':'v2'},
+            headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+            json={'promotion_id':pid,'promotion_type':'DEAL','deal_price':float(price)},timeout=25)
+        if response.status_code not in (200,201,202,204):
+            state='rejected'
+            detail='Mercado Livre recusou a solicitação (HTTP '+str(response.status_code)+').'
         else:
-            href = "/campanhas/" + str(cid) + "?sem_vendas=" + str(val)
-        corpo += "<a class='" + classe + "' href='" + href \
-            + "' style='text-decoration:none'>" + rotulo + "</a>"
-    corpo += "</div></div>"
-    if not campanhas:
-        if filtro_ativo:
-            titulo_v = ("Nenhuma campanha ativa sem vendas nos últimos "
-                        + str(sem_vendas) + " dias")
-            sub_v = "Nenhuma campanha ativa ficou sem faturamento de Ads nesse período."
-        else:
-            titulo_v = "Nenhuma campanha carregada ainda"
-            sub_v = "Use 'Atualizar agora' acima para buscar as campanhas de Mercado Ads."
-        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
-                  "<h2>" + titulo_v + "</h2><div class='sub'>" + sub_v + "</div></div>")
-        return pagina_loja("Campanhas", cid, c["cliente"], "campanhas", corpo)
-    if roas_total is not None:
-        roas_html = "<span class='alerta ok'>%.1f</span>" % roas_total
-    else:
-        roas_html = "<span class='tag sem'>—</span>"
-    corpo += ("<div class='grid' style='margin-bottom:18px'>"
-              "<div class='stat'><div class='num'>"
-              + (("R$ %.2f" % gasto_total) if gasto_total is not None
-                 else "<span class='tag sem'>—</span>")
-              + "</div><div class='lab'>Gasto Ads hoje</div></div>"
-              "<div class='stat'><div class='num'>"
-              + (("R$ %.2f" % fat_total) if fat_total is not None
-                 else "<span class='tag sem'>—</span>")
-              + "</div><div class='lab'>Faturamento Ads hoje</div></div>"
-              "<div class='stat'><div class='num'>" + roas_html
-              + "</div><div class='lab'>ROAS real (faturamento ÷ gasto)</div></div>"
-              "</div>")
-    corpo += ("<div class='card'><h2>Campanhas <span class='badge'>"
-              + str(len(campanhas)) + "</span></h2>"
-              "<div class='sub'>Defina o <b>ROAS objetivo</b> de cada campanha "
-              "(clique no valor). O painel alerta quando o orçamento acabou "
-              "e compara o ROAS real com o objetivo.</div>")
-    for camp in campanhas:
-        cid_camp = camp["campanha_id"]
-        st = str(camp["status"])
-        if st in ("active", "ACTIVE", "running"):
-            tag, st_txt = "tag ativa", "ativa"
-        elif st in ("paused", "PAUSED"):
-            tag, st_txt = "tag expirada", "pausada"
-        elif st in ("finished", "FINISHED", "ended"):
-            tag, st_txt = "tag normal", "finalizada"
-        else:
-            tag, st_txt = "tag normal", st
-        orcamento = camp["orcamento"]
-        gasto = gasto_por_camp.get(cid_camp, 0)
-        pct = (gasto * 100.0 / orcamento) if orcamento else 0
-        roas_obj = camp["roas_objetivo"]
-        camp_hoje = camp_dia_map.get((cid_camp, hoje))
-        camp_gasto = camp_hoje["gasto"] if camp_hoje else None
-        camp_fat = camp_hoje["faturamento"] if camp_hoje else None
-        roas_real = (camp_fat / camp_gasto) if (camp_gasto and camp_fat
-                                                is not None and camp_gasto > 0) else None
-        if orcamento is not None:
-            orc_txt = "R$ %.2f" % orcamento
-        else:
-            orc_txt = "<span class='tag sem'>—</span>"
-        gasto_txt = "R$ %.2f" % gasto
-        pct_html = ""
-        if orcamento:
-            if pct >= 100:
-                pct_html = "<span class='alerta urgente'>%.0f%% consumido</span>" % pct
-            elif pct >= 80:
-                pct_html = "<span class='alerta atencao'>%.0f%% consumido</span>" % pct
-            else:
-                pct_html = "<span class='alerta ok'>%.0f%% consumido</span>" % pct
-        if roas_obj is not None:
-            roas_obj_html = ("<span id='roas-" + str(cid) + "-" + str(cid_camp)
-                             + "'>%.1f</span>" % roas_obj)
-        else:
-            roas_obj_html = ("<a class='link' href='#' onclick='editarRoas("
-                             + str(cid) + ", \"" + str(cid_camp)
-                             + "\"); return false;'>+ definir</a>")
-        if roas_real is not None:
-            if roas_obj is not None:
-                if roas_real < roas_obj:
-                    roas_real_html = ("<span class='alerta urgente'>%.1f "
-                                      "(abaixo do objetivo)</span>" % roas_real)
-                else:
-                    roas_real_html = ("<span class='alerta ok'>%.1f "
-                                      "(acima do objetivo)</span>" % roas_real)
-            else:
-                roas_real_html = ("<span class='alerta atencao'>%.1f</span>" % roas_real)
-        else:
-            roas_real_html = "<span class='tag sem'>sem dados</span>"
-        corpo += ("<div class='campanha-item'>"
-                  "<div class='titulo'>"
-                  + esc(camp["nome"] or ("Campanha " + str(cid_camp)))
-                  + " <span class='" + tag + "'>" + st_txt + "</span></div>"
-                  "<div class='meta'>Tipo: " + esc(str(camp["tipo"] or "-"))
-                  + " · Início: " + esc(str(camp["data_inicio"] or "-")[:10])
-                  + " · Fim: " + esc(str(camp["data_fim"] or "-")[:10]) + "</div>"
-                  "<table><thead><tr><th>Orçamento</th><th>Gasto</th>"
-                  "<th>Consumo</th><th>ROAS objetivo</th><th>ROAS real</th>"
-                  "</tr></thead><tbody>"
-                  "<tr><td>" + orc_txt + "</td><td>" + gasto_txt + "</td>"
-                  "<td>" + pct_html + "</td>"
-                  "<td>" + roas_obj_html + "</td><td>" + roas_real_html + "</td>"
-                  "</tr></tbody></table>")
-        alertas = []
-        if orcamento and gasto >= orcamento:
-            alertas.append(("urgente",
-                            "Orçamento totalmente consumido (gasto R$ %.2f ≥ "
-                            "orçamento R$ %.2f). Considere liberar mais verba."
-                            % (gasto, orcamento)))
-        elif orcamento and pct >= 80:
-            alertas.append(("atencao",
-                            "Orçamento quase no limite (%.0f%% consumido). "
-                            "Avalie se vale liberar mais verba." % pct))
-        if roas_real is not None and roas_obj is not None:
-            if roas_real < roas_obj:
-                alertas.append(("urgente",
-                                "ROAS real (%.1f) está ABAIXO do objetivo (%.1f). "
-                                "Revise anúncios, lance ou segmentação."
-                                % (roas_real, roas_obj)))
-            else:
-                alertas.append(("ok",
-                                "ROAS real (%.1f) está ACIMA do objetivo (%.1f). "
-                                "Campanha saudável — pode valer aumentar verba."
-                                % (roas_real, roas_obj)))
-        for grav, msg in alertas:
-            corpo += ("<div class='alerta " + grav
-                      + "' style='margin-top:8px;display:block'>" + msg + "</div>")
-        corpo += "</div>"
-    corpo += ("<div class='muted'>ROAS = retorno sobre o investimento em anúncios "
-              "(faturamento gerado ÷ gasto). O ROAS objetivo é uma meta definida "
-              "aqui no painel — não altera a campanha no Mercado Livre. Ajustes "
-              "reais (orçamento, lance) são feitos na Central de Vendedores.</div>")
-    corpo += "</div>"
-    return pagina_loja("Campanhas", cid, c["cliente"], "campanhas", corpo)
+            fresh,error=api_get(token,'/seller-promotions/items/'+item_id,{'app_version':'v2'})
+            if not error and is_participating(find_deal(fresh,pid)):
+                state='confirmed'
+                detail='Participação confirmada pelo Mercado Livre.'
+    except requests.RequestException:
+        detail='O envio não pôde ser confirmado. Verifique no Mercado Livre antes de tentar novamente.'
+    with banco() as conn:
+        executar(conn,"""UPDATE promocoes_adesoes SET status=%s,resposta=%s,atualizado_em=%s
+            WHERE conexao_id=%s AND promocao_id=%s AND item_id=%s""",
+            (state,detail,int(time.time()),cid,pid,item_id))
+    message=('<div class="sucesso">' if state=='confirmed' else '<div class="aviso">')+esc(detail)+'</div>'
+    return pagina_loja('Resultado da participação',cid,shop['cliente'],'promocoes',
+        message+'<p><a class="link" href="/promocoes/'+str(cid)+'">Voltar às promoções</a></p>')
 
 
 @app.route("/promocoes/<int:cid>")
@@ -2405,6 +3593,11 @@ def promocoes(cid):
         if c:
             promos = consultar(conn, "SELECT * FROM promocoes "
                                      "WHERE conexao_id=%s ORDER BY fim DESC", (cid,))
+            historico_adesoes = consultar(conn, """
+                SELECT h.*,a.titulo FROM promocoes_adesoes h
+                LEFT JOIN anuncios a ON a.conexao_id=h.conexao_id AND a.item_id=h.item_id
+                WHERE h.conexao_id=%s ORDER BY h.criado_em DESC LIMIT 100
+            """, (cid,))
             itens_promo = consultar(conn, """
                 SELECT pi.promocao_id, pi.item_id, pi.preco_promocional,
                        a.titulo, a.preco, a.custo, a.quantidade, a.status
@@ -2420,8 +3613,28 @@ def promocoes(cid):
     itens_por_promo = {}
     for it in itens_promo:
         itens_por_promo.setdefault(it["promocao_id"], []).append(it)
-    corpo = "<h2 style='margin-bottom:10px'>Promoções</h2>" \
+    meta=c.get("mc_meta_pct")
+    meta_txt=("%.2f" % meta) if meta is not None else ""
+    from promotions_theme import STYLE as promotions_style
+    corpo = promotions_style + "<h2 style='margin-bottom:10px'>Promoções</h2>" \
         + barra_atualizar(cid, ultima, "promocoes")
+    corpo += ("""<div class='card' style='border:1px solid #d6e5f4;border-left:5px solid #2464a0'>
+        <h2 style='margin-bottom:7px'>Meta de Margem de Contribuição (MC)</h2>
+        <p class='sub'>Defina a MC mínima desejada para avaliar cada promoção.
+        Verde: dentro da meta. Vermelho: abaixo da meta.
+        Para campanhas tradicionais DEAL, você pode enviar a participação manualmente após confirmar o preço e a MC. Nenhuma adesão é automática.</p>
+        <form method='post' action='/promocoes/meta/""" + str(cid) + """'
+        style='display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px'>
+        <label for='mc_meta' style='font-weight:700'>MC mínima desejada (%)</label>
+        <input id='mc_meta' name='mc_meta' type='number' step='0.01' min='0' max='100'
+        required class='filtro' style='width:110px' value='""" + meta_txt + """'>
+        <button type='submit' class='filtro-btn'>Salvar meta</button></form></div>""")
+    from promo_history import render_history
+    corpo += render_history(historico_adesoes,cid)
+    if request.args.get("meta_erro"):
+        corpo += "<div class='aviso'>Informe uma meta de MC entre 0% e 100%.</div>"
+    if request.args.get("meta_ok"):
+        corpo += "<div class='sucesso'>Meta de MC atualizada.</div>"
     if not promos:
         corpo += ("<div class='card' style='text-align:center;padding:40px'>"
                   "<h2>Nenhuma promoção carregada ainda</h2>"
@@ -2487,10 +3700,13 @@ def promocoes(cid):
                   + " · Início: " + esc(str(p["inicio"] or "-")[:10])
                   + " · Fim: " + esc(str(p["fim"] or "-")[:10])
                   + " · Itens: " + str(len(itens)) + "</div>")
+        if p.get('tipo')=='DEAL':
+            corpo += ('<p style="margin:10px 0"><a class="filtro-btn" href="/promocoes/candidatos/'
+                      +str(cid)+'/'+esc(str(p['promocao_id']))+'">Ver candidatos e participar</a></p>')
         if itens:
-            corpo += ("<table><thead><tr><th>Anúncio</th><th>Preço normal</th>"
+            corpo += ("<p class='promo-scroll-hint'>Deslize para ver todas as colunas.</p><table><thead><tr><th>Anúncio</th><th>Preço normal</th>"
                       "<th>Preço promo</th><th>Desconto</th><th>Custo</th>"
-                      "<th>Margem na promo</th></tr></thead><tbody>")
+                      "<th>Contribuição estimada</th></tr></thead><tbody>")
             for it in itens:
                 preco = it["preco"] or 0
                 preco_promo = it["preco_promocional"]
@@ -2502,17 +3718,17 @@ def promocoes(cid):
                     desc_html = "<span class='tag sem'>—</span>"
                 if custo is not None and preco_promo is not None:
                     if preco_promo:
-                        margem = round((preco_promo - custo) * 100.0 / preco_promo, 1)
+                        imposto = float(c.get("aliquota_imposto") or 0) / 100
+                        comissao = float(c.get("comissao_pct") or 0) / 100
+                        margem = round((preco_promo - custo - preco_promo * (imposto + comissao)) * 100.0 / preco_promo, 1)
                     else:
                         margem = 0
-                    if margem <= 0:
-                        margem_html = ("<span class='alerta urgente'>%.1f%% "
-                                       "(come a margem)</span>" % margem)
-                    elif margem < 20:
-                        margem_html = ("<span class='alerta atencao'>%.1f%%"
-                                       "</span>" % margem)
+                    if meta is None:
+                        margem_html = ("<span class='alerta atencao'>%.1f%% · defina a meta</span>" % margem)
+                    elif margem < float(meta):
+                        margem_html = ("<span class='alerta urgente'>%.1f%% · abaixo da meta</span>" % margem)
                     else:
-                        margem_html = ("<span class='alerta ok'>%.1f%%</span>" % margem)
+                        margem_html = ("<span class='alerta ok'>%.1f%% · dentro da meta</span>" % margem)
                 elif custo is None:
                     margem_html = ("<a class='link' href='/custos/"
                                    + str(cid) + "'>+ custo</a>")
@@ -2542,8 +3758,10 @@ def promocoes(cid):
     corpo += ("<div class='muted'>Para o comparativo de margem, cadastre o "
               "<b>custo</b> dos anúncios na <a class='link' href='/custos/"
               + str(cid) + "'>tela de Custos</a> (individual ou por planilha). "
-              "O painel calcula o desconto aplicado e se a promoção ainda "
-              "deixa margem.</div>")
+              "O painel calcula uma contribuição estimada descontando custo, "
+              "imposto e comissão configurada. Frete, tarifa fixa, publicidade "
+              "e outros custos não estão incluídos; confira a rentabilidade "
+              "real antes de aderir a qualquer promoção.</div>")
     return pagina_loja("Promoções", cid, c["cliente"], "promocoes", corpo)
 
 
@@ -2771,13 +3989,14 @@ def diagnostico_saude_anuncio(cid, item_id):
         for vendas in (vendas_7, vendas_30):
             vendas.update(orders=None, units=None, gross_items=None, ticket=None,
                           reason="Há pedidos antigos ainda não verificados nesta loja.")
-    titulo = esc(str(item.get("titulo") or "Anúncio sem título"))
-    corpo = ("<h2>Diagnóstico do anúncio</h2>"
-             "<div class='card'><h3>" + titulo + "</h3><p class='muted'>"
-             + esc(str(item_id)) + "</p>"
-             "<p>Análise de estoque, status, imagens e preço com base na última coleta. "
-             "Este diagnóstico não identifica causas de queda de vendas nem compara "
-             "concorrentes, tráfego ou conversão.</p></div>")
+    from listing_diagnostic_design import hero, priorities
+    cabecalho = hero(item, cid, item_id, resultados)
+    if session.get('tipo') == 'admin':
+        from urllib.parse import quote
+        cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/tarefas'>Planejar tarefas do anúncio</a></p>"
+    cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/kits'>Analisar composição de kit</a></p>" if session.get('tipo')=='admin' else ''
+    cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/promocoes-resultados'>Comparar períodos de promoção</a></p>" if session.get('tipo')=='admin' else ''
+    corpo = cabecalho
     corpo += ("<div class='card'><h3>Indicadores de vendas por anúncio</h3>"
               "<p class='muted'>Somente pedidos pagos e aprovados, com cobertura "
               "diária e vínculo completo dos itens. Valor bruto dos itens = "
@@ -2805,8 +4024,8 @@ def diagnostico_saude_anuncio(cid, item_id):
     corpo += ("</tbody></table></div><p class='muted'>"
               "Ticket médio = valor bruto dos itens deste anúncio ÷ "
               "pedidos que contêm este anúncio. Quando não há pedidos, "
-              "o ticket não é calculado. Visitas e conversão seguem "
-              "indisponíveis até termos fonte validada.</p></div>")
+              "o ticket não é calculado. A cobertura de visitas e a relação "
+              "pedidos/visitas são detalhadas na investigação acima.</p></div>")
     # Compare complete, non-overlapping periods using the same paid-order
     # verification gates as the headline indicators.
     corpo += ("<div class='card'><h3>Evolução das vendas por anúncio</h3>"
@@ -2855,16 +4074,64 @@ def diagnostico_saude_anuncio(cid, item_id):
               "Sem cobertura verificada em qualquer período, a comparação "
               "fica indisponível. Quando a base anterior é zero, não exibimos "
               "crescimento percentual artificial.</p></div>")
-    for acao in resultados:
-        gravidade = acao["priority"]
-        classe = "urgente" if gravidade == "alta" else "atencao" if gravidade in ("media", "revisar") else "ok"
-        corpo += ("<div class='card'><div class='demanda-item " + classe + "'>"
-                  "<h3>" + esc(acao["title"]) + "</h3>"
-                  "<p><b>Evidência:</b> " + esc(acao["evidence"]) + "</p>"
-                  "<p><b>Próxima ação:</b> " + esc(acao["action"]) + "</p>"
-                  "<small>Prioridade: " + esc(gravidade) + "</small></div></div>")
-    corpo += ("<p><a href='/anuncios/" + str(cid)
-              + "'>← Voltar aos anúncios</a></p>")
+    # Observations are snapshots: unknown dates never inherit a guessed state.
+    with banco() as conn:
+        full_rows = consultar(conn, """SELECT observed_at,state,quantity,logistics
+            FROM full_observations
+            WHERE conexao_id=%s AND item_id=%s
+              AND observed_at >= %s
+            ORDER BY observed_at ASC""",
+            (cid,item_id,int(time.time()) - 32*86400))
+    from sales_decline import render as render_decline
+    from sales_metrics import reporting_today
+    fim_investigacao = reporting_today() - datetime.timedelta(days=1)
+    ids_investigacao = sorted({str(i["item_id"]) for i in itens_pedidos if i.get("item_id")} | {str(item_id)})
+    investigacao = ranking_metrics(
+        pedidos_verificados, itens_pedidos, [r["dia"] for r in cobertura],
+        ids_investigacao, end=fim_investigacao, days=7,
+        pending=bool(pendentes and pendentes[0]["n"]))
+    corpo += render_decline(investigacao, [item], cid, {}, fim_investigacao, days=7, item_id=item_id, observations=full_rows)
+    from investigation_evidence import load as load_evidence, build as build_evidence, render as render_evidence
+    with banco() as conn:
+        visitas_evidencia, ads_evidencia = load_evidence(
+            conn, consultar, cid, item_id, fim_investigacao)
+    from offer_history import load as load_offers, render as render_offers
+    with banco() as conn:
+        ofertas = load_offers(conn,consultar,cid,item_id,fim_investigacao)
+    evidencia = build_evidence(
+        investigacao, item_id, visitas_evidencia, full_rows, ads_evidencia,
+        fim_investigacao, offers=ofertas['own'])
+    painel_evidencias = render_evidence(evidencia, cid, fim_investigacao)
+    # Reuse stored manual and automatically detected changes; one bounded read.
+    # No API calls, no guessing when a change actually happened.
+    from automatic_history import HISTORY
+    from investigation_change_context import read as read_change_context, render as render_change_context
+    boundary = fim_investigacao - datetime.timedelta(days=6)
+    with banco() as conn:
+        alteracoes = consultar(conn, """
+            SELECT event_date, kind, note, created_at, source, field
+            FROM """ + HISTORY + """ WHERE conexao_id=%s AND item_id=%s
+              AND void_at IS NULL AND event_date BETWEEN %s AND %s
+            ORDER BY event_date DESC,created_at DESC LIMIT 100
+        """, (cid,item_id,(boundary-datetime.timedelta(days=3)).isoformat(),
+              (boundary+datetime.timedelta(days=3)).isoformat()))
+    contexto = read_change_context(alteracoes, fim_investigacao,
+                                  sales_verified=evidencia['sales_verified'],
+                                  declining=evidencia['declining'])
+    painel_evidencias += render_change_context(contexto)
+    painel_ofertas = render_offers(ofertas,cid,item_id,fim_investigacao,args=request.args)
+    from competitive_sales_context import render as render_competitive_sales
+    painel_ofertas += render_competitive_sales(investigacao,item_id,ofertas,fim_investigacao)
+    from price_stability import render as render_price_stability
+    painel_ofertas += render_price_stability(ofertas["own"],fim_investigacao,cid=cid,item_id=item_id)
+    from price_deviation import render as render_price_deviation
+    painel_ofertas += render_price_deviation(ofertas["own"],fim_investigacao)
+    from listing_timeline import render as render_timeline
+    linha_tempo = render_timeline(item_id,pedidos_verificados,itens_pedidos,
+        [r["dia"] for r in cobertura],full_rows,visitas_evidencia,ofertas['own'],
+        fim_investigacao,pending=bool(pendentes and pendentes[0]["n"]),args=request.args)
+    corpo = cabecalho + painel_evidencias + linha_tempo + painel_ofertas + corpo[len(cabecalho):]
+    corpo += priorities(resultados)
     return pagina_loja("Diagnóstico do anúncio", cid, lojas[0]["cliente"], "anuncios", corpo)
 
 
@@ -2884,133 +4151,13 @@ def anuncios(cid):
         return pagina("Não encontrada",
                       "<div class='card'><h2>Loja não encontrada</h2></div>")
     ultima = ultima_atualizacao(cid)
-    itens_promocao = {a["item_id"] for a in anuncios
-                      if (active_promotions(read_json(a.get("promocoes_json"), {}))
-                          or effective_promotion(read_json(a.get("promocoes_json"), {})))}
-    corpo = "<h2 style='margin-bottom:10px'>Anúncios</h2>" \
-        + barra_atualizar(cid, ultima, "anuncios")
-    if not anuncios:
-        corpo += ("<div class='card' style='text-align:center;padding:40px'>"
-                  "<h2>Nenhum anúncio carregado ainda</h2>"
-                  "<div class='sub'>Use 'Atualizar agora' acima para buscar "
-                  "os anúncios da loja</div></div>")
-        return pagina_loja("Anúncios", cid, c["cliente"], "anuncios", corpo)
-    total = len(anuncios)
-    com_estoque_zero = sum(1 for a in anuncios if (a["quantidade"] or 0) <= 0)
-    com_fotos_baixas = sum(1 for a in anuncios if (a["fotos"] or 0) < 10)
-    em_promocao = sum(1 for a in anuncios if a["item_id"] in itens_promocao)
-    pagina_anuncios, controles, navegacao_final = listing_page(anuncios, request.args, cid)
-    corpo += ("<div class='grid' style='margin-bottom:18px'>"
-              "<div class='stat'><div class='num'>" + str(total)
-              + "</div><div class='lab'>Total de anúncios</div></div>"
-              "<div class='stat'><div class='num'>" + str(com_estoque_zero)
-              + "</div><div class='lab'>Estoque zerado</div></div>"
-              "<div class='stat'><div class='num'>" + str(com_fotos_baixas)
-              + "</div><div class='lab'>Fotos abaixo de 10</div></div>"
-              "<div class='stat'><div class='num'>" + str(em_promocao)
-              + "</div><div class='lab'>Em promoção</div></div>"
-              "</div>")
-    linhas_html = ""
-    for a in pagina_anuncios:
-        em_promo = a["item_id"] in itens_promocao
-        st = str(a["status"])
-        if st in ("active", "ACTIVE"):
-            st_tag, st_txt = "tag ativa", "ativo"
-        elif st in ("paused", "PAUSED"):
-            st_tag, st_txt = "tag pausado", "pausado"
-        else:
-            st_tag, st_txt = "tag normal", st
-        fotos = a["fotos"] or 0
-        if fotos >= 10:
-            fotos_html = "<span class='alerta ok'>" + str(fotos) + "/10</span>"
-        elif fotos > 0:
-            fotos_html = "<span class='alerta atencao'>" + str(fotos) + "/10</span>"
-        else:
-            fotos_html = "<span class='alerta urgente'>0/10</span>"
-        clips = a["clips"]
-        if clips is None:
-            clips_html = "<span class='tag sem'>não verificado</span>"
-        elif clips >= 2:
-            clips_html = "<span class='alerta ok'>" + str(clips) + "</span>"
-        elif clips > 0:
-            clips_html = "<span class='alerta atencao'>" + str(clips) + "</span>"
-        else:
-            clips_html = "<span class='alerta atencao'>0</span>"
-        promo_html = render_promotions(a.get("promocoes_json"))
-        # Admin-only, read-only live API diagnostic for discrepancies between
-        # the seller-facing price and our last collected promotion snapshot.
-        if globals().get("session") is not None and session.get("tipo") == "admin":
-            promo_html += ("<div style='margin-top:6px'><a class='link' "
-                           "target='_blank' rel='noopener noreferrer' "
-                           "href='/diagnostico/anuncios/" + str(cid) + "/"
-                           + esc(str(a["item_id"])) + "'>"
-                           "Diagnosticar preço na API</a></div>")
-        tags = []
-        try:
-            tags = json.loads(a["tags"]) if a["tags"] else []
-        except Exception:
-            tags = []
-        tags_html = ""
-        for t in tags[:6]:
-            if t in TAGS_RUINS:
-                tags_html += "<span class='tag ruim'>" + esc(t) + "</span> "
-            elif t in TAGS_BOAS:
-                tags_html += "<span class='tag boa'>" + esc(t) + "</span> "
-            else:
-                tags_html += "<span class='tag normal'>" + esc(t) + "</span> "
-        if not tags_html:
-            tags_html = "<span class='tag sem'>sem tags</span>"
-        peso_kg = a["peso"]
-        peso_txt = render_weight_column(a.get("pesos_json"), "PACKAGE_WEIGHT")
-        peso_logistico_txt = render_weight_column(a.get("pesos_json"), "SELLER_PACKAGE_WEIGHT")
-        f = frete_esperado(a["preco"], peso_kg)
-        if f is not None:
-            frete_html = "<span class='alerta ok'>R$ %.2f</span>" % f
-        else:
-            frete_html = "<span class='tag sem'>sem peso</span>"
-        linhas_html += ("<tr>"
-                        "<td><b>" + esc(str(a["titulo"])) + "</b><br>"
-                        "<small class='muted'>" + esc(str(a["item_id"])) + "</small><br>"
-                        "<a href='/diagnostico/" + str(cid) + "/" + esc(str(a["item_id"]))
-                        + "'>Ver diagnóstico</a></td>"
-                        "<td>R$ %.2f" % (a["preco"] or 0) + "</td>"
-                        "<td>" + promo_html + "</td>"
-                        "<td>" + str(a["quantidade"] or 0) + "</td>"
-                        "<td>" + fotos_html + "</td>"
-                        "<td>" + clips_html + "</td>"
-                        "<td><span class='" + st_tag + "'>" + st_txt + "</span></td>"
-                        "<td>" + tags_html + "</td>"
-                        "<td>" + str(a["vendidos"] or 0) + "</td>"
-                        "<td>" + peso_txt + "</td>"
-                        "<td>" + peso_logistico_txt + "</td>"
-                        "<td>" + frete_html + "</td>"
-                        "</tr>")
-    corpo += ("<div class='card'><h2>Lista de anúncios <span class='badge'>"
-              + str(total) + "</span></h2>"
-              "<div class='sub'>Análises por produto — fotos, clips, promoção, "
-              "tags e frete esperado</div>"
-              + controles +
-              "<div style='overflow-x:auto'><table>"
-              "<thead><tr><th>Anúncio</th><th>Preço</th><th>Promoção</th>"
-              "<th>Estoque</th><th>Fotos</th><th>Clips</th><th>Status</th>"
-              "<th>Tags</th><th>Vendidos</th><th title='PACKAGE_WEIGHT'>Peso cadastrado</th>"
-              "<th title='SELLER_PACKAGE_WEIGHT'>Peso logístico<br><small>Declarado pelo vendedor</small></th>"
-              "<th>Frete esperado</th></tr></thead>"
-              "<tbody>" + linhas_html + "</tbody></table></div>" + navegacao_final +
-              "<div class='muted'>Frete esperado = estimativa pela "
-              "tabela existente e peso do pacote disponível; não é uma cotação de frete. Cadastre os custos na "
-              "<a class='link' href='/custos/" + str(cid) + "'>tela de Custos</a> "
-              "e veja a rentabilidade na <a class='link' href='/vendas/"
-              + str(cid) + "'>tela de Vendas</a>.</div></div>")
-    if erros:
-        avisos = ""
-        for e in erros:
-            if e["categoria"] in ("financeiro",):
-                continue
-            avisos += ("<div>" + esc(e["categoria"]) + ": "
-                       + esc(e["mensagem"]) + "</div>")
-        if avisos:
-            corpo += ("<div class='aviso'><b>Avisos:</b> " + avisos + "</div>")
+    from listing_catalog import render_catalog
+    corpo = render_catalog(cid, anuncios, request.args,
+                           refresh=barra_atualizar(cid, ultima, "anuncios"),
+                           errors=erros, admin=session.get("tipo") == "admin",
+                           freight=frete_esperado)
+    if session.get("tipo") == "admin":
+        corpo = "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/skus-repetidos'>Revisar SKUs repetidos</a></p>" + corpo
     return pagina_loja("Anúncios", cid, c["cliente"], "anuncios", corpo)
 
 
@@ -3020,16 +4167,21 @@ def ranking_anuncios(cid):
     """Store-level verified listing ranking; never use lifetime vendidos."""
     if not pode_ver_loja(cid):
         return pagina("Acesso negado", "<div class='card'>Acesso restrito</div>"), 403
-    dias = request.args.get("dias", "30")
+    dias = request.args.get("dias", "7")
     if dias not in ("7", "30"):
         dias = "30"
-    inicio_sql, fim_sql, inicio_cobertura, fim_cobertura = ranking_query_bounds(int(dias))
+    from sales_metrics import reporting_today
+    fim_analise = reporting_today() - datetime.timedelta(days=1)
+    inicio_sql, fim_sql, inicio_cobertura, fim_cobertura = ranking_query_bounds(int(dias), today=fim_analise)
+    sinais_financeiros = {}
+    visitas_comparacao = {}
     with banco() as conn:
+        executar(conn, 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
         lojas = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
         if not lojas:
             return pagina("Não encontrada", "<div class='card'>Loja não encontrada</div>"), 404
         anuncios_loja = consultar(conn, """
-            SELECT item_id, titulo, status, quantidade FROM anuncios
+            SELECT item_id, titulo, status, quantidade, atualizado_em FROM anuncios
             WHERE conexao_id=%s ORDER BY item_id
         """, (cid,))
         pedidos = consultar(conn, """
@@ -3059,20 +4211,38 @@ def ranking_anuncios(cid):
                 AND vendas_verificado_em IS NULL
             ) AS n
         """, (cid,))
-    resumo = ranking_metrics(
-        pedidos, itens, [r["dia"] for r in cobertura],
-        [a["item_id"] for a in anuncios_loja],
-        days=int(dias), pending=bool(pendentes and pendentes[0]["n"]))
+        resumo = ranking_metrics(
+            pedidos, itens, [r["dia"] for r in cobertura],
+            sorted({str(a["item_id"]) for a in anuncios_loja} | {str(i["item_id"]) for i in itens if i.get("item_id")}),
+            end=fim_analise, days=int(dias), pending=bool(pendentes and pendentes[0]["n"]))
+        if request.args.get('modo') != 'prioridades':
+            from listing_comparison import selection as comparison_selection, load_visits as load_comparison_visits
+            selected_comparison=comparison_selection(resumo,anuncios_loja,request.args)
+            if selected_comparison['available']:
+                visitas_comparacao=load_comparison_visits(conn,consultar,cid,selected_comparison['ids'],fim_analise,days=int(dias))
+        if resumo['available'] and session.get('tipo') == 'admin':
+            from profitability_priority import load_signals as load_financial_signals
+            sinais_financeiros = load_financial_signals(
+                conn,consultar,cid,resumo,pedidos,itens,fim_analise,int(dias))
     corpo = ("<h2>Ranking de vendas por anúncio</h2>"
-             "<p class='muted'>Últimos " + dias + " dias comparados aos " + dias + " anteriores. "
+             "<p class='muted'>Últimos " + dias + " dias encerrados comparados aos " + dias + " anteriores. "
              "Somente pedidos pagos e aprovados com dados verificados. "
              "Valor bruto dos itens, não valor líquido recebido. "
-             "Visitas e conversão não estão disponíveis.</p>")
+             "Sinais de tráfego e eficiência dependem da cobertura diária do anúncio.</p>")
     corpo += ("<div class='card'><p>Período: "
               "<a class='filtro' href='/ranking-anuncios/" + str(cid)
               + "?dias=7'>7 dias</a> "
               "<a class='filtro' href='/ranking-anuncios/" + str(cid)
               + "?dias=30'>30 dias</a></p></div>")
+    if request.args.get("modo") != "prioridades":
+        from listing_comparison import render as render_listing_comparison
+        corpo += render_listing_comparison(cid,resumo,anuncios_loja,request.args,fim_analise,days=int(dias),visits=visitas_comparacao)
+        from listing_abc import render as render_listing_abc
+        corpo += render_listing_abc(cid,resumo,anuncios_loja,request.args,fim_analise,days=int(dias))
+    from listing_priority_queue import prioritize as prioritize_listings, render as render_priorities
+    compact_priorities = request.args.get("modo") == "prioridades"
+    if not resumo["available"] and compact_priorities:
+        return render_priorities(prioritize_listings(resumo), anuncios_loja, cid, days=int(dias), compact=True)
     if not resumo["available"]:
         corpo += ("<div class='card'><b>Ranking indisponível</b><p>"
                   + esc(resumo["reason"] or "Dados não verificados.")
@@ -3080,6 +4250,30 @@ def ranking_anuncios(cid):
                   "</p></div>")
         return pagina_loja("Ranking de anúncios", cid, lojas[0]["cliente"],
                           "desempenho", corpo)
+    from sales_decline import render as render_decline
+    from investigation_evidence import load_bulk
+    with banco() as conn:
+        evidencias_queda = load_bulk(conn, consultar, cid, resumo, fim_analise, days=int(dias))
+    from listing_priority_sources import listing_signals
+    sinais_verificados = listing_signals(anuncios_loja, resumo, int(dias))
+    for item_id, financial in sinais_financeiros.items():
+        sinais_verificados.setdefault(item_id, {}).update(financial)
+    prioridades = render_priorities(prioritize_listings(
+        resumo, evidencias_queda, verified_signals_by_item=sinais_verificados),
+        anuncios_loja, cid, days=int(dias), compact=compact_priorities)
+    if compact_priorities:
+        response = Response(prioridades, mimetype="text/html")
+        response.headers["Cache-Control"] = "private, max-age=60"
+        return response
+    corpo += prioridades
+    if session.get('tipo') == 'admin':
+        from financial_priority_queue import render as render_financial_queue
+        from profitability_view import CSS as profitability_css
+        corpo += profitability_css + render_financial_queue(
+            sinais_financeiros, anuncios_loja, cid,
+            fim_analise-datetime.timedelta(days=int(dias)-1), fim_analise)
+    corpo += render_decline(resumo, anuncios_loja, cid, request.args, fim_analise,
+                            days=int(dias), evidence_by_item=evidencias_queda)
     kpis = listing_kpis(resumo["rows"])
     valor = "R$ %.2f" % kpis["value"]
     medio = ("R$ %.2f" % kpis["average_value_per_listing_order"]
@@ -3310,23 +4504,8 @@ def desempenho(cid):
               + json.dumps(fat_serie)
               + ",borderColor:'#3483FA',tension:0.3}]},"
               "options:{responsive:true,maintainAspectRatio:false}});</script>")
-    corpo += ("<div class='card'><h2>Desempenho por anúncio</h2>"
-              "<div class='muted'>Pedidos pagos registrados no período; "
-              "visitas e conversão aguardam uma fonte validada. "
-              "Para vendas auditadas e cobertura da sincronização, consulte "
-              "<a class='link' href='/vendas/" + str(cid) + "'>Vendas</a>.</div>"
-              "<div style='overflow-x:auto'><table><thead><tr>"
-              "<th>Anúncio</th><th>Status</th><th>Preço</th>"
-              "<th>Visitas</th><th>Pedidos registrados</th><th>Conversão</th>"
-              "</tr></thead><tbody>")
-    for r in linhas:
-        corpo += ("<tr><td><b>" + esc(str(r["titulo"] or "Sem título"))
-                  + "</b><br><small class='muted'>" + esc(str(r["item_id"]))
-                  + "</small></td><td>" + esc(str(r["status"] or "-"))
-                  + "</td><td>R$ %.2f" % (r["preco"] or 0)
-                  + "</td><td>Indisponível</td><td>" + str(r["pedidos"] or 0)
-                  + "</td><td>Indisponível</td></tr>")
-    corpo += "</tbody></table></div></div>"
+    from performance_cards import render_performance_cards
+    corpo += render_performance_cards(cid, linhas, request.args, dias=dias, de=de, ate=ate)
     return pagina_loja("Desempenho", cid, c["cliente"], "desempenho", corpo)
 
 
@@ -3357,7 +4536,94 @@ def var_html(hoje, ontem, fmt="R$"):
                 + " (" + br(pct, 1) + "%)</div>")
     return "<div class='var estavel'>— 0%</div>"
 
-@app.route("/painel/<int:cid>")
+@app.route('/kyra')
+@login_required
+@admin_required
+def kyra_central():
+    from kyra_central import central_rows, render_central
+    with banco() as conn:
+        shops = consultar(conn, "SELECT id,cliente FROM conexoes WHERE status='ativa' ORDER BY cliente,id")
+        runs = consultar(conn, """SELECT DISTINCT ON (conexao_id)
+            conexao_id,day,status,result FROM keiper_ai_runs
+            ORDER BY conexao_id,day DESC""")
+    body = render_central(central_rows(shops, runs))
+    response = Response(pagina('KEVIA · Central de Inteligência', body), mimetype='text/html')
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.route('/kyra/revisar/<int:cid>', methods=['POST'])
+@login_required
+@admin_required
+def kyra_revisar(cid):
+    from hmac import compare_digest
+    from kyra_reviews import ALLOWED
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito', 403
+    csrf = request.form.get('csrf') or ''
+    if not csrf or not compare_digest(csrf, session.get('kyra_review_csrf') or ''):
+        return 'Solicitação inválida', 403
+    code = request.form.get('code') or ''
+    state = request.form.get('state') or ''
+    if not code or len(code) > 80 or state not in ALLOWED:
+        return 'Dados inválidos', 400
+    with banco() as conn:
+        rows = consultar(conn, '''SELECT result FROM keiper_ai_runs
+            WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
+        from kevia_finance import review_findings
+        findings = review_findings(rows[0].get('result')) if rows else []
+        if code not in {str(f.get('code')) for f in findings if isinstance(f, dict)}:
+            return 'Recomendação não encontrada', 404
+        executar(conn, '''INSERT INTO kyra_reviews(conexao_id,code,state)
+            VALUES(%s,%s,%s) ON CONFLICT(conexao_id,code)
+            DO UPDATE SET state=EXCLUDED.state,updated_at=now()''', (cid,code,state))
+    return redirect('/ia-keiper/'+str(cid), code=303)
+
+
+@app.route('/ia-keiper/<int:cid>')
+@login_required
+def painel_ia_keiper(cid):
+    if not pode_ver_loja(cid):
+        return 'Acesso restrito', 403
+    from contextlib import closing
+    from keiper_ai import render
+    from keiper_ai_budget import budget_status
+    with closing(banco()) as conn, conn:
+        lojas = consultar(conn, 'SELECT cliente FROM conexoes WHERE id=%s', (cid,))
+        if not lojas:
+            return 'Loja não encontrada', 404
+        runs = consultar(conn, '''SELECT day,status,result,api_status FROM keiper_ai_runs
+            WHERE conexao_id=%s ORDER BY day DESC LIMIT 30''', (cid,))
+        from kevia_finance import visible_result
+        runs = [dict(row,result=visible_result(row.get('result'),admin=session.get('tipo')=='admin'))
+                for row in runs]
+        campaign_runs = consultar(conn, '''SELECT day,status,result FROM keiper_ai_campaign_runs
+            WHERE conexao_id=%s ORDER BY day DESC LIMIT 1''', (cid,))
+        budget = budget_status(conn, consultar) if session.get('tipo') == 'admin' else None
+        saved_reviews = consultar(conn, 'SELECT code,state FROM kyra_reviews WHERE conexao_id=%s', (cid,)) if session.get('tipo') == 'admin' else []
+        result = runs[0].get('result') if runs else None
+        daily = consultar(conn, '''SELECT data,gasto,faturamento FROM ads_dia
+            WHERE conexao_id=%s AND data BETWEEN %s AND %s ORDER BY data''',
+            (cid, result['previous_start'], result['end'])) if result else []
+    run = runs[0] if runs else {}
+    corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget, cid=cid, daily=daily, campaign_run=campaign_runs[0] if campaign_runs else None,admin_financial=session.get('tipo')=='admin')
+    if run.get('status') in ('running', 'rules_ready'):
+        corpo += "<p>Execução em andamento ou interrompida. A próxima análise ocorrerá no próximo dia de serviço ativo.</p>"
+    from kyra_history import render_history
+    corpo += render_history(runs,admin_financial=session.get('tipo')=='admin')
+    if session.get('tipo') == 'admin':
+        from kyra_reviews import render_review
+        token = session.get('kyra_review_csrf')
+        if not token:
+            token = secrets.token_urlsafe(32)
+            session['kyra_review_csrf'] = token
+        from kevia_finance import review_findings
+        findings = review_findings(run.get('result'))
+        corpo += render_review(cid, findings, {r['code']:r['state'] for r in saved_reviews}, token)
+    return pagina_loja('KEVIA', cid, lojas[0]['cliente'], 'ia', corpo)
+
+
+@app.route("/painel/<int:cid>/operacao")
 @login_required
 def painel_detalhe(cid):
     if not pode_ver_loja(cid):
@@ -3383,15 +4649,14 @@ def painel_detalhe(cid):
                                    "AND data >= %s ORDER BY data",
                              (cid, (datetime.date.today()
                                     - datetime.timedelta(days=6)).isoformat()))
-        perg_pend = consultar(conn, "SELECT COUNT(*) AS n FROM perguntas "
-                                    "WHERE conexao_id=%s AND status != 'ANSWERED'", (cid,))
+        from question_sync import pending_count
+        perguntas_pendentes = pending_count(conn,consultar,cid,c['user_id'],int(time.time()))
         envios_hoje = consultar(conn, "SELECT COUNT(*) AS n FROM envios "
                                       "WHERE conexao_id=%s AND SUBSTRING(data,1,10)=%s",
                                 (cid, hoje_iso))
         ult = consultar(conn, "SELECT MAX(atualizado_em) AS ult FROM anuncios "
                               "WHERE conexao_id=%s", (cid,))
     ultima = ult[0]["ult"] if ult and ult[0]["ult"] else None
-    perguntas_pendentes = perg_pend[0]["n"] if perg_pend else 0
     envios_dia = envios_hoje[0]["n"] if envios_hoje else 0
     atualizando = False
     if (ultima is None or (int(time.time()) - ultima) > GATILHO_AUTO_SEG) \
@@ -3443,8 +4708,8 @@ def painel_detalhe(cid):
     if perguntas_pendentes > 0:
         corpo += ("<div class='aviso'>💬 Você tem <b>"
                   + str(perguntas_pendentes)
-                  + " pergunta(s) pendente(s)</b> para responder nos anúncios. "
-                  "Responder rápido aumenta a chance de fechar a venda.</div>")
+                  + " pergunta(s) sem resposta na consulta recente</b> do Mercado Livre. "
+                  "Confira os anúncios antes de responder.</div>")
     if lucro_dia <= 0:
         lucro_html = "<span class='alerta urgente'>R$ %.2f</span>" % lucro_dia
     else:
@@ -3589,6 +4854,23 @@ def painel_detalhe(cid):
     if atualizando:
         corpo += ("<script>setTimeout(function(){ location.reload(); }, "
                   "90000);</script>")
+    # Load deeper priority analysis separately so the store summary stays fast.
+    priority_url = "/ranking-anuncios/%s?dias=7&modo=prioridades" % int(cid)
+    corpo = ("<div id='kp-auto-priorities' aria-live='polite'>"
+             "<div class='card'><h3>Prioridades dos anúncios</h3>"
+             "<p class='muted'>Investigando quedas de vendas verificadas…</p></div></div>"
+             "<script>(function(){"
+             "var node=document.getElementById('kp-auto-priorities');"
+             "fetch("+json.dumps(priority_url)+",{credentials:'same-origin'})"
+             ".then(function(r){if(!r.ok)throw Error('priority-load');return r.text()})"
+             ".then(function(h){if(node)node.innerHTML=h})"
+             ".catch(function(){if(node)node.innerHTML="
+             "'<div class=\\'card\\'><h3>Prioridades indisponíveis</h3>' +"
+             "'<p>Abra o ranking para consultar as quedas verificadas.</p>' +"
+             "'<a href=\\'/ranking-anuncios/"+str(int(cid))+"?dias=7\\'>Ver ranking de anúncios</a></div>'})"
+             "})();</script>") + corpo
+    corpo = ("<div class='card'><h3>KEVIA</h3><p>Nome provisório, aguardando análise jurídica de marca.</p><p>Consulte as recomendações diárias e suas evidências.</p>"
+             "<a href='/ia-keiper/"+str(int(cid))+"'>Ver recomendações</a></div>") + corpo
     return pagina_loja("Resumo", cid, c["cliente"], "resumo", corpo)
 @app.route("/atualizar/<tipo>/<int:cid>")
 @login_required
@@ -3596,58 +4878,14 @@ def atualizar_tipo(tipo, cid):
     if not pode_ver_loja(cid):
         return pagina("Acesso negado",
                       "<div class='card'><h2>Acesso restrito</h2></div>")
-    # Full order history sync can take minutes; never run it in an HTTP worker.
-    if tipo in ("resumo", "vendas"):
-        enfileirar_atualizacao(cid)
-        return redirect("/painel/" + str(cid) if tipo == "resumo"
-                        else "/vendas/" + str(cid))
-    with banco() as conn:
-        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        c = c[0] if c else None
-    if not c:
-        return pagina("Sem loja",
-                      "<div class='card'><h2>Nenhuma loja conectada</h2></div>")
-    token = token_atual(c)
-    if not token:
-        return pagina("Erro",
-                      "<div class='card'><h2>Falha ao renovar o token</h2></div>")
-    user_id = c["user_id"]
-    if tipo in ("anuncios", "promocoes") and user_id:
-        with LOCK_ATUALIZACAO:
-            if cid not in ATUALIZANDO:
-                ATUALIZANDO.add(cid)
-                threading.Thread(target=atualizar_anuncios_bg,
-                                 args=(cid, token, user_id, tipo), daemon=True).start()
-        return redirect("/" + tipo + "/" + str(cid))
-    if user_id:
-        if tipo in ("resumo", "vendas"):
-            puxar_pedidos(c["id"], token, user_id)
-            puxar_envios(c["id"], token, user_id)
-        if tipo in ("resumo", "anuncios", "desempenho",
-                    "demandas", "custos"):
-            puxar_anuncios(c["id"], token, user_id)
-            puxar_metricas(c["id"], token)
-            puxar_promocoes(c["id"], token, user_id)
-        if tipo == "resumo":
-            puxar_perguntas(c["id"], token, user_id)
-            try:
-                puxar_ads(c["id"], token, user_id)
-            except Exception:
-                pass
-        if tipo == "promocoes":
-            puxar_promocoes(c["id"], token, user_id)
-        if tipo == "campanhas":
-            try:
-                puxar_ads(c["id"], token, user_id)
-            except Exception:
-                pass
-    if tipo in ("resumo", "desempenho"):
-        gravar_historico(c["id"])
-    if tipo == "resumo":
-        destino = "/painel/" + str(cid)
-    else:
-        destino = "/" + tipo + "/" + str(cid)
-    return redirect(destino)
+    from section_refresh import SCOPES
+    if tipo in SCOPES:
+        # Opening a legacy refresh URL only displays the explicit POST button.
+        return redirect(("/ads/" if tipo == "campanhas" else "/" + tipo + "/") + str(cid))
+    if tipo != "resumo":
+        return pagina("Seção inválida", "<div class='card'>Seção inválida</div>"), 400
+    enfileirar_atualizacao(cid)
+    return redirect("/painel/" + str(cid))
 
 
 @app.route("/atualizar")
@@ -3681,24 +4919,24 @@ def renovar(refresh_token):
         "grant_type": "refresh_token",
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
-        "refresh_token": refresh_token,
-    })
+        "refresh_token": reveal_token(refresh_token),
+    }, timeout=25)
     return resp.json()
 
 
 def token_atual(c):
     agora = int(time.time())
     if c["expires_at"] and c["expires_at"] > agora + 600:
-        return c["access_token"]
+        return reveal_token(c["access_token"])
     dados = renovar(c["refresh_token"])
     if "access_token" not in dados:
-        registrar_erro(c["id"], "token", str(dados)[:200])
+        registrar_erro(c["id"], "token", "Não foi possível renovar a autorização do Mercado Livre.")
         return None
     with banco() as conn:
         executar(conn, "UPDATE conexoes SET access_token=%s, "
                        "refresh_token=%s, expires_at=%s, status='ativa' "
                        "WHERE id=%s",
-                 (dados["access_token"], dados["refresh_token"],
+                 (seal_token(dados["access_token"]), seal_token(dados["refresh_token"]),
                   agora + dados["expires_in"], c["id"]))
     return dados["access_token"]
 
@@ -3715,7 +4953,7 @@ def job_refresh():
                 executar(conn, "UPDATE conexoes SET access_token=%s, "
                                "refresh_token=%s, expires_at=%s, "
                                "status='ativa' WHERE id=%s",
-                         (dados["access_token"], dados["refresh_token"],
+                         (seal_token(dados["access_token"]), seal_token(dados["refresh_token"]),
                           agora + dados["expires_in"], c["id"]))
             except Exception:
                 executar(conn, "UPDATE conexoes SET status='expirada' "
@@ -3840,6 +5078,9 @@ def puxar_anuncios(conexao_id, token, user_id):
         scroll = novo_scroll
     agora = int(time.time())
     linhas = []
+    full_rows = []
+    sku_rows = []
+    change_rows = []
     completo = True
     for i in range(0, len(ids), 20):
         lote = ids[i:i + 20]
@@ -3864,6 +5105,13 @@ def puxar_anuncios(conexao_id, token, user_id):
             if not isinstance(det, dict) or not det.get("id"):
                 completo = False
                 continue
+            from listing_sku_evidence import snapshot as sku_snapshot
+            if det['id'] in lote:
+                sku_rows.append((json.dumps(sku_snapshot(det, user_id, det['id'], agora)), conexao_id, det['id']))
+            from automatic_history import listing_values
+            change_rows.append((det['id'],int(time.time()),listing_values(det,user_id)))
+            full_rows.append((json.dumps(full_metadata(det, user_id, int(time.time()))),
+                              conexao_id, det['id']))
             fotos = 0
             pics = det.get("pictures")
             if isinstance(pics, list):
@@ -3885,14 +5133,15 @@ def puxar_anuncios(conexao_id, token, user_id):
                            agora, fotos, clips,
                            json.dumps(tags, ensure_ascii=False),
                            peso, det.get("seller_custom_field"), original_price,
-                           json.dumps(pesos, ensure_ascii=False)))
+                           json.dumps(pesos, ensure_ascii=False),
+                           det.get("secure_thumbnail") or (pics[0].get("secure_url") if isinstance(pics, list) and pics and isinstance(pics[0], dict) else None) or det.get("thumbnail")))
     with banco() as conn:
         for t in linhas:
             executar(conn, """INSERT INTO anuncios
                             (conexao_id, item_id, titulo, preco, quantidade,
                              status, vendidos, atualizado_em, fotos, clips,
-                             tags, peso, sku, original_price, pesos_json)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                             tags, peso, sku, original_price, pesos_json, thumbnail)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, item_id) DO UPDATE SET
                               titulo=EXCLUDED.titulo, preco=EXCLUDED.preco,
                               quantidade=EXCLUDED.quantidade,
@@ -3902,8 +5151,17 @@ def puxar_anuncios(conexao_id, token, user_id):
                               fotos=EXCLUDED.fotos, clips=EXCLUDED.clips,
                               tags=EXCLUDED.tags, peso=EXCLUDED.peso,
                               sku=EXCLUDED.sku, original_price=EXCLUDED.original_price,
-                              pesos_json=EXCLUDED.pesos_json""", t)
+                              pesos_json=EXCLUDED.pesos_json, thumbnail=EXCLUDED.thumbnail""", t)
 
+        from automatic_history import record as record_changes
+        for changed_item,stamp,values in change_rows:
+            record_changes(conn,executar,conexao_id,changed_item,'listing',stamp,values)
+
+        for metadata in full_rows:
+            executar(conn, '''UPDATE anuncios SET full_metadata_json=%s::jsonb
+                WHERE conexao_id=%s AND item_id=%s''', metadata)
+        for metadata in sku_rows:
+            executar(conn, "UPDATE anuncios SET sku_metadata_json=%s::jsonb WHERE conexao_id=%s AND item_id=%s", metadata)
         velhos = consultar(conn, "SELECT item_id FROM anuncios WHERE conexao_id=%s", (conexao_id,))
         atuais = set(ids)
         for row in velhos:
@@ -3913,39 +5171,17 @@ def puxar_anuncios(conexao_id, token, user_id):
     return completo
 
 
+def puxar_avaliacoes_metas(conexao_id):
+    from goal_observations import collect
+    return collect(conexao_id, banco, consultar, executar, int(time.time()))
+
+
 def puxar_metricas(conexao_id, token):
     return
 
 def puxar_perguntas(conexao_id, token, user_id):
-    dados, erro = api_get(token, "/questions/search",
-                          {"seller_id": user_id, "api_version": 4,
-                           "limit": 50})
-    if erro or not dados:
-        registrar_erro(conexao_id, "perguntas", erro or "sem resposta")
-        return False
-    perguntas = dados.get("questions") or []
-    agora = int(time.time())
-    with banco() as conn:
-        executar(conn, "DELETE FROM perguntas WHERE conexao_id=%s",
-                 (conexao_id,))
-    for q in perguntas:
-        resp = q.get("answer") or {}
-        with banco() as conn:
-            executar(conn, """INSERT INTO perguntas
-                            (conexao_id, pergunta_id, item_id, texto,
-                             status, resposta, data, atualizado_em)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-                            ON CONFLICT (conexao_id, pergunta_id) DO UPDATE SET
-                              item_id=EXCLUDED.item_id,
-                              texto=EXCLUDED.texto, status=EXCLUDED.status,
-                              resposta=EXCLUDED.resposta,
-                              data=EXCLUDED.data,
-                              atualizado_em=EXCLUDED.atualizado_em""",
-                     (conexao_id, str(q.get("id")), q.get("item_id"),
-                      q.get("text"), q.get("status"), resp.get("text"),
-                      q.get("date_created"), agora))
-
-    return True
+    from question_sync import collect
+    return collect(conexao_id,token,user_id,banco,consultar,executar,requests.get,registrar_erro)
 
 
 def puxar_envios(conexao_id, token, user_id):
@@ -4032,8 +5268,34 @@ def diagnostico_anuncio(cid, item_id):
     return jsonify(inspect_listing(token, conta["user_id"], item_id, requests.get))
 
 
-def puxar_ads(conexao_id, token, user_id):
-    hoje = datetime.date.today().isoformat()
+def coletar_secao(cid, secao, periodo=None):
+    """Run only the collectors required by the requested page."""
+    with banco() as conn:
+        rows = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+    if not rows:
+        return False
+    conta = rows[0]
+    token = token_atual(conta)
+    user_id = conta.get("user_id")
+    if not token or not user_id:
+        return False
+    from section_refresh import collector_names
+    for name in collector_names(secao):
+        collector = globals()[name]
+        result = (collector(cid, token, user_id, refresh_range=periodo)
+                  if name == "puxar_ads" else collector(cid, token, user_id))
+        if result is False:
+            return False
+    return True
+
+
+def puxar_ads(conexao_id, token, user_id, refresh_range=None):
+    from sales_metrics import reporting_today
+    from ads_official_metrics import save_day
+    # Use the same Brazilian reporting day as the dashboards, even after
+    # midnight UTC. Freeze it for this entire collection.
+    reporting_day = reporting_today()
+    hoje = reporting_day.isoformat()
     # 1) Descobre o advertiser_id no formato novo da API
     try:
         r = requests.get(API + "/advertising/advertisers",
@@ -4073,7 +5335,8 @@ def puxar_ads(conexao_id, token, user_id):
                                  params={"limit": 50, "offset": offset,
                                          "date_from": dia, "date_to": dia,
                                          "metrics": "clicks,prints,cost,"
-                                                    "total_amount"},
+                                                    "total_amount,advertising_items_quantity,"
+                                                    "organic_items_quantity,organic_units_amount"},
                                  timeout=30)
             except Exception as e:
                 registrar_erro(conexao_id, "ads",
@@ -4094,12 +5357,66 @@ def puxar_ads(conexao_id, token, user_id):
                 tot_c += int(m.get("clicks") or 0)
                 tot_g += g
                 tot_f += f
-                linhas.append((str(c.get("id")), g, f))
+                linhas.append((str(c.get("id")), g, f, m))
             offset += 50
             total = (dados.get("paging") or {}).get("total") or 0
             if not resultados or offset >= total:
                 break
         return (dia, tot_g, tot_f, tot_i, tot_c, linhas)
+
+    # Current campaign configuration (budget and target ROAS) is separate
+    # from the daily performance snapshot. Keep last known config if API fails.
+    config_complete = True
+    try:
+        campanhas_atuais = []
+        deslocamento = 0
+        while True:
+            resposta = requests.get(url, headers=cab,
+                                    params={"limit": 50, "offset": deslocamento},
+                                    timeout=30)
+            if resposta.status_code != 200:
+                raise ValueError("HTTP " + str(resposta.status_code))
+            lote = resposta.json()
+            registros = lote.get("results") or []
+            campanhas_atuais.extend(registros)
+            deslocamento += len(registros)
+            total = (lote.get("paging") or {}).get("total") or 0
+            if not registros or deslocamento >= total or len(registros) < 50:
+                break
+        with banco() as conn:
+            for campanha in campanhas_atuais:
+                camp_id = campanha.get("id")
+                if camp_id is None:
+                    continue
+                budget = campanha.get("daily_budget")
+                if budget is None:
+                    budget = campanha.get("budget")
+                target = campanha.get("roas_target")
+                from ads_change_history import record_changes
+                anterior = consultar(conn, """SELECT orcamento, roas_objetivo
+                    FROM ads_campanhas WHERE conexao_id=%s AND campanha_id=%s
+                    FOR UPDATE""", (conexao_id, str(camp_id)))
+                record_changes(conn, executar, conexao_id, camp_id,
+                    anterior[0] if anterior else None,
+                    {"orcamento":budget,"roas_objetivo":target},
+                    int(time.time()), "api")
+                executar(conn, """
+                    INSERT INTO ads_campanhas (
+                        conexao_id, campanha_id, nome, status, tipo,
+                        data_inicio, data_fim, orcamento, roas_objetivo, atualizado_em
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (conexao_id,campanha_id) DO UPDATE SET
+                        nome=EXCLUDED.nome, status=EXCLUDED.status,
+                        tipo=EXCLUDED.tipo, orcamento=EXCLUDED.orcamento,
+                        roas_objetivo=COALESCE(EXCLUDED.roas_objetivo,ads_campanhas.roas_objetivo),
+                        atualizado_em=EXCLUDED.atualizado_em
+                """, (conexao_id, str(camp_id), campanha.get("name"),
+                      campanha.get("status"), campanha.get("strategy"),
+                      campanha.get("date_created"), None, budget, target,
+                      int(time.time())))
+    except (requests.RequestException, ValueError, TypeError) as exc:
+        config_complete = False
+        registrar_erro(conexao_id, "ads_config", "Campanhas: " + str(exc)[:140])
 
     # 2) Hoje (igual a antes)
     res_hoje = buscar_dia(hoje)
@@ -4108,16 +5425,13 @@ def puxar_ads(conexao_id, token, user_id):
     _, tot_g, tot_f, tot_i, tot_c, linhas = res_hoje
     agora = int(time.time())
     with banco() as conn:
-        for camp_id, g, f in linhas:
-            executar(conn,
-                     """INSERT INTO ads_campanha_dia
-                        (conexao_id, campanha_id, data, gasto, faturamento,
-                         atualizado_em)
-                        VALUES (%s,%s,%s,%s,%s,%s)
-                        ON CONFLICT (conexao_id, campanha_id, data)
-                        DO UPDATE SET gasto=EXCLUDED.gasto,
-                          faturamento=EXCLUDED.faturamento""",
-                     (conexao_id, camp_id, hoje, g, f, agora))
+        for camp_id, g, f, metricas in linhas:
+            save_day(conn, executar, conexao_id, camp_id, hoje, g, f, metricas, agora)
+            executar(conn, """INSERT INTO ads_orcamento_esgotado(conexao_id,campanha_id,data,detectado_em)
+                SELECT %s,%s,%s,%s FROM ads_campanhas WHERE conexao_id=%s AND campanha_id=%s
+                AND orcamento>0 AND %s>=orcamento
+                ON CONFLICT(conexao_id,campanha_id,data) DO NOTHING""",
+                (conexao_id,str(camp_id),hoje,agora,conexao_id,str(camp_id),g))
         executar(conn,
                  """INSERT INTO ads_dia
                     (conexao_id, data, gasto, faturamento, impressoes,
@@ -4127,34 +5441,46 @@ def puxar_ads(conexao_id, token, user_id):
                     DO UPDATE SET gasto=EXCLUDED.gasto,
                       faturamento=EXCLUDED.faturamento,
                       impressoes=EXCLUDED.impressoes,
-                      cliques=EXCLUDED.cliques""",
+                      cliques=EXCLUDED.cliques, atualizado_em=EXCLUDED.atualizado_em""",
                  (conexao_id, hoje, tot_g, tot_f, tot_i, tot_c, agora))
 
-    # 3) Backfill: enquanto a tabela tiver menos de 60 dias gravados,
-    #    busca os ultimos 90 dias (depois pula sozinho)
+    # 3) Fill the initial historical window and repair recent missing days
+    # after it has 60+ records. A missed daily collection must not become
+    # permanent. Keep API work bounded for established stores.
+    from ads_coverage import daily_days_to_fetch
     with banco() as conn:
-        reg = consultar(conn, "SELECT COUNT(*) AS n FROM ads_dia "
-                              "WHERE conexao_id=%s", (conexao_id,))
-    n_dias = int(reg[0].get("n") or 0) if reg else 0
-    if n_dias < 60:
-        for i in range(1, 90):
-            dia_b = (datetime.date.today()
-                     - datetime.timedelta(days=i)).isoformat()
+        reg = consultar(conn, "SELECT data FROM ads_dia WHERE conexao_id=%s AND data BETWEEN %s AND %s",
+                        (conexao_id, (reporting_day-datetime.timedelta(days=89)).isoformat(),
+                         (reporting_day-datetime.timedelta(days=1)).isoformat()))
+    days_to_fetch = daily_days_to_fetch(
+        [r["data"] for r in reg], reporting_day,
+        initial=len(reg)<60, max_recent=3)
+    # Enrich old snapshots gradually without an unbounded API backfill.
+    # Mark an attempted successful response even if a metric is unavailable.
+    with banco() as conn:
+        pending = consultar(conn, """SELECT DISTINCT data FROM ads_campanha_dia
+            WHERE conexao_id=%s AND data BETWEEN %s AND %s
+            AND metricas_vendas_coletadas_em IS NULL ORDER BY data DESC LIMIT 3""",
+            (conexao_id, (reporting_day-datetime.timedelta(days=89)).isoformat(),
+             (reporting_day-datetime.timedelta(days=1)).isoformat()))
+    days_to_fetch = list(dict.fromkeys(days_to_fetch + [r['data'] for r in pending]))
+    if refresh_range is not None:
+        # Explicit refresh repairs the period visible on the Ads page only.
+        start, end = refresh_range
+        days_to_fetch = [(end-datetime.timedelta(days=i)).isoformat()
+                         for i in range((end-start).days+1)
+                         if (end-datetime.timedelta(days=i)).isoformat() != hoje]
+    history_complete = True
+    if days_to_fetch:
+        for dia_b in days_to_fetch:
             res = buscar_dia(dia_b)
             if res is None:
+                history_complete = False
                 continue
             _, g2, f2, i2, c2, linhas2 = res
             with banco() as conn:
-                for camp_id, g, f in linhas2:
-                    executar(conn,
-                             """INSERT INTO ads_campanha_dia
-                                (conexao_id, campanha_id, data, gasto,
-                                 faturamento, atualizado_em)
-                                VALUES (%s,%s,%s,%s,%s,%s)
-                                ON CONFLICT (conexao_id, campanha_id, data)
-                                DO UPDATE SET gasto=EXCLUDED.gasto,
-                                  faturamento=EXCLUDED.faturamento""",
-                             (conexao_id, camp_id, dia_b, g, f, agora))
+                for camp_id, g, f, metricas in linhas2:
+                    save_day(conn, executar, conexao_id, camp_id, dia_b, g, f, metricas, agora)
                 executar(conn,
                          """INSERT INTO ads_dia
                             (conexao_id, data, gasto, faturamento, impressoes,
@@ -4164,56 +5490,76 @@ def puxar_ads(conexao_id, token, user_id):
                             DO UPDATE SET gasto=EXCLUDED.gasto,
                               faturamento=EXCLUDED.faturamento,
                               impressoes=EXCLUDED.impressoes,
-                              cliques=EXCLUDED.cliques""",
+                              cliques=EXCLUDED.cliques, atualizado_em=EXCLUDED.atualizado_em""",
                          (conexao_id, dia_b, g2, f2, i2, c2, agora))
-    return True
+    return (history_complete and config_complete) if refresh_range is not None else True
 
 def puxar_pedidos(conexao_id, token, user_id):
-    return sync_orders(conexao_id, token, user_id, banco, consultar,
-                       executar, api_get, registrar_erro)
+    result = sync_orders(conexao_id, token, user_id, banco, consultar,
+                         executar, api_get, registrar_erro)
+    from sales_geography import sync as sync_geography
+    try:
+        sync_geography(conexao_id, token, user_id, banco, consultar, executar, requests.get)
+    except Exception:
+        app.logger.warning("sales_geography_sync_unavailable loja=%s", conexao_id)
+    from sales_goal_observations import collect as collect_sales_goals
+    try:
+        collect_sales_goals(conexao_id, banco, consultar, executar, int(time.time()))
+    except Exception:
+        app.logger.warning("sales_goal_evaluation_unavailable loja=%s", conexao_id)
+    return result
+
+
+def puxar_full(conexao_id, token, user_id):
+    return sync_full(conexao_id, token, banco, consultar, executar, requests.get)
 
 
 def executar_atualizacao(cid):
-    with banco() as conn:
-        rows = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-    if not rows:
-        return False
-    c = rows[0]
-    token = token_atual(c)
-    if not token:
-        return False
-    started = int(time.time())
-    user_id = c["user_id"]
-    stages = [("conta", lambda: puxar_conta(cid, token))]
-    if user_id:
-        stages.extend([
-            # Atualizar pedidos primeiro: a fila é serial e anúncios podem demorar.
-            ("pedidos", lambda: puxar_pedidos(cid, token, user_id)),
-            ("anuncios", lambda: puxar_anuncios(cid, token, user_id)),
-            ("perguntas", lambda: puxar_perguntas(cid, token, user_id)),
-            ("envios", lambda: puxar_envios(cid, token, user_id)),
-            ("promocoes", lambda: puxar_promocoes(cid, token, user_id)),
-            ("ads", lambda: puxar_ads(cid, token, user_id)),
-        ])
-    # puxar_ads already refreshes daily metrics. No second/undefined collector.
-    # Disabled visit collection is not reported as a successful refresh.
-    stages.append(("historico", lambda: (gravar_historico(cid), True)[1]))
-    falhas = []
-    def coletar_etapa(nome, coleta):
-        resultado = coleta()
-        if resultado is not True:
-            falhas.append(nome)
-        return resultado
-    def registrar_falha(conexao_id, categoria, mensagem):
-        falhas.append(categoria)
-        registrar_erro(conexao_id, categoria, mensagem)
-    etapas = [(nome, lambda nome=nome, coleta=coleta: coletar_etapa(nome, coleta)) for nome, coleta in stages]
-    ok = run_stages(cid, etapas, registrar_falha, resolver_erro, time.time)
-    if ok:
-        resolver_erro(cid, "atualizacao", started)
-    else:
-        registrar_erro(cid, "atualizacao", "Etapas com falha: " + ", ".join(dict.fromkeys(falhas)))
-    return ok
+    with store_sync_lock(banco, cid) as acquired:
+        if not acquired:
+            return False
+        with banco() as conn:
+            rows = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
+        if not rows:
+            return False
+        c = rows[0]
+        token = token_atual(c)
+        if not token:
+            return False
+        started = int(time.time())
+        user_id = c["user_id"]
+        stages = [("conta", lambda: puxar_conta(cid, token))]
+        if user_id:
+            stages.extend([
+                # Atualizar pedidos primeiro: a fila é serial e anúncios podem demorar.
+                ("pedidos", lambda: puxar_pedidos(cid, token, user_id)),
+                ("anuncios", lambda: puxar_anuncios(cid, token, user_id)),
+                ("metas_estoque", lambda: puxar_avaliacoes_metas(cid)),
+                ("full", lambda: puxar_full(cid, token, user_id)),
+                ("perguntas", lambda: puxar_perguntas(cid, token, user_id)),
+                ("envios", lambda: puxar_envios(cid, token, user_id)),
+                ("promocoes", lambda: puxar_promocoes(cid, token, user_id)),
+                ("ads", lambda: puxar_ads(cid, token, user_id)),
+            ])
+        # puxar_ads already refreshes daily metrics. No second/undefined collector.
+        # Disabled visit collection is not reported as a successful refresh.
+        stages.append(("historico", lambda: (gravar_historico(cid), True)[1]))
+        falhas = []
+        def coletar_etapa(nome, coleta):
+            resultado = coleta()
+            if resultado is not True:
+                falhas.append(nome)
+            return resultado
+        def registrar_falha(conexao_id, categoria, mensagem):
+            falhas.append(categoria)
+            registrar_erro(conexao_id, categoria, mensagem)
+        etapas = [(nome, lambda nome=nome, coleta=coleta: coletar_etapa(nome, coleta)) for nome, coleta in stages]
+        ok = run_stages(cid, etapas, registrar_falha, resolver_erro, time.time)
+        if ok:
+            resolver_erro(cid, "atualizacao", started)
+        else:
+            registrar_erro(cid, "atualizacao", "Etapas com falha: " + ", ".join(dict.fromkeys(falhas)))
+        return ok
 
 
 def executar_atualizacao_bg(cid):
@@ -4249,9 +5595,16 @@ def job_dados():
     except Exception:
         pass
     with banco() as conn:
-        conexoes = consultar(conn, "SELECT id FROM conexoes "
-                            "WHERE status='ativa' AND cliente <> %s",
-                            ("CASAMIX_STORE",))
+        conexoes = consultar(conn, """SELECT c.id FROM conexoes c
+            WHERE c.status='ativa' AND c.cliente <> %s
+            ORDER BY CASE WHEN EXISTS (
+                SELECT 1 FROM generate_series(
+                    (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date-14,
+                    (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date-1,
+                    interval '1 day') d(dia)
+                WHERE NOT EXISTS (SELECT 1 FROM vendas_cobertura v
+                    WHERE v.conexao_id=c.id AND v.dia=d.dia::date::text)
+            ) THEN 0 ELSE 1 END, c.id""", ("CASAMIX_STORE",))
     for c in conexoes:
         # Use the existing queue so the scheduler does not abort subsequent shops
         # or overlap a collection already queued from the dashboard.
@@ -4259,8 +5612,75 @@ def job_dados():
 
 
 register_crm(app, banco, consultar, executar, pagina)
+register_mfa(app, banco, consultar, executar, pagina, auth_attempt_allowed)
+register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja, session)
+register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
+from intervention_routes import register_interventions
+register_interventions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from anuncios_progress_routes import register_progress
+register_progress(app, login_required, pagina)
+from listing_task_routes import register_tasks
+register_tasks(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from price_observation_export import register_export
+register_export(app, login_required, pode_ver_loja, banco, consultar, executar)
+from listing_sku_overlap import register_overlap
+register_overlap(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_reactivation_routes import register_reactivation
+register_reactivation(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from sales_geography_view import register as register_sales_geography
+register_sales_geography(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
+from listing_review_report import register_report
+register_report(app, login_required, pode_ver_loja, banco, consultar, executar)
+from goal_notification_routes import register as register_goal_notifications
+register_goal_notifications(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from sales_goal_observations import register_history as register_sales_goal_history
+register_sales_goal_history(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_sales_goal_routes import register_sales_goals
+register_sales_goals(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_goal_routes import register_goals
+register_goals(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from goal_observations import register_history
+register_history(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_onboarding_routes import register_onboarding
+register_onboarding(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_content_routes import register_content
+register_content(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_questions import register_questions
+register_questions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from profitability_routes import register_profitability
+register_profitability(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from promotion_comparison import register as register_promotion_comparison
+register_promotion_comparison(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_kit_view import register as register_kits
+register_kits(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from installment_comparison import register as register_installment_comparison
+register_installment_comparison(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
+from listing_fee_quote import register as register_fee_quote
+register_fee_quote(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get)
+from listing_content_snapshot import register as register_content_snapshot
+register_content_snapshot(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get)
+register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
+                    is_updating=lambda cid: cid in ATUALIZANDO)
 
-iniciar_banco()
+from section_refresh import register as register_section_refresh
+register_section_refresh(app, login_required, pode_ver_loja, banco, consultar, executar, coletar_secao)
+
+from startup_schema import initialize_with_retry
+initialize_with_retry(iniciar_banco, app.logger)
+
+# Official item visits: unique item/day records, initialized without backfilling
+# or inventing missing days. Collection is activated separately.
+with banco() as conn:
+    executar(conn, """CREATE TABLE IF NOT EXISTS item_visits_daily (
+        conexao_id INTEGER NOT NULL REFERENCES conexoes(id),
+        item_id TEXT NOT NULL,
+        dia DATE NOT NULL,
+        visitas INTEGER NOT NULL CHECK (visitas >= 0),
+        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (conexao_id, item_id, dia)
+    )""")
+    executar(conn, """CREATE INDEX IF NOT EXISTS idx_item_visits_daily_shop_day
+        ON item_visits_daily (conexao_id, dia)""")
 
 # Persist execution status so interrupted web workers remain diagnosable.
 with banco() as conn:
@@ -4315,17 +5735,23 @@ def criar_tarefa_persistente(cid, agora=None):
 
 def reservar_tarefa_persistente(agora=None, duracao_lease=7200):
     """Atomically claim a ready job across workers using SKIP LOCKED."""
+    lojas = [int(part.strip()) for part in os.getenv("DURABLE_QUEUE_STORE_IDS", "").split(",")
+             if part.strip().isdigit()]
+    if not lojas:
+        return None
     agora = int(time.time()) if agora is None else int(agora)
     with banco() as conn:
         rows = consultar(conn, """SELECT t.id, t.conexao_id
             FROM sincronizacao_tarefas t
             WHERE t.status='pendente' AND t.disponivel_em <= %s
+              AND t.conexao_id = ANY(%s)
+              AND EXISTS (SELECT 1 FROM conexoes c WHERE c.id=t.conexao_id AND c.status='ativa')
               AND NOT EXISTS (
                 SELECT 1 FROM sincronizacao_tarefas a
                 WHERE a.conexao_id=t.conexao_id AND a.status='executando'
               )
             ORDER BY t.disponivel_em,t.id
-            FOR UPDATE OF t SKIP LOCKED LIMIT 1""", (agora,))
+            FOR UPDATE OF t SKIP LOCKED LIMIT 1""", (agora, lojas))
         if not rows:
             return None
         tarefa = rows[0]
@@ -4408,18 +5834,166 @@ with banco() as conn:
         ON sincronizacao_tarefas (conexao_id)
         WHERE status='executando'""")
 
+def recuperar_tarefas_sem_coletor():
+    """Recover interrupted selected stores only while owning their collection lock."""
+    lojas = {int(part.strip()) for part in os.getenv("DURABLE_QUEUE_STORE_IDS", "").split(",")
+             if part.strip().isdigit()}
+    recuperadas = 0
+    for cid in sorted(lojas):
+        with store_sync_lock(banco, cid) as acquired:
+            if not acquired:
+                continue
+            with banco() as conn:
+                tarefas = consultar(conn, """SELECT id FROM sincronizacao_tarefas
+                    WHERE conexao_id=%s AND status='executando'""", (cid,))
+            for tarefa in tarefas:
+                recuperadas += reagendar_tarefa_persistente(
+                    tarefa["id"], "Coletor interrompido; retomada sob trava exclusiva")
+            if tarefas:
+                encerrar_execucoes_abandonadas(cid)
+    return recuperadas
+
+
 def job_fila_persistente():
     """Drain one durable task per tick; disabled unless explicitly enabled."""
     if os.getenv("DURABLE_QUEUE_WORKER_ENABLED", "").lower() != "true":
         return
     try:
+        recuperar_tarefas_sem_coletor()
         processar_tarefa_persistente_uma()
     except Exception:
         # Keep legacy scheduling alive even if the durable queue is unavailable.
         app.logger.exception("Falha no worker da fila persistente")
 
 
+def job_visitas_todas_contas():
+    """One small rotating batch per run, protected against parallel workers."""
+    if os.getenv("VISITS_AUTO_ENABLED", "0") != "1":
+        return
+    import psycopg2
+    from copas_visits_store import collect
+    lock_conn = None
+    try:
+        lock_conn = psycopg2.connect(os.environ["DATABASE_URL"], connect_timeout=10)
+        lock_conn.autocommit = True
+        with lock_conn.cursor() as cur:
+            cur.execute("SELECT pg_try_advisory_lock(%s)", (880142,))
+            if not cur.fetchone()[0]:
+                return
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS item_visits_checked (
+                    conexao_id INTEGER NOT NULL, item_id TEXT NOT NULL,
+                    consultado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (conexao_id, item_id)
+                )
+            """)
+            from visits_refresh import DUE_STORE_SQL, REFRESH_HOURS
+            cur.execute(DUE_STORE_SQL, (REFRESH_HOURS,))
+            record = cur.fetchone()
+            if record:
+                # Reuse the same refresh path as store synchronization before
+                # the collector opens its own connection and reads the token.
+                with banco() as conn:
+                    contas = consultar(conn, "SELECT * FROM conexoes WHERE id=%s AND status='ativa'", (record[0],))
+                if not contas or not token_atual(contas[0]):
+                    app.logger.warning("visits_batch_auth_unavailable connection_id=%s",record[0])
+                    return
+                resultado = collect(limit=40, connection_id=record[0], rotate=True)
+                if resultado.get("falhas"):
+                    app.logger.warning("visits_batch_result %s",resultado)
+                else:
+                    app.logger.info("visits_batch_result %s",resultado)
+    except Exception:
+        app.logger.exception("visits_all_accounts_batch_failed")
+    finally:
+        if lock_conn is not None:
+            try:
+                with lock_conn.cursor() as cur:
+                    cur.execute("SELECT pg_advisory_unlock(%s)", (880142,))
+            except Exception:
+                pass
+            lock_conn.close()
+
+
+def job_sincronizacao_lojas_novas():
+    """Queue newly connected stores without local items, avoiding repeated jobs."""
+    try:
+        with banco() as conn:
+            lojas = consultar(conn, """
+                SELECT c.id FROM conexoes c
+                WHERE c.status='ativa' AND c.access_token IS NOT NULL
+                  AND c.user_id IS NOT NULL
+                  AND NOT EXISTS (SELECT 1 FROM anuncios a WHERE a.conexao_id=c.id)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM sincronizacao_execucoes e
+                      WHERE e.conexao_id=c.id AND e.status='executando'
+                  )
+                ORDER BY c.id
+                LIMIT 3
+            """)
+        for loja in lojas:
+            enfileirar_atualizacao(loja["id"])
+    except Exception:
+        app.logger.exception("new_store_initial_sync_failed")
+
+
+def job_concorrencia():
+    try:
+        collect_due(banco, consultar, executar, requests.get)
+    except Exception:
+        app.logger.exception("competitor_collection_failed")
+
+
+def job_token_encryption():
+    try:
+        count = migrate_tokens(banco)
+        if count:
+            app.logger.info("ml_tokens_encrypted count=%s", count)
+    except Exception:
+        app.logger.error("ml_token_encryption_failed")
+
+
+def job_keiper_ai():
+    try:
+        from keiper_ai_store import run_one
+        run_one(banco, consultar, executar, app.logger)
+    except Exception:
+        app.logger.warning('keiper_ai_daily_unavailable')
+
+
+def job_kyra_campaigns():
+    try:
+        from kyra_campaign_store import run_one
+        run_one(banco, consultar, executar, app.logger)
+    except Exception:
+        app.logger.warning('kyra_campaign_daily_unavailable')
+
+
+def job_goal_notifications():
+    try:
+        from goal_notifications import dispatch
+        dispatch(banco, consultar, executar, int(time.time()))
+    except Exception:
+        app.logger.warning('goal_notifications_unavailable')
+
+
 scheduler = BackgroundScheduler()
+scheduler.add_job(job_goal_notifications, 'interval', minutes=1,
+                  id='goal_notifications', max_instances=1, coalesce=True)
+scheduler.add_job(job_kyra_campaigns, 'interval', minutes=1,
+                  next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30),
+                  id='kyra_campaign_daily', max_instances=1, coalesce=True)
+scheduler.add_job(job_keiper_ai, 'interval', minutes=1,
+                  id='keiper_ai_daily', max_instances=1, coalesce=True)
+scheduler.add_job(job_token_encryption, "interval", minutes=1,
+                  next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=10),
+                  max_instances=1, coalesce=True)
+scheduler.add_job(job_concorrencia, "interval", minutes=1,
+                  max_instances=1, coalesce=True)
+scheduler.add_job(job_sincronizacao_lojas_novas, "interval", minutes=5,
+                  max_instances=1, coalesce=True)
+scheduler.add_job(job_visitas_todas_contas, "interval", minutes=1,
+                  max_instances=1, coalesce=True)
 scheduler.add_job(job_refresh, "interval", minutes=30)
 scheduler.add_job(job_fila_persistente, "interval", minutes=1,
                   max_instances=1, coalesce=True)

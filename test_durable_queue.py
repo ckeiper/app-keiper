@@ -1,7 +1,8 @@
 import contextlib
+import os
 import time
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import psycopg2
 from test_listing_details import main_function
@@ -9,14 +10,21 @@ from test_listing_details import main_function
 
 class DurableQueueTests(unittest.TestCase):
     def setUp(self):
+        self.env = patch.dict(os.environ, {"DURABLE_QUEUE_STORE_IDS": "5"})
+        self.env.start()
+        self.addCleanup(self.env.stop)
         # Load production functions into an isolated namespace without importing
         # main.py (which starts the scheduler and connects to the database).
         self.conn = Mock()
         self.ns = {
+            "store_sync_lock": lambda connect,cid:contextlib.nullcontext(True),
+            "encerrar_execucoes_abandonadas": Mock(),
             "banco": lambda: contextlib.nullcontext(self.conn),
             "consultar": Mock(),
             "executar": Mock(),
             "time": time,
+            "os": os,
+            "recuperar_tarefas_sem_coletor": Mock(),
             "psycopg2": psycopg2,
             "iniciar_heartbeat_tarefa": Mock(return_value=Mock()),
         }
@@ -38,6 +46,46 @@ class DurableQueueTests(unittest.TestCase):
         self.ns["reservar_tarefa_persistente"](agora=100)
         query = self.ns["consultar"].call_args.args[1]
         self.assertIn("a.conexao_id=t.conexao_id", query)
+
+    def test_claim_is_scoped_to_active_pilot_store(self):
+        self.ns["consultar"].return_value = []
+        self.ns["reservar_tarefa_persistente"](agora=100)
+        query, params = self.ns["consultar"].call_args.args[1:]
+        self.assertIn("t.conexao_id = ANY(%s)", query)
+        self.assertIn("c.status='ativa'", query)
+        self.assertEqual(params, (100, [5]))
+
+    def test_claim_without_allowlist_never_touches_database(self):
+        with patch.dict(os.environ, {"DURABLE_QUEUE_STORE_IDS": ""}):
+            self.assertIsNone(self.ns["reservar_tarefa_persistente"]())
+        self.ns["consultar"].assert_not_called()
+
+    def test_exception_stops_heartbeat_and_sanitizes_retry_reason(self):
+        main_function("processar_tarefa_persistente_uma", self.ns)
+        self.ns.update(reservar_tarefa_persistente=Mock(return_value={"id": 10, "conexao_id": 5}),
+                       registrar_execucao_inicio=Mock(return_value=20),
+                       executar_atualizacao=Mock(side_effect=ValueError("secret-token")),
+                       registrar_execucao_fim=Mock(), reagendar_tarefa_persistente=Mock())
+        self.assertFalse(self.ns["processar_tarefa_persistente_uma"]())
+        self.ns["iniciar_heartbeat_tarefa"].return_value.set.assert_called_once()
+        self.ns["reagendar_tarefa_persistente"].assert_called_once_with(10, "ValueError")
+
+    def test_reservation_failure_never_starts_collection(self):
+        main_function("processar_tarefa_persistente_uma", self.ns)
+        self.ns.update(reservar_tarefa_persistente=Mock(return_value={"id": 10, "conexao_id": 5}),
+                       registrar_execucao_inicio=Mock(side_effect=RuntimeError("database")),
+                       executar_atualizacao=Mock(), reagendar_tarefa_persistente=Mock())
+        self.assertFalse(self.ns["processar_tarefa_persistente_uma"]())
+        self.ns["executar_atualizacao"].assert_not_called()
+
+    def test_busy_full_collection_lock_never_retires_telemetry_or_collects(self):
+        main_function("processar_tarefa_persistente_uma", self.ns)
+        self.ns.update(reservar_tarefa_persistente=Mock(return_value={"id": 10, "conexao_id": 5}),
+                       store_sync_lock=lambda connect,cid:contextlib.nullcontext(False),
+                       executar_atualizacao=Mock(), reagendar_tarefa_persistente=Mock())
+        self.assertFalse(self.ns["processar_tarefa_persistente_uma"]())
+        self.ns["encerrar_execucoes_abandonadas"].assert_not_called()
+        self.ns["executar_atualizacao"].assert_not_called()
 
     def test_worker_empty_queue_does_not_run_sync(self):
         main_function("processar_tarefa_persistente_uma", self.ns)

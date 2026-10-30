@@ -1,0 +1,53 @@
+"""Synthetic timeline fixtures using the production shell and renderer; no DB or API."""
+import sys
+from datetime import date,datetime,timedelta,timezone
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+# Existing preview initializes the shared shell without importing main.
+from catalog_preview import page,dest
+from listing_timeline import render
+from listing_ranking import ranking_metrics
+from investigation_evidence import build as build_evidence, render as render_evidence
+
+end=date(2026,10,20)
+covered=[(end-timedelta(days=i)).isoformat() for i in range(14)]
+orders=[];items=[];visits=[];full=[];offers=[]
+for i in range(14):
+    day=end-timedelta(days=13-i)
+    stamp=int(datetime(day.year,day.month,day.day,12,tzinfo=timezone(timedelta(hours=-3))).timestamp())
+    orders.append(dict(conexao_id=1,pedido_id=str(i),status='paid',total=200-i*5,moeda='BRL',criado_em=day.isoformat()+'T12:00:00-03:00',pagamentos_json=[{'status':'approved'}],unidades=1))
+    items.append(dict(conexao_id=1,pedido_id=str(i),item_id='MLB100000',quantidade=1,preco_unitario=200-i*5))
+    if i%4:
+        visits.append(dict(dia=day,visitas=40+i*3))
+        full.append(dict(observed_at=stamp,logistics='fulfillment',state='empty' if i>10 else 'available'))
+    if i>8:
+        offers.extend([dict(observed_at=stamp-7200,price=80,promotion=True,confirmed=True),dict(observed_at=stamp+3600,price=100,promotion=False,confirmed=True)])
+for name,args in [('timeline-visitas',{}),('timeline-preco',{'comparar_linha':'preco'}),('timeline-page2',{'comparar_linha':'preco','pagina_linha':'2'}),('timeline-short',{'comparar_linha':'preco','janela_linha':'7'})]:
+    ranked=ranking_metrics(orders,items,covered,['MLB100000'],end=end,days=7)
+    panel=render_evidence(build_evidence(ranked,'MLB100000',visits,full,[],end,offers=offers),1,end)
+    body='<p>Dados fictícios para validação automática.</p>'+panel+render('MLB100000',orders,items,covered,full,visits,offers,end,args=args)
+    (dest/(name+'.html')).write_text(page('Linha do tempo',1,'Loja de demonstração','desempenho',body),encoding='utf-8')
+complete_visits=[dict(dia=end-timedelta(days=13-i),visitas=100 if i<7 else 50) for i in range(14)]
+ranked=ranking_metrics(orders,items,covered,['MLB100000'],end=end,days=7)
+panel=render_evidence(build_evidence(ranked,'MLB100000',complete_visits,full,[],end,offers=offers),1,end)
+body='<p>Dados fictícios para validação automática.</p>'+panel+render('MLB100000',orders,items,covered,full,complete_visits,offers,end)
+(dest/'timeline-drivers.html').write_text(page('Fatores do faturamento',1,'Loja de demonstração','desempenho',body),encoding='utf-8')
+print('Synthetic timeline previews rendered.')
+
+from offer_history import render as render_offers
+from test_listing_competitiveness import data as competitive_data,END as competitive_end,STAMP as competitive_stamp
+fixture=competitive_data()
+fixture.update(current=None,targets_limited=False,history_limited=False)
+(dest/'competitiveness-preview.html').write_text(page('Competitividade observada',1,'Loja de demonstração','anuncios','<p>Dados fictícios para teste.</p>'+render_offers(fixture,1,'MLB100',competitive_end)),encoding='utf-8')
+
+from competitive_sales_context import render as render_competitive_sales
+from test_competitive_sales_context import fixture as context_fixture
+for mode in ['decline','stable','missing-prices','missing-sales','limited','zero']:
+    ranking,offers=context_fixture()
+    if mode=='stable':ranking['rows']['MLB1']['value']=300
+    if mode=='missing-prices':offers['competitors']=[r for r in offers['competitors'] if r['observed_at']>competitive_stamp-86400]
+    if mode=='missing-sales':ranking['available']=False
+    if mode=='limited':offers['history_limited']=True
+    if mode=='zero':ranking['rows']['MLB1']['previous_value']=0
+    body='<p>Dados fictícios para teste.</p>'+render_competitive_sales(ranking,'MLB1',offers,competitive_end)
+    (dest/('competitive-sales-'+mode+'.html')).write_text(page('Vendas e competitividade',1,'Loja de demonstração','anuncios',body),encoding='utf-8')

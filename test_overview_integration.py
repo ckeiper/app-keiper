@@ -1,3 +1,4 @@
+from auth_test_support import database_session
 """Real PostgreSQL/Flask checks, on the same disposable database as sales CI."""
 import os
 import json
@@ -19,6 +20,8 @@ class OverviewIntegrationTests(unittest.TestCase):
         main.app.config['TESTING']=True
 
     def setUp(self):
+        from overview_cache import invalidate_overview_cache
+        invalidate_overview_cache()
         m=self.m
         self.ids=[]
         with m.banco() as conn:
@@ -37,16 +40,39 @@ class OverviewIntegrationTests(unittest.TestCase):
                     m.executar(conn,'INSERT INTO vendas_cobertura VALUES(%s,%s,%s)',
                                (cid,f'2026-10-{d:02}',int(time.time())))
         self.client=m.app.test_client()
-        with self.client.session_transaction() as session:
+        with database_session(self.client) as session:
             session['usuario_id']=1
             session['tipo']='admin'
-        self.url='/painel?periodo=personalizado&inicio=2026-10-10&fim=2026-10-11'
+        self.url='/painel/analise?periodo=personalizado&inicio=2026-10-10&fim=2026-10-11'
 
     def tearDown(self):
         with self.m.banco() as conn:
             for table in ('pedidos_itens','pedidos','vendas_cobertura','erros'):
                 self.m.executar(conn,'DELETE FROM '+table+' WHERE conexao_id=ANY(%s)',(self.ids,))
             self.m.executar(conn,'DELETE FROM conexoes WHERE id=ANY(%s)',(self.ids,))
+
+    def test_landing_directory_skips_sales_and_visits_queries(self):
+        m = self.m
+        calls = []
+        original = m.consultar
+        def query(conn, sql, params=None):
+            calls.append(sql)
+            return original(conn, sql, params)
+        with patch.object(m, 'consultar', side_effect=query), \
+             patch.object(m, 'load_overview', side_effect=AssertionError('sales overview on directory')), \
+             patch('visits_overview.load_visits_card', side_effect=AssertionError('visits on directory')), \
+             patch.object(m, 'HOME_WIDGET', '<section id="crm-below-cards-test"></section>'):
+            response = self.client.get('/painel')
+        self.assertEqual(response.status_code, 200)
+        page = response.get_data(as_text=True)
+        self.assertIn('Suas lojas', page)
+        self.assertNotIn("id='kh-search'", page)
+        self.assertIn("href='/painel/" + str(self.ids[0]) + "'", page)
+        self.assertIn("href='/crm'", page)
+        self.assertLess(page.index("href='/painel/" + str(self.ids[0]) + "'"),
+                        page.index('id="crm-below-cards-test"'))
+        self.assertIn("href='/painel/analise'", page)
+        self.assertFalse(any('FROM pedidos' in sql or 'FROM visitas' in sql for sql in calls))
 
     def test_admin_metrics_alerts_and_constant_number_of_queries(self):
         calls=[]
@@ -58,14 +84,17 @@ class OverviewIntegrationTests(unittest.TestCase):
             response=self.client.get(self.url)
             enqueue.assert_not_called()
         self.assertEqual(response.status_code,200)
-        self.assertEqual(len(calls),5)
+        auth_calls = [sql for sql in calls if 'FROM usuarios WHERE id=%s' in sql]
+        self.assertEqual(len(auth_calls), 1)
+        self.assertEqual(len(calls), 6)  # Five report reads plus one account validation.
         view=response.get_data(as_text=True)
         self.assertIn('2 de 3 lojas na consolidação',view)
         self.assertIn('R$ 400,00',view)
         self.assertIn('Anterior: R$ 550,00',view)
         self.assertIn('Faturamento caiu 60.0%',view)
         self.assertIn('Pedidos caíram 60.0% (15 pedidos)',view)
-        self.assertNotIn('Visitas',view)
+        self.assertIn('Visitas · últimos 7 dias',view)
+        self.assertIn('Indisponível',view)
         self.assertNotIn('conversão',view)
         self.assertIn('/painel/legado',view)
         self.assertIn("aria-label='Contas conectadas'", view)
@@ -87,7 +116,7 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertIn('R$ 400,00', self.client.get(self.url).get_data(as_text=True))
 
     def test_customer_only_reads_and_sees_assigned_shop(self):
-        with self.client.session_transaction() as session:
+        with database_session(self.client) as session:
             session['tipo']='cliente'
             session['conexao_id']=self.ids[0]
         calls=[]
@@ -103,12 +132,17 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertIn("aria-label='Contas conectadas'", view)
         self.assertNotIn("href='/painel/" + str(self.ids[1]) + "'", view)
         self.assertIn('1 de 1 lojas na consolidação',view)
-        self.assertTrue(all(params[0]==[self.ids[0]] for sql,params in calls[1:]))
+        auth_calls = [(sql,params) for sql,params in calls if 'FROM usuarios WHERE id=%s' in sql]
+        self.assertEqual(len(auth_calls), 1)
+        with database_session(self.client) as state:
+            self.assertEqual(auth_calls[0][1], (state['usuario_id'],))
+        report_calls = [(sql,params) for sql,params in calls if 'FROM usuarios WHERE id=%s' not in sql]
+        self.assertTrue(all(params[0]==[self.ids[0]] for sql,params in report_calls[1:]))
         self.assertNotIn('/usuarios',view)
 
     def test_anonymous_and_unassigned_users_do_not_access_other_shops(self):
         self.assertEqual(self.m.app.test_client().get('/painel').status_code,302)
-        with self.client.session_transaction() as session:
+        with database_session(self.client) as session:
             session['tipo']='cliente'
             session['conexao_id']=None
         view=self.client.get(self.url).get_data(as_text=True)
@@ -152,7 +186,7 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertEqual(data['included'],1)
         self.assertEqual(data['totals']['current']['revenue'],Decimal(21100))
         self.assertEqual(data['totals']['current']['orders'],21010)
-        self.assertLessEqual(max(counts),1000)
+        self.assertLessEqual(max(counts),4000)
         with m.banco() as conn:
             m.executar(conn,'ANALYZE pedidos')
             plan=m.consultar(conn, '''EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON)
@@ -314,22 +348,24 @@ class OverviewIntegrationTests(unittest.TestCase):
         self.assertIn(f"id='nome-{cid}'",view)
         self.assertIn(f'editarNome({cid})',view)
         self.assertIn("document.getElementById('nome-' + id)",view)
-        renamed=self.client.post(f'/renomear/{cid}',data={'cliente':'Loja renomeada <teste>'})
+        with database_session(self.client) as state:
+            csrf = state['_csrf']
+        renamed=self.client.post(f'/renomear/{cid}',headers={'X-CSRF-Token':csrf},data={'cliente':'Loja renomeada <teste>'})
         self.assertEqual(renamed.status_code,200)
         self.assertTrue(renamed.get_json()['ok'])
         view=self.client.get(self.url).get_data(as_text=True)
         self.assertIn(f"id='nome-{cid}'>Loja renomeada &lt;teste&gt;",view)
-        with self.client.session_transaction() as session:
+        with database_session(self.client) as session:
             session['tipo']='cliente'
             session['conexao_id']=cid
-        self.assertEqual(self.client.post(f'/renomear/{self.ids[1]}',data={'cliente':'Negado'}).status_code,403)
+        self.assertEqual(self.client.post(f'/renomear/{self.ids[1]}',headers={'X-CSRF-Token':csrf},data={'cliente':'Negado'}).status_code,403)
 
     def test_legacy_dashboard_and_invalid_filters_remain_accessible(self):
         with patch.object(self.m,'enfileirar_atualizacao',return_value=True):
             legacy=self.client.get('/painel/legado')
             self.assertEqual(legacy.status_code,200)
             self.assertIn('/painel/legado?r=1',legacy.get_data(as_text=True))
-        response=self.client.get('/painel?periodo=invalid')
+        response=self.client.get('/painel/analise?periodo=invalid')
         self.assertEqual(response.status_code,200)
         self.assertIn('Selecione 7, 15, 30, 60 ou 90 dias',response.get_data(as_text=True))
 
@@ -341,6 +377,8 @@ class OverviewIntegrationTests(unittest.TestCase):
                 with self.m.banco() as conn:
                     self.m.executar(conn, "UPDATE pedidos SET total=%s WHERE conexao_id=%s AND pedido_id LIKE %s",
                                     (unit_total, cid, 'c%'))
+                from overview_cache import invalidate_overview_cache
+                invalidate_overview_cache()
                 with patch.object(self.m.requests, 'get', side_effect=AssertionError('unexpected API read')), \
                      patch.object(self.m, 'enfileirar_atualizacao') as enqueue:
                     response = self.client.get(self.url)
@@ -383,7 +421,7 @@ class OverviewIntegrationTests(unittest.TestCase):
                 self.assertEqual(initial.status_code, 200)
                 self.assertIn('Visão Geral 2.0', initial.get_data(as_text=True))
                 self.assertEqual(self.client.get('/painel/legado').status_code, 200)
-                sales = self.client.get(self.url.replace('/painel?', f'/vendas/{cid}?'))
+                sales = self.client.get(self.url.replace('/painel/analise?', f'/vendas/{cid}?'))
                 self.assertEqual(sales.status_code, 200)
                 self.assertIn('R$ 100,00', sales.get_data(as_text=True))
                 listing = self.client.get(f'/anuncios/{cid}')
@@ -398,7 +436,7 @@ class OverviewIntegrationTests(unittest.TestCase):
                 self.assertIn('Campanha integrada', campaigns.get_data(as_text=True))
                 for path in (self.url, f'/vendas/{cid}', f'/anuncios/{cid}', f'/promocoes/{cid}'):
                     self.assertEqual(m.app.test_client().get(path).status_code, 302)
-                with self.client.session_transaction() as session:
+                with database_session(self.client) as session:
                     session.update(tipo='cliente', conexao_id=self.ids[1])
                 for path in (f'/vendas/{cid}', f'/anuncios/{cid}', f'/promocoes/{cid}'):
                     denied = self.client.get(path).get_data(as_text=True)
