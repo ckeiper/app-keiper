@@ -697,7 +697,8 @@
         294,
         317,
         319,
-        320
+        320,
+        321
       ],
       "numero_original": null,
       "prioridade": 2,
@@ -1455,6 +1456,20 @@
       "total": 44,
       "prs": [
         320
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-30",
+      "resumo": "Resumo das próximas ações da leitura de conteúdo; requisitos condicionais pendentes e valores não verificáveis separados das conferências. Conteúdo permanece parcial, sem mudança na contagem de frentes concluídas.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        321
       ]
     }
   ],
