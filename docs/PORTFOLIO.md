@@ -9,3 +9,9 @@ TACOS consolidado é soma dos gastos dividida pela soma das vendas, somente com 
 ## Gráficos interativos — em validação
 
 Faturamento com linha tracejada do período anterior de igual duração, alinhada pelo índice do dia; nenhuma linha atravessa lacunas. Ads mantém somente a série atual, pois o endpoint não carrega Ads anteriores. Consulta por mouse, toque ou seletor nativo de teclado com saída acessível. Escala monetária e datas curtas; uma coluna por dia. Reaproveita séries já carregadas, sem consultas adicionais. O padrão de ajuda contextual foi publicado no PR #332 (deploy dep-dbimtgdg1s2s73f6fd10). Fundo e filtros têm correção separada no PR #333. Aplicação da ajuda às demais telas continua pendente.
+
+## Contribuição por cliente — aguardando testes de integração
+
+Cards alfabéticos mostram a diferença em reais entre os períodos e abrem as vendas da loja nas mesmas datas. Os pontos percentuais dividem cada diferença pelo faturamento anterior completo da carteira, nunca pela diferença líquida (que pode ser zero). Sem base completa, mantém diferenças individuais conhecidas e oculta total e pontos; zero conhecido é distinto de ausência. A soma das diferenças reconcilia a diferença total para a mesma carteira autorizada. Não atribui causa nem distingue aquisição de clientes de crescimento orgânico. Reaproveita os resumos existentes, sem consultas novas ou mudanças em dados reais. Testes de compensação entre ganhos/perdas, base ausente/zero, vazio, escaping e navegação.
+
+Gráficos interativos do PR #334 publicados no commit 5cfc0d6a0ad8f0de653dcecd59831c9cec374746, deploy dep-dbin7lfb9u1s73au7ue0 live em 31/10/2026 01:54 Brasília. Fundo/filtros #333 também publicados. A padronização da ajuda contextual nas outras telas permanece pendente.
