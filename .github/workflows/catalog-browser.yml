@@ -61,6 +61,8 @@ on:
       - 'scripts/listing_onboarding*'
       - 'portfolio_view.py'
       - 'portfolio_charts.py'
+      - 'portfolio_impact.py'
+      - 'test_portfolio_impact.py'
       - 'test_portfolio_view.py'
       - 'scripts/portfolio*'
       - 'listing_image_diagnostic.py'

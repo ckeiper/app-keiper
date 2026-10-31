@@ -34,7 +34,7 @@ def combine(data,ads):
         shop=report['shop'];records=grouped.get(shop['id'],{});values=[amount(records[d]['gasto']) if d in records else None for d in days]
         spend=sum(values,Decimal(0)) if all(v is not None for v in values) else None
         sales=report['current']['revenue'];previous=report['previous']['revenue']
-        rows.append(dict(id=shop['id'],name=shop['cliente'],sales=sales,ads=spend,
+        rows.append(dict(id=shop['id'],name=shop['cliente'],sales=sales,previous_sales=previous,ads=spend,
             tacos=spend/sales*100 if spend is not None and sales else None,
             change=change(sales,previous),covered=sum(v is not None for v in values),days=len(days),
             sync=min((records[d].get('atualizado_em') or 0 for d in days if d in records),default=None),
@@ -57,6 +57,7 @@ def help_tip(label,text):
 
 def render(model,args):
     from portfolio_charts import chart,SCRIPT
+    from portfolio_impact import render as render_impact
     esc=lambda v:escape(str(v),quote=True)
     out=CSS+'<main class="pf portfolio"><header class="pf-hero"><h2>Visão da Carteira</h2></header><form class="pf-card portfolio-filter" method="get"><label>Período<select name="periodo">'
     for key,label in [('hoje','Hoje'),('ontem','Ontem'),('7','Últimos 7 dias'),('mes','Mês atual'),('anterior','Mês anterior'),('personalizado','Personalizado')]:
@@ -68,6 +69,7 @@ def render(model,args):
     n=len(model['rows']);sales_n=sum(r['sales'] is not None for r in model['rows']);ads_n=sum(r['ads'] is not None for r in model['rows'])
     out+='</div></section>'
     out+=chart(model['rows'],'daily_sales',model['days'],'Faturamento diário')+chart(model['rows'],'daily_ads',model['days'],'Investimento diário em Ads')
+    out+=render_impact(model)
     out+='<section class="pf-card"><h3>Clientes</h3><div class="portfolio-scroll"><table><thead><tr><th>Cliente</th><th>Faturamento</th><th>Variação'+help_tip('Variação','Compara com o período anterior de igual duração.')+'</th><th>Ads</th><th>TACOS</th><th>Participação'+help_tip('Participação','Faturamento da loja dividido pelo faturamento completo da carteira.')+'</th><th>Cobertura'+help_tip('Cobertura','Dias com registros e datas de leitura. Totais indisponíveis quando faltam dados de alguma loja. O dia atual pode estar em andamento.')+'</th></tr></thead><tbody>'
     from datetime import datetime
     from sales_metrics import SAO_PAULO
