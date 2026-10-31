@@ -14,6 +14,7 @@ from content_attribute_units import compare as compare_units, render as render_u
 from content_action_summary import render as render_actions
 from content_boolean_attributes import compare as compare_boolean, render as render_boolean
 from content_list_attributes import compare as compare_lists, render as render_lists
+from content_number_attributes import compare as compare_numbers, render as render_numbers
 from content_technical_specs import compare as compare_specs, render as render_specs
 
 
@@ -89,6 +90,7 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None,
     result['attribute_units']=dict(state='unknown',message='Categoria do anúncio não verificável.')
     result['boolean_values']=dict(state='unknown',message='Categoria do anúncio não verificável.')
     result['list_values']=dict(state='unknown',message='Categoria do anúncio não verificável.')
+    result['number_values']=dict(state='unknown',message='Categoria do anúncio não verificável.')
     if include_specs:result['technical_specs']=dict(state='unknown',message='Categoria do anúncio não verificável.')
     category_attributes=None
     category=item.get('category_id')
@@ -100,6 +102,7 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None,
             result['attribute_units']=compare_units(payload,item)
             result['boolean_values']=compare_boolean(payload,item)
             result['list_values']=compare_lists(payload,item)
+            result['number_values']=compare_numbers(payload,item)
             if result['requirements'].get('state') == 'read' and any(r['conditional'] for r in result['requirements']['rows']):
                 conditional=evaluate_conditional(token,category,item,result['description'],request_post)
                 result['requirements']['conditional']=conditional
@@ -113,6 +116,7 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None,
             result['attribute_units']=dict(state='unknown',message=str(exc))
             result['boolean_values']=dict(state='unknown',message=str(exc))
             result['list_values']=dict(state='unknown',message=str(exc))
+            result['number_values']=dict(state='unknown',message=str(exc))
             rate_limited=rate_limited or isinstance(exc,ContentRateLimited)
         if include_specs and not rate_limited:
             try:
@@ -163,6 +167,7 @@ def render(cid, item_id, title, csrf, result=None):
             out += render_units(result.get('attribute_units',{}))
             out += render_boolean(result.get('boolean_values',{}))
             out += render_lists(result.get('list_values',{}))
+            out += render_numbers(result.get('number_values',{}))
             if 'technical_specs' in result:out += render_specs(result['technical_specs'])
         out += '</section>'
     return out+'<section class="pf-card"><h3>Continuar a conferência</h3><p>Confira imagens, especificações, compatibilidade e dúvidas reais antes de registrar seu parecer. A oferta pode mudar depois desta leitura. Nenhum histórico de revisão foi substituído.</p><a href="'+path+'">Registrar evidências no checklist ↗</a></section></div><style>html[data-theme=light] body .content-snapshot .pf-hero{background:#e6f0fd!important;color:#193a60!important}.cs-text{white-space:pre-wrap;overflow-wrap:anywhere}.cs-attributes{overflow-wrap:anywhere}.cs-attributes dt{font-weight:700;margin-top:12px}.cs-attributes dd{margin:4px 0 0}</style>'

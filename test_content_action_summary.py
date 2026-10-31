@@ -5,7 +5,7 @@ from content_action_summary import actions, render
 
 def snapshot(rows=None):
     return dict(requirements=dict(state='read', rows=rows or [], total=len(rows or [])),
-                attribute_units=dict(state='read', rows=[]), boolean_values=dict(state='read', rows=[]), list_values=dict(state='read', rows=[]))
+                attribute_units=dict(state='read', rows=[]), boolean_values=dict(state='read', rows=[]), list_values=dict(state='read', rows=[]), number_values=dict(state='read', rows=[]))
 
 
 class ActionSummaryTests(unittest.TestCase):

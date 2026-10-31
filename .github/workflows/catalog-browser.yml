@@ -74,6 +74,9 @@ on:
       - 'content_technical_specs.py'
       - 'test_content_technical_specs.py'
       - 'scripts/content_technical_specs*'
+      - 'content_number_attributes.py'
+      - 'test_content_number_attributes.py'
+      - 'scripts/content_number_attributes*'
       - 'content_list_attributes.py'
       - 'test_content_list_attributes.py'
       - 'scripts/content_list_attributes*'
@@ -182,6 +185,7 @@ jobs:
       - run: python scripts/listing_questions_preview.py
       - run: python scripts/listing_content_preview.py
       - run: python scripts/listing_content_snapshot_preview.py
+      - run: python scripts/content_number_attributes_preview.py
       - run: python scripts/content_list_attributes_preview.py
       - run: python scripts/content_boolean_attributes_preview.py
       - run: python scripts/content_technical_specs_preview.py
@@ -220,6 +224,7 @@ jobs:
       - run: node scripts/listing_questions_browser_check.cjs
       - run: node scripts/listing_content_browser_check.cjs
       - run: node scripts/listing_content_snapshot_browser_check.cjs
+      - run: node scripts/content_number_attributes_browser_check.cjs
       - run: node scripts/content_list_attributes_browser_check.cjs
       - run: node scripts/content_boolean_attributes_browser_check.cjs
       - run: node scripts/content_technical_specs_browser_check.cjs
