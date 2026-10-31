@@ -27,6 +27,9 @@ def init_schema(conn,execute):
     execute(conn,'''CREATE INDEX IF NOT EXISTS listing_content_scope
         ON listing_content_reviews(conexao_id,item_id,criterion,id DESC)''')
 
+    from attribute_edit_store import init_schema as init_attribute_edits
+    init_attribute_edits(conn,execute)
+
 
 def validate(form):
     criterion=form.get('criterion');verdict=form.get('verdict');note=str(form.get('note','')).strip()

@@ -313,11 +313,49 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
-      "atualizado_em": "2026-10-31T11:34:25-03:00",
-      "lacuna": "54 cenários locais de navegador e testes específicos aprovados; CI do PR e publicação pendentes. Inventário cobre somente a resposta consultada, não valida integralmente valores ou aplicabilidade e limita detalhe visual a 100 variações.",
+      "etapa": "publicada",
+      "atualizado_em": "2026-10-31T11:42:31.752-03:00",
+      "lacuna": "Inventário publicado; não valida todos os valores ou aplicabilidade semântica. Detalhes das primeiras 100 variações e consulta autenticada real ainda não exercitada.",
       "pr": 336,
-      "head_sha": "3ebad9b866acd4753e014191cae7f4c71bc97874"
+      "head_sha": "c133e301e5fdd4e5482b9fc5035fea0a51f25bd1",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41210953301,
+          "resultado": "success",
+          "head_sha": "c133e301e5fdd4e5482b9fc5035fea0a51f25bd1"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41210953280,
+          "resultado": "success",
+          "head_sha": "c133e301e5fdd4e5482b9fc5035fea0a51f25bd1"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41210953289,
+          "resultado": "success",
+          "head_sha": "c133e301e5fdd4e5482b9fc5035fea0a51f25bd1"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbivrmlg1s2s73fehmbg",
+        "commit": "4e0d4cf2b07ade215277a7b8c6291762ce43ff0d",
+        "status": "live",
+        "horario_brasilia": "2026-10-31T11:42:31.752-03:00"
+      }
+    },
+    {
+      "id": "ficha-preenchimento-assistido-337",
+      "escopo": "Sugestões textuais explícitas para atributos comuns vazios, incluindo ocultos, revisão selecionada e envio único com intenção durável e confirmação por leitura.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 337,
+      "head_sha": "fe900c3a3d0c503f804159b2b118b2e1be46f3ca",
+      "atualizado_em": "2026-10-31T14:04:46-03:00",
+      "lacuna": "Testes locais e navegador com fixtures aprovados; CI com PostgreSQL e deploy em validação. Sem teste de gravação em anúncio real. Não cobre campos exclusivos de variação, catálogo, identidade, UP compartilhado ou extração semântica livre."
     }
   ]
 }

@@ -138,7 +138,7 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None,
 def render(cid, item_id, title, csrf, result=None):
     esc = lambda value: escape(str(value), quote=True)
     path = '/anuncios/'+str(int(cid))+'/'+esc(item_id)+'/conteudo'
-    out = CSS+'<div class="pf content-snapshot"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Conferência de conteúdo</span><h2>Conteúdo atual do anúncio</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="'+path+'">← Voltar ao checklist de conteúdo</a><p>Consulte o que o Mercado Livre retorna agora para apoiar sua revisão. A leitura não aprova critérios nem mede qualidade ou impacto nas vendas.</p></header><section class="pf-card"><h3>Consultar no Mercado Livre</h3><p>Verifica a conta autorizada e a propriedade do anúncio. Não altera a oferta nem os pareceres registrados. A leitura aparece apenas nesta resposta; registre sua evidência no checklist.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><button>Consultar conteúdo atual</button><button name="ficha_tecnica" value="1">Consultar conteúdo e ficha técnica</button></form></section>'
+    out = CSS+'<div class="pf content-snapshot"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Conferência de conteúdo</span><h2>Conteúdo atual do anúncio</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="'+path+'">← Voltar ao checklist de conteúdo</a><p>Consulte o que o Mercado Livre retorna agora para apoiar sua revisão. A leitura não aprova critérios nem mede qualidade ou impacto nas vendas.</p></header><section class="pf-card"><h3>Consultar no Mercado Livre</h3><p>Verifica a conta autorizada e a propriedade do anúncio. Não altera a oferta nem os pareceres registrados. A leitura aparece apenas nesta resposta; registre sua evidência no checklist.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><button>Consultar conteúdo atual</button><button name="ficha_tecnica" value="1">Consultar conteúdo e ficha técnica</button><input type="hidden" name="analysis_key" value="'+secrets.token_urlsafe(24)+'"><button name="action" value="analyze" formaction="/anuncios/'+str(int(cid))+'/'+esc(item_id)+'/completar-ficha">Analisar e completar ficha técnica</button></form></section>'
     if result:
         stamp = result['checked_at'].astimezone(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y às %H:%M:%S · Brasília')
         out += '<section class="pf-card" id="content-snapshot-result"><h3>Leitura consultada</h3><p>'+esc(stamp)+'</p>'
@@ -182,6 +182,8 @@ def render(cid, item_id, title, csrf, result=None):
 
 
 def register(app, login_required, can_view, bank, query, shop_page, resolve_token, request_get, request_post=requests.post):
+    from attribute_editor import register as register_attribute_editor
+    register_attribute_editor(app,login_required,can_view,bank,query,shop_page,resolve_token,request_get)
     @app.route('/anuncios/<int:cid>/<item_id>/conteudo-atual', methods=['GET', 'POST'])
     @login_required
     def listing_content_snapshot(cid, item_id):

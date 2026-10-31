@@ -82,6 +82,10 @@ on:
       - 'scripts/content_attribute_units*'
       - 'content_technical_specs.py'
       - 'content_technical_view.py'
+      - 'attribute_completion.py'
+      - 'attribute_edit*.py'
+      - 'test_attribute*.py'
+      - 'scripts/attribute_editor*'
       - 'contextual_help.py'
       - 'test_content_technical_specs.py'
       - 'scripts/content_technical_specs*'
@@ -205,6 +209,7 @@ jobs:
       - run: python scripts/content_list_attributes_preview.py
       - run: python scripts/content_boolean_attributes_preview.py
       - run: python scripts/content_technical_specs_preview.py
+      - run: python scripts/attribute_editor_preview.py
       - run: python scripts/content_attribute_units_preview.py
       - run: python scripts/full_report_preview.py
       - run: python scripts/timeline_preview.py
@@ -247,6 +252,7 @@ jobs:
       - run: node scripts/content_list_attributes_browser_check.cjs
       - run: node scripts/content_boolean_attributes_browser_check.cjs
       - run: node scripts/content_technical_specs_browser_check.cjs
+      - run: node scripts/attribute_editor_browser_check.cjs
       - run: node scripts/content_attribute_units_browser_check.cjs
       - run: node scripts/full_report_browser_check.cjs
       - run: node scripts/timeline_browser_check.cjs
