@@ -1,6 +1,8 @@
 """Human review before marketplace changes; no editable client payload."""
 from html import escape
 from copy import deepcopy
+import time
+from attribute_completion import EXTRACTOR_VERSION
 from profitability_view import CSS
 from contextual_help import tip,STYLE as HELP_STYLE
 from content_technical_view import render as inventory
@@ -12,7 +14,7 @@ def render(cid,item,title,csrf,key,plan=None,message='',history=None):
     esc=lambda v:escape(str(v),quote=True)
     path='/anuncios/'+str(cid)+'/'+esc(item)
     out=CSS+'<main class="pf attribute-editor"><header class="pf-hero"><h2>Completar ficha técnica</h2><p>'+esc(title or item)+'</p></header>'
-    out+='<section class="pf-card"><h3>Analisar anúncio'+tip('Análise','Lê título, descrição, atributos, variações e regras da categoria. Sugere somente valores explícitos em linhas Nome do campo: valor. Não interpreta fotos, não inventa dados e não substitui valores existentes. Campos ocultos são identificados pelas regras retornadas. Atualizações do catálogo, identidade do produto e vínculos compartilhados ficam bloqueadas nesta etapa.')+'</h3>'
+    out+='<section class="pf-card"><h3>Analisar anúncio'+tip('Análise','Lê título, descrição, atributos, variações e regras da categoria. Sugere valores explícitos em rótulos Campo: valor e frases como O material é aço. Perguntas, alternativas e frases condicionais ficam pendentes. Não interpreta fotos, não inventa dados e não substitui valores existentes. Campos ocultos são identificados pelas regras retornadas. Atualizações do catálogo, identidade do produto e vínculos compartilhados ficam bloqueadas nesta etapa.')+'</h3>'
     out+='<form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="analyze"><input type="hidden" name="analysis_key" value="'+esc(key)+'"><button>Analisar e completar ficha técnica</button></form></section>'
     if message:out+='<p role="status" class="pf-card">'+esc(message)+'</p>'
     if plan:
@@ -27,7 +29,10 @@ def render(cid,item,title,csrf,key,plan=None,message='',history=None):
         if data:
             out+='<p>'+str(len(proposals))+' sugestões nesta análise · '+str(sum(p['hidden'] for p in proposals))+' para campos ocultos</p>'
             if data.get('proposal_total',0)>50:out+='<p>Exibidas as primeiras 50 de '+str(data['proposal_total'])+' sugestões. Após aplicar, uma nova análise poderá conferir os demais campos.</p>'
-        can_send=state=='ready' and not data.get('blocked') and bool(proposals)
+        outdated=data.get('extractor_version')!=EXTRACTOR_VERSION
+        expired=bool(plan.get('created_at') and int(time.time())-plan['created_at']>900)
+        if state=='ready' and (outdated or expired):out+='<p role="status">'+('O leitor foi atualizado.' if outdated else 'A análise expirou.')+' Analise novamente antes de enviar.</p>'
+        can_send=state=='ready' and not data.get('blocked') and bool(proposals) and not outdated and not expired
         out+='<form method="post" class="ae-apply"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="apply"><input type="hidden" name="plan" value="'+esc(plan['id'])+'">'
         for p in proposals:
             out+='<article class="ae-proposal"><label><input type="checkbox" name="selected" value="'+esc(p['id'])+'"'+('' if can_send else ' disabled')+'> '+esc(p['name'])+(' <span class="ae-hidden">Oculto</span>' if p['hidden'] else '')+'</label><small>'+esc(p['id'])+'</small><div class="ae-diff"><span>Antes: sem valor identificado</span><strong>'+('Gravado: ' if p['id'] in confirmed else 'Sugestão: ')+esc(p['value'])+'</strong></div>'

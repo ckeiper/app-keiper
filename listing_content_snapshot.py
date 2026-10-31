@@ -61,7 +61,7 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None,
         account = read(token, '/users/me', request_get)
         if str(account.get('id')) != str(seller_id):
             raise ContentUnavailable('A autorização não corresponde à conta desta loja.')
-        item = read(token, '/items/'+item_id, request_get)
+        item = read(token, '/items/'+item_id+'?include_internal_attributes=true', request_get)
         if item.get('id') != item_id or str(item.get('seller_id')) != str(seller_id) or item.get('site_id') != 'MLB':
             raise ContentUnavailable('O anúncio retornado não corresponde à conta e ao anúncio desta loja.')
     except ContentUnavailable as exc:
