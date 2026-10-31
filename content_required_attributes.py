@@ -24,7 +24,7 @@ def has_value(row):
     value=row.get('value_id')
     if not isinstance(value,bool) and isinstance(value,(str,int)) and str(value).strip() and str(value) not in ('-1','0'):
         return True
-    if row.get('values'):
+    if row.get('values') or row.get('value_struct') is not None:
         return None  # Complex values are not certified by this presence check.
     return False
 

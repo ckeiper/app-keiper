@@ -275,11 +275,49 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 330,
-      "head_sha": "2ab23e872765b4381901cb4e9253d7a6a4923de7",
-      "atualizado_em": "2026-10-30T22:07:09-03:00",
-      "lacuna": "CI e publicação em validação; uso autenticado com anúncio real não exercitado. Não cobre outras fotos, variações, clips ou coerência semântica."
+      "head_sha": "937fac7a31457482e47accdcff735b8495cfbea6",
+      "atualizado_em": "2026-10-30T22:18:09.868-03:00",
+      "lacuna": "Publicação histórica conferida no PR 330; deploy já substituído por versões posteriores. Uso autenticado com anúncio real não exercitado; não cobre outras fotos, variações, clips ou coerência semântica.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41154220542,
+          "resultado": "success",
+          "head_sha": "937fac7a31457482e47accdcff735b8495cfbea6"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41154220463,
+          "resultado": "success",
+          "head_sha": "937fac7a31457482e47accdcff735b8495cfbea6"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41154220520,
+          "resultado": "success",
+          "head_sha": "937fac7a31457482e47accdcff735b8495cfbea6"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbik2q6417fc73a2bedg",
+        "commit": "cc6c5f78bd9f48cf0c95545dd8fd2ee3dc04810d",
+        "status": "live",
+        "horario_brasilia": "2026-10-30T22:18:09.868-03:00"
+      }
+    },
+    {
+      "id": "ficha-tecnica-inventario",
+      "escopo": "Conferir todos os campos retornados em technical_specs/input, inclusive complementares, com presença nas variações, contagens, filtros e navegação local.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "atualizado_em": "2026-10-31T11:34:25-03:00",
+      "lacuna": "54 cenários locais de navegador e testes específicos aprovados; CI do PR e publicação pendentes. Inventário cobre somente a resposta consultada, não valida integralmente valores ou aplicabilidade e limita detalhe visual a 100 variações.",
+      "pr": 336,
+      "head_sha": "3ebad9b866acd4753e014191cae7f4c71bc97874"
     }
   ]
 }
