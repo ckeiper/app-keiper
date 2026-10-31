@@ -230,6 +230,18 @@
         "status": "live",
         "horario_brasilia": "2026-10-30T21:50:54.900-03:00"
       }
+    },
+    {
+      "id": "conteudo-limite-api-329",
+      "escopo": "Interrupção das chamadas subsequentes da mesma leitura de conteúdo após HTTP 429, preservando evidência parcial e sem repetição automática.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 329,
+      "head_sha": "fd9a3e8ff885c0be0e797f9e46b12b376deb6106",
+      "atualizado_em": "2026-10-30T21:58:24-03:00",
+      "lacuna": "CI e publicação em validação. Escopo por consulta interativa; não certifica controle global de cota ou conclusão da análise visual e semântica."
     }
   ]
 }

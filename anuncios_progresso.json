@@ -711,7 +711,8 @@
         320,
         321,
         327,
-        328
+        328,
+        329
       ],
       "numero_original": null,
       "prioridade": 2,
@@ -1594,7 +1595,9 @@
         "pendente": 2
       },
       "total": 44,
-      "prs": []
+      "prs": [
+        329
+      ]
     }
   ],
   "publicacoes": [
