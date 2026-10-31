@@ -351,11 +351,49 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 337,
-      "head_sha": "fe900c3a3d0c503f804159b2b118b2e1be46f3ca",
-      "atualizado_em": "2026-10-31T14:04:46-03:00",
-      "lacuna": "Testes locais e navegador com fixtures aprovados; CI com PostgreSQL e deploy em validação. Sem teste de gravação em anúncio real. Não cobre campos exclusivos de variação, catálogo, identidade, UP compartilhado ou extração semântica livre."
+      "head_sha": "8a9f9edab0264fdfa44d3d1beaa0fd3cfcbd5f51",
+      "atualizado_em": "2026-10-31T14:14:27.072-03:00",
+      "lacuna": "Publicado e estrutura de planos/eventos/índice conferida no banco; sem teste de escrita em anúncio real. Primeira versão de fontes textuais explícitas e atributos comuns; catálogo, identidade, variantes e UP compartilhado não editados.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41222841371,
+          "resultado": "success",
+          "head_sha": "8a9f9edab0264fdfa44d3d1beaa0fd3cfcbd5f51"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41222841411,
+          "resultado": "success",
+          "head_sha": "8a9f9edab0264fdfa44d3d1beaa0fd3cfcbd5f51"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41222841329,
+          "resultado": "success",
+          "head_sha": "8a9f9edab0264fdfa44d3d1beaa0fd3cfcbd5f51"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbj231uq1p3s73a9rte0",
+        "commit": "92c5b9ddbab7a8a831d2dcf8f2216e0fe70924ed",
+        "status": "live",
+        "horario_brasilia": "2026-10-31T14:14:27.072-03:00"
+      }
+    },
+    {
+      "id": "ficha-leitura-frases-338",
+      "escopo": "Leitura de afirmações explícitas, preservação de N/A por leitura interna e proteção contra mudança de valor entre revisão e envio.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 338,
+      "head_sha": "a451978d150e7cc6483a1d152ba9982067d396e9",
+      "atualizado_em": "2026-10-31T15:36:08-03:00",
+      "lacuna": "Testes locais e navegador com fixtures aprovados; CI e publicação pendentes. Não é interpretação semântica irrestrita, não lê fotos e não sugere frases de anúncios com array de variações; nenhum anúncio real usado para escrita de teste."
     }
   ]
 }

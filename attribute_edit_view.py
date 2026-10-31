@@ -22,15 +22,16 @@ def render(cid,item,title,csrf,key,plan=None,message='',history=None):
         confirmed={field['id'] for field in result.get('fields',[]) if field['confirmed']}
         for row in data.get('inventory',{}).get('rows',[]):
             if row['id'] in confirmed:row.update(state='informed',message='Valor confirmado por nova leitura do anúncio')
-        out+='<section class="pf-card"><h3>'+STATES[state]+'</h3><p role="status">'+esc(result.get('message',''))+'</p>'
+        outdated=data.get('extractor_version')!=EXTRACTOR_VERSION
+        expired=bool(plan.get('created_at') and int(time.time())-plan['created_at']>900)
+        display_state='stale' if state=='ready' and (outdated or expired) else state
+        out+='<section class="pf-card"><h3>'+STATES[display_state]+'</h3><p role="status">'+esc(result.get('message',''))+'</p>'
         if data.get('blocked'):out+='<p class="ae-blocked" role="status">'+esc(data['blocked'])+'</p>'
         for warning in data.get('warnings',[]):out+='<p>'+esc(warning)+'</p>'
         proposals=data.get('proposals',[])
         if data:
             out+='<p>'+str(len(proposals))+' sugestões nesta análise · '+str(sum(p['hidden'] for p in proposals))+' para campos ocultos</p>'
             if data.get('proposal_total',0)>50:out+='<p>Exibidas as primeiras 50 de '+str(data['proposal_total'])+' sugestões. Após aplicar, uma nova análise poderá conferir os demais campos.</p>'
-        outdated=data.get('extractor_version')!=EXTRACTOR_VERSION
-        expired=bool(plan.get('created_at') and int(time.time())-plan['created_at']>900)
         if state=='ready' and (outdated or expired):out+='<p role="status">'+('O leitor foi atualizado.' if outdated else 'A análise expirou.')+' Analise novamente antes de enviar.</p>'
         can_send=state=='ready' and not data.get('blocked') and bool(proposals) and not outdated and not expired
         out+='<form method="post" class="ae-apply"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="apply"><input type="hidden" name="plan" value="'+esc(plan['id'])+'">'

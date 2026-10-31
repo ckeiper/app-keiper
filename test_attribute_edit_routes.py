@@ -62,6 +62,6 @@ class EditorViewTests(TestCase):
  def test_old_reader_or_expired_analysis_does_not_offer_send(self):
   p=plan();p['data'].pop('extractor_version',None)
   text=render(1,'MLB123','P','csrf','k'*24,p)
-  self.assertNotIn('Aplicar selecionadas',text);self.assertIn('O leitor foi atualizado',text)
+  self.assertNotIn('Aplicar selecionadas',text);self.assertIn('O leitor foi atualizado',text);self.assertIn('Nova leitura necessária',text)
   p=plan();p['created_at']=1;text=render(1,'MLB123','P','csrf','k'*24,p)
-  self.assertNotIn('Aplicar selecionadas',text);self.assertIn('A análise expirou',text)
+  self.assertNotIn('Aplicar selecionadas',text);self.assertIn('A análise expirou',text);self.assertIn('Nova leitura necessária',text)
