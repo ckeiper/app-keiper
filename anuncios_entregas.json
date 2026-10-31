@@ -199,11 +199,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 328,
-      "head_sha": "10a29e64ce3cde227f225f433c8d213c04e3c91d",
-      "atualizado_em": "2026-10-30T21:41:38-03:00",
-      "lacuna": "CI e publicação em validação; não certifica todos os formatos numéricos, semântica, aplicabilidade ou aceitação da publicação."
+      "head_sha": "7539576b2a62dd3d27d7b6e1a3bae5374d06cc4a",
+      "atualizado_em": "2026-10-30T21:50:54.900-03:00",
+      "lacuna": "Entrega publicada. Não certifica semântica ou todos os formatos numéricos. Consulta autenticada com anúncio real ainda não exercitada nesta sessão.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41151835621,
+          "resultado": "success",
+          "head_sha": "7539576b2a62dd3d27d7b6e1a3bae5374d06cc4a"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41151835689,
+          "resultado": "success",
+          "head_sha": "7539576b2a62dd3d27d7b6e1a3bae5374d06cc4a"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41151835650,
+          "resultado": "success",
+          "head_sha": "7539576b2a62dd3d27d7b6e1a3bae5374d06cc4a"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbijlrfb9u1s73arb0d0",
+        "commit": "1c88d7debad189fe9485ffb4af6f204f73109575",
+        "status": "live",
+        "horario_brasilia": "2026-10-30T21:50:54.900-03:00"
+      }
     }
   ]
 }

@@ -659,7 +659,7 @@
       "area": "Conteúdo",
       "capacidade": "Checklist, fotos e qualidade do anúncio",
       "estado": "parcial",
-      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade. Consulta sob demanda do conteúdo atual após validar conta e propriedade: título, fotos retornadas, atributos principais e descrição em texto simples; diferencia vazio de desconhecido e não modifica pareceres. Conferência de presença das regras obrigatórias e condicionais retornadas pela categoria, com evidência no anúncio principal ou em cada variação e estados desconhecidos explícitos. Detalhamento dos valores retornados em cada variação, inclusive quando o atributo está presente no anúncio principal, sem presumir erro ou obrigatoriedade por variação. Consulta sob demanda das regras condicionais na API oficial quando os dados básicos e a descrição estão disponíveis; falhas permanecem não verificadas. Compara o comprimento de valores simples retornados com value_max_length da categoria quando disponível, incluindo variações. Conferência de unidades de atributos number_unit com value_struct e allowed_units retornados pela categoria, inclusive atributos opcionais informados e grupos das variações. Separa compatibilidade da unidade, divergência para conferência e informação não verificável. Não interpreta texto livre, valores compostos ou ausência como erro, nem recomenda edição direta de campos gerenciados pelo Mercado Livre. Consulta opcional da ficha técnica oficial da categoria, com comparação de presença no anúncio e variações. Distingue campos exigidos na ficha, regras de publicação confirmadas, contexto condicional e requisitos de publicação não verificados. Sinal de ficha incompleta é mostrado somente quando retornado pelo item; não presume perda de exposição. Uma chamada adicional somente por solicitação, com preservação das leituras anteriores em caso de falha. Conferência dos identificadores de atributos booleanos contra duas opções distintas retornadas pela categoria, no anúncio e variações. Separa ID encontrado, divergência para conferência e valor não verificável; não interpreta texto, ausência ou não aplicável como sim/não. Reutiliza as respostas existentes sem novas chamadas à API e preserva valores personalizados de outros tipos. Resumo de próximas ações no início da leitura, separando conferências de preenchimento, divergências e informação não verificável. Regras condicionais não confirmadas pedem avaliação de aplicabilidade; campos gerenciados não recomendam edição direta. Sem novas consultas ou alterações de anúncios. Conferência de identificadores explícitos de atributos do tipo lista no anúncio e em cada grupo de variação, usando as opções da categoria já consultadas. Não rejeita nomes personalizados nem infere erro pela ausência ou por referência não identificada; distingue campos gerenciados, compostos e cobertura limitada no resumo de ações. Conferência lexical de texto de atributos number no anúncio e em cada grupo de variação, sem converter separadores ou inferir quantidade pelo ID. Números fora das sugestões não são rejeitados; ausência, N/A, estruturas e compostos ficam desconhecidos. Formato fora do leitor simples pede conferência sem erro confirmado; sem restrições inventadas de faixa, inteiro ou positividade.",
+      "implementado": "Checklist manual por anúncio de oito critérios de título, imagens, medidas, compatibilidade, embalagem, objeções e vídeo. Exige evidência ou justificativa para cada resultado informado, preserva histórico e autoria, evita sobreposição de revisões concorrentes e permite planejar ajustes nas tarefas. Contagens coletadas de fotos/clips são contexto, nunca nota de qualidade. Consulta sob demanda do conteúdo atual após validar conta e propriedade: título, fotos retornadas, atributos principais e descrição em texto simples; diferencia vazio de desconhecido e não modifica pareceres. Conferência de presença das regras obrigatórias e condicionais retornadas pela categoria, com evidência no anúncio principal ou em cada variação e estados desconhecidos explícitos. Detalhamento dos valores retornados em cada variação, inclusive quando o atributo está presente no anúncio principal, sem presumir erro ou obrigatoriedade por variação. Consulta sob demanda das regras condicionais na API oficial quando os dados básicos e a descrição estão disponíveis; falhas permanecem não verificadas. Compara o comprimento de valores simples retornados com value_max_length da categoria quando disponível, incluindo variações. Conferência de unidades de atributos number_unit com value_struct e allowed_units retornados pela categoria, inclusive atributos opcionais informados e grupos das variações. Separa compatibilidade da unidade, divergência para conferência e informação não verificável. Não interpreta texto livre, valores compostos ou ausência como erro, nem recomenda edição direta de campos gerenciados pelo Mercado Livre. Consulta opcional da ficha técnica oficial da categoria, com comparação de presença no anúncio e variações. Distingue campos exigidos na ficha, regras de publicação confirmadas, contexto condicional e requisitos de publicação não verificados. Sinal de ficha incompleta é mostrado somente quando retornado pelo item; não presume perda de exposição. Uma chamada adicional somente por solicitação, com preservação das leituras anteriores em caso de falha. Conferência dos identificadores de atributos booleanos contra duas opções distintas retornadas pela categoria, no anúncio e variações. Separa ID encontrado, divergência para conferência e valor não verificável; não interpreta texto, ausência ou não aplicável como sim/não. Reutiliza as respostas existentes sem novas chamadas à API e preserva valores personalizados de outros tipos. Resumo de próximas ações no início da leitura, separando conferências de preenchimento, divergências e informação não verificável. Regras condicionais não confirmadas pedem avaliação de aplicabilidade; campos gerenciados não recomendam edição direta. Sem novas consultas ou alterações de anúncios. Conferência de identificadores explícitos de atributos do tipo lista no anúncio e em cada grupo de variação, usando as opções da categoria já consultadas. Não rejeita nomes personalizados nem infere erro pela ausência ou por referência não identificada; distingue campos gerenciados, compostos e cobertura limitada no resumo de ações. Conferência lexical de texto de atributos number no anúncio e em cada grupo de variação, sem converter separadores ou inferir quantidade pelo ID. Números fora das sugestões não são rejeitados; ausência, N/A, estruturas e compostos ficam desconhecidos. Formato fora do leitor simples pede conferência sem erro confirmado; sem restrições inventadas de faixa, inteiro ou positividade. Consulta encadeada de conteúdo interrompe todas as chamadas seguintes após HTTP 429, preserva evidências obtidas e identifica partes desconhecidas por limite. Sinal e aviso de leitura parcial abrangem descrição, categoria, condicional e ficha técnica; sem retry automático nesta leitura interativa.",
       "falta": "Faltam análise visual de imagens e clips, avaliação semântica da descrição e validação abrangente dos demais tipos de valores e ficha técnica. Unidades compatíveis e presença não certificam validade integral; a conferência é limitada a 100 resultados e 5.000 entradas por leitura.",
       "fontes": [
         "listing_content.py",
@@ -679,7 +679,8 @@
         "content_list_attributes.py",
         "docs/content-list-attributes.md",
         "content_number_attributes.py",
-        "docs/content-number-attributes.md"
+        "docs/content-number-attributes.md",
+        "docs/content-rate-limit.md"
       ],
       "testes": [
         "test_listing_content.py",
@@ -698,7 +699,9 @@
         "test_content_list_attributes.py",
         "scripts/content_list_attributes_browser_check.cjs",
         "test_content_number_attributes.py",
-        "scripts/content_number_attributes_browser_check.cjs"
+        "scripts/content_number_attributes_browser_check.cjs",
+        "test_content_rate_limit.py",
+        "scripts/content_rate_limit_browser_check.cjs"
       ],
       "prs": [
         291,
@@ -1580,6 +1583,18 @@
       "prs": [
         328
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-10-30",
+      "resumo": "Consulta de conteúdo interrompe o encadeamento após HTTP 429 e preserva evidência parcial; regressão de ficha técnica passou a executar. Conteúdo permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": []
     }
   ],
   "publicacoes": [
@@ -1677,6 +1692,13 @@
       "deploy_id": "dep-dbijh3rm8hqs73eu31k0",
       "status": "live",
       "horario_brasilia": "2026-10-30T21:40:30.070-03:00"
+    },
+    {
+      "pr": 328,
+      "commit": "1c88d7debad189fe9485ffb4af6f204f73109575",
+      "deploy_id": "dep-dbijlrfb9u1s73arb0d0",
+      "status": "live",
+      "horario_brasilia": "2026-10-30T21:50:54.900-03:00"
     }
   ]
 }
