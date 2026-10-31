@@ -427,11 +427,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 340,
-      "head_sha": "c1ce92d09823376bb09233d631f55c6a1b85c3b8",
-      "atualizado_em": "2026-10-31T20:30:40.570280-03:00",
-      "lacuna": "Testes locais e 78 estados visuais aprovados; aguardando CI com PostgreSQL e publicação. Não altera campos preenchidos ou de variação, catálogo, identidade ou vínculos compartilhados. Não certifica veracidade semântica dos dados informados. Teste não grava em anúncio real."
+      "head_sha": "24ad16661df6665b1649308871c031e1ca9e3168",
+      "atualizado_em": "2026-10-31T20:38:08.454483-03:00",
+      "lacuna": "Entrega publicada com inclusão de dados declarados e revisão antes do envio. Não altera campos preenchidos ou de variação, catálogo, identidade ou vínculos compartilhados. Não certifica veracidade semântica dos dados informados. Gravação em anúncio real não foi usada para teste; Conteúdo permanece parcial.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41252870071,
+          "resultado": "success",
+          "head_sha": "24ad16661df6665b1649308871c031e1ca9e3168"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41252870123,
+          "resultado": "success",
+          "head_sha": "24ad16661df6665b1649308871c031e1ca9e3168"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41252870088,
+          "resultado": "success",
+          "head_sha": "24ad16661df6665b1649308871c031e1ca9e3168"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbj7mfnavr4c73bpvm20",
+        "commit": "57fc21ce75ac9972880643c38e0441efb2076822",
+        "status": "live",
+        "horario_brasilia": "2026-10-31T20:37:22.719711-03:00"
+      }
     }
   ]
 }
