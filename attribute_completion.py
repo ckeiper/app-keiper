@@ -10,11 +10,25 @@ from listing_content_snapshot import read,ContentUnavailable,ContentRateLimited
 
 BLOCKED=('read_only','inferred','fixed','others','restricted_values','product_pk','parent_pk','child_pk','allow_variations','variation_attribute','defines_picture')
 HIDDEN=('hidden','new_hidden','used_hidden')
+EXTRACTOR_VERSION=2
 
 
 def fold(value):
     value=unicodedata.normalize('NFKD',value).casefold()
     return ' '.join(re.sub(r'[^a-z0-9]+',' ',''.join(c for c in value if not unicodedata.combining(c))).split())
+
+
+def known_key(value):
+    value=unicodedata.normalize('NFKD',value).casefold()
+    return ' '.join(''.join(c for c in value if not unicodedata.combining(c)).split())
+
+
+def unit_match(raw,unit):
+    # Unit IDs retain symbols and case (e.g. MB is not Mb). Full textual
+    # names may ignore case/accents, but short abbreviations are not guessed.
+    if unicodedata.normalize('NFC',raw.strip())==unicodedata.normalize('NFC',unit['id'].strip()):return True
+    name=unit.get('name')
+    return isinstance(name,str) and len(name.strip())>4 and known_key(raw)==known_key(name)
 
 
 def digest(value):return hashlib.sha256(json.dumps(value,sort_keys=True,ensure_ascii=True,separators=(',',':')).encode()).hexdigest()
@@ -24,7 +38,7 @@ def owned(token,seller,item_id,get):
     if not isinstance(token,str) or not token or not re.fullmatch(r'[1-9][0-9]{0,19}',str(seller)) or not re.fullmatch(r'MLB[0-9]{1,20}',item_id):raise ContentUnavailable('Conta ou anúncio inválido.')
     account=read(token,'/users/me',get)
     if str(account.get('id'))!=str(seller):raise ContentUnavailable('Autorização de outra conta.')
-    item=read(token,'/items/'+item_id,get)
+    item=read(token,'/items/'+item_id+'?include_internal_attributes=true',get)
     if item.get('id')!=item_id or item.get('site_id')!='MLB' or str(item.get('seller_id'))!=str(seller):raise ContentUnavailable('Anúncio de outra conta ou resposta divergente.')
     return item
 
@@ -82,13 +96,15 @@ def value_for(rule,raw):
     maximum=rule.get('value_max_length')
     if type(maximum) is int and maximum>0 and len(raw)>maximum:return None
     kind=rule.get('value_type')
-    if kind=='string':return dict(value_name=raw),dict(kind='string',value=raw)
-    if kind in ('list','boolean'):
+    if kind in ('string','list','boolean'):
         options=rule.get('values')
-        if not isinstance(options,list) or not 1<=len(options)<=1000:return None
-        choices=[o for o in options if isinstance(o,dict) and isinstance(o.get('name'),str) and fold(o['name'])==fold(raw) and isinstance(o.get('id'),(str,int)) and not isinstance(o.get('id'),bool) and re.fullmatch(r'[A-Za-z0-9_-]{1,100}',str(o['id'])) and str(o['id'])!='-1']
-        if len(choices)!=1:return None
-        code=str(choices[0]['id']);return dict(value_id=code),dict(kind='id',value=code)
+        choices=[];wanted=known_key(raw)
+        if isinstance(options,list) and 1<=len(options)<=1000:
+            choices=[o for o in options if isinstance(o,dict) and isinstance(o.get('name'),str) and known_key(o['name'])==wanted and isinstance(o.get('id'),(str,int)) and not isinstance(o.get('id'),bool) and re.fullmatch(r'[A-Za-z0-9_-]{1,100}',str(o['id'])) and str(o['id'])!='-1']
+        if len(choices)==1:
+            code=str(choices[0]['id']);return dict(value_id=code),dict(kind='id',value=code)
+        if len(choices)>1 or kind!='string':return None
+        return dict(value_name=raw),dict(kind='string',value=raw)
     if kind=='number':
         n=number(raw)
         if n is not None:return dict(value_name=raw),dict(kind='number',value=str(n))
@@ -96,7 +112,7 @@ def value_for(rule,raw):
         match=re.fullmatch(r'(-?[0-9]+(?:[.,][0-9]+)?)\s+([^\n]{1,100})',raw)
         units=rule.get('allowed_units')
         if not match or not isinstance(units,list) or not 1<=len(units)<=200:return None
-        choices=[u for u in units if isinstance(u,dict) and isinstance(u.get('id'),str) and 1<=len(u['id'])<=100 and fold(match[2]) in (fold(u['id']),fold(str(u.get('name',''))))]
+        choices=[u for u in units if isinstance(u,dict) and isinstance(u.get('id'),str) and 1<=len(u['id'])<=100 and unit_match(match[2],u)]
         n=number(match[1])
         if len(choices)==1 and n is not None:
             unit=choices[0]['id'];return dict(value_name=match[1]+' '+unit),dict(kind='unit',value=str(n),unit=unit)
@@ -112,14 +128,8 @@ def analyze(facts):
     for code,definition in definitions.items():
         for name in (code,definition.get('name',''),rules.get(code,{}).get('name','')):
             if isinstance(name,str) and fold(name):alias.setdefault(fold(name),set()).add(code)
-    evidence={}
-    for source,body in [('Título',facts['title']),('Descrição',facts['description'] or '')]:
-        for line in body.splitlines():
-            match=re.fullmatch(r'\s*(?:[-*•]\s*)?([^:=\n]{1,100})\s*[:=]\s*([^\n]{1,1000}?)\s*',line)
-            if not match or ';' in match[2] or ':' in match[2]:continue
-            codes=alias.get(fold(match[1]),set())
-            if len(codes)==1:
-                code=next(iter(codes));evidence.setdefault(code,[]).append(dict(source=source,text=line.strip(),raw=match[2].strip()))
+    from attribute_text_evidence import collect
+    evidence,uncertain=collect(facts['title'],facts['description'],alias,fold,allow_prose=not bool(item.get('variations')))
     proposals=[];rows=[];main=attributes(item.get('attributes'))
     for code,definition in definitions.items():
         rule=rules.get(code);tags=rule.get('tags') if rule else None;sheet_tags=definition.get('tags',[])
@@ -127,6 +137,11 @@ def analyze(facts):
         hidden=any((valid and tags.get(k) is True) or k in sheet_tags for k in HIDDEN)
         blocked=not valid or any(tags.get(k) is True for k in BLOCKED) or any(k in sheet_tags for k in BLOCKED) or str(rule.get('hierarchy','')).upper() in ('PARENT_PK','CHILD_PK')
         state,message,variants=index.evidence(code)
+        declared=main.get(code) if main is not None else None
+        if declared is not None and str(declared.get('value_id'))=='-1':message='Não aplicável declarado no anúncio; conferir aplicabilidade'
+        sources=evidence.get(code,[]);distinct={unicodedata.normalize('NFC',' '.join(e['raw'].split())).casefold() for e in sources}
+        text_review=code in uncertain or len(distinct)>1
+        if text_review:message+='; texto precisa de conferência antes de sugerir valor'
         name=definition.get('name');name=name if isinstance(name,str) and 1<=len(name)<=300 else code
         rows.append(dict(id=code,name=name+(' · Oculto' if hidden else ''),state=state,message=message,required='required' in sheet_tags,
                          managed=any((valid and tags.get(k) is True) or k in sheet_tags for k in ('read_only','fixed','inferred')),variation_states=variants,publication=publication(code,rules,{})))
@@ -135,7 +150,7 @@ def analyze(facts):
         current=main.get(code) if main is not None else None
         if blocked or main is None or has_value(current) is not False or (current is not None and current.get('value_id') not in (None,'')):continue
         if variants is None or any(v!='r' for v in variants) or (index.variants and len(index.variants)>100):continue
-        sources=evidence.get(code,[]);distinct={unicodedata.normalize('NFC',' '.join(e['raw'].split())).casefold() for e in sources}
+        if text_review:continue
         if len(distinct)!=1:continue
         parsed=value_for(rule,sources[0]['raw'])
         if not parsed:continue
@@ -143,7 +158,7 @@ def analyze(facts):
         proposals.append(dict(id=code,name=name,hidden=hidden,value=sources[0]['raw'],payload=dict(id=code,**payload),expected=expected,before=current,evidence=sources[:5]))
     proposals.sort(key=lambda p:(not p['hidden'],fold(p['name']),p['id']))
     rows.sort(key=lambda r:(not r['required'],fold(r['name']),r['id']))
-    return dict(title=facts['title'],fingerprint=facts['fingerprint'],blocked=facts['blocked'],warnings=facts['warnings'],proposals=proposals[:50],proposal_total=len(proposals),
+    return dict(extractor_version=EXTRACTOR_VERSION,title=facts['title'],fingerprint=facts['fingerprint'],blocked=facts['blocked'],warnings=facts['warnings'],proposals=proposals[:50],proposal_total=len(proposals),
                 inventory=dict(state='read',rows=rows,total=len(rows),variation_ids=index.ids,variation_count=None if index.variants is None else len(index.variants),incomplete_flag=None))
 
 

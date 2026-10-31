@@ -33,7 +33,7 @@ class ContentSnapshotTests(unittest.TestCase):
         self.assertEqual(result['attribute_count'], 1); self.assertEqual(result['variations'], 0)
         self.assertEqual(result['description'], 'Descrição fictícia'); self.assertEqual(values, before)
         self.assertEqual([c.args[0] for c in get.call_args_list], [
-            'https://api.mercadolibre.com/users/me', 'https://api.mercadolibre.com/items/MLB123',
+            'https://api.mercadolibre.com/users/me', 'https://api.mercadolibre.com/items/MLB123?include_internal_attributes=true',
             'https://api.mercadolibre.com/items/MLB123/description'])
         for call in get.call_args_list:
             self.assertEqual(call.kwargs['timeout'], (3, 8)); self.assertFalse(call.kwargs['allow_redirects'])
@@ -100,6 +100,15 @@ class ContentSnapshotTests(unittest.TestCase):
         result.update(description=None,description_message='indisponível',photos=None)
         html=render(1,'MLB123','Produto','csrf',result)
         self.assertIn('Descrição não verificada',html); self.assertNotIn('Descrição vazia',html)
+
+    def test_internal_na_remains_unknown_in_category_and_sheet(self):
+        from test_content_technical_specs import specs,field,rules
+        data=item();data.update(category_id='MLB200',attributes=[dict(id='BRAND',value_id='-1',value_name=None)],variations=[])
+        get=requester([dict(id=123),data,{},rules(),specs(field())])
+        result=inspect('synthetic',123,'MLB123',get,NOW,include_specs=True)
+        self.assertTrue(get.call_args_list[1].args[0].endswith('?include_internal_attributes=true'))
+        self.assertEqual(result['requirements']['rows'][0]['state'],'unknown');self.assertEqual(result['technical_specs']['rows'][0]['state'],'unknown')
+        self.assertEqual(get.call_count,5)
 
 
 class ContentSnapshotRouteTests(unittest.TestCase):
