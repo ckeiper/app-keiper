@@ -39,7 +39,7 @@ def render(cid,item,title,csrf,key,plan=None,message='',history=None,manual_form
             out+='<article class="ae-proposal"><label><input type="checkbox" name="selected" value="'+esc(p['id'])+'"'+('' if can_send else ' disabled')+'> '+esc(p['name'])+(' <span class="ae-hidden">Oculto</span>' if p['hidden'] else '')+'</label><small>'+esc(p['id'])+'</small><div class="ae-diff"><span>Antes: sem valor identificado</span><strong>'+('Gravado: ' if p['id'] in confirmed else 'Informado: ' if p.get('manual') else 'Sugestão: ')+esc(p['value'])+'</strong></div>'
             for e in p['evidence']:out+='<blockquote><small>'+esc(e['source'])+'</small><br>'+esc(e['text'])+'</blockquote>'
             out+='</article>'
-        if not proposals and data:out+='<p>Nenhum preenchimento com fonte explícita suficiente. Os demais campos continuam disponíveis para conferência no inventário.</p>'
+        if not proposals and data:out+='<p>Sem sugestões automáticas'+tip('Sem sugestões','Não foi identificada fonte explícita suficiente. Confira o inventário ou informe um dado faltante para adicioná-lo à revisão.')+'</p>'
         if can_send:out+='<button>Aplicar selecionadas no Mercado Livre</button>'
         out+='</form>'
         if result.get('successor_plan'):
