@@ -10,7 +10,7 @@ from listing_content_snapshot import read,ContentUnavailable,ContentRateLimited
 
 BLOCKED=('read_only','inferred','fixed','others','restricted_values','product_pk','parent_pk','child_pk','allow_variations','variation_attribute','defines_picture')
 HIDDEN=('hidden','new_hidden','used_hidden')
-EXTRACTOR_VERSION=2
+EXTRACTOR_VERSION=3
 
 
 def fold(value):
@@ -119,7 +119,17 @@ def value_for(rule,raw):
     return None
 
 
-def analyze(facts):
+def analyze(facts,manual_inputs=None,actor=None):
+    manual_inputs=[] if manual_inputs is None else manual_inputs
+    if not isinstance(manual_inputs,list) or len(manual_inputs)>50:raise ValueError('Informe até 50 campos por revisão.')
+    manual={}
+    for entry in manual_inputs:
+        if not isinstance(entry,dict) or set(entry)!={'id','value','note'}:raise ValueError('Dado informado inválido.')
+        code=entry['id'];value=entry['value'];note=entry['note']
+        if not isinstance(code,str) or code in manual or not isinstance(value,str) or not value.strip() or len(value)>1000 or any(ord(c)<32 or ord(c)==127 for c in value):raise ValueError('Valor informado inválido ou repetido.')
+        if not isinstance(note,str) or len(note)>500 or any(ord(c)<32 or ord(c)==127 for c in note):raise ValueError('Fonte informada inválida.')
+        manual[code]=dict(id=code,value=value.strip(),note=note.strip())
+    if manual and (type(actor) is not int or actor<=0):raise ValueError('Responsável pelo dado não identificado.')
     item=facts['item'];rules=facts['rules'];sheet=facts['sheet'];index=PresenceIndex(item)
     definitions=dict(sheet)
     for code,rule in rules.items():definitions.setdefault(code,dict(id=code,name=rule.get('name',code),tags=[]))
@@ -130,7 +140,7 @@ def analyze(facts):
             if isinstance(name,str) and fold(name):alias.setdefault(fold(name),set()).add(code)
     from attribute_text_evidence import collect
     evidence,uncertain=collect(facts['title'],facts['description'],alias,fold,allow_prose=not bool(item.get('variations')))
-    proposals=[];rows=[];main=attributes(item.get('attributes'))
+    proposals=[];rows=[];manual_fields=[];main=attributes(item.get('attributes'))
     for code,definition in definitions.items():
         rule=rules.get(code);tags=rule.get('tags') if rule else None;sheet_tags=definition.get('tags',[])
         valid=isinstance(tags,dict) and all(type(v) is bool for v in tags.values())
@@ -150,15 +160,27 @@ def analyze(facts):
         current=main.get(code) if main is not None else None
         if blocked or main is None or has_value(current) is not False or (current is not None and current.get('value_id') not in (None,'')):continue
         if variants is None or any(v!='r' for v in variants) or (index.variants and len(index.variants)>100):continue
+        if rule.get('value_type') in ('string','list','boolean','number','number_unit'):
+            examples=rule.get('allowed_units',[]) if rule.get('value_type')=='number_unit' else rule.get('values',[])
+            examples=[v.get('name',v.get('id','')) for v in examples[:10] if isinstance(v,dict)] if isinstance(examples,list) else []
+            manual_fields.append(dict(id=code,name=name,hidden=hidden,value_type=rule['value_type'],examples=[v[:100] for v in examples if isinstance(v,str)]))
+        if code in manual:
+            entry=manual[code];parsed=value_for(rule,entry['value'])
+            if not parsed:raise ValueError('Valor incompatível com as regras verificadas de '+name+'.')
+            payload,expected=parsed
+            proposals.append(dict(id=code,name=name,hidden=hidden,manual=True,value=entry['value'],payload=dict(id=code,**payload),expected=expected,before=current,evidence=[dict(source='Informado por você',text=entry['note'] or 'Dado declarado pelo consultor nesta revisão.',raw=entry['value'],reading='manual')]))
+            continue
         if text_review:continue
         if len(distinct)!=1:continue
         parsed=value_for(rule,sources[0]['raw'])
         if not parsed:continue
         payload,expected=parsed
         proposals.append(dict(id=code,name=name,hidden=hidden,value=sources[0]['raw'],payload=dict(id=code,**payload),expected=expected,before=current,evidence=sources[:5]))
-    proposals.sort(key=lambda p:(not p['hidden'],fold(p['name']),p['id']))
+    if set(manual)-{f['id'] for f in manual_fields}:raise ValueError('Campo indisponível para preenchimento nesta análise.')
+    manual_fields.sort(key=lambda f:(fold(f['name']),f['id']))
+    proposals.sort(key=lambda p:(not p.get('manual',False),not p['hidden'],fold(p['name']),p['id']))
     rows.sort(key=lambda r:(not r['required'],fold(r['name']),r['id']))
-    return dict(extractor_version=EXTRACTOR_VERSION,title=facts['title'],fingerprint=facts['fingerprint'],blocked=facts['blocked'],warnings=facts['warnings'],proposals=proposals[:50],proposal_total=len(proposals),
+    return dict(manual_inputs=list(manual.values()),manual_actor=actor if manual else None,manual_fields=manual_fields,extractor_version=EXTRACTOR_VERSION,title=facts['title'],fingerprint=facts['fingerprint'],blocked=facts['blocked'],warnings=facts['warnings'],proposals=proposals[:50],proposal_total=len(proposals),
                 inventory=dict(state='read',rows=rows,total=len(rows),variation_ids=index.ids,variation_count=None if index.variants is None else len(index.variants),incomplete_flag=None))
 
 

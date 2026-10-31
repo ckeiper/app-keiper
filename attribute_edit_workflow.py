@@ -28,7 +28,8 @@ def apply(plan,codes,token,seller,item_id,get,put,persist,now=None):
     # Commit intent before any operation which might send to the marketplace.
     persist('sending',dict(message='Preparando envio; não repita a operação.'),selected=codes)
     try:
-        facts=gather(token,seller,item_id,get);fresh=analyze(facts)
+        if data.get('manual_inputs') and data.get('manual_actor')!=plan.get('created_by'):raise ValueError('Responsável divergente.')
+        facts=gather(token,seller,item_id,get);fresh=analyze(facts,data.get('manual_inputs'),plan.get('created_by'))
         if facts['fingerprint']!=data['fingerprint'] or facts['blocked'] or fresh.get('extractor_version')!=data.get('extractor_version'):
             persist('stale',dict(message='O anúncio, suas regras ou seus vínculos mudaram. Analise novamente antes de enviar.'));return
         proposals=selected_proposals(fresh,codes)

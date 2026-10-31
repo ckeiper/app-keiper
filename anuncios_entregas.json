@@ -420,6 +420,18 @@
         "status": "live",
         "horario_brasilia": "2026-10-31T15:45:07.190383-03:00"
       }
+    },
+    {
+      "id": "ficha-dados-informados-340",
+      "escopo": "Inclusão de dados declarados com fonte/autoria, validação oficial verificável e revisão sucessora antes do envio selecionado.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 340,
+      "head_sha": "c1ce92d09823376bb09233d631f55c6a1b85c3b8",
+      "atualizado_em": "2026-10-31T20:30:40.570280-03:00",
+      "lacuna": "Testes locais e 78 estados visuais aprovados; aguardando CI com PostgreSQL e publicação. Não altera campos preenchidos ou de variação, catálogo, identidade ou vínculos compartilhados. Não certifica veracidade semântica dos dados informados. Teste não grava em anúncio real."
     }
   ]
 }
