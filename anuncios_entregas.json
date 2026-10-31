@@ -161,11 +161,49 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 327,
-      "head_sha": "23ec4ada8877daf0a7fbc8fad4ed1b3b6e6b2ec5",
-      "atualizado_em": "2026-10-30T18:09:29-03:00",
-      "lacuna": "Checks, revisão de capturas e publicação em validação. Frente parcial por análise visual, semântica e outros valores."
+      "head_sha": "fbd49bae646e5f805d1e891a049789c995c44315",
+      "atualizado_em": "2026-10-30T21:40:30.070-03:00",
+      "lacuna": "Entrega publicada. A conferência não certifica validade integral da ficha nem análise semântica ou visual; uso autenticado com anúncio real ainda não conferido nesta sessão.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41128938604,
+          "resultado": "success",
+          "head_sha": "fbd49bae646e5f805d1e891a049789c995c44315"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41128938608,
+          "resultado": "success",
+          "head_sha": "fbd49bae646e5f805d1e891a049789c995c44315"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41128938620,
+          "resultado": "success",
+          "head_sha": "fbd49bae646e5f805d1e891a049789c995c44315"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbijh3rm8hqs73eu31k0",
+        "commit": "45a1e7673afbba59f06d4128b246c15c9c4bb50d",
+        "status": "live",
+        "horario_brasilia": "2026-10-30T21:40:30.070-03:00"
+      }
+    },
+    {
+      "id": "atributos-numericos-328",
+      "escopo": "Conferência lexical de valores number por anúncio e variação, sem restrições inventadas de faixa, inteiro ou positividade e sem novas chamadas remotas.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 328,
+      "head_sha": "10a29e64ce3cde227f225f433c8d213c04e3c91d",
+      "atualizado_em": "2026-10-30T21:41:38-03:00",
+      "lacuna": "CI e publicação em validação; não certifica todos os formatos numéricos, semântica, aplicabilidade ou aceitação da publicação."
     }
   ]
 }
