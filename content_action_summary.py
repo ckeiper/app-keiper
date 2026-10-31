@@ -20,7 +20,7 @@ def actions(result):
                 rows.append(('unknown', row['name'], 'Confira o valor no Mercado Livre; a resposta não permite determinar o preenchimento.'))
             if row.get('length_findings'):
                 rows.append(('review', row['name'], 'Confira os valores que excedem o comprimento retornado pela categoria; os detalhes estão abaixo.'))
-    for key, label in [('attribute_units', 'Unidades'), ('boolean_values', 'Atributos sim/não')]:
+    for key, label in [('attribute_units', 'Unidades'), ('boolean_values', 'Atributos sim/não'), ('list_values', 'Opções de lista')]:
         group = result.get(key, {})
         if group.get('state') != 'read':
             rows.append(('unknown', label, 'Consulta não verificada; repita a leitura antes de concluir sobre os valores.'))

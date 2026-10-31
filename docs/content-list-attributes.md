@@ -1,0 +1,9 @@
+# Opções dos atributos de lista
+
+Fonte oficial consultada em 30/10/2026: https://developers.mercadolivre.com.br/pt_br/atributos e https://developers.mercadolivre.com.br/en_us/attributes . A documentação descreve `value_type=list`, as opções `values` e permite nome personalizado associado ao ID de uma opção próxima. Por isso, o nome do valor não é comparado por igualdade nem transformado em erro. `suggested_values`, `restricted_values` e os demais tipos não definem novas restrições nesta implementação.
+
+Na conferência existente de conteúdo, reutiliza o item e `/categories/{id}/attributes` já consultados: nenhuma requisição adicional, nova escrita, schema ou chamada de IA. Para cada grupo válido do anúncio e das variações, compara somente `value_id` simples e explícito com IDs únicos e verificáveis de `values`. Aceita estrutura extra de um único valor se seu ID coincide com o principal; compostos permanecem desconhecidos. Não herda valor principal para validar uma variação.
+
+Estados: identificado na lista consultada; conferir referência que não apareceu nessa leitura; não verificado. Ausência de ID, N/A, metadados inválidos ou conjunto ambíguo não se tornam erro confirmado. ID encontrado não prova coerência semântica, aplicabilidade ou ficha válida. Referência não identificada pede conferência da categoria e do valor atual, sem recomendação automática de troca. Campos gerenciados pelo Mercado Livre não recebem recomendação de edição direta.
+
+Limites locais: até 2.000 opções por definição, 1.000 variações, 5.000 entradas e 100 resultados. Grupos inválidos não são usados; variações ambíguas descartam todas as conclusões dessas variações. A tela e o resumo de ações informam cobertura e desconhecidos; limites não são apresentados como exigências oficiais. A frente Conteúdo continua parcial pelas lacunas visuais, semânticas e de demais valores.
