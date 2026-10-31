@@ -78,7 +78,7 @@ class TechnicalSpecsTests(unittest.TestCase):
     from content_required_attributes import presence,variation_details
     from content_technical_specs import PresenceIndex
     from itertools import product
-    choices=[[],None,[dict(id='BRAND',value_name='X')],[dict(id='BRAND',value_id='-1')],[dict(id='BRAND',values=[dict(name='X')])]]
+    choices=[[],None,[dict(id='BRAND',value_name='X')],[dict(id='BRAND',value_id='-1')],[dict(id='BRAND',value_struct=dict(number=12,unit='cm'))],[dict(id='BRAND',values=[dict(name='X')])]]
     for main,left,right in product(choices,repeat=3):
         data=dict(attributes=main,variations=[dict(id=1,attributes=left,attribute_combinations=right)])
         result=PresenceIndex(data).evidence('BRAND');self.assertEqual(result[:2],presence('BRAND',data))
@@ -98,3 +98,11 @@ class TechnicalSpecsTests(unittest.TestCase):
     self.assertNotIn(name,text);self.assertIn('&lt;/script&gt;',text)
     payload=re.search(r'<script type="application/json" class="cs-tech-data">(.*?)</script>',text).group(1)
     self.assertEqual(json.loads(payload)['rows'][0]['name'],name)
+
+ def test_structured_only_value_is_not_reported_as_missing(self):
+    data=item();data.update(attributes=[dict(id='EXTRA',value_struct=dict(number=12,unit='cm'))],variations=[])
+    result=compare(specs(field('EXTRA',tags=[])),[],data)
+    self.assertEqual(result['rows'][0]['state'],'unknown');self.assertNotIn('Sem valor identificado',result['rows'][0]['message'])
+    data.update(attributes=[],variations=[dict(id=1,attributes=[dict(id='EXTRA',value_struct=dict(number=12,unit='cm'))],attribute_combinations=[])])
+    row=compare(specs(field('EXTRA',tags=[])),[],data)['rows'][0]
+    self.assertEqual(row['state'],'unknown');self.assertEqual(row['variation_states'],'u')

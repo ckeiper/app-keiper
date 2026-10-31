@@ -19,3 +19,5 @@ São mantidos todos os resultados aceitos pelo limite existente de 5.000 defini�
 Ajuda contextual substitui o parágrafo de limites, disponível por mouse, foco e toque. Busca, filtros, paginação e mensagens usam `textContent`; o JSON embutido escapa caracteres que poderiam encerrar o elemento script. Testes verificam ausência de execução de conteúdo recebido. O formulário original e seus controles de autorização/CSRF permanecem.
 
 A documentação oficial acima foi reconferida pelo índice de busca em 31/10/2026; o acesso direto devolveu HTTP 403. A distinção de `required` permanece a documentada, sem criar novas exigências ou concluir perda de exposição. Uso autenticado com anúncio real não exercitado nesta entrega.
+
+Valores somente em value_struct, sem ID/texto simples, são não verificáveis pelo leitor de presença; não são ausência confirmada. A conferência específica de unidades continua separada.
