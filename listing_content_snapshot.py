@@ -22,6 +22,9 @@ class ContentUnavailable(ValueError):
     pass
 
 
+RATE_LIMIT_MESSAGE = 'Limite de consultas atingido. Aguarde antes de tentar novamente.'
+
+
 class ContentRateLimited(ContentUnavailable):
     pass
 
@@ -31,7 +34,7 @@ def read(token, path, request_get, payload_type=dict):
         response = request_get('https://api.mercadolibre.com'+path,
             headers={'Authorization': 'Bearer '+token}, timeout=(3, 8), allow_redirects=False)
         if response.status_code == 429:
-            raise ContentRateLimited('Limite de consultas atingido. Aguarde antes de tentar novamente.')
+            raise ContentRateLimited(RATE_LIMIT_MESSAGE)
         if response.status_code != 200:
             raise ContentUnavailable('Leitura indisponível no Mercado Livre. Nenhuma ausência foi presumida.')
         payload = response.json()
@@ -62,7 +65,7 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None,
         if item.get('id') != item_id or str(item.get('seller_id')) != str(seller_id) or item.get('site_id') != 'MLB':
             raise ContentUnavailable('O anúncio retornado não corresponde à conta e ao anúncio desta loja.')
     except ContentUnavailable as exc:
-        return dict(result, message=str(exc))
+        return dict(result, message=str(exc), rate_limited=isinstance(exc,ContentRateLimited))
     result.update(state='read', title=text(item.get('title'), 1000), description=None,
                   description_message='', photos=None, attributes=None, attribute_count=None,
                   variations=None)
@@ -86,15 +89,16 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None,
     except ContentUnavailable as exc:
         result['description_message'] = str(exc)
         rate_limited=isinstance(exc,ContentRateLimited)
-    result['requirements']=dict(state='unknown',message='Categoria do anúncio não verificável.')
-    result['attribute_units']=dict(state='unknown',message='Categoria do anúncio não verificável.')
-    result['boolean_values']=dict(state='unknown',message='Categoria do anúncio não verificável.')
-    result['list_values']=dict(state='unknown',message='Categoria do anúncio não verificável.')
-    result['number_values']=dict(state='unknown',message='Categoria do anúncio não verificável.')
-    if include_specs:result['technical_specs']=dict(state='unknown',message='Categoria do anúncio não verificável.')
+    category_message = RATE_LIMIT_MESSAGE if rate_limited else 'Categoria do anúncio não verificável.'
+    result['requirements']=dict(state='unknown',message=category_message)
+    result['attribute_units']=dict(state='unknown',message=category_message)
+    result['boolean_values']=dict(state='unknown',message=category_message)
+    result['list_values']=dict(state='unknown',message=category_message)
+    result['number_values']=dict(state='unknown',message=category_message)
+    if include_specs:result['technical_specs']=dict(state='unknown',message=category_message)
     category_attributes=None
     category=item.get('category_id')
-    if isinstance(category,str) and re.fullmatch(r'MLB[0-9]{1,20}',category):
+    if not rate_limited and isinstance(category,str) and re.fullmatch(r'MLB[0-9]{1,20}',category):
         try:
             payload=read(token,'/categories/'+category+'/attributes',request_get,list)
             category_attributes=payload
@@ -124,8 +128,10 @@ def inspect(token, seller_id, item_id, request_get, now=None, request_post=None,
                 result['technical_specs']=compare_specs(specs,category_attributes,item,result['requirements'].get('conditional'))
             except ContentUnavailable as exc:
                 result['technical_specs']=dict(state='unknown',message=str(exc))
+                rate_limited=rate_limited or isinstance(exc,ContentRateLimited)
     if include_specs and rate_limited:
-        result['technical_specs']=dict(state='unknown',message='Limite de consultas atingido. Aguarde antes de tentar novamente.')
+        result['technical_specs']=dict(state='unknown',message=RATE_LIMIT_MESSAGE)
+    result['rate_limited'] = rate_limited
     return result
 
 
@@ -139,6 +145,8 @@ def render(cid, item_id, title, csrf, result=None):
         if result['state'] != 'read':
             out += '<p role="status">Sem leitura verificável. '+esc(result['message'])+'</p>'
         else:
+            if result.get('rate_limited'):
+                out += '<p role="status" class="cs-rate-limit">Consulta parcial: limite do Mercado Livre atingido. As chamadas seguintes desta consulta foram interrompidas; os dados já obtidos foram preservados. Aguarde antes de consultar novamente.</p>'
             def present(value):
                 return 'Não verificado' if value is None else str(value)
             out += '<div class="pf-grid">'+''.join('<article class="pf-metric"><span>'+label+'</span><strong>'+present(value)+'</strong></article>' for label, value in [('Fotos retornadas',result['photos']),('Atributos no anúncio principal',result['attribute_count']),('Variações retornadas',result['variations'])])+'</div>'
@@ -170,7 +178,7 @@ def render(cid, item_id, title, csrf, result=None):
             out += render_numbers(result.get('number_values',{}))
             if 'technical_specs' in result:out += render_specs(result['technical_specs'])
         out += '</section>'
-    return out+'<section class="pf-card"><h3>Continuar a conferência</h3><p>Confira imagens, especificações, compatibilidade e dúvidas reais antes de registrar seu parecer. A oferta pode mudar depois desta leitura. Nenhum histórico de revisão foi substituído.</p><a href="'+path+'">Registrar evidências no checklist ↗</a></section></div><style>html[data-theme=light] body .content-snapshot .pf-hero{background:#e6f0fd!important;color:#193a60!important}.cs-text{white-space:pre-wrap;overflow-wrap:anywhere}.cs-attributes{overflow-wrap:anywhere}.cs-attributes dt{font-weight:700;margin-top:12px}.cs-attributes dd{margin:4px 0 0}</style>'
+    return out+'<section class="pf-card"><h3>Continuar a conferência</h3><p>Confira imagens, especificações, compatibilidade e dúvidas reais antes de registrar seu parecer. A oferta pode mudar depois desta leitura. Nenhum histórico de revisão foi substituído.</p><a href="'+path+'">Registrar evidências no checklist ↗</a></section></div><style>html[data-theme=light] body .content-snapshot .pf-hero{background:#e6f0fd!important;color:#193a60!important}.cs-rate-limit{border-left:3px solid #c08d54;padding-left:12px}.cs-text{white-space:pre-wrap;overflow-wrap:anywhere}.cs-attributes{overflow-wrap:anywhere}.cs-attributes dt{font-weight:700;margin-top:12px}.cs-attributes dd{margin:4px 0 0}</style>'
 
 
 def register(app, login_required, can_view, bank, query, shop_page, resolve_token, request_get, request_post=requests.post):

@@ -51,13 +51,13 @@ class TechnicalSpecsTests(unittest.TestCase):
     get=requester([dict(id=123),data,{}]);result=inspect('x',123,'MLB123',get,NOW,include_specs=True)
     self.assertEqual(get.call_count,3);self.assertEqual(result['technical_specs']['state'],'unknown')
 
-    def test_rate_limit_stops_additional_sheet_request(self):
-        from test_content_conditional_attributes import complete_item
-        data=complete_item()
-        get=requester([dict(id=123),data,dict(plain_text='Texto')]);get.side_effect=list(get.side_effect)+[Mock(status_code=429)]
-        result=inspect('x',123,'MLB123',get,NOW,include_specs=True)
-        self.assertEqual(get.call_count,4);self.assertEqual(result['technical_specs']['state'],'unknown')
-        get=requester([dict(id=123),data,dict(plain_text='Texto'),rules()])
-        post=Mock(return_value=Mock(status_code=429))
-        result=inspect('x',123,'MLB123',get,NOW,request_post=post,include_specs=True)
-        self.assertEqual(get.call_count,4);self.assertEqual(post.call_count,1);self.assertIn('Limite de consultas',result['technical_specs']['message'])
+ def test_rate_limit_stops_additional_sheet_request(self):
+    from test_content_conditional_attributes import complete_item
+    data=complete_item()
+    get=requester([dict(id=123),data,dict(plain_text='Texto')]);get.side_effect=list(get.side_effect)+[Mock(status_code=429)]
+    result=inspect('x',123,'MLB123',get,NOW,include_specs=True)
+    self.assertEqual(get.call_count,4);self.assertEqual(result['technical_specs']['state'],'unknown')
+    get=requester([dict(id=123),data,dict(plain_text='Texto'),rules()])
+    post=Mock(return_value=Mock(status_code=429))
+    result=inspect('x',123,'MLB123',get,NOW,request_post=post,include_specs=True)
+    self.assertEqual(get.call_count,4);self.assertEqual(post.call_count,1);self.assertIn('Limite de consultas',result['technical_specs']['message'])
