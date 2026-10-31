@@ -12,7 +12,7 @@ class NumberAttributeTests(unittest.TestCase):
             self.assertEqual(check(rule(),dict(value_name=value))[0],'matched',value)
         definitions=[rule()];listing=item();before=deepcopy((definitions,listing));r=compare(definitions,listing)
         self.assertEqual(r['rows'][0]['state'],'matched');self.assertEqual((definitions,listing),before)
-        self.assertNotIn('value_name',str(r))
+        self.assertNotIn('value_name',str(r));self.assertEqual(r['rows'][0]['sample'],'5')
 
     def test_missing_or_id_only_is_unknown_not_numeric_quantity(self):
         for row in [{},dict(value_id='5'),dict(value_id=False,value_name='5'),dict(value_name=''),dict(value_name=True),dict(value_name=5),dict(value_id='-1',value_name='4'),dict(value_name='9'*10001),dict(value_name='4',value_struct=dict(number=4))]:
@@ -44,6 +44,10 @@ class NumberAttributeTests(unittest.TestCase):
         r=compare([rule(id=str(i),name='<img onerror=x>') for i in range(101)],item(attributes=[dict(id=str(i),value_name='dois') for i in range(101)]))
         self.assertEqual(len(r['rows']),100);self.assertTrue(r['truncated']);self.assertNotIn('<img',render(r));self.assertIn('100 resultados',render(r))
         self.assertIn('não verificados',render(dict(state='unknown')))
+        unsafe=compare([rule()],item(attributes=[dict(id='COUNT',value_name='<script>x</script>')]))
+        self.assertNotIn('<script>',render(unsafe));self.assertIn('&lt;script&gt;',render(unsafe))
+        long=compare([rule()],item(attributes=[dict(id='COUNT',value_name='9'*201)]))
+        self.assertEqual(len(long['rows'][0]['sample']),200);self.assertTrue(long['rows'][0]['sample_shortened'])
         many=item(attributes=[dict(id=str(i)) for i in range(2000)],variations=[dict(id=i,attributes=[dict(id=str(j)) for j in range(2000)],attribute_combinations=[]) for i in range(2)])
         self.assertTrue(compare([rule()],many)['truncated'])
         self.assertTrue(compare([rule()],item(variations=[dict(id=i) for i in range(1001)]))['variation_unknown'])

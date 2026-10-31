@@ -58,7 +58,7 @@ def compare(definitions,item):
                 if not definition or definition.get('value_type')!='number':continue
                 state,message=check(definition,row);name=definition.get('name');name=name if isinstance(name,str) and name.strip() and len(name)<=300 else code
                 tags=definition.get('tags');managed=isinstance(tags,dict) and any(tags.get(t) is True for t in ('read_only','fixed','inferred'))
-                rows.append(dict(name=name,location=location,state=state,message=message,managed=managed))
+                rows.append(dict(name=name,location=location,state=state,message=message,managed=managed,sample=row.get('value_name')[:200] if isinstance(row.get('value_name'),str) else None,sample_shortened=isinstance(row.get('value_name'),str) and len(row['value_name'])>200))
         if len(rows)>=100 or truncated:truncated=True;break
     return dict(state='read',rows=rows[:100],variation_unknown=variation_unknown,truncated=truncated)
 
@@ -69,6 +69,7 @@ def render(result):
     labels={'matched':'Formato numérico identificado','review':'Conferir formato','unknown':'Não verificado'}
     for row in result['rows']:
         out+='<article class="cs-number-row" data-number-state="'+row['state']+'"><h5>'+esc(row['name'])+'</h5><p>'+esc(row['location'])+'</p><strong>'+labels[row['state']]+'</strong><p>'+esc(row['message'])+'</p>'
+        if row.get('sample') is not None:out+='<p>Texto retornado: <code>'+esc(row['sample'])+('…' if row.get('sample_shortened') else '')+'</code></p>'
         if row.get('managed'):out+='<p>Campo gerenciado pelo Mercado Livre; confira a origem sem recomendar edição direta.</p>'
         out+='</article>'
     if not result['rows']:out+='<p>Nenhum atributo do tipo número identificado nos grupos conferidos.</p>'
