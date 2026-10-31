@@ -5738,6 +5738,8 @@ from listing_content_snapshot import register as register_content_snapshot
 register_content_snapshot(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get)
 from listing_buyer_reviews import register as register_buyer_reviews
 register_buyer_reviews(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get)
+from portfolio_view import register as register_portfolio
+register_portfolio(app, login_required, banco, consultar, pagina, pode_ver_loja)
 from listing_image_diagnostic import register as register_image_diagnostic
 register_image_diagnostic(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get, requests.post)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
