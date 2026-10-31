@@ -60,6 +60,7 @@ on:
       - 'test_listing_onboarding*.py'
       - 'scripts/listing_onboarding*'
       - 'portfolio_view.py'
+      - 'portfolio_charts.py'
       - 'test_portfolio_view.py'
       - 'scripts/portfolio*'
       - 'listing_image_diagnostic.py'
