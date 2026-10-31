@@ -5,7 +5,7 @@ from portfolio_view import dates,combine,render
 
 class PortfolioTests(unittest.TestCase):
  def data(self):
-  def report(cid,name,revenue):return dict(shop=dict(id=cid,cliente=name),current=dict(revenue=revenue,daily=[float(revenue) if revenue is not None else None]),previous=dict(revenue=D(100)),reasons=[],last_sync=1793420000)
+  def report(cid,name,revenue):return dict(shop=dict(id=cid,cliente=name),current=dict(revenue=revenue,daily=[float(revenue) if revenue is not None else None]),previous=dict(revenue=D(100),daily=[100]),reasons=[],last_sync=1793420000)
   return dict(bounds=(date(2026,10,30),date(2026,10,30),date(2026,10,29),date(2026,10,29)),reports=[report(1,'Zeta',D(100)),report(2,'Alfa',D(900))])
  def test_weighted_tacos_not_average_and_alphabetical(self):
   model=combine(self.data(),[dict(conexao_id=1,data='2026-10-30',gasto=10),dict(conexao_id=2,data='2026-10-30',gasto=9)])
@@ -21,7 +21,7 @@ class PortfolioTests(unittest.TestCase):
    with self.assertRaises(ValueError):dates(a,today)
  def test_escape_and_no_external_scripts(self):
   d=self.data();d['reports'][0]['shop']['cliente']='<script>alert(1)</script>';html=render(combine(d,[]),{})
-  self.assertNotIn('<script>',html);self.assertIn('&lt;script&gt;',html);self.assertIn('/vendas/1?periodo=personalizado',html)
+  self.assertNotIn('<script>alert(1)</script>',html);self.assertNotIn('<script src=',html);self.assertIn('&lt;script&gt;',html);self.assertIn('/vendas/1?periodo=personalizado',html)
  def test_admin_gate_precedes_database(self):
   from flask import Flask
   from portfolio_view import register

@@ -39,7 +39,7 @@ def combine(data,ads):
             change=change(sales,previous),covered=sum(v is not None for v in values),days=len(days),
             sync=min((records[d].get('atualizado_em') or 0 for d in days if d in records),default=None),
             sales_sync=report.get('last_sync'),reasons=report.get('reasons',[]),
-            daily_sales=report['current']['daily'],daily_ads=values))
+            daily_sales=report['current']['daily'],previous_daily_sales=report['previous']['daily'],daily_ads=values))
     rows.sort(key=lambda r:(r['name'].casefold(),r['id']))
     totals={k:sum((r[k] for r in rows),Decimal(0)) if rows and all(r[k] is not None for r in rows) else None for k in ('sales','ads')}
     totals['tacos']=totals['ads']/totals['sales']*100 if totals['ads'] is not None and totals['sales'] else None
@@ -54,21 +54,9 @@ def help_tip(label,text):
     return '<span class="portfolio-help"><button type="button" aria-label="'+escape(label+': '+text,quote=True)+'">?</button><span role="tooltip">'+escape(text)+'</span></span>'
 
 
-def chart(rows,key,days,title):
-    values=[sum((Decimal(str(r[key][i])) for r in rows),Decimal(0)) if rows and all(r[key][i] is not None for r in rows) else None for i in range(len(days))]
-    ceiling=max([v for v in values if v is not None]+[Decimal(1)])
-    out='<section class="pf-card"><h3>'+title+help_tip(title,'Uma coluna por dia. ? indica cobertura incompleta; os valores podem mudar após sincronização.')+'</h3><svg viewBox="0 0 760 190" role="img" aria-label="'+title+' por dia"><line x1="10" y1="155" x2="750" y2="155" stroke="#7892aa"/>'
-    for i,(day,value) in enumerate(zip(days,values)):
-        x=10+i*740/len(days);width=max(1,740/len(days)*.7)
-        if value is None:out+=f'<text x="{x}" y="150" fill="#c08d54" font-size="10">?</text>'
-        else:
-            height=float(value/ceiling)*130
-            out+=f'<rect x="{x}" y="{155-height}" width="{width}" height="{max(height,1)}" fill="#4a9ccc"><title>{day}: {money(value)}</title></rect>'
-    out+='<text x="10" y="180" fill="#7892aa" font-size="12">'+days[0]+'</text><text x="750" y="180" text-anchor="end" fill="#7892aa" font-size="12">'+days[-1]+'</text>'
-    return out+'</svg></section>'
-
 
 def render(model,args):
+    from portfolio_charts import chart,SCRIPT
     esc=lambda v:escape(str(v),quote=True)
     out=CSS+'<main class="pf portfolio"><header class="pf-hero"><h2>Visão da Carteira</h2></header><form class="pf-card portfolio-filter" method="get"><label>Período<select name="periodo">'
     for key,label in [('hoje','Hoje'),('ontem','Ontem'),('7','Últimos 7 dias'),('mes','Mês atual'),('anterior','Mês anterior'),('personalizado','Personalizado')]:
@@ -92,7 +80,7 @@ def render(model,args):
         url='/vendas/'+str(r['id'])+'?periodo=personalizado&amp;inicio='+str(model['start'])+'&amp;fim='+str(model['end'])
         out+='<tr><td><a class="portfolio-client" href="'+url+'">'+esc(r['name'])+'</a></td><td>'+money(r['sales'])+'</td><td>'+pct+'</td><td>'+money(r['ads'])+'</td><td>'+('Não disponível' if r['tacos'] is None else f"{r['tacos']:.2f}%")+'</td><td>'+share+'</td><td>Ads: '+str(r['covered'])+'/'+str(r['days'])+' dias · leitura '+sync+'<br>Vendas: '+sales_sync+'<br>'+esc('; '.join(r['reasons']))+'</td></tr>'
     out+='</tbody></table></div></section></main>'
-    return out+'''<style>html:not([data-theme=light]):has(.portfolio),html:not([data-theme=light]) body:has(.portfolio),html:not([data-theme=light]) body:has(.portfolio) :is(.wrap,.layout,.conteudo){background:#081426!important;color-scheme:dark}.portfolio{min-width:0}.portfolio-filter{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end}.portfolio-filter label{min-width:0}.portfolio-filter :is(input,select){width:100%;min-width:0;box-sizing:border-box}@media(max-width:700px){.portfolio-filter{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:420px){.portfolio-filter{grid-template-columns:1fr}}.portfolio select{display:block;padding:10px;max-width:100%}.portfolio-scroll{overflow-x:auto}.portfolio table{min-width:1000px}.portfolio-client{display:block;padding:12px;border:1px solid #7892aa;border-radius:8px}.portfolio svg{width:100%;height:auto}.portfolio-help{display:inline-block;position:relative;margin-left:7px;vertical-align:middle;font-size:12px;font-weight:400}.portfolio .portfolio-help button{background:transparent;color:inherit;font:inherit;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1px solid #7892aa;border-radius:50%;padding:0;cursor:pointer;list-style:none}.portfolio-help [role=tooltip]{display:none;position:absolute;z-index:10;top:24px;right:0;width:210px;max-width:65vw;padding:12px;border:1px solid #7892aa;border-radius:9px;background:#142940;color:#eff5ff!important;white-space:normal;line-height:1.5;box-shadow:0 5px 18px #0004}.portfolio-help:hover [role=tooltip],.portfolio-help:focus-within [role=tooltip]{display:block}.portfolio-help button:focus-visible{outline:2px solid #4a9ccc;outline-offset:3px}.portfolio .portfolio-change-up{color:#80f0b7}.portfolio .portfolio-change-down{color:#ffb1b8}html[data-theme=light] body .portfolio .portfolio-change-up{color:#087447!important}html[data-theme=light] body .portfolio .portfolio-change-down{color:#b22539!important}.portfolio :is(p,strong){overflow-wrap:anywhere}html[data-theme=light] body .portfolio .pf-hero{background:#e6f0fd!important;color:#193a60!important}</style>'''
+    return out+SCRIPT+'''<style>html:not([data-theme=light]):has(.portfolio),html:not([data-theme=light]) body:has(.portfolio),html:not([data-theme=light]) body:has(.portfolio) :is(.wrap,.layout,.conteudo){background:#081426!important;color-scheme:dark}.portfolio{min-width:0}.portfolio-filter{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end}.portfolio-filter label{min-width:0}.portfolio-filter :is(input,select){width:100%;min-width:0;box-sizing:border-box}@media(max-width:700px){.portfolio-filter{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:420px){.portfolio-filter{grid-template-columns:1fr}}.portfolio select{display:block;padding:10px;max-width:100%}.portfolio-scroll{overflow-x:auto}.portfolio table{min-width:1000px}.portfolio-client{display:block;padding:12px;border:1px solid #7892aa;border-radius:8px}.portfolio svg{width:100%;height:auto}.portfolio-help{display:inline-block;position:relative;margin-left:7px;vertical-align:middle;font-size:12px;font-weight:400}.portfolio .portfolio-help button{background:transparent;color:inherit;font:inherit;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1px solid #7892aa;border-radius:50%;padding:0;cursor:pointer;list-style:none}.portfolio-help [role=tooltip]{display:none;position:absolute;z-index:10;top:24px;right:0;width:210px;max-width:65vw;padding:12px;border:1px solid #7892aa;border-radius:9px;background:#142940;color:#eff5ff!important;white-space:normal;line-height:1.5;box-shadow:0 5px 18px #0004}.portfolio-help:hover [role=tooltip],.portfolio-help:focus-within [role=tooltip]{display:block}.portfolio-help button:focus-visible{outline:2px solid #4a9ccc;outline-offset:3px}.portfolio .portfolio-change-up{color:#80f0b7}.portfolio .portfolio-change-down{color:#ffb1b8}html[data-theme=light] body .portfolio .portfolio-change-up{color:#087447!important}html[data-theme=light] body .portfolio .portfolio-change-down{color:#b22539!important}.portfolio :is(p,strong){overflow-wrap:anywhere}html[data-theme=light] body .portfolio .pf-hero{background:#e6f0fd!important;color:#193a60!important}</style>'''
 
 
 def register(app,login_required,bank,query,page,can_view):
