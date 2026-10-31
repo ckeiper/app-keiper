@@ -389,11 +389,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 338,
-      "head_sha": "a451978d150e7cc6483a1d152ba9982067d396e9",
-      "atualizado_em": "2026-10-31T15:36:08-03:00",
-      "lacuna": "Testes locais e navegador com fixtures aprovados; CI e publicação pendentes. Não é interpretação semântica irrestrita, não lê fotos e não sugere frases de anúncios com array de variações; nenhum anúncio real usado para escrita de teste."
+      "head_sha": "d879114ce790a1b5f3a7b4c6843be247ddc7f1fb",
+      "atualizado_em": "2026-10-31T15:47:22.883861-03:00",
+      "lacuna": "Entrega publicada com leitura de frases explícitas e preservação de N/A. Não é interpretação semântica irrestrita, não lê fotos e não sugere frases de anúncios com array de variações. Gravação com anúncio real não foi usada para teste; Conteúdo permanece parcial.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41230308300,
+          "resultado": "success",
+          "head_sha": "d879114ce790a1b5f3a7b4c6843be247ddc7f1fb"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41230308272,
+          "resultado": "success",
+          "head_sha": "d879114ce790a1b5f3a7b4c6843be247ddc7f1fb"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41230308372,
+          "resultado": "success",
+          "head_sha": "d879114ce790a1b5f3a7b4c6843be247ddc7f1fb"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbj3dcqvcj2c73eirbv0",
+        "commit": "e9ed4bf36fb109d92a85e97e573c5974827b170c",
+        "status": "live",
+        "horario_brasilia": "2026-10-31T15:45:07.190383-03:00"
+      }
     }
   ]
 }
