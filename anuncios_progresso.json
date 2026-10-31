@@ -716,7 +716,8 @@
         321,
         327,
         328,
-        329
+        329,
+        330
       ],
       "numero_original": null,
       "prioridade": 2,
@@ -1613,7 +1614,9 @@
         "pendente": 2
       },
       "total": 44,
-      "prs": []
+      "prs": [
+        330
+      ]
     }
   ],
   "publicacoes": [
@@ -1718,6 +1721,13 @@
       "deploy_id": "dep-dbijlrfb9u1s73arb0d0",
       "status": "live",
       "horario_brasilia": "2026-10-30T21:50:54.900-03:00"
+    },
+    {
+      "pr": 329,
+      "commit": "03baa3b100eb0eb94baec5b947476fd1be6f60ec",
+      "deploy_id": "dep-dbijsidg1s2s73f3v4og",
+      "status": "live",
+      "horario_brasilia": "2026-10-30T22:05:52.486-03:00"
     }
   ]
 }

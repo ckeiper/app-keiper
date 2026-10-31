@@ -237,11 +237,49 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 329,
-      "head_sha": "fd9a3e8ff885c0be0e797f9e46b12b376deb6106",
-      "atualizado_em": "2026-10-30T21:58:24-03:00",
-      "lacuna": "CI e publicação em validação. Escopo por consulta interativa; não certifica controle global de cota ou conclusão da análise visual e semântica."
+      "head_sha": "36433d464d6991923347b542e620c6b5c525f956",
+      "atualizado_em": "2026-10-30T22:05:52.486-03:00",
+      "lacuna": "Entrega publicada; escopo da interrupção é cada consulta interativa. Não implementa controle global de cota ou conclui análise visual e semântica.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41153001389,
+          "resultado": "success",
+          "head_sha": "36433d464d6991923347b542e620c6b5c525f956"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41153001416,
+          "resultado": "success",
+          "head_sha": "36433d464d6991923347b542e620c6b5c525f956"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41153001374,
+          "resultado": "success",
+          "head_sha": "36433d464d6991923347b542e620c6b5c525f956"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbijsidg1s2s73f3v4og",
+        "commit": "03baa3b100eb0eb94baec5b947476fd1be6f60ec",
+        "status": "live",
+        "horario_brasilia": "2026-10-30T22:05:52.486-03:00"
+      }
+    },
+    {
+      "id": "imagem-principal-330",
+      "escopo": "Diagnóstico oficial sob demanda da imagem identificada como principal, com categoria e vínculo verificados, mensagens oficiais e fontes de revisão em cards.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 330,
+      "head_sha": "2ab23e872765b4381901cb4e9253d7a6a4923de7",
+      "atualizado_em": "2026-10-30T22:07:09-03:00",
+      "lacuna": "CI e publicação em validação; uso autenticado com anúncio real não exercitado. Não cobre outras fotos, variações, clips ou coerência semântica."
     }
   ]
 }
