@@ -43,10 +43,15 @@ def load(conn,query,cid,item,actor,plan):
     return rows[0]
 
 
-def create(conn,query,cid,item,actor,key):
+def by_key(conn,query,cid,item,actor,key):
+    rows=query(conn,'SELECT * FROM listing_attribute_plans WHERE conexao_id=%s AND item_id=%s AND created_by=%s AND analysis_key=%s',(cid,item,actor,key))
+    return rows[0] if rows else None
+
+
+def create(conn,query,cid,item,actor,key,initial_data=None):
     identifier=str(uuid4());now=int(time.time())
-    rows=query(conn,'''INSERT INTO listing_attribute_plans(id,conexao_id,item_id,created_by,analysis_key,created_at,updated_at,state)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,'reading') ON CONFLICT(conexao_id,item_id,created_by,analysis_key) DO NOTHING RETURNING *''',(identifier,cid,item,actor,key,now,now))
+    rows=query(conn,'''INSERT INTO listing_attribute_plans(id,conexao_id,item_id,created_by,analysis_key,created_at,updated_at,state,data)
+        VALUES(%s,%s,%s,%s,%s,%s,%s,'reading',%s) ON CONFLICT(conexao_id,item_id,created_by,analysis_key) DO NOTHING RETURNING *''',(identifier,cid,item,actor,key,now,now,Json(initial_data or {})))
     if not rows:rows=query(conn,'SELECT * FROM listing_attribute_plans WHERE conexao_id=%s AND item_id=%s AND created_by=%s AND analysis_key=%s',(cid,item,actor,key))
     conn.commit();return rows[0],str(rows[0]['id'])==identifier
 

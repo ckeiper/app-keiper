@@ -48,7 +48,7 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,
         if request.method=='POST':
             action=request.form.get('action');plan_id=request.form.get('plan')
             try:
-                if action not in ('analyze','apply','verify','close'):raise ValueError('Ação inválida.')
+                if action not in ('analyze','manual','apply','verify','close'):raise ValueError('Ação inválida.')
                 with store.locked(bank,query,cid,item_id) as conn:
                     if action=='analyze':
                         key=request.form.get('analysis_key','')
@@ -67,7 +67,10 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,
                         if not valid_plan(plan_id):raise ValueError('Análise inválida.')
                         plan=store.load(conn,query,cid,item_id,actor,plan_id)
                         persist=lambda state,result,**kw:store.transition(conn,query,plan,actor,state,result,**kw)
-                        if action=='apply':
+                        if action=='manual':
+                            from attribute_manual import add
+                            plan=add(conn,query,cid,item_id,actor,plan,request.form,shop,lambda:resolve_token(shop),budgeted(get))
+                        elif action=='apply':
                             if plan['state']!='ready':raise ValueError('Esta análise já foi usada. Nenhuma atualização foi reenviada.')
                             if shop.get('status')!='ativa':raise ValueError('Conexão inativa: envio indisponível.')
                             selected_proposals(plan['data'],request.form.getlist('selected'))
@@ -93,4 +96,4 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,
         with bank() as conn:history=query(conn,'''SELECT id,state,created_at FROM listing_attribute_plans
             WHERE conexao_id=%s AND item_id=%s AND created_by=%s ORDER BY created_at DESC,id DESC LIMIT 10''',(cid,item_id,actor))
         for row in history:row['stamp']=datetime.fromtimestamp(row['created_at'],ZoneInfo('America/Sao_Paulo')).strftime('%d/%m %H:%M')
-        return shop_page('Completar ficha técnica',cid,shop['cliente'],'anuncios',render(cid,item_id,shop['titulo'],csrf,secrets.token_urlsafe(24),plan,message,history),refresh=False)
+        return shop_page('Completar ficha técnica',cid,shop['cliente'],'anuncios',render(cid,item_id,shop['titulo'],csrf,secrets.token_urlsafe(24),plan,message,history,request.form if request.method=='POST' else None),refresh=False)

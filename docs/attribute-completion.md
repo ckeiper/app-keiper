@@ -39,3 +39,11 @@ A mesma documentação informa que N/A pode ser omitido na leitura padrão. O ed
 O leitor tem versão persistida na análise. Propostas de versão anterior ou expiradas não oferecem o envio; o servidor também as invalida. Antes do PUT, os valores e as representações efetivamente aprovadas precisam coincidir com os recalculados, mesmo quando a impressão das fontes não mudou. Atualização do leitor não autoriza substituição silenciosa de um valor revisado. Sem mudanças de schema ou novos endpoints de escrita.
 
 Correspondências de opções oficiais preservam pontuação. IDs de unidade preservam símbolos e capitalização; nomes textuais completos podem ignorar acentos/case, mas abreviações curtas não são adivinhadas. Assim, @ não vira % e Mb não vira MB. Trata-se de cautela do leitor, não de nova regra imposta ao vendedor.
+
+## Dados informados pelo consultor — 31/10/2026
+
+A revisão oferece “Informar dado faltante” para os mesmos atributos comuns vazios elegíveis, inclusive ocultos. O formulário aceita campo oficial, valor e fonte/observação opcional. Exibe tipo e até dez exemplos oficiais (não é lista exaustiva). O servidor valida o tipo, limites, opções e unidades usando as regras já consultadas, sem presumir obrigatoriedade ou validar semanticamente a veracidade do dado declarado.
+
+“Adicionar à revisão” relê anúncio/regras/vínculos e cria um plano sucessor imutável, com autoria e origem “Informado por você”. Não faz PUT. A revisão anterior preserva os dados originais e aponta para a nova revisão. Reenvio do mesmo formulário retorna o mesmo plano sem novas consultas; reutilização da chave com conteúdo diferente é recusada. Falha de validação mantém o campo digitado para correção e não substitui o plano anterior. Até 50 campos informados por revisão, priorizados no limite de 50 propostas; uma nova inclusão do mesmo campo substitui apenas a proposta no novo rascunho.
+
+A seleção continua desmarcada. No envio, o servidor usa exclusivamente os dados persistidos, confere a autoria e recalcula o payload pelas regras atuais antes de qualquer PUT. Mudança do anúncio, categoria, vínculo, input ou payload aprovado bloqueia o envio. Versão do leitor 3 invalida antigas revisões prontas; confirmação de envios pendentes continua somente leitura. Não muda schema nem amplia as permissões ou o escopo de edição. Não houve gravação em anúncio real como teste.

@@ -128,5 +128,33 @@ class AttributeStoreIntegration(unittest.TestCase):
   self.assertEqual(c.post(path,data=dict(_csrf='csrf',action='close',plan=pending_id)).status_code,200)
   self.assertEqual(c.post(path,data=dict(_csrf='csrf',action='close',plan=pending_id,manual_checked='1')).status_code,303)
   self.assertIn('Encerrada após conferência manual',c.get(pending).text);self.assertEqual(writer.call_count,2)
+  # A declared value creates a successor review; no marketplace write occurs.
+  backend['attributes']=[]
+  original=c.post(path,data=dict(_csrf='csrf',action='analyze',analysis_key='n'*24)).headers['Location'];original_id=original.split('plan=')[1]
+  manual=dict(_csrf='csrf',action='manual',plan=original_id,manual_key='o'*24,manual_field='MATERIAL',manual_value='Plástico',manual_note='Fabricante')
+  writes=writer.call_count
+  child=c.post(path,data=manual);self.assertEqual(child.status_code,303)
+  child_location=child.headers['Location'];child_id=child_location.split('plan=')[1]
+  self.assertNotEqual(child_id,original_id);self.assertEqual(writer.call_count,writes)
+  self.assertIn('Informado: Plástico',c.get(child_location).text)
+  self.assertIn('Continuar revisão atualizada',c.get(original).text)
+  reads=reader.call_count
+  self.assertEqual(c.post(path,data=manual).headers['Location'],child_location)
+  self.assertEqual(reader.call_count,reads);self.assertEqual(writer.call_count,writes)
+  changed=dict(manual,manual_value='Ferro')
+  self.assertEqual(c.post(path,data=changed).status_code,200);self.assertEqual(reader.call_count,reads)
+  self.assertEqual(c.post(path,data=dict(manual,manual_key='p'*24)).status_code,200);self.assertEqual(reader.call_count,reads)
+  # An invalid official value leaves the current revision available and retains input.
+  invalid=dict(manual,plan=child_id,manual_key='q'*24,manual_value='x'*101)
+  failed=c.post(path,data=invalid);self.assertEqual(failed.status_code,200);self.assertIn('Valor incompatível',failed.text)
+  self.assertIn('value="'+'x'*101+'"',failed.text)
+  writer.side_effect=put
+  self.assertEqual(c.post(path,data=dict(_csrf='csrf',action='apply',plan=child_id,selected='MATERIAL')).status_code,303)
+  self.assertEqual(writer.call_count,writes+1);self.assertEqual(backend['attributes'],[dict(id='MATERIAL',value_name='Plástico')])
+  self.assertIn('Gravação confirmada',c.get(child_location).text)
+  with self.bank() as conn:
+   saved=store.load(conn,self.query,991,self.item,42,child_id)
+   self.assertEqual(saved['data']['manual_actor'],42);self.assertEqual(saved['data']['manual_inputs'][0]['note'],'Fabricante')
+   self.assertEqual(store.load(conn,self.query,991,self.item,42,original_id)['state'],'stale')
   with c.session_transaction() as state:state['usuario_id']=43
   self.assertEqual(c.get(location).status_code,404)

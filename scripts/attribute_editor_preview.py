@@ -4,10 +4,14 @@ from attribute_edit_view import render
 from test_attribute_completion import facts,analyze,definition,listing
 from copy import deepcopy
 base=analyze(facts(definitions=[definition(tags=dict(hidden=True))]))
-for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na'):
+for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty'):
     plan=None
     if mode!='initial':
         plan=dict(id='11111111-1111-4111-8111-111111111111',data=deepcopy(base),state=mode if mode in ('uncertain','confirmed') else 'ready',selected=[],result={})
+        if mode in ('manual','manual-xss'):
+            value='<img src=x onerror=window.injected=1>' if mode=='manual-xss' else 'Plástico'
+            plan['data']=analyze(facts(description='',definitions=[definition(tags=dict(hidden=True))]),[dict(id='MATERIAL',value=value,note='Ficha do fabricante')],42)
+        if mode=='manual-empty':plan['data']=analyze(facts(description=''))
         if mode=='empty':plan['data']['proposals']=[];plan['data']['proposal_total']=0
         if mode=='blocked':plan['data']['blocked']='User Product compartilhado: envio bloqueado para não alterar outros anúncios.'
         if mode=='confirmed':plan['result']=dict(message='Atualização confirmada por nova leitura.',fields=[dict(id='MATERIAL',name='Material',confirmed=True)])
