@@ -81,6 +81,8 @@ on:
       - 'test_content_attribute_units.py'
       - 'scripts/content_attribute_units*'
       - 'content_technical_specs.py'
+      - 'content_technical_view.py'
+      - 'contextual_help.py'
       - 'test_content_technical_specs.py'
       - 'scripts/content_technical_specs*'
       - 'test_content_rate_limit.py'
