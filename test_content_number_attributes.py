@@ -44,6 +44,9 @@ class NumberAttributeTests(unittest.TestCase):
         r=compare([rule(id=str(i),name='<img onerror=x>') for i in range(101)],item(attributes=[dict(id=str(i),value_name='dois') for i in range(101)]))
         self.assertEqual(len(r['rows']),100);self.assertTrue(r['truncated']);self.assertNotIn('<img',render(r));self.assertIn('100 resultados',render(r))
         self.assertIn('não verificados',render(dict(state='unknown')))
+        many=item(attributes=[dict(id=str(i)) for i in range(2000)],variations=[dict(id=i,attributes=[dict(id=str(j)) for j in range(2000)],attribute_combinations=[]) for i in range(2)])
+        self.assertTrue(compare([rule()],many)['truncated'])
+        self.assertTrue(compare([rule()],item(variations=[dict(id=i) for i in range(1001)]))['variation_unknown'])
 
     def test_existing_pipeline_reuses_four_gets_and_emits_action(self):
         from listing_content_snapshot import inspect

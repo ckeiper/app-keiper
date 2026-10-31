@@ -192,6 +192,18 @@
         "status": "live",
         "horario_brasilia": "2026-10-30T21:40:30.070-03:00"
       }
+    },
+    {
+      "id": "atributos-numericos-328",
+      "escopo": "Conferência lexical de valores number por anúncio e variação, sem restrições inventadas de faixa, inteiro ou positividade e sem novas chamadas remotas.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 328,
+      "head_sha": "10a29e64ce3cde227f225f433c8d213c04e3c91d",
+      "atualizado_em": "2026-10-30T21:41:38-03:00",
+      "lacuna": "CI e publicação em validação; não certifica todos os formatos numéricos, semântica, aplicabilidade ou aceitação da publicação."
     }
   ]
 }
