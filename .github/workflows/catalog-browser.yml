@@ -59,6 +59,9 @@ on:
       - 'listing_onboarding*.py'
       - 'test_listing_onboarding*.py'
       - 'scripts/listing_onboarding*'
+      - 'portfolio_view.py'
+      - 'test_portfolio_view.py'
+      - 'scripts/portfolio*'
       - 'listing_image_diagnostic.py'
       - 'test_listing_image_diagnostic.py'
       - 'scripts/listing_image_diagnostic*'
@@ -186,6 +189,7 @@ jobs:
       - run: python scripts/listing_goals_preview.py
       - run: python scripts/listing_sales_goals_preview.py
       - run: python scripts/listing_onboarding_preview.py
+      - run: python scripts/portfolio_preview.py
       - run: python scripts/listing_image_diagnostic_preview.py
       - run: python scripts/listing_buyer_reviews_preview.py
       - run: python scripts/listing_questions_preview.py
@@ -227,6 +231,7 @@ jobs:
       - run: node scripts/listing_goals_browser_check.cjs
       - run: node scripts/listing_sales_goals_browser_check.cjs
       - run: node scripts/listing_onboarding_browser_check.cjs
+      - run: node scripts/portfolio_browser_check.cjs
       - run: node scripts/listing_image_diagnostic_browser_check.cjs
       - run: node scripts/listing_buyer_reviews_browser_check.cjs
       - run: node scripts/listing_questions_browser_check.cjs
