@@ -503,11 +503,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 344,
-      "head_sha": "9ed8296d4443ce10130098dfcc08d443575e5115",
-      "atualizado_em": "2026-11-01T20:38:05.051875-03:00",
-      "lacuna": "1.339 testes locais aprovados; PostgreSQL e cenários visuais em validação no CI. Mantém limite total de 50 dados declarados e bloqueios anteriores. Não certifica semântica nem testa escrita em anúncio real. Conteúdo permanece parcial."
+      "head_sha": "bb956e78f6efe755465ae39901892572fc207b98",
+      "atualizado_em": "2026-11-01T20:47:15.980764-03:00",
+      "lacuna": "Entrega publicada com lote de até 50 campos declarados, validação integral e revisão antes do envio. Mantém limites/bloqueios anteriores; não obtém automaticamente informação ausente nem certifica semântica. Escrita em anúncio real não foi usada para teste. Conteúdo permanece parcial.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41363113308,
+          "resultado": "success",
+          "head_sha": "bb956e78f6efe755465ae39901892572fc207b98"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41363113436,
+          "resultado": "success",
+          "head_sha": "bb956e78f6efe755465ae39901892572fc207b98"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41363113324,
+          "resultado": "success",
+          "head_sha": "bb956e78f6efe755465ae39901892572fc207b98"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbjstovb9u1s73c49ibg",
+        "commit": "fdd71e563b8f756c22528353aca8965454e3fbef",
+        "status": "live",
+        "horario_brasilia": "2026-11-01T20:46:42.060156-03:00"
+      }
     }
   ]
 }
