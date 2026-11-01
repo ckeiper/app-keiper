@@ -178,5 +178,25 @@ class AttributeStoreIntegration(unittest.TestCase):
   self.assertEqual(backend['variations'][0]['attributes'][0],dict(id='SELLER_SKU',value_name='sku-101'));self.assertEqual(backend['variations'][0]['available_quantity'],4)
   self.assertEqual(backend['variations'][1]['attributes'],[dict(id='SELLER_SKU',value_name='sku-102')])
   self.assertEqual(c.post(path,data=dict(_csrf='csrf',action='apply',plan=draft_id,selected='v:101:GTIN')).status_code,200);self.assertEqual(writer.call_count,before+1)
+  # A mixed batch produces one successor and one read, never a partial draft.
+  from werkzeug.datastructures import MultiDict
+  backend['attributes']=[];backend['variations']=[variant(),variant(102)];defs[:]=[definition(),rule()]
+  batch_parent=c.post(path,data=dict(_csrf='csrf',action='analyze',analysis_key='t'*24)).headers['Location'].split('plan=')[1]
+  batch=MultiDict([('_csrf','csrf'),('action','manual'),('plan',batch_parent),('manual_key','u'*24),('manual_field','MATERIAL'),('manual_value','Aço'),('manual_note','Fonte comum'),('manual_field','v:101:GTIN'),('manual_value','789000001'),('manual_note','Fonte azul'),('manual_field','v:102:GTIN'),('manual_value','x'*101),('manual_note','Fonte preta')])
+  before=writer.call_count;reads=reader.call_count
+  failed=c.post(path,data=batch);self.assertEqual(failed.status_code,200);self.assertIn('Valor incompatível',failed.text);self.assertEqual(failed.text.count('class="ae-manual-row"'),3)
+  self.assertIn('Fonte azul',failed.text);self.assertIn('Fonte preta',failed.text);self.assertEqual(writer.call_count,before)
+  with self.bank() as conn:
+   self.assertEqual(store.load(conn,self.query,991,self.item,42,batch_parent)['state'],'ready');self.assertIsNone(store.by_key(conn,self.query,991,self.item,42,'u'*24))
+  batch.setlist('manual_value',['Aço','789000001','789000002']);reads=reader.call_count
+  result=c.post(path,data=batch);self.assertEqual(result.status_code,303);self.assertEqual(reader.call_count-reads,5);self.assertEqual(writer.call_count,before)
+  batch_location=result.headers['Location'];batch_id=batch_location.split('plan=')[1]
+  reads=reader.call_count;self.assertEqual(c.post(path,data=batch).headers['Location'],batch_location);self.assertEqual(reader.call_count,reads)
+  with self.bank() as conn:
+   saved=store.load(conn,self.query,991,self.item,42,batch_id);self.assertEqual(len(saved['data']['manual_inputs']),3);self.assertEqual(saved['data']['manual_actor'],42)
+  selected=MultiDict([('_csrf','csrf'),('action','apply'),('plan',batch_id),('selected','MATERIAL'),('selected','v:102:GTIN')])
+  self.assertEqual(c.post(path,data=selected).status_code,303);self.assertEqual(writer.call_count,before+1)
+  update=writer.call_args.kwargs['json'];self.assertEqual(update['attributes'],[dict(id='MATERIAL',value_name='Aço')]);self.assertEqual(update['variations'][0],dict(id=101));self.assertEqual(update['variations'][1]['attributes'][-1]['value_name'],'789000002')
+  self.assertIn('Gravação confirmada',c.get(batch_location).text)
   with c.session_transaction() as state:state['usuario_id']=43
   self.assertEqual(c.get(location).status_code,404)
