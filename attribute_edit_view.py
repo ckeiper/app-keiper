@@ -14,7 +14,7 @@ def render(cid,item,title,csrf,key,plan=None,message='',history=None,manual_form
     esc=lambda v:escape(str(v),quote=True)
     path='/anuncios/'+str(cid)+'/'+esc(item)
     out=CSS+'<main class="pf attribute-editor"><header class="pf-hero"><h2>Completar ficha técnica</h2><p>'+esc(title or item)+'</p></header>'
-    out+='<section class="pf-card"><h3>Analisar anúncio'+tip('Análise','Lê título, descrição, atributos, variações e regras da categoria. Sugere valores explícitos em rótulos Campo: valor e frases como O material é aço. Perguntas, alternativas e frases condicionais ficam pendentes. Não interpreta fotos, não inventa dados e não substitui valores existentes. Campos ocultos são identificados pelas regras retornadas. Atualizações do catálogo, identidade do produto e vínculos compartilhados ficam bloqueadas nesta etapa.')+'</h3>'
+    out+='<section class="pf-card"><h3>Analisar anúncio'+tip('Análise','Lê título, descrição, atributos, variações e regras da categoria. Sugere valores explícitos em rótulos Campo: valor e frases como O material é aço. Perguntas, alternativas e frases condicionais ficam pendentes. Não interpreta fotos, não inventa dados e não substitui valores existentes. Atributos próprios de variação são preenchidos por dado informado e revisão individual; cor/tamanho que definem combinações não são editados. Campos ocultos são identificados pelas regras retornadas. Atualizações do catálogo, identidade do produto e vínculos compartilhados ficam bloqueadas nesta etapa.')+'</h3>'
     out+='<form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="analyze"><input type="hidden" name="analysis_key" value="'+esc(key)+'"><button>Analisar e completar ficha técnica</button></form></section>'
     if message:out+='<p role="status" class="pf-card">'+esc(message)+'</p>'
     if plan:
@@ -30,24 +30,27 @@ def render(cid,item,title,csrf,key,plan=None,message='',history=None,manual_form
         for warning in data.get('warnings',[]):out+='<p>'+esc(warning)+'</p>'
         proposals=data.get('proposals',[])
         if data:
-            out+='<p>'+str(len(proposals))+' sugestões nesta análise · '+str(sum(p['hidden'] for p in proposals))+' para campos ocultos</p>'
+            count=len(proposals);hidden_count=sum(p['hidden'] for p in proposals)
+            out+='<p>'+str(count)+(' sugestão' if count==1 else ' sugestões')+' nesta análise · '+str(hidden_count)+(' para campo oculto' if hidden_count==1 else ' para campos ocultos')+'</p>'
             if data.get('proposal_total',0)>50:out+='<p>Exibidas as primeiras 50 de '+str(data['proposal_total'])+' sugestões. Após aplicar, uma nova análise poderá conferir os demais campos.</p>'
         if state=='ready' and (outdated or expired):out+='<p role="status">'+('O leitor foi atualizado.' if outdated else 'A análise expirou.')+' Analise novamente antes de enviar.</p>'
         can_send=state=='ready' and not data.get('blocked') and bool(proposals) and not outdated and not expired
         out+='<form method="post" class="ae-apply"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="apply"><input type="hidden" name="plan" value="'+esc(plan['id'])+'">'
         for p in proposals:
-            out+='<article class="ae-proposal"><label><input type="checkbox" name="selected" value="'+esc(p['id'])+'"'+('' if can_send else ' disabled')+'> '+esc(p['name'])+(' <span class="ae-hidden">Oculto</span>' if p['hidden'] else '')+'</label><small>'+esc(p['id'])+'</small><div class="ae-diff"><span>Antes: sem valor identificado</span><strong>'+('Gravado: ' if p['id'] in confirmed else 'Informado: ' if p.get('manual') else 'Sugestão: ')+esc(p['value'])+'</strong></div>'
+            out+='<article class="ae-proposal"><label><input type="checkbox" name="selected" value="'+esc(p['id'])+'"'+('' if can_send else ' disabled')+'> '+esc(p['name'])+(' <span class="ae-hidden">Oculto</span>' if p['hidden'] else '')+'</label><small>'+esc(p.get('attribute_id',p['id']))+'</small><div class="ae-diff"><span>Antes: sem valor identificado</span><strong>'+('Gravado: ' if p['id'] in confirmed else 'Informado: ' if p.get('manual') else 'Sugestão: ')+esc(p['value'])+'</strong></div>'
             for e in p['evidence']:out+='<blockquote><small>'+esc(e['source'])+'</small><br>'+esc(e['text'])+'</blockquote>'
             out+='</article>'
         if not proposals and data:out+='<p>Sem sugestões automáticas'+tip('Sem sugestões','Não foi identificada fonte explícita suficiente. Confira o inventário ou informe um dado faltante para adicioná-lo à revisão.')+'</p>'
-        if can_send:out+='<button>Aplicar selecionadas no Mercado Livre</button>'
+        if can_send:
+            if any(p.get('variation_id') for p in proposals):out+='<p>Envio por variação'+tip('Envio por variação','Preserva os IDs de todas as variações e os atributos anteriores. Não envie edições simultâneas de variações pelo Mercado Livre ou por outro integrador durante esta operação. A API não oferece uma transação compartilhada com este painel.')+'</p>'
+            out+='<button>Aplicar selecionadas no Mercado Livre</button>'
         out+='</form>'
         if result.get('successor_plan'):
             from attribute_editor import valid_plan
             if valid_plan(result['successor_plan']):out+='<a class="ae-history" href="'+path+'/completar-ficha?plan='+esc(result['successor_plan'])+'">Continuar revisão atualizada</a>'
         if state=='ready' and not data.get('blocked') and not outdated and not expired and data.get('manual_fields'):
             values=manual_form or {}
-            out+='<details class="ae-manual"><summary>Informar dado faltante</summary><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan['id'])+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'"><label>Campo<select name="manual_field" required><option value="">Selecione um campo</option>'
+            out+='<details class="ae-manual"><summary>Informar dado faltante</summary><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan['id'])+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'"><label>Campo ou variação<select name="manual_field" required><option value="">Selecione um campo</option>'
             for field in data['manual_fields']:
                 label=field['name']+(' · Oculto' if field['hidden'] else '')+' ('+field['id']+')'
                 guidance={'string':'Texto','list':'Opção oficial','boolean':'Opção oficial','number':'Número','number_unit':'Número e unidade'}.get(field['value_type'],'Valor')

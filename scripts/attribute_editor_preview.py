@@ -4,7 +4,7 @@ from attribute_edit_view import render
 from test_attribute_completion import facts,analyze,definition,listing
 from copy import deepcopy
 base=analyze(facts(definitions=[definition(tags=dict(hidden=True))]))
-for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty'):
+for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss'):
     plan=None
     if mode!='initial':
         plan=dict(id='11111111-1111-4111-8111-111111111111',data=deepcopy(base),state=mode if mode in ('uncertain','confirmed') else 'ready',selected=[],result={})
@@ -12,6 +12,14 @@ for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','
             value='<img src=x onerror=window.injected=1>' if mode=='manual-xss' else 'Plástico'
             plan['data']=analyze(facts(description='',definitions=[definition(tags=dict(hidden=True))]),[dict(id='MATERIAL',value=value,note='Ficha do fabricante')],42)
         if mode=='manual-empty':plan['data']=analyze(facts(description=''))
+        if mode.startswith('variation'):
+            from test_attribute_variations import variant,rule,manual
+            variants=[variant(),variant(102)]
+            if mode=='variation-unknown':variants[1]['attributes']=None
+            if mode=='variation-xss':variants[0]['attribute_combinations'][0]['value_name']='<img src=x onerror=window.injected=1>'
+            plan['data']=analyze(facts(item=listing(variations=variants),definitions=[rule()],description=''),[manual()] if mode!='variation-unknown' else None,42)
+            if mode=='variation-confirmed':
+                plan['state']='confirmed';plan['result']=dict(message='Atualização confirmada por nova leitura.',preserved=True,fields=[dict(id='v:101:GTIN',name='Código de barras · Variação 101 · Azul',confirmed=True)])
         if mode=='empty':plan['data']['proposals']=[];plan['data']['proposal_total']=0
         if mode=='blocked':plan['data']['blocked']='User Product compartilhado: envio bloqueado para não alterar outros anúncios.'
         if mode=='confirmed':plan['result']=dict(message='Atualização confirmada por nova leitura.',fields=[dict(id='MATERIAL',name='Material',confirmed=True)])

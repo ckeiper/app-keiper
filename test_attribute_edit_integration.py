@@ -88,15 +88,21 @@ class AttributeStoreIntegration(unittest.TestCase):
   from attribute_editor import register
   from web_security import install_security
   app=Flask(__name__);app.secret_key='isolated';app.testing=True;install_security(app)
-  backend=listing(id=self.item)
+  backend=listing(id=self.item);defs=[definition()]
   def get(url,**kwargs):
    if url.endswith('/users/me'):value=dict(id=123)
    elif url.endswith('/description'):value=dict(plain_text='Material: Aço')
-   elif url.endswith('/attributes'):value=[definition()]
+   elif url.endswith('/attributes'):value=defs
    elif url.endswith('/technical_specs/input'):value=dict(groups=[])
    else:value=backend
    return response(deepcopy(value))
-  def put(url,**kwargs):backend['attributes']=deepcopy(kwargs['json']['attributes']);return response({})
+  def put(url,**kwargs):
+   update=kwargs['json']
+   if 'attributes' in update:backend['attributes']=deepcopy(update['attributes'])
+   for v in update.get('variations',[]):
+    existing=next(row for row in backend['variations'] if row['id']==v['id'])
+    if 'attributes' in v:existing['attributes']=deepcopy(v['attributes'])
+   return response({})
   reader=Mock(side_effect=get);writer=Mock(side_effect=put)
   def query(conn,sql,args=()):
    if 'JOIN anuncios' in sql:return [dict(user_id=123,titulo='Produto',cliente='Loja',status='ativa')]
@@ -156,5 +162,21 @@ class AttributeStoreIntegration(unittest.TestCase):
    saved=store.load(conn,self.query,991,self.item,42,child_id)
    self.assertEqual(saved['data']['manual_actor'],42);self.assertEqual(saved['data']['manual_inputs'][0]['note'],'Fabricante')
    self.assertEqual(store.load(conn,self.query,991,self.item,42,original_id)['state'],'stale')
+  # Variation attributes keep every ID and previously recorded value.
+  from test_attribute_variations import variant,rule
+  backend['variations']=[variant(),variant(102)];defs[:]=[rule()]
+  variation=c.post(path,data=dict(_csrf='csrf',action='analyze',analysis_key='r'*24)).headers['Location'];variation_id=variation.split('plan=')[1]
+  before=writer.call_count;reads=reader.call_count
+  vform=dict(_csrf='csrf',action='manual',plan=variation_id,manual_key='s'*24,manual_field='v:999:GTIN',manual_value='789000001',manual_note='Fabricante')
+  self.assertEqual(c.post(path,data=vform).status_code,200);self.assertEqual(reader.call_count,reads);self.assertEqual(writer.call_count,before)
+  vform['manual_field']='v:101:GTIN'
+  draft=c.post(path,data=vform);self.assertEqual(draft.status_code,303);draft_location=draft.headers['Location'];draft_id=draft_location.split('plan=')[1]
+  self.assertIn('Variação 101',c.get(draft_location).text);self.assertEqual(writer.call_count,before)
+  self.assertEqual(c.post(path,data=dict(_csrf='csrf',action='apply',plan=draft_id,selected='v:101:GTIN')).status_code,303)
+  self.assertEqual(writer.call_count,before+1);self.assertIn('Gravação confirmada',c.get(draft_location).text)
+  update=writer.call_args.kwargs['json'];self.assertEqual([v['id'] for v in update['variations']],[101,102]);self.assertEqual(update['variations'][1],dict(id=102))
+  self.assertEqual(backend['variations'][0]['attributes'][0],dict(id='SELLER_SKU',value_name='sku-101'));self.assertEqual(backend['variations'][0]['available_quantity'],4)
+  self.assertEqual(backend['variations'][1]['attributes'],[dict(id='SELLER_SKU',value_name='sku-102')])
+  self.assertEqual(c.post(path,data=dict(_csrf='csrf',action='apply',plan=draft_id,selected='v:101:GTIN')).status_code,200);self.assertEqual(writer.call_count,before+1)
   with c.session_transaction() as state:state['usuario_id']=43
   self.assertEqual(c.get(location).status_code,404)

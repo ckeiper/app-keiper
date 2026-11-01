@@ -66,7 +66,7 @@ class ProseTests(unittest.TestCase):
    if url.endswith('/description'):return response(dict(plain_text='O material é aço.'))
    if url.endswith('/attributes'):return response([definition()])
    if url.endswith('/technical_specs/input'):return response(dict(groups=[]))
-   self.assertTrue(url.endswith('/items/MLB123?include_internal_attributes=true'))
+   self.assertTrue(url.endswith('/items/MLB123?include_internal_attributes=true&include_attributes=all'))
    return response(listing(attributes=[dict(id='MATERIAL',value_id='-1',value_name=None)]))
   read=Mock(side_effect=get);data=analyze(gather('private',123,'MLB123',read))
   self.assertEqual(read.call_count,5);self.assertEqual(data['proposals'],[]);self.assertIn('Não aplicável declarado',data['inventory']['rows'][0]['message'])
