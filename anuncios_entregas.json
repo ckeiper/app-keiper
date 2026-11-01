@@ -458,6 +458,18 @@
         "status": "live",
         "horario_brasilia": "2026-10-31T20:37:22.719711-03:00"
       }
+    },
+    {
+      "id": "ficha-variacoes-342",
+      "escopo": "Dados faltantes declarados por variação, revisão individual e envio com preservação dos IDs e atributos anteriores.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 342,
+      "head_sha": "74f3ea7fbfeef52af1493975cfcf6aa63cf71e24",
+      "atualizado_em": "2026-11-01T01:55:11.624032-03:00",
+      "lacuna": "Testes locais aprovados; aguardando CI com PostgreSQL e publicação. Somente atributos próprios vazios com variation_attribute, sem substituir combinações ou campos gerenciados, catálogo e vínculos não verificáveis. Não certifica semântica nem altera anúncio real para teste."
     }
   ]
 }

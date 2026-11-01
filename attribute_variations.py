@@ -56,7 +56,7 @@ def review(facts,definitions,manual):
             if key in definitions:continue
             examples=rule.get('allowed_units',[]) if rule['value_type']=='number_unit' else rule.get('values',[])
             examples=[e.get('name',e.get('id','')) for e in examples[:10] if isinstance(e,dict)] if isinstance(examples,list) else []
-            fields.append(dict(id=key,attribute_id=code,variation_id=vid,name=name+' · '+label,hidden=hidden,value_type=rule['value_type'],examples=[e[:100] for e in examples if isinstance(e,str)]))
+            fields.append(dict(id=key,attribute_id=code,variation_id=vid,name=label+' · '+name,hidden=hidden,value_type=rule['value_type'],examples=[e[:100] for e in examples if isinstance(e,str)]))
             if key in manual:
                 entry=manual[key];parsed=value_for(rule,entry['value'])
                 if not parsed:raise ValueError('Valor incompatível com as regras verificadas de '+name+' nesta variação.')

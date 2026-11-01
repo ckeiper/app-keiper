@@ -30,13 +30,14 @@ def render(cid,item,title,csrf,key,plan=None,message='',history=None,manual_form
         for warning in data.get('warnings',[]):out+='<p>'+esc(warning)+'</p>'
         proposals=data.get('proposals',[])
         if data:
-            out+='<p>'+str(len(proposals))+' sugestões nesta análise · '+str(sum(p['hidden'] for p in proposals))+' para campos ocultos</p>'
+            count=len(proposals);hidden_count=sum(p['hidden'] for p in proposals)
+            out+='<p>'+str(count)+(' sugestão' if count==1 else ' sugestões')+' nesta análise · '+str(hidden_count)+(' para campo oculto' if hidden_count==1 else ' para campos ocultos')+'</p>'
             if data.get('proposal_total',0)>50:out+='<p>Exibidas as primeiras 50 de '+str(data['proposal_total'])+' sugestões. Após aplicar, uma nova análise poderá conferir os demais campos.</p>'
         if state=='ready' and (outdated or expired):out+='<p role="status">'+('O leitor foi atualizado.' if outdated else 'A análise expirou.')+' Analise novamente antes de enviar.</p>'
         can_send=state=='ready' and not data.get('blocked') and bool(proposals) and not outdated and not expired
         out+='<form method="post" class="ae-apply"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="apply"><input type="hidden" name="plan" value="'+esc(plan['id'])+'">'
         for p in proposals:
-            out+='<article class="ae-proposal"><label><input type="checkbox" name="selected" value="'+esc(p['id'])+'"'+('' if can_send else ' disabled')+'> '+esc(p['name'])+(' <span class="ae-hidden">Oculto</span>' if p['hidden'] else '')+'</label><small>'+esc(p['id'])+'</small><div class="ae-diff"><span>Antes: sem valor identificado</span><strong>'+('Gravado: ' if p['id'] in confirmed else 'Informado: ' if p.get('manual') else 'Sugestão: ')+esc(p['value'])+'</strong></div>'
+            out+='<article class="ae-proposal"><label><input type="checkbox" name="selected" value="'+esc(p['id'])+'"'+('' if can_send else ' disabled')+'> '+esc(p['name'])+(' <span class="ae-hidden">Oculto</span>' if p['hidden'] else '')+'</label><small>'+esc(p.get('attribute_id',p['id']))+'</small><div class="ae-diff"><span>Antes: sem valor identificado</span><strong>'+('Gravado: ' if p['id'] in confirmed else 'Informado: ' if p.get('manual') else 'Sugestão: ')+esc(p['value'])+'</strong></div>'
             for e in p['evidence']:out+='<blockquote><small>'+esc(e['source'])+'</small><br>'+esc(e['text'])+'</blockquote>'
             out+='</article>'
         if not proposals and data:out+='<p>Sem sugestões automáticas'+tip('Sem sugestões','Não foi identificada fonte explícita suficiente. Confira o inventário ou informe um dado faltante para adicioná-lo à revisão.')+'</p>'
