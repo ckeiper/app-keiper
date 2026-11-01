@@ -10,7 +10,7 @@ from listing_content_snapshot import read,ContentUnavailable,ContentRateLimited
 
 BLOCKED=('read_only','inferred','fixed','others','restricted_values','product_pk','parent_pk','child_pk','allow_variations','variation_attribute','defines_picture')
 HIDDEN=('hidden','new_hidden','used_hidden')
-EXTRACTOR_VERSION=3
+EXTRACTOR_VERSION=4
 
 
 def fold(value):
@@ -38,7 +38,7 @@ def owned(token,seller,item_id,get):
     if not isinstance(token,str) or not token or not re.fullmatch(r'[1-9][0-9]{0,19}',str(seller)) or not re.fullmatch(r'MLB[0-9]{1,20}',item_id):raise ContentUnavailable('Conta ou anúncio inválido.')
     account=read(token,'/users/me',get)
     if str(account.get('id'))!=str(seller):raise ContentUnavailable('Autorização de outra conta.')
-    item=read(token,'/items/'+item_id+'?include_internal_attributes=true',get)
+    item=read(token,'/items/'+item_id+'?include_internal_attributes=true&include_attributes=all',get)
     if item.get('id')!=item_id or item.get('site_id')!='MLB' or str(item.get('seller_id'))!=str(seller):raise ContentUnavailable('Anúncio de outra conta ou resposta divergente.')
     return item
 
@@ -176,15 +176,28 @@ def analyze(facts,manual_inputs=None,actor=None):
         if not parsed:continue
         payload,expected=parsed
         proposals.append(dict(id=code,name=name,hidden=hidden,value=sources[0]['raw'],payload=dict(id=code,**payload),expected=expected,before=current,evidence=sources[:5]))
+    from attribute_variations import review
+    variation_fields,variation_proposals,variation_snapshot=review(facts,definitions,manual)
+    manual_fields.extend(variation_fields);proposals.extend(variation_proposals)
+    warnings=list(facts['warnings'])
+    if item.get('variations') and variation_snapshot is None:warnings.append('Preenchimento por variação indisponível: estrutura incompleta, IDs não verificáveis ou limite desta etapa (100 variações e 256 KiB).')
+    if len(variation_fields)>=1000:warnings.append('Até 1.000 destinos de variação são oferecidos por revisão. Após aplicar os campos, faça nova leitura para os demais.')
     if set(manual)-{f['id'] for f in manual_fields}:raise ValueError('Campo indisponível para preenchimento nesta análise.')
     manual_fields.sort(key=lambda f:(fold(f['name']),f['id']))
     proposals.sort(key=lambda p:(not p.get('manual',False),not p['hidden'],fold(p['name']),p['id']))
     rows.sort(key=lambda r:(not r['required'],fold(r['name']),r['id']))
-    return dict(manual_inputs=list(manual.values()),manual_actor=actor if manual else None,manual_fields=manual_fields,extractor_version=EXTRACTOR_VERSION,title=facts['title'],fingerprint=facts['fingerprint'],blocked=facts['blocked'],warnings=facts['warnings'],proposals=proposals[:50],proposal_total=len(proposals),
+    return dict(variation_snapshot=variation_snapshot,manual_inputs=list(manual.values()),manual_actor=actor if manual else None,manual_fields=manual_fields,extractor_version=EXTRACTOR_VERSION,title=facts['title'],fingerprint=facts['fingerprint'],blocked=facts['blocked'],warnings=warnings,proposals=proposals[:50],proposal_total=len(proposals),
                 inventory=dict(state='read',rows=rows,total=len(rows),variation_ids=index.ids,variation_count=None if index.variants is None else len(index.variants),incomplete_flag=None))
 
 
 def matches(proposal,item):
+    if proposal.get('variation_id'):
+        from attribute_variations import variant_id
+        variants=item.get('variations')
+        if not isinstance(variants,list) or any(not isinstance(v,dict) for v in variants):return False
+        selected=[v for v in variants if variant_id(v.get('id'))==proposal['variation_id']]
+        if len(selected)!=1:return False
+        return matches(dict(proposal,id=proposal['attribute_id'],variation_id=None),selected[0])
     group=attributes(item.get('attributes'));row=group.get(proposal['id']) if group is not None else None
     if not row or str(row.get('value_id'))=='-1':return False
     if row.get('values'):

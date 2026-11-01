@@ -10,7 +10,7 @@ import requests
 import psycopg2
 from flask import request,session,redirect
 from attribute_completion import gather,analyze,owned
-from attribute_edit_workflow import apply,verification,selected_proposals
+from attribute_edit_workflow import apply,verification,selected_proposals,confirmed
 import attribute_edit_store as store
 from attribute_edit_view import render
 from listing_content_snapshot import ContentUnavailable
@@ -80,7 +80,7 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,
                             if plan['state'] not in ('sending','uncertain'):raise ValueError('Este envio não está pendente de confirmação.')
                             try:
                                 result=verification(plan['data'],plan['selected'],owned(resolve_token(shop),shop['user_id'],item_id,budgeted(get)))
-                                persist('confirmed' if all(r['confirmed'] for r in result['fields']) else 'uncertain',result)
+                                persist('confirmed' if confirmed(result) else 'uncertain',result)
                             except ContentUnavailable as exc:persist('uncertain',dict(message=str(exc)))
                         else:
                             if plan['state'] not in ('sending','uncertain') or request.form.get('manual_checked')!='1':raise ValueError('Confirme a conferência manual antes de encerrar.')
