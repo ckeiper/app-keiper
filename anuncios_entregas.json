@@ -496,6 +496,18 @@
         "status": "live",
         "horario_brasilia": "2026-11-01T02:03:28.587644-03:00"
       }
+    },
+    {
+      "id": "ficha-lote-344",
+      "escopo": "Inclusão de vários campos comuns e por variação em uma revisão, com uma releitura e validação integral.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 344,
+      "head_sha": "9ed8296d4443ce10130098dfcc08d443575e5115",
+      "atualizado_em": "2026-11-01T20:38:05.051875-03:00",
+      "lacuna": "1.339 testes locais aprovados; PostgreSQL e cenários visuais em validação no CI. Mantém limite total de 50 dados declarados e bloqueios anteriores. Não certifica semântica nem testa escrita em anúncio real. Conteúdo permanece parcial."
     }
   ]
 }

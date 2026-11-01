@@ -69,7 +69,7 @@ class BatchTests(unittest.TestCase):
   fields=self.parent['data']['manual_fields'];submitted=form([('MATERIAL','<img src=x onerror=bad()>','<script>bad()</script>'),('WIDTH','12 kg','segunda fonte')])
   html=render(fields,'csrf',self.parent['id'],'k'*24,submitted)
   self.assertEqual(html.count('class="ae-manual-row"'),2);self.assertIn('value="12 kg"',html);self.assertIn('segunda fonte',html);self.assertNotIn('<img src=',html);self.assertNotIn('<script>bad()',html)
-  self.assertIn('value="WIDTH" selected',html);self.assertIn('2 de 50',html)
+  self.assertIn('value="WIDTH" selected',html);self.assertIn('2 de 50',html);self.assertIn('class="ae-manual" open',html)
  def test_view_caps_untrusted_recovery_rows(self):
   html=render(self.parent['data']['manual_fields'],'csrf',self.parent['id'],'k'*24,form([(str(i),'v','') for i in range(100)]))
   self.assertEqual(html.count('class="ae-manual-row"'),50);self.assertIn('class="ae-add-row" disabled',html)

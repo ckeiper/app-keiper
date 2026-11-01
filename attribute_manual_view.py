@@ -12,7 +12,7 @@ def render(fields,csrf,plan,key,values=None):
         return [value] if value is not None else []
     codes,raw,notes=(values_for(k) for k in ('manual_field','manual_value','manual_note'))
     count=min(50,max(len(codes),len(raw),len(notes),1))
-    out='<details class="ae-manual"><summary>Informar dado faltante</summary><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan)+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'"><div class="ae-manual-rows">'
+    out='<details class="ae-manual"'+(' open' if codes else '')+'><summary>Informar dado faltante</summary><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan)+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'"><div class="ae-manual-rows">'
     options='<option value="">Selecione um campo</option>'
     for field in fields:
         label=field['name']+(' · Oculto' if field['hidden'] else '')+' ('+field.get('attribute_id',field['id'])+')'
