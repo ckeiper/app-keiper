@@ -85,6 +85,7 @@ on:
       - 'attribute_completion.py'
       - 'attribute_text_evidence.py'
       - 'attribute_manual.py'
+      - 'attribute_manual_view.py'
       - 'attribute_variations.py'
       - 'attribute_edit*.py'
       - 'test_attribute*.py'
