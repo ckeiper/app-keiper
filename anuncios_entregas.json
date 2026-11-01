@@ -465,11 +465,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 342,
-      "head_sha": "74f3ea7fbfeef52af1493975cfcf6aa63cf71e24",
-      "atualizado_em": "2026-11-01T01:55:11.624032-03:00",
-      "lacuna": "Testes locais aprovados; aguardando CI com PostgreSQL e publicação. Somente atributos próprios vazios com variation_attribute, sem substituir combinações ou campos gerenciados, catálogo e vínculos não verificáveis. Não certifica semântica nem altera anúncio real para teste."
+      "head_sha": "352b4a622522855d39ea8c23cecac034f9a5b732",
+      "atualizado_em": "2026-11-01T02:03:49.401549-03:00",
+      "lacuna": "Entrega publicada para atributos próprios vazios com variation_attribute, revisão individual e confirmação de preservação. Não substitui valores existentes/combinações ou campos gerenciados, catálogo e vínculos não verificáveis. Limites explícitos de 100 variações, base de 256 KiB e 1.000 destinos; sem certificação semântica ou escrita em anúncio real para teste. Conteúdo permanece parcial.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41274950864,
+          "resultado": "success",
+          "head_sha": "352b4a622522855d39ea8c23cecac034f9a5b732"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41274951061,
+          "resultado": "success",
+          "head_sha": "352b4a622522855d39ea8c23cecac034f9a5b732"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41274950951,
+          "resultado": "success",
+          "head_sha": "352b4a622522855d39ea8c23cecac034f9a5b732"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbjceqfavr4c73buboh0",
+        "commit": "a40f3fe381c9a22e718ca2db1160a614709f6b89",
+        "status": "live",
+        "horario_brasilia": "2026-11-01T02:03:28.587644-03:00"
+      }
     }
   ]
 }
