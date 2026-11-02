@@ -10,7 +10,7 @@ from listing_content_snapshot import read,ContentUnavailable,ContentRateLimited
 
 BLOCKED=('read_only','inferred','fixed','others','restricted_values','product_pk','parent_pk','child_pk','allow_variations','variation_attribute','defines_picture')
 HIDDEN=('hidden','new_hidden','used_hidden')
-EXTRACTOR_VERSION=5
+EXTRACTOR_VERSION=6
 
 
 def fold(value):

@@ -92,3 +92,10 @@ Campo mencionado em trecho específico/ambíguo fica para conferência, mesmo se
 As propostas novas continuam sendo atributos comuns, sem array de variações e sem alterar preço, estoque ou combinações. Não geram preenchimento automático de campos próprios de cada variante, identidade ou gerenciados. Não substituem valores atuais, N/A, estruturas ou evidência em qualquer variação. Campo, valor, trecho de origem e seleção desmarcada permanecem na revisão. Fonte ou regra alterada impede envio; planos antigos da versão 4 precisam de nova leitura, enquanto confirmação de envio pendente continua somente leitura.
 
 Testes usam casos sintéticos e PostgreSQL descartável: seção comum positiva, nomes/IDs/cabeçalhos de variação, ausência de contexto, escopos persistentes, retomada explícita, conflitos, unidades, presença/N/A, revisão expirada e envio somente dos atributos comuns escolhidos. Não foi usado anúncio real para testar escrita. Sem modelo externo, novas chamadas à API ou mudança de schema.
+
+
+## Referências de variante dentro da frase — leitor 6
+
+Também deixa para conferência menções à opção/variante/versão/modelo dentro da própria frase, qualificadores relacionais e nomes/códigos/valores/IDs das variantes retornados na categoria/anúncio. Por exemplo, “O material é aço na opção azul” e “Material: Aço Azul” não se tornam atributos comuns. A menção específica posterior também impede usar uma declaração geral anterior do mesmo campo. Valores gerais com esse tipo de qualificação podem precisar de dado informado; trata-se de limite conservador do leitor, sem certificação semântica ou exigência criada para o ML.
+
+Leitor 6 exige nova revisão dos planos prontos da versão 5. Confirmação de envio pendente continua somente leitura. Não muda endpoint, schema, permissões, seleção humana ou payload de atualização.
