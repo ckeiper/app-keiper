@@ -655,13 +655,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-02T01:07:53.874430-03:00",
+      "etapa": "publicada",
+      "pr": 352,
+      "head_sha": "321b2c0fd8de02961ee6bfd96071bef90799a666",
+      "atualizado_em": "2026-11-02T01:19:09.506591-03:00",
       "lacuna": "Consulta autenticada do inventário combinado com anúncio real não exercitada nesta entrega; marcas de ocultação não comprovam edição ou aplicabilidade. Conteúdo permanece parcial.",
-      "checks": [],
-      "publicacao": null
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41386908313,
+          "resultado": "success",
+          "head_sha": "321b2c0fd8de02961ee6bfd96071bef90799a666"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41386908468,
+          "resultado": "success",
+          "head_sha": "321b2c0fd8de02961ee6bfd96071bef90799a666"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41386908485,
+          "resultado": "success",
+          "head_sha": "321b2c0fd8de02961ee6bfd96071bef90799a666"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbk0ss7b9u1s73c81vpg",
+        "commit": "a17d7bcf420a9d0210059b772184289997fd8f4f",
+        "status": "live",
+        "horario_brasilia": "2026-11-02T01:18:38.606377-03:00"
+      }
     }
   ]
 }
