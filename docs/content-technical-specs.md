@@ -31,3 +31,13 @@ As marcas oficiais `hidden`, `new_hidden` e `used_hidden` geram identificadores 
 Busca e filtros de origem, ocultação, gerenciamento e presença são locais. O inventário combinado mantém o teto de 5.000 IDs, páginas de 50 e o leitor anterior das variações. Reutiliza ambas as respostas já consultadas: nenhum GET, POST ou PUT adicional.
 
 Fonte oficial reconferida no índice de busca em 02/11/2026: https://developers.mercadolivre.com.br/pt_br/api-docs-pt-br/atributos . A resposta do índice confirmou os dois recursos e as três marcas de ocultação. A conferência autenticada desta mudança com anúncio real não foi exercitada, e nenhum dado de cliente foi alterado para teste.
+
+## Valores retornados no inventário — 02/11/2026
+
+Cada campo pode exibir seu valor atual no anúncio principal e, no detalhe das primeiras 100 variações, os valores próprios de `attributes` e de `attribute_combinations`, em linhas distintas. Não copia o valor comum para a variação nem transforma uma divergência visual em erro confirmado.
+
+O leitor apresenta `value_name`, `value_id`, `value_struct` e os primeiros três registros de `values`, preservando as representações distintas retornadas. ID -1 é identificado como N/A declarado, com eventual texto divergente ainda visível. Nomes, IDs e números/unidades exibidos não recebem certificação adicional: os estados anteriores de presença e as validações específicas permanecem independentes. Estrutura ou lista exibida pode continuar não verificável no diagnóstico.
+
+Limites: até 256 caracteres por resumo de atributo, com marca de resumo; três componentes por lista; até 1.000 registros de atributos próprios entre as primeiras 100 variações. Ao atingir esse orçamento, o inventário mostra aviso e não apresenta um detalhe omitido como ausente. O diagnóstico agregado continua considerando até 1.000 variações. Os grupos são analisados uma vez, reaproveitando o índice de presença; somente os grupos necessários ao detalhe visual são retidos.
+
+Não acrescenta requisições, escritas ou alterações ao fluxo de revisão/envio. HTML é escapado no servidor; o JSON protege o fechamento de script e a atualização local usa nós de texto. Fonte oficial reconferida no índice em 02/11/2026: https://developers.mercadolivre.com.br/en_us/product-identifiers (exemplos de nome, ID, estrutura e múltiplos valores). Consulta autenticada dessa visualização com anúncio real ainda não exercitada nesta entrega.

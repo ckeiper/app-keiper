@@ -38,11 +38,13 @@ def publication(code,rules,conditional):
 
 class PresenceIndex:
     """Parse each attribute group once; keep variation evidence compact."""
-    def __init__(self,item):
-        def values(raw):
+    def __init__(self,item,keep_values=False):
+        self.value_groups=[]
+        def values(raw,keep=False):
             parsed=attributes(raw)
+            if keep and keep_values:self.value_groups.append(parsed)
             return None if parsed is None else {code:has_value(row) for code,row in parsed.items()}
-        self.main=values(item.get('attributes'));self.variants=None;self.ids=[]
+        self.main=values(item.get('attributes'),True);self.variants=None;self.ids=[]
         raw=item.get('variations')
         if not isinstance(raw,list) or len(raw)>1000:return
         seen=set();prepared=[]
@@ -50,7 +52,7 @@ class PresenceIndex:
             if not isinstance(variant,dict):return
             identifier=variant.get('id')
             if isinstance(identifier,bool) or not isinstance(identifier,(str,int)) or not str(identifier).strip() or len(str(identifier))>200 or str(identifier) in seen:return
-            seen.add(str(identifier));prepared.append((str(identifier),values(variant.get('attributes')),values(variant.get('attribute_combinations'))))
+            seen.add(str(identifier));prepared.append((str(identifier),values(variant.get('attributes'),len(prepared)<100),values(variant.get('attribute_combinations'),len(prepared)<100)))
         self.variants=prepared;self.ids=[v[0] for v in prepared[:100]]
 
     def evidence(self,code):
@@ -75,7 +77,7 @@ class PresenceIndex:
 def compare(payload,category_attributes,item,conditional=None):
     try:definitions=parse(payload)
     except ValueError:return dict(state='unknown',message='Ficha técnica ausente, incompleta ou não verificável na resposta.')
-    rules=attributes(category_attributes);conditional=conditional or {};rows=[];index=PresenceIndex(item)
+    rules=attributes(category_attributes);conditional=conditional or {};rows=[];index=PresenceIndex(item,keep_values=True)
     sheet_ids=set(definitions)
     if rules is not None:
         # The two official resources are complementary; deduplicate by attribute ID.
@@ -96,7 +98,9 @@ def compare(payload,category_attributes,item,conditional=None):
     # Preserve the API order inside each group; publication requirements stay distinct.
     rows.sort(key=lambda row:not row['required'])
     tags=item.get('tags');flag='incomplete_technical_specs' in tags if isinstance(tags,list) and all(isinstance(t,str) for t in tags) else None
-    return dict(state='read',rows=rows,total=len(rows),incomplete_flag=flag,variation_ids=index.ids,
+    from content_current_values import collect
+    current=collect(index,set(definitions))
+    return dict(state='read',current_values=current,rows=rows,total=len(rows),incomplete_flag=flag,variation_ids=index.ids,
                 variation_count=None if index.variants is None else len(index.variants))
 
 
