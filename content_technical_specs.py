@@ -76,12 +76,22 @@ def compare(payload,category_attributes,item,conditional=None):
     try:definitions=parse(payload)
     except ValueError:return dict(state='unknown',message='Ficha técnica ausente, incompleta ou não verificável na resposta.')
     rules=attributes(category_attributes);conditional=conditional or {};rows=[];index=PresenceIndex(item)
+    sheet_ids=set(definitions)
+    if rules is not None:
+        # The two official resources are complementary; deduplicate by attribute ID.
+        definitions=dict(definitions)
+        for code,rule in rules.items():
+            definitions.setdefault(code,dict(id=code,name=rule.get('name',code),tags=[]))
+    if len(definitions)>5000:return dict(state='unknown',message='Inventário combinado excede o limite desta análise.')
     for code,definition in definitions.items():
         state,message,variations=index.evidence(code)
         name=definition.get('name');name=name if isinstance(name,str) and name.strip() and len(name)<=300 else code
         category_tags=rules.get(code,{}).get('tags') if rules is not None else None
-        managed=any(t in definition['tags'] for t in ('read_only','inferred','fixed')) or (isinstance(category_tags,dict) and any(category_tags.get(t) is True for t in ('read_only','inferred','fixed')))
-        rows.append(dict(id=code,name=name,state=state,message=message,publication=publication(code,rules,conditional),
+        managed=any(t in definition['tags'] for t in ('read_only','inferred','fixed','others')) or (isinstance(category_tags,dict) and any(category_tags.get(t) is True for t in ('read_only','inferred','fixed','others')))
+        category_hidden=category_tags if isinstance(category_tags,dict) else {}
+        hidden_tags=[tag for tag in ('hidden','new_hidden','used_hidden') if tag in definition['tags'] or category_hidden.get(tag) is True]
+        source='both' if code in sheet_ids and rules is not None and code in rules else 'sheet' if code in sheet_ids else 'category'
+        rows.append(dict(id=code,name=name,state=state,message=message,publication=publication(code,rules,conditional),source=source,hidden_tags=hidden_tags,
             required='required' in definition['tags'],variation_states=variations,managed=managed))
     # Preserve the API order inside each group; publication requirements stay distinct.
     rows.sort(key=lambda row:not row['required'])

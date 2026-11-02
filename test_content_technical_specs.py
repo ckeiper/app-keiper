@@ -20,7 +20,7 @@ class TechnicalSpecsTests(unittest.TestCase):
  def test_invalid_shape_duplicates_and_limits_remain_unknown(self):
     for payload in ({},dict(groups=None),dict(groups=[{}]),specs(dict(id='A',tags={})),specs(field(),field()),specs(field(id='')),specs(field(tags=[True])),specs(*[field(str(i)) for i in range(5001)])):
         with self.subTest(payload_type=type(payload)):self.assertEqual(compare(payload,rules(),item())['state'],'unknown')
-    self.assertEqual(compare(specs(),rules(),item())['total'],0)
+    self.assertEqual(compare(specs(),[],item())['total'],0)
  def test_not_applicable_and_bad_variations_never_assume_errors(self):
     data=item();data.update(attributes=[dict(id='BRAND',value_id='-1')],variations=[])
     self.assertEqual(compare(specs(field()),rules(),data)['rows'][0]['state'],'unknown')
@@ -65,10 +65,10 @@ class TechnicalSpecsTests(unittest.TestCase):
  def test_complementary_fields_are_included_without_inventing_requirement(self):
     data=item();data.update(attributes=[dict(id='EXTRA',value_name='Informado')],variations=[])
     result=compare(specs(field(),field('EXTRA',tags=[]),field('OPTIONAL',tags=[])),rules(),data)
-    self.assertEqual(result['total'],3);self.assertEqual([r['required'] for r in result['rows']],[True,False,False])
+    self.assertEqual(result['total'],5);self.assertEqual([r['required'] for r in result['rows']],[True,False,False,False,False])
     text=render(result);self.assertIn('Avaliar oportunidade de preenchimento',text);self.assertIn('2 complementares',text)
     self.assertIn('Complementar nesta ficha · sem exigência confirmada',text)
-    self.assertEqual([r['state'] for r in result['rows']],['review','informed','review'])
+    self.assertEqual([r['state'] for r in result['rows']],['review','informed','review','review','review'])
  def test_variations_after_display_limit_still_affect_summary(self):
     data=item();data.update(attributes=[],variations=[dict(id=i,attributes=[dict(id='BRAND',value_name='X')] if i<100 else [],attribute_combinations=[]) for i in range(101)])
     result=compare(specs(field()),rules(),data)
@@ -106,3 +106,50 @@ class TechnicalSpecsTests(unittest.TestCase):
     data.update(attributes=[],variations=[dict(id=1,attributes=[dict(id='EXTRA',value_struct=dict(number=12,unit='cm'))],attribute_combinations=[])])
     row=compare(specs(field('EXTRA',tags=[])),[],data)['rows'][0]
     self.assertEqual(row['state'],'unknown');self.assertEqual(row['variation_states'],'u')
+
+
+class CombinedInventoryTests(unittest.TestCase):
+ def test_api_only_fields_are_included_and_duplicates_keep_sheet_identity(self):
+    data=dict(attributes=[],variations=[])
+    definitions=[dict(id='BRAND',name='Marca API',tags=dict(required=True)),dict(id='HIDDEN',name='Detalhe',tags=dict(hidden=True))]
+    original=deepcopy(definitions)
+    result=compare(specs(field(name='Marca da ficha')),definitions,data)
+    self.assertEqual(result['total'],2)
+    brand,extra=result['rows']
+    self.assertEqual((brand['name'],brand['source'],brand['publication']),('Marca da ficha','both','publication'))
+    self.assertEqual((extra['source'],extra['required'],extra['hidden_tags']),('category',False,['hidden']))
+    self.assertEqual(definitions,original)
+    self.assertIn('1 somente na API',render(result))
+    self.assertIn('1 ocultos',render(result))
+    self.assertIn('0 complementares na ficha',render(result))
+ def test_hidden_context_tags_keep_their_official_meaning(self):
+    definitions=[dict(id='A',tags=dict(new_hidden=True,used_hidden=True)),dict(id='B',tags=dict(hidden=False)),dict(id='C',tags=dict(hidden='true'))]
+    result=compare(specs(field('A',tags=['hidden'])),definitions,dict(attributes=[],variations=[]))
+    self.assertEqual([r['hidden_tags'] for r in result['rows']],[['hidden','new_hidden','used_hidden'],[],[]])
+    text=render(result)
+    self.assertIn('Oculto para novos',text);self.assertIn('Oculto para usados',text)
+    self.assertIn('Oculto na API',text)
+ def test_api_only_required_and_conditional_are_not_sheet_requirements(self):
+    definitions=[dict(id='A',tags=dict(required=True)),dict(id='B',tags=dict(conditional_required=True))]
+    result=compare(specs(),definitions,dict(attributes=[],variations=[]),dict(state='read',required_ids=['B']))
+    self.assertEqual([r['publication'] for r in result['rows']],['publication','conditional'])
+    self.assertFalse(any(r['required'] for r in result['rows']))
+    text=render(result)
+    self.assertIn('0 complementares na ficha',text)
+    self.assertIn('Obrigatório na consulta condicional',text)
+ def test_hidden_managed_and_internal_fields_do_not_request_direct_edit(self):
+    for tag in ('read_only','fixed','inferred','others'):
+        result=compare(specs(),[dict(id='A',tags={tag:True,'hidden':True})],dict(attributes=[],variations=[]))
+        self.assertTrue(result['rows'][0]['managed'])
+        self.assertIn('Campo gerenciado pelo Mercado Livre',render(result))
+        self.assertNotIn('Avaliar oportunidade de preenchimento',render(result))
+ def test_api_only_variation_presence_and_na_are_not_confirmed_errors(self):
+    result=compare(specs(),[dict(id='A',tags=dict(hidden=True))],dict(attributes=[],variations=[dict(id=1,attributes=[dict(id='A',value_name='X')],attribute_combinations=[]),dict(id=2,attributes=[dict(id='A',value_id='-1')],attribute_combinations=[])]))
+    row=result['rows'][0]
+    self.assertEqual((row['state'],row['variation_states']),('unknown','iu'))
+    self.assertNotIn('erro',row['message'])
+ def test_invalid_category_does_not_add_unverified_fields_and_union_is_bounded(self):
+    result=compare(specs(field('A')), [dict(id='B'),dict(id='B')],dict(attributes=[],variations=[]))
+    self.assertEqual(result['total'],1);self.assertEqual(result['rows'][0]['publication'],'unknown')
+    payload=specs(*[field(str(i),tags=[]) for i in range(5000)])
+    self.assertEqual(compare(payload,[dict(id='EXTRA')],dict(attributes=[],variations=[]))['state'],'unknown')
