@@ -21,3 +21,13 @@ Ajuda contextual substitui o parágrafo de limites, disponível por mouse, foco 
 A documentação oficial acima foi reconferida pelo índice de busca em 31/10/2026; o acesso direto devolveu HTTP 403. A distinção de `required` permanece a documentada, sem criar novas exigências ou concluir perda de exposição. Uso autenticado com anúncio real não exercitado nesta entrega.
 
 Valores somente em value_struct, sem ID/texto simples, são não verificáveis pelo leitor de presença; não são ausência confirmada. A conferência específica de unidades continua separada.
+
+## Inventário combinado e campos ocultos — 02/11/2026
+
+O inventário reúne as definições de `technical_specs/input` e `/categories/{id}/attributes`, sem duplicar IDs. Cada campo informa se veio da ficha, da API da categoria ou de ambas. A contagem de complementares da ficha não inclui campos exclusivos da API: um campo desses pode ter uma regra de publicação obrigatória ou condicional própria.
+
+As marcas oficiais `hidden`, `new_hidden` e `used_hidden` geram identificadores distintos, sem inferir ocultação pela ausência do campo na ficha. O filtro de ocultos inclui esses três contextos; as marcas condicionadas a novos/usados não afirmam ocultação universal. Campos internos (`others`), fixos, inferidos ou somente leitura permanecem identificados como gerenciados, sem recomendar edição direta. A marca de oculto não certifica possibilidade de escrita, aplicabilidade ou ganho de exposição.
+
+Busca e filtros de origem, ocultação, gerenciamento e presença são locais. O inventário combinado mantém o teto de 5.000 IDs, páginas de 50 e o leitor anterior das variações. Reutiliza ambas as respostas já consultadas: nenhum GET, POST ou PUT adicional.
+
+Fonte oficial reconferida no índice de busca em 02/11/2026: https://developers.mercadolivre.com.br/pt_br/api-docs-pt-br/atributos . A resposta do índice confirmou os dois recursos e as três marcas de ocultação. A conferência autenticada desta mudança com anúncio real não foi exercitada, e nenhum dado de cliente foi alterado para teste.

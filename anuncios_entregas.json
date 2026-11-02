@@ -648,6 +648,20 @@
         "status": "live",
         "horario_brasilia": "2026-11-01T23:14:28.514079-03:00"
       }
+    },
+    {
+      "id": "ficha-inventario-api",
+      "escopo": "Inventário combinado da ficha técnica e API da categoria, com origem, marcas oficiais de ocultação e filtros locais.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-02T01:07:53.874430-03:00",
+      "lacuna": "Consulta autenticada do inventário combinado com anúncio real não exercitada nesta entrega; marcas de ocultação não comprovam edição ou aplicabilidade. Conteúdo permanece parcial.",
+      "checks": [],
+      "publicacao": null
     }
   ]
 }
