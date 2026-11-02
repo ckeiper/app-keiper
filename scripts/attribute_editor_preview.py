@@ -4,7 +4,7 @@ from attribute_edit_view import render
 from test_attribute_completion import facts,analyze,definition,listing
 from copy import deepcopy
 base=analyze(facts(definitions=[definition(tags=dict(hidden=True))]))
-for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error','common-prose','common-scoped','common-unclear'):
+for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline'):
     plan=None;manual_form=None
     if mode!='initial':
         plan=dict(id='11111111-1111-4111-8111-111111111111',data=deepcopy(base),state=mode if mode in ('uncertain','confirmed') else 'ready',selected=[],result={})
@@ -20,7 +20,7 @@ for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','
             plan['data']=analyze(facts(item=listing(variations=variants),definitions=[rule()],description=''),[manual()] if mode!='variation-unknown' else None,42)
             if mode=='variation-confirmed':
                 plan['state']='confirmed';plan['result']=dict(message='Atualização confirmada por nova leitura.',preserved=True,fields=[dict(id='v:101:GTIN',name='Código de barras · Variação 101 · Azul',confirmed=True)])
-        if mode in ('bulk','bulk-error','common-prose','common-scoped','common-unclear'):
+        if mode in ('bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline'):
             from test_attribute_variations import variant,rule
             plan['data']=analyze(facts(item=listing(variations=[variant(),variant(102)]),definitions=[definition(),rule()],description=''))
             if mode=='bulk-error':
@@ -30,6 +30,7 @@ for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','
             from test_attribute_common_prose import definitions,item
             text='Características do produto\nO material é aço. A largura mede 12,5 cm.'
             if mode=='common-scoped':text+='\n\nAzul\nMaterial: Plástico\nLargura: 10 cm'
+            if mode=='common-inline':text='Ficha técnica\nO material é aço na opção azul.'
             if mode=='common-unclear':text='Ficha técnica\nOferta especial\nO material é aço.'
             plan['data']=analyze(facts(item=item(),definitions=definitions(),description=text))
         if mode=='empty':plan['data']['proposals']=[];plan['data']['proposal_total']=0

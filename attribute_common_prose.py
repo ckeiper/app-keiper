@@ -4,6 +4,7 @@ import unicodedata
 from attribute_text_evidence import collect,ROOT,SCOPE
 from attribute_variations import snapshot
 
+INLINE=re.compile(r'\b(?:variacao|variacoes|variante|variantes|versao|versoes|opcao|opcoes|modelo|modelos|para|na|nas|no|nos)\b')
 COMMON_ROOT=re.compile(r'(?:atributos|caracteristicas|especificacoes|dados|ficha tecnica) (?:comuns|comum) a todas as variacoes')
 
 
@@ -39,6 +40,7 @@ def read(title,description,item,rules,aliases,fold):
     bounds=context(item,rules,fold)
     if bounds is None:return collect(title,description,aliases,fold,allow_prose=False)
     terms,prefixes=bounds;markers=terms|prefixes;starts=tuple(term+' ' for term in markers if term)
+    references=tuple(' '+term+' ' for term in markers if term)
     evidence={};uncertain=set()
     def parse(source,text,prose):
         return collect(text if source=='Título' else '',text if source=='Descrição' else '',aliases,fold,allow_prose=prose)
@@ -58,7 +60,7 @@ def read(title,description,item,rules,aliases,fold):
                 if not normalized:continue
                 if COMMON_ROOT.fullmatch(normalized):active=True;scoped=False;preface=False;continue
                 stripped=re.sub(r'^(?:o|a|os|as)\s+','',normalized,count=1)
-                marker=bool(SCOPE.match(normalized) or 'compativel com' in normalized or 'compativeis com' in normalized or stripped in markers or (starts and stripped.startswith(starts)))
+                marker=bool(INLINE.search(normalized) or any(term in ' '+normalized+' ' for term in references) or SCOPE.match(normalized) or 'compativel com' in normalized or 'compativeis com' in normalized or stripped in markers or (starts and stripped.startswith(starts)))
                 if marker:active=False;scoped=True
                 if ROOT.fullmatch(normalized):
                     if not scoped and not preface:active=True

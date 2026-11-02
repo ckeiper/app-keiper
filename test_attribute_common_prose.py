@@ -74,6 +74,14 @@ class CommonProseTests(unittest.TestCase):
   self.assertEqual(put.call_args.kwargs['json'],dict(attributes=[dict(id='MATERIAL',value_name='aço')]));self.assertEqual(persist.call_args.args[0],'confirmed')
   put=Mock();persist=Mock();apply(plan,['MATERIAL'],'private',123,'MLB123',reader(item=f['item'],definitions=definitions(),description=text+'\n\nAzul\nO material é plástico.'),put,persist,now=101);put.assert_not_called()
  def test_previous_reader_version_requires_new_review(self):
-  d=data('Ficha técnica\nO material é aço.');d['extractor_version']=4;get=Mock();put=Mock();persist=Mock()
+  d=data('Ficha técnica\nO material é aço.');d['extractor_version']=5;get=Mock();put=Mock();persist=Mock()
   apply(dict(state='ready',created_at=100,data=d),['MATERIAL'],'private',123,'MLB123',get,put,persist,now=101)
   get.assert_not_called();put.assert_not_called();self.assertEqual(persist.call_args.args[0],'stale')
+
+ def test_inline_variant_references_do_not_become_common_values(self):
+  for text in ['O material é aço na opção azul.','O material é aço para azul.','O material é aço nas versões azuis.','O material é aço na variante preta.','O material é aço modelo especial.','O material é aço azul.','Material: Aço para Azul','Material: Aço Azul']:
+   with self.subTest(text=text):
+    d=data('Ficha técnica\n'+text);self.assertEqual(d['proposals'],[])
+    self.assertIn('texto precisa de conferência',next(r for r in d['inventory']['rows'] if r['id']=='MATERIAL')['message'])
+ def test_inline_reference_in_later_paragraph_invalidates_prior_common_suggestion(self):
+  self.assertEqual(data('Ficha técnica\nO material é aço.\n\nO material é aço na opção azul.')['proposals'],[])
