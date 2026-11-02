@@ -71,3 +71,11 @@ Um lote faz uma única releitura encadeada do anúncio/regras/vínculos e valida
 Submissão repetida com a mesma chave retorna o mesmo plano sem novas consultas. A chave com conteúdo diferente é recusada. O formato de uma única linha e sua evidência de idempotência anterior continuam compatíveis; não muda a versão do extrator, schema ou endpoint da API. O lote não faz PUT. Autorização, CSRF, loja/autor, lock por item, pendências de envio, catálogo/UP e bloqueios de campos mantêm as regras anteriores.
 
 Testes incluem lote misto com atributos comuns e duas variações, falha atômica com preservação das três linhas, idempotência sem nova consulta, total acumulado, envio posterior somente do subconjunto selecionado e UI responsiva/escapada nos dois temas. Não há teste de escrita em anúncio real de cliente.
+
+## Busca local de campos e filtro de destino — 01/11/2026
+
+Cada linha do lote tem busca por nome/código e filtro de destino: todos, anúncio principal, todas as variações ou uma variação pelo ID retornado. A busca ignora acentos/maiúsculas e combina palavras; também encontra rótulos e identificadores das variações. Opera apenas no inventário elegível já carregado, sem novas consultas, inferência de requisitos ou ampliação do escopo editável.
+
+Filtrar nunca escolhe outro campo nem altera valor/fonte. Se o campo selecionado ficar fora dos resultados, ele permanece como opção identificada e a contagem avisa que foi mantido; a contagem considera somente os resultados do filtro. Sem resultados, mantém a escolha existente e permite limpar a busca. Cada linha tem filtros independentes. Uma nova linha começa com busca vazia, todos os destinos e nenhum campo/valor selecionado, mesmo quando clonada de uma linha filtrada.
+
+Os filtros não têm nome de submissão e não são enviados ao servidor. Somente os IDs/valores/fontes declarados continuam sujeitos à validação integral, autorização, CSRF e revalidação existentes. O formulário recuperado após um erro mantém campos/valores/fontes e reinicia os filtros locais. A atualização das opções usa criação de nós/textContent; rótulos e IDs escapados não são interpretados como HTML.
