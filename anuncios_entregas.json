@@ -541,11 +541,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 346,
-      "head_sha": "7cad71ce25c5842879e10de4de5ee32f246681ac",
-      "atualizado_em": "2026-11-01T21:37:01.515939-03:00",
-      "lacuna": "1.344 testes locais e 114 cenários visuais aprovados; CI com PostgreSQL e publicação pendentes. Filtros não ampliam cobertura, permissões ou validade semântica. Conteúdo permanece parcial; teste não altera anúncio real."
+      "head_sha": "36b55b5010734d7bdbe6408c6bd9444f1ebadcf8",
+      "atualizado_em": "2026-11-01T21:48:05.308879-03:00",
+      "lacuna": "Entrega publicada com busca local e filtro de destino no lote, preservando campo/valor/fonte e bloqueando Enter na busca. Não amplia cobertura, permissões ou validade semântica; não altera anúncio real para teste. Conteúdo permanece parcial.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41368203892,
+          "resultado": "success",
+          "head_sha": "36b55b5010734d7bdbe6408c6bd9444f1ebadcf8"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41368203860,
+          "resultado": "success",
+          "head_sha": "36b55b5010734d7bdbe6408c6bd9444f1ebadcf8"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41368203877,
+          "resultado": "success",
+          "head_sha": "36b55b5010734d7bdbe6408c6bd9444f1ebadcf8"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbjtq215efls73eej9o0",
+        "commit": "e77d867c1dc8bba9e9e1352ec9f8de91cf7c1e25",
+        "status": "live",
+        "horario_brasilia": "2026-11-01T21:47:09.987099-03:00"
+      }
     }
   ]
 }
