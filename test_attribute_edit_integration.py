@@ -88,10 +88,10 @@ class AttributeStoreIntegration(unittest.TestCase):
   from attribute_editor import register
   from web_security import install_security
   app=Flask(__name__);app.secret_key='isolated';app.testing=True;install_security(app)
-  backend=listing(id=self.item);defs=[definition()]
+  backend=listing(id=self.item);defs=[definition()];description=dict(plain_text='Material: Aço')
   def get(url,**kwargs):
    if url.endswith('/users/me'):value=dict(id=123)
-   elif url.endswith('/description'):value=dict(plain_text='Material: Aço')
+   elif url.endswith('/description'):value=description
    elif url.endswith('/attributes'):value=defs
    elif url.endswith('/technical_specs/input'):value=dict(groups=[])
    else:value=backend
@@ -198,5 +198,18 @@ class AttributeStoreIntegration(unittest.TestCase):
   self.assertEqual(c.post(path,data=selected).status_code,303);self.assertEqual(writer.call_count,before+1)
   update=writer.call_args.kwargs['json'];self.assertEqual(update['attributes'],[dict(id='MATERIAL',value_name='Aço')]);self.assertEqual(update['variations'][0],dict(id=101));self.assertEqual(update['variations'][1]['attributes'][-1]['value_name'],'789000002')
   self.assertIn('Gravação confirmada',c.get(batch_location).text)
+  # Common prose is scoped to an explicit product section and sends no variants.
+  from test_attribute_common_prose import definitions
+  backend['attributes']=[];backend['variations']=[variant(),variant(102)];defs[:]=definitions();description['plain_text']='Ficha técnica\nO material é aço.'
+  common=c.post(path,data=dict(_csrf='csrf',action='analyze',analysis_key='v'*24)).headers['Location'];common_id=common.split('plan=')[1]
+  self.assertIn('Sugestão: aço',c.get(common).text);before=writer.call_count
+  self.assertEqual(c.post(path,data=dict(_csrf='csrf',action='apply',plan=common_id,selected='MATERIAL')).status_code,303)
+  self.assertEqual(writer.call_count,before+1);self.assertEqual(writer.call_args.kwargs['json'],dict(attributes=[dict(id='MATERIAL',value_name='aço')]))
+  self.assertIn('Gravação confirmada',c.get(common).text)
+  backend['attributes']=[];description['plain_text']='Ficha técnica\nO material é aço.\n\nAzul\nMaterial: Plástico'
+  scoped=c.post(path,data=dict(_csrf='csrf',action='analyze',analysis_key='w'*24)).headers['Location'];scoped_id=scoped.split('plan=')[1]
+  self.assertNotIn('Sugestão: aço',c.get(scoped).text);self.assertIn('texto precisa de conferência',c.get(scoped).text)
+  before=writer.call_count
+  self.assertEqual(c.post(path,data=dict(_csrf='csrf',action='apply',plan=scoped_id,selected='MATERIAL')).status_code,200);self.assertEqual(writer.call_count,before)
   with c.session_transaction() as state:state['usuario_id']=43
   self.assertEqual(c.get(location).status_code,404)

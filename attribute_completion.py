@@ -10,7 +10,7 @@ from listing_content_snapshot import read,ContentUnavailable,ContentRateLimited
 
 BLOCKED=('read_only','inferred','fixed','others','restricted_values','product_pk','parent_pk','child_pk','allow_variations','variation_attribute','defines_picture')
 HIDDEN=('hidden','new_hidden','used_hidden')
-EXTRACTOR_VERSION=4
+EXTRACTOR_VERSION=5
 
 
 def fold(value):
@@ -139,7 +139,10 @@ def analyze(facts,manual_inputs=None,actor=None):
         for name in (code,definition.get('name',''),rules.get(code,{}).get('name','')):
             if isinstance(name,str) and fold(name):alias.setdefault(fold(name),set()).add(code)
     from attribute_text_evidence import collect
-    evidence,uncertain=collect(facts['title'],facts['description'],alias,fold,allow_prose=not bool(item.get('variations')))
+    if item.get('variations'):
+        from attribute_common_prose import read as common_prose
+        evidence,uncertain=common_prose(facts['title'],facts['description'],item,rules,alias,fold)
+    else:evidence,uncertain=collect(facts['title'],facts['description'],alias,fold)
     proposals=[];rows=[];manual_fields=[];main=attributes(item.get('attributes'))
     for code,definition in definitions.items():
         rule=rules.get(code);tags=rule.get('tags') if rule else None;sheet_tags=definition.get('tags',[])
