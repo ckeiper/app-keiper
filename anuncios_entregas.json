@@ -579,11 +579,49 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "aguardando_testes",
+      "etapa": "publicada",
       "pr": 348,
-      "head_sha": "be8ccf88a777772ea8d841b805ea4c70b6559cb8",
-      "atualizado_em": "2026-11-01T22:48:00.176037-03:00",
-      "lacuna": "1.358 testes locais aprovados; PostgreSQL e cenários visuais em validação no CI. Não interpreta semanticamente texto livre, não amplia escopo editável e não certifica veracidade. Testes não alteram anúncio real; Conteúdo permanece parcial."
+      "head_sha": "0b802782873fa9f3a4526862a4033b3de77ac8c8",
+      "atualizado_em": "2026-11-01T23:04:51.256783-03:00",
+      "lacuna": "Leitura inicial publicada com seções explícitas e limites documentados. Proteção complementar para menções à variante dentro da frase está no PR #349; este registro não presume sua publicação. Sem certificação semântica ou teste de escrita em anúncio real. Conteúdo permanece parcial.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41374576256,
+          "resultado": "success",
+          "head_sha": "0b802782873fa9f3a4526862a4033b3de77ac8c8"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41374576201,
+          "resultado": "success",
+          "head_sha": "0b802782873fa9f3a4526862a4033b3de77ac8c8"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41374576196,
+          "resultado": "success",
+          "head_sha": "0b802782873fa9f3a4526862a4033b3de77ac8c8"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbjus6jbc2fs73dub07g",
+        "commit": "c97c357a5fc2a9e15713874ddb25391a03a29fa8",
+        "status": "live",
+        "horario_brasilia": "2026-11-01T23:01:13.678366-03:00"
+      }
+    },
+    {
+      "id": "ficha-contexto-inline-349",
+      "escopo": "Conferência de referências à variante dentro de frases e rótulos para impedir sugestão comum indevida.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 349,
+      "head_sha": "a71e31702a3f55dde37817e1f132ab40e30b9884",
+      "atualizado_em": "2026-11-01T23:04:51.256783-03:00",
+      "lacuna": "1.360 testes locais aprovados; CI com PostgreSQL e cenários visuais pendentes. Classificação conservadora pode deixar valores gerais para conferência. Não certifica semântica e não usa anúncio real para testar escrita."
     }
   ]
 }
