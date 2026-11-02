@@ -1,5 +1,6 @@
 """Read common assertions only in explicit product sections of variant listings."""
 import re
+import unicodedata
 from attribute_text_evidence import collect,ROOT,SCOPE
 from attribute_variations import snapshot
 
@@ -77,4 +78,8 @@ def read(title,description,item,rules,aliases,fold):
             if general:
                 found,review=parse(source,'\n'.join(general),True)
                 merge(found,'assertion',paragraph.strip());uncertain.update(review)
+    for code,rows in evidence.items():
+        if rules.get(code,{}).get('value_type')=='number_unit':
+            values={unicodedata.normalize('NFC',' '.join(row['raw'].split())) for row in rows}
+            if len(values)>1:uncertain.add(code)
     return evidence,uncertain

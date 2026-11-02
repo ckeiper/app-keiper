@@ -52,6 +52,10 @@ class CommonProseTests(unittest.TestCase):
  def test_official_values_units_and_ambiguity_gates_remain(self):
   for text in ['Ficha técnica\nA largura mede 12 kg.','Ficha técnica\nO material é aço ou plástico.','Ficha técnica\nO material é aço?','Ficha técnica\nMaterial: Plástico\nO material é aço.']:
    self.assertEqual(data(text)['proposals'],[],text)
+  defs=definitions()
+  next(r for r in defs if r['id']=='WIDTH')['allowed_units']=[dict(id='MB'),dict(id='Mb')]
+  d=analyze(facts(item=item(),definitions=defs,description='Ficha técnica\nLargura: 12 MB\nA largura mede 12 Mb.'))
+  self.assertEqual(d['proposals'],[]);self.assertIn('texto precisa de conferência',next(r for r in d['inventory']['rows'] if r['id']=='WIDTH')['message'])
  def test_missing_combination_names_values_or_structure_disable_new_prose(self):
   for change in ['name','value','missing','large']:
    product=item();defs=definitions()
