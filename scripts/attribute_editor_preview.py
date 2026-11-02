@@ -4,7 +4,7 @@ from attribute_edit_view import render
 from test_attribute_completion import facts,analyze,definition,listing
 from copy import deepcopy
 base=analyze(facts(definitions=[definition(tags=dict(hidden=True))]))
-for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error'):
+for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error','common-prose','common-scoped','common-unclear'):
     plan=None;manual_form=None
     if mode!='initial':
         plan=dict(id='11111111-1111-4111-8111-111111111111',data=deepcopy(base),state=mode if mode in ('uncertain','confirmed') else 'ready',selected=[],result={})
@@ -20,12 +20,18 @@ for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','
             plan['data']=analyze(facts(item=listing(variations=variants),definitions=[rule()],description=''),[manual()] if mode!='variation-unknown' else None,42)
             if mode=='variation-confirmed':
                 plan['state']='confirmed';plan['result']=dict(message='Atualização confirmada por nova leitura.',preserved=True,fields=[dict(id='v:101:GTIN',name='Código de barras · Variação 101 · Azul',confirmed=True)])
-        if mode in ('bulk','bulk-error'):
+        if mode in ('bulk','bulk-error','common-prose','common-scoped','common-unclear'):
             from test_attribute_variations import variant,rule
             plan['data']=analyze(facts(item=listing(variations=[variant(),variant(102)]),definitions=[definition(),rule()],description=''))
             if mode=='bulk-error':
                 from werkzeug.datastructures import MultiDict
                 manual_form=MultiDict([('manual_field','MATERIAL'),('manual_value','Aço'),('manual_note','Fonte comum'),('manual_field','v:101:GTIN'),('manual_value','789000001'),('manual_note','Fonte azul'),('manual_field','v:102:GTIN'),('manual_value','<img src=x onerror=window.injected=1>'),('manual_note','<script>window.injected=1</script>')])
+        if mode.startswith('common-'):
+            from test_attribute_common_prose import definitions,item
+            text='Características do produto\nO material é aço. A largura mede 12,5 cm.'
+            if mode=='common-scoped':text+='\n\nAzul\nMaterial: Plástico\nLargura: 10 cm'
+            if mode=='common-unclear':text='Ficha técnica\nOferta especial\nO material é aço.'
+            plan['data']=analyze(facts(item=item(),definitions=definitions(),description=text))
         if mode=='empty':plan['data']['proposals']=[];plan['data']['proposal_total']=0
         if mode=='blocked':plan['data']['blocked']='User Product compartilhado: envio bloqueado para não alterar outros anúncios.'
         if mode=='confirmed':plan['result']=dict(message='Atualização confirmada por nova leitura.',fields=[dict(id='MATERIAL',name='Material',confirmed=True)])

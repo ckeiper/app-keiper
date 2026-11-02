@@ -572,6 +572,18 @@
         "status": "live",
         "horario_brasilia": "2026-11-01T21:47:09.987099-03:00"
       }
+    },
+    {
+      "id": "ficha-frases-comuns-348",
+      "escopo": "Sugestões textuais de atributos comuns vazios em anúncios com variações, com seção explícita e contexto verificável.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 348,
+      "head_sha": "be8ccf88a777772ea8d841b805ea4c70b6559cb8",
+      "atualizado_em": "2026-11-01T22:48:00.176037-03:00",
+      "lacuna": "1.358 testes locais aprovados; PostgreSQL e cenários visuais em validação no CI. Não interpreta semanticamente texto livre, não amplia escopo editável e não certifica veracidade. Testes não alteram anúncio real; Conteúdo permanece parcial."
     }
   ]
 }
