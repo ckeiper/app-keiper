@@ -534,6 +534,18 @@
         "status": "live",
         "horario_brasilia": "2026-11-01T20:46:42.060156-03:00"
       }
+    },
+    {
+      "id": "ficha-busca-346",
+      "escopo": "Busca local por nome/código e filtro por variação nas linhas do lote, sem alterar seleção ou valores declarados.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "aguardando_testes",
+      "pr": 346,
+      "head_sha": "7cad71ce25c5842879e10de4de5ee32f246681ac",
+      "atualizado_em": "2026-11-01T21:37:01.515939-03:00",
+      "lacuna": "1.344 testes locais e 114 cenários visuais aprovados; CI com PostgreSQL e publicação pendentes. Filtros não ampliam cobertura, permissões ou validade semântica. Conteúdo permanece parcial; teste não altera anúncio real."
     }
   ]
 }
