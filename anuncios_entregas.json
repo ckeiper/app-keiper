@@ -693,13 +693,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-02T09:57:29.427344-03:00",
+      "etapa": "publicada",
+      "pr": 355,
+      "head_sha": "c012b3713934a5cc0fea428a0bc04c869610c6f0",
+      "atualizado_em": "2026-11-04T15:49:48.074164-03:00",
       "lacuna": "Exibição resumida e limitada; não certifica validade semântica, aplicação ou dados não retornados. Consulta autenticada dessa visualização com anúncio real não exercitada nesta entrega. Conteúdo permanece parcial.",
-      "checks": [],
-      "publicacao": null
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41889325864,
+          "resultado": "success",
+          "head_sha": "c012b3713934a5cc0fea428a0bc04c869610c6f0"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41889325906,
+          "resultado": "success",
+          "head_sha": "c012b3713934a5cc0fea428a0bc04c869610c6f0"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41889325953,
+          "resultado": "success",
+          "head_sha": "c012b3713934a5cc0fea428a0bc04c869610c6f0"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dblnqq0473hc73bp0ei0",
+        "commit": "c4dadec4733932014614b282372c87cc9e3bb954",
+        "status": "live",
+        "horario_brasilia": "2026-11-04T15:48:40.507346-03:00"
+      }
     }
   ]
 }
