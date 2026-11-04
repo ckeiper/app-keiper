@@ -769,13 +769,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-04T17:12:16.696947-03:00",
+      "etapa": "publicada",
+      "pr": 359,
+      "head_sha": "658ee0f697601d077123d85a9274d8e5409c9ff0",
+      "atualizado_em": "2026-11-04T17:24:01.627488-03:00",
       "lacuna": "Somente interrupções condicionais comprovadamente anteriores à gravação; dados incompatíveis exigem revisão manual. Uso autenticado com anúncio real não exercitado.",
-      "checks": [],
-      "publicacao": null
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41904512980,
+          "resultado": "success",
+          "head_sha": "658ee0f697601d077123d85a9274d8e5409c9ff0"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41904513042,
+          "resultado": "success",
+          "head_sha": "658ee0f697601d077123d85a9274d8e5409c9ff0"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41904512983,
+          "resultado": "success",
+          "head_sha": "658ee0f697601d077123d85a9274d8e5409c9ff0"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dblp6qrbc2fs7390crag",
+        "commit": "8dac3abc4cb050bd81b4c970eee243ac9814cf06",
+        "status": "live",
+        "horario_brasilia": "2026-11-04T17:22:50.030279-03:00"
+      }
     }
   ]
 }
