@@ -807,11 +807,49 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "em_desenvolvimento",
+      "etapa": "publicada",
+      "pr": 361,
+      "head_sha": "0c073d01880edb6237d5d96826503474161b1eba",
+      "atualizado_em": "2026-11-04T17:54:58.953643-03:00",
+      "lacuna": "Uso autenticado com anúncio real não exercitado. Resultados antigos não guardam os valores retornados; leituras ambíguas permanecem inconclusivas.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41909561173,
+          "resultado": "success",
+          "head_sha": "0c073d01880edb6237d5d96826503474161b1eba"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41909560977,
+          "resultado": "success",
+          "head_sha": "0c073d01880edb6237d5d96826503474161b1eba"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41909561528,
+          "resultado": "success",
+          "head_sha": "0c073d01880edb6237d5d96826503474161b1eba"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dblplaff3r2c73d5d6q0",
+        "commit": "3c0afeabae786459e6121204b179aec48c371f4a",
+        "status": "live",
+        "horario_brasilia": "2026-11-04T17:53:35.706599-03:00"
+      }
+    },
+    {
+      "id": "reativacao-motivo-oficial",
+      "escopo": "Consultar motivos e restrições oficiais do anúncio sob demanda, com evidência e orientação para revisão, sem reativação automática.",
+      "frentes": [
+        "reativacao"
+      ],
+      "etapa": "planejada",
       "pr": null,
       "head_sha": null,
-      "atualizado_em": "2026-11-04T17:41:42.051293-03:00",
-      "lacuna": "Aguardando checks e publicação desta etapa. Uso autenticado com anúncio real não exercitado; resultados antigos não possuem valores registrados."
+      "atualizado_em": "2026-11-04T17:54:58.953643-03:00",
+      "lacuna": "Próxima prioridade selecionada; faltam implementar consulta autenticada, diagnóstico e testes. Status pausado ou estoque positivo não comprovam motivo nem elegibilidade."
     }
   ]
 }
