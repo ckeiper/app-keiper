@@ -48,7 +48,7 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,
         if request.method=='POST':
             action=request.form.get('action');plan_id=request.form.get('plan')
             try:
-                if action not in ('analyze','manual','apply','verify','close'):raise ValueError('Ação inválida.')
+                if action not in ('analyze','manual','recover','apply','verify','close'):raise ValueError('Ação inválida.')
                 with store.locked(bank,query,cid,item_id) as conn:
                     if action=='analyze':
                         key=request.form.get('analysis_key','')
@@ -67,7 +67,10 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,
                         if not valid_plan(plan_id):raise ValueError('Análise inválida.')
                         plan=store.load(conn,query,cid,item_id,actor,plan_id)
                         persist=lambda state,result,**kw:store.transition(conn,query,plan,actor,state,result,**kw)
-                        if action=='manual':
+                        if action=='recover':
+                            from attribute_review_recovery import recover
+                            plan=recover(conn,query,cid,item_id,actor,plan,request.form.get('recovery_key'),shop,lambda:resolve_token(shop),budgeted(get))
+                        elif action=='manual':
                             from attribute_manual import add
                             plan=add(conn,query,cid,item_id,actor,plan,request.form,shop,lambda:resolve_token(shop),budgeted(get))
                         elif action=='apply':

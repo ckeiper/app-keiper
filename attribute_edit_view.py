@@ -48,6 +48,11 @@ def render(cid,item,title,csrf,key,plan=None,message='',history=None,manual_form
             if any(p.get('variation_id') for p in proposals):out+='<p>Envio por variação'+tip('Envio por variação','Preserva os IDs de todas as variações e os atributos anteriores. Não envie edições simultâneas de variações pelo Mercado Livre ou por outro integrador durante esta operação. A API não oferece uma transação compartilhada com este painel.')+'</p>'
             out+='<button>Aplicar selecionadas no Mercado Livre</button>'+tip('Antes do envio','Quando a categoria retorna regras condicionais, os campos selecionados são conferidos em consulta oficial antes de gravar. Consulta inconclusiva ou presença não verificada interrompe o envio; não confirma erro no anúncio.')
         out+='</form>'
+        from attribute_review_recovery import eligible as recoverable
+        if recoverable(plan):out+='<form method="post" class="ae-recover"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="recover"><input type="hidden" name="plan" value="'+esc(plan['id'])+'"><input type="hidden" name="recovery_key" value="'+esc(key)+'"><button>Reanalisar mantendo dados informados</button>'+tip('Reanalisar mantendo dados','Faz uma nova leitura e reaproveita somente dados declarados ainda elegíveis. Campos já preenchidos ou indisponíveis não são reaproveitados. Requer nova seleção e não envia ao Mercado Livre.')+'</form>'
+        recovery=result.get('recovery',{})
+        if isinstance(recovery,dict) and recovery.get('omitted'):
+            out+='<details class="ae-recovery-omitted"><summary>Campos não reaproveitados</summary><ul>'+''.join('<li>'+esc(code)+'</li>' for code in recovery['omitted'][:50])+'</ul></details>'
         if result.get('successor_plan'):
             from attribute_editor import valid_plan
             if valid_plan(result['successor_plan']):out+='<a class="ae-history" href="'+path+'/completar-ficha?plan='+esc(result['successor_plan'])+'">Continuar revisão atualizada</a>'

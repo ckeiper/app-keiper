@@ -113,3 +113,9 @@ Sem marcas condicionais na categoria consultada, não há chamada adicional. Há
 O resumo considera até 2.000 IDs retornados, com detalhes de até 50 campos e indicação explícita do limite. O relatório escapa nomes e mensagens e fica no resultado da revisão. Falhas de consulta interrompem o fluxo sem exibir segredos ou marcar uma gravação como confirmada. A leitura pública do editor (GET) e as etapas de análise/dado declarado não acrescentam essa consulta. Autorização, CSRF, isolamento por loja, seleção explícita e confirmação por nova leitura permanecem.
 
 Testes usam respostas isoladas, sem conta conectada ou escrita real. A consulta e atualização autenticadas com anúncio real não foram exercitadas nesta entrega. A proteção depende da disponibilidade e do contexto aceito pela API; estruturas não verificáveis podem exigir conferência externa.
+
+## Reanálise com dados declarados — 04/11/2026
+
+Uma revisão rejeitada pela conferência condicional, com `allow_send=false` e dados declarados pelo mesmo responsável, oferece “Reanalisar mantendo dados informados”. A operação cria outra revisão após leitura atualizada da conta, item, regras e vínculos. Dados antigos são revalidados; somente campos ainda vazios e elegíveis são reaproveitados. Campos preenchidos ou indisponíveis são omitidos e identificados no resultado. Valores incompatíveis com regras novas interrompem a recuperação.
+
+Não recupera estados sending, uncertain, confirmed ou closed, nem rejeições sem evidência condicional de interrupção anterior ao PUT. Outro envio pendente também impede a operação. Não chama PUT e não marca sugestões como selecionadas. A nova revisão exige nova conferência e seleção antes de aplicar, com todas as proteções do envio. Formulário repetido retorna a mesma revisão, sem nova consulta; a revisão anterior mantém vínculo para a sucessora. Uso autenticado com anúncio real não exercitado nesta entrega.
