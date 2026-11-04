@@ -17,12 +17,12 @@ def plan(state='ready'):
 class EditorRouteGuards(TestCase):
  def setUp(self):
   self.app=Flask(__name__);self.app.secret_key='test';self.app.testing=True;install_security(self.app)
-  self.query=Mock(return_value=[]);self.get=Mock();self.put=Mock();self.resolve=Mock(return_value='private-token')
+  self.query=Mock(return_value=[]);self.get=Mock();self.put=Mock();self.post=Mock();self.resolve=Mock(return_value='private-token')
   def login(fn):
    @wraps(fn)
    def guard(*a,**k):return fn(*a,**k) if session.get('usuario_id') else redirect('/login')
    return guard
-  register(self.app,login,lambda cid:cid==1,lambda:contextlib.nullcontext(None),self.query,lambda *a,**kw:a[-1],self.resolve,self.get,self.put)
+  register(self.app,login,lambda cid:cid==1,lambda:contextlib.nullcontext(None),self.query,lambda *a,**kw:a[-1],self.resolve,self.get,self.put,post=self.post)
   self.c=self.app.test_client();self.path='/anuncios/1/MLB123/completar-ficha'
   with self.c.session_transaction() as s:s.update(usuario_id=1,tipo='admin',_csrf='csrf')
  def test_auth_role_scope_and_csrf_stop_before_api_and_database(self):
@@ -36,7 +36,7 @@ class EditorRouteGuards(TestCase):
  def test_get_is_read_only_and_does_not_resolve_token(self):
   self.query.side_effect=[[dict(user_id=123,titulo='Produto',cliente='Loja',status='ativa')],[]]
   r=self.c.get(self.path);self.assertEqual(r.status_code,200);self.assertIn('Analisar e completar ficha',r.text)
-  self.get.assert_not_called();self.put.assert_not_called();self.resolve.assert_not_called()
+  self.get.assert_not_called();self.put.assert_not_called();self.post.assert_not_called();self.resolve.assert_not_called()
   for c in self.query.call_args_list:self.assertTrue(c.args[1].lstrip().startswith('SELECT'))
  def test_uuid_validation(self):
   self.assertTrue(valid_plan(PID));self.assertFalse(valid_plan('-'*36));self.assertFalse(valid_plan('not-a-plan'))

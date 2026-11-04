@@ -724,6 +724,20 @@
         "status": "live",
         "horario_brasilia": "2026-11-04T15:48:40.507346-03:00"
       }
+    },
+    {
+      "id": "ficha-revisao-condicional",
+      "escopo": "Consultar exigências condicionais do candidato antes do envio de preenchimentos e registrar a conferência.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-04T16:38:25.393672-03:00",
+      "lacuna": "Consulta de publicação não certifica validade integral da atualização ou dos valores. Proteção conservadora e dependente da API; uso autenticado com anúncio real não exercitado. Conteúdo permanece parcial.",
+      "checks": [],
+      "publicacao": null
     }
   ]
 }

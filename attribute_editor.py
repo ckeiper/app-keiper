@@ -21,8 +21,8 @@ def valid_plan(value):
     except (ValueError,TypeError,AttributeError):return False
 
 
-def budgeted(get):
-    deadline=time.monotonic()+20
+def budgeted(get,deadline=None):
+    deadline=time.monotonic()+20 if deadline is None else deadline
     def call(url,**kwargs):
         remaining=deadline-time.monotonic()
         if remaining<1:raise ContentUnavailable('Tempo de consulta excedido. Faça uma nova leitura.')
@@ -31,7 +31,7 @@ def budgeted(get):
     return call
 
 
-def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,put=requests.put):
+def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,put=requests.put,post=requests.post):
     @app.route('/anuncios/<int:cid>/<item_id>/completar-ficha',methods=['GET','POST'])
     @login_required
     def attribute_editor(cid,item_id):
@@ -75,13 +75,18 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,
                             if shop.get('status')!='ativa':raise ValueError('Conexão inativa: envio indisponível.')
                             selected_proposals(plan['data'],request.form.getlist('selected'))
                             if store.active(conn,query,cid,item_id):raise ValueError('Há um envio pendente de confirmação. Nenhum reenvio foi feito.')
-                            apply(plan,request.form.getlist('selected'),resolve_token(shop),shop['user_id'],item_id,budgeted(get),put,persist)
+                            deadline=time.monotonic()+20
+                            apply(plan,request.form.getlist('selected'),resolve_token(shop),shop['user_id'],item_id,budgeted(get,deadline),put,persist,post=budgeted(post,deadline))
                         elif action=='verify':
                             if plan['state'] not in ('sending','uncertain'):raise ValueError('Este envio não está pendente de confirmação.')
                             try:
                                 result=verification(plan['data'],plan['selected'],owned(resolve_token(shop),shop['user_id'],item_id,budgeted(get)))
+                                if isinstance(plan.get('result',{}).get('conditional'),dict):result['conditional']=plan['result']['conditional']
                                 persist('confirmed' if confirmed(result) else 'uncertain',result)
-                            except ContentUnavailable as exc:persist('uncertain',dict(message=str(exc)))
+                            except ContentUnavailable as exc:
+                                result=dict(message=str(exc))
+                                if isinstance(plan.get('result',{}).get('conditional'),dict):result['conditional']=plan['result']['conditional']
+                                persist('uncertain',result)
                         else:
                             if plan['state'] not in ('sending','uncertain') or request.form.get('manual_checked')!='1':raise ValueError('Confirme a conferência manual antes de encerrar.')
                             persist('closed',dict(message='Encerrado pelo administrador após conferência manual. Nenhuma atualização foi reenviada.'))
