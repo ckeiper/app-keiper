@@ -731,13 +731,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-04T16:38:25.393672-03:00",
+      "etapa": "publicada",
+      "pr": 357,
+      "head_sha": "271af48bfc2aefee7a70bf42200f30d249b96281",
+      "atualizado_em": "2026-11-04T16:54:42.679495-03:00",
       "lacuna": "Consulta de publicação não certifica validade integral da atualização ou dos valores. Proteção conservadora e dependente da API; uso autenticado com anúncio real não exercitado. Conteúdo permanece parcial.",
-      "checks": [],
-      "publicacao": null
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41899590384,
+          "resultado": "success",
+          "head_sha": "271af48bfc2aefee7a70bf42200f30d249b96281"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41899590309,
+          "resultado": "success",
+          "head_sha": "271af48bfc2aefee7a70bf42200f30d249b96281"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41899590295,
+          "resultado": "success",
+          "head_sha": "271af48bfc2aefee7a70bf42200f30d249b96281"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dblookk9v7es73bof53g",
+        "commit": "244ef3febe94388920c252fb3ca17fdcec308054",
+        "status": "live",
+        "horario_brasilia": "2026-11-04T16:53:39.666369-03:00"
+      }
     }
   ]
 }

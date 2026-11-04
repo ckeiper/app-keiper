@@ -755,7 +755,8 @@
         348,
         349,
         352,
-        355
+        355,
+        357
       ],
       "numero_original": null,
       "prioridade": 2,
@@ -1820,7 +1821,9 @@
         "pendente": 2
       },
       "total": 44,
-      "prs": []
+      "prs": [
+        357
+      ]
     }
   ],
   "publicacoes": [
@@ -1946,6 +1949,13 @@
       "commit": "c4dadec4733932014614b282372c87cc9e3bb954",
       "status": "live",
       "horario_brasilia": "2026-11-04T15:48:40.507346-03:00"
+    },
+    {
+      "pr": 357,
+      "deploy_id": "dep-dblookk9v7es73bof53g",
+      "commit": "244ef3febe94388920c252fb3ca17fdcec308054",
+      "status": "live",
+      "horario_brasilia": "2026-11-04T16:53:39.666369-03:00"
     }
   ]
 }
