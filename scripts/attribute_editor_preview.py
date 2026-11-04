@@ -4,7 +4,7 @@ from attribute_edit_view import render
 from test_attribute_completion import facts,analyze,definition,listing
 from copy import deepcopy
 base=analyze(facts(definitions=[definition(tags=dict(hidden=True))]))
-for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline'):
+for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline','conditional-read','conditional-review','conditional-unknown','conditional-xss'):
     plan=None;manual_form=None
     if mode!='initial':
         plan=dict(id='11111111-1111-4111-8111-111111111111',data=deepcopy(base),state=mode if mode in ('uncertain','confirmed') else 'ready',selected=[],result={})
@@ -20,7 +20,7 @@ for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','
             plan['data']=analyze(facts(item=listing(variations=variants),definitions=[rule()],description=''),[manual()] if mode!='variation-unknown' else None,42)
             if mode=='variation-confirmed':
                 plan['state']='confirmed';plan['result']=dict(message='Atualização confirmada por nova leitura.',preserved=True,fields=[dict(id='v:101:GTIN',name='Código de barras · Variação 101 · Azul',confirmed=True)])
-        if mode in ('bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline'):
+        if mode in ('bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline','conditional-read','conditional-review','conditional-unknown','conditional-xss'):
             from test_attribute_variations import variant,rule
             plan['data']=analyze(facts(item=listing(variations=[variant(),variant(102)]),definitions=[definition(),rule()],description=''))
             if mode=='bulk-error':
@@ -40,5 +40,15 @@ for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','
         if mode=='ambiguous':plan['data']=analyze(facts(definitions=[definition(tags=dict(hidden=True))],description='Material: Aço\nO material pode ser plástico.'))
         if mode=='na':plan['data']=analyze(facts(item=listing(attributes=[dict(id='MATERIAL',value_id='-1',value_name=None)]),definitions=[definition(tags=dict(hidden=True))],description='O material é aço.'))
         if mode=='xss':plan['data']['proposals'][0].update(name='<script>window.injected=1</script>',value='<img src=x onerror=window.injected=1>',evidence=[dict(source='Descrição',text='</blockquote><script>window.injected=1</script>')])
+    if mode.startswith('conditional-'):
+        from test_attribute_conditional_review import source,post
+        from attribute_conditional_review import review
+        f=source();plan['data']=analyze(f)
+        update=dict(attributes=[dict(id='GTIN' if mode=='conditional-read' else 'MATERIAL',value_name='12345678' if mode=='conditional-read' else 'Aço')])
+        if mode=='conditional-xss':f['rules']['GTIN']['name']='</strong><script>window.injected=1</script>'
+        report=review(f,update,'synthetic',post(status=503 if mode=='conditional-unknown' else 200))
+        plan['state']='confirmed' if mode=='conditional-read' else 'rejected'
+        plan['result']=dict(message='Atualização confirmada por nova leitura.' if mode=='conditional-read' else report['message'],conditional=report)
+        if mode=='conditional-read':plan['result']['fields']=[dict(id='GTIN',name='GTIN',confirmed=True)]
     body=render(7,'MLB123','Produto de teste','csrf','k'*24,plan,manual_form=manual_form)
     (dest/('attribute-editor-'+mode+'.html')).write_text(page('Completar ficha técnica',7,'Loja de teste','anuncios',body,refresh=False))

@@ -99,3 +99,17 @@ Testes usam casos sintéticos e PostgreSQL descartável: seção comum positiva,
 Também deixa para conferência menções à opção/variante/versão/modelo dentro da própria frase, qualificadores relacionais e nomes/códigos/valores/IDs das variantes retornados na categoria/anúncio. Por exemplo, “O material é aço na opção azul” e “Material: Aço Azul” não se tornam atributos comuns. A menção específica posterior também impede usar uma declaração geral anterior do mesmo campo. Valores gerais com esse tipo de qualificação podem precisar de dado informado; trata-se de limite conservador do leitor, sem certificação semântica ou exigência criada para o ML.
 
 Leitor 6 exige nova revisão dos planos prontos da versão 5. Confirmação de envio pendente continua somente leitura. Não muda endpoint, schema, permissões, seleção humana ou payload de atualização.
+
+## Conferência condicional antes do envio — 04/11/2026
+
+Quando as regras da categoria retornam `conditional_required: true`, a aplicação consulta `/categories/{id}/attributes/conditional` antes do PUT, com o anúncio recém-lido e somente os campos selecionados sobrepostos. O candidato preserva atributos comuns não editados, todas as variações, suas combinações, preços, imagens e demais contextos retornados. O payload do PUT continua restrito à atualização revisada; o candidato completo serve somente à consulta.
+
+Fonte oficial reconferida em 04/11/2026 pelos índices de busca: https://developers.mercadolivre.com.br/pt_br/api-docs-pt-br/atributos . O recurso consulta exigências condicionais de publicação; não é uma validação integral de um PUT de atualização. A interface e a auditoria preservam essa distinção.
+
+A presença dos IDs exigidos pela resposta é conferida no candidato, reutilizando o leitor de presença. N/A, valores compostos e informação incompleta permanecem não verificáveis quando esse leitor não os certifica. Campo ausente ou parcialmente informado pede conferência, sem erro confirmado. Se a consulta não puder ser concluída, responder HTTP 429, divergir das definições consultadas ou deixar presença não verificada, esta revisão não envia o PUT. É uma proteção conservadora: não comprova que o anúncio existente esteja inválido ou que toda atualização seria recusada pelo Mercado Livre.
+
+Sem marcas condicionais na categoria consultada, não há chamada adicional. Há no máximo uma consulta condicional por tentativa de aplicar, sem repetição automática. GET e POST de consulta compartilham o orçamento existente de 20 segundos para iniciar novas consultas, com timeouts ajustados ao restante. Resultado e seleção são persistidos antes da única tentativa de PUT; falta de persistência impede a gravação. A confirmação posterior mantém a evidência condicional.
+
+O resumo considera até 2.000 IDs retornados, com detalhes de até 50 campos e indicação explícita do limite. O relatório escapa nomes e mensagens e fica no resultado da revisão. Falhas de consulta interrompem o fluxo sem exibir segredos ou marcar uma gravação como confirmada. A leitura pública do editor (GET) e as etapas de análise/dado declarado não acrescentam essa consulta. Autorização, CSRF, isolamento por loja, seleção explícita e confirmação por nova leitura permanecem.
+
+Testes usam respostas isoladas, sem conta conectada ou escrita real. A consulta e atualização autenticadas com anúncio real não foram exercitadas nesta entrega. A proteção depende da disponibilidade e do contexto aceito pela API; estruturas não verificáveis podem exigir conferência externa.

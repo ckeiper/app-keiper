@@ -19,7 +19,7 @@ def verification(data,codes,item):
     return dict(preserved=integrity,message='Atualização confirmada por nova leitura.' if all(r['confirmed'] for r in rows) and integrity else 'Envio sem confirmação integral. Confira os campos antes de qualquer nova tentativa.',fields=rows)
 
 
-def apply(plan,codes,token,seller,item_id,get,put,persist,now=None):
+def apply(plan,codes,token,seller,item_id,get,put,persist,now=None,post=None):
     data=plan['data'];selected_proposals(data,codes)
     if plan['state']!='ready':raise ValueError('Esta análise já foi usada. Consulte o resultado; nenhum reenvio automático será feito.')
     if data.get('blocked'):raise ValueError(data['blocked'])
@@ -43,17 +43,26 @@ def apply(plan,codes,token,seller,item_id,get,put,persist,now=None):
         update=payload(proposals,facts['item'])
     except (ContentUnavailable,ValueError):
         persist('rejected',dict(message='Não foi possível revalidar a análise. Nenhum envio foi realizado.'));return
+    from attribute_conditional_review import review
+    conditional=review(facts,update,token,post)
+    extra={'conditional':conditional} if conditional['state']!='not_requested' else {}
+    if not conditional['allow_send']:
+        persist('rejected',dict(message=conditional['message'],**extra));return
+    if extra:
+        # Record the read-only query before the single marketplace write.
+        persist('sending',dict(message='Condições consultadas; enviando campos selecionados.',**extra),selected=codes)
     try:
         response=put('https://api.mercadolibre.com/items/'+item_id,headers={'Authorization':'Bearer '+token},
                      json=update,timeout=(3,8),allow_redirects=False)
     except requests.RequestException:
-        persist('uncertain',dict(message='A resposta do envio não chegou. Não houve reenvio automático; use Confirmar envio.'));return
+        persist('uncertain',dict(message='A resposta do envio não chegou. Não houve reenvio automático; use Confirmar envio.',**extra));return
     if response.status_code!=200:
-        persist('uncertain',dict(message='O Mercado Livre não confirmou o envio. Confira o resultado antes de reenviar.',http_status=int(response.status_code)));return
+        persist('uncertain',dict(message='O Mercado Livre não confirmou o envio. Confira o resultado antes de reenviar.',http_status=int(response.status_code),**extra));return
     try:
         result=verification(data,codes,owned(token,seller,item_id,get))
     except ContentUnavailable:
-        persist('uncertain',dict(message='Envio respondeu, mas a nova leitura não pôde confirmar a gravação. Use Confirmar envio.'));return
+        persist('uncertain',dict(message='Envio respondeu, mas a nova leitura não pôde confirmar a gravação. Use Confirmar envio.',**extra));return
+    result.update(extra)
     persist('confirmed' if confirmed(result) else 'uncertain',result)
 
 
