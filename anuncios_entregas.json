@@ -686,6 +686,20 @@
         "status": "live",
         "horario_brasilia": "2026-11-02T01:18:38.606377-03:00"
       }
+    },
+    {
+      "id": "ficha-valores-atuais",
+      "escopo": "Exibir valores retornados no anúncio e nas variações dentro do inventário da ficha técnica.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-02T09:57:29.427344-03:00",
+      "lacuna": "Exibição resumida e limitada; não certifica validade semântica, aplicação ou dados não retornados. Consulta autenticada dessa visualização com anúncio real não exercitada nesta entrega. Conteúdo permanece parcial.",
+      "checks": [],
+      "publicacao": null
     }
   ]
 }
