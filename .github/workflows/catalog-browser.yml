@@ -86,6 +86,7 @@ on:
       - 'content_technical_view.py'
       - 'attribute_completion.py'
       - 'attribute_conditional_review.py'
+      - 'attribute_review_recovery.py'
       - 'attribute_text_evidence.py'
       - 'attribute_common_prose.py'
       - 'attribute_manual.py'

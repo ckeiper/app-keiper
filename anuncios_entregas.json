@@ -762,6 +762,20 @@
         "status": "live",
         "horario_brasilia": "2026-11-04T16:53:39.666369-03:00"
       }
+    },
+    {
+      "id": "ficha-recuperar-revisao",
+      "escopo": "Reanalisar dados declarados após rejeição condicional anterior à gravação, exigindo leitura e seleção novas.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-04T17:12:16.696947-03:00",
+      "lacuna": "Somente interrupções condicionais comprovadamente anteriores à gravação; dados incompatíveis exigem revisão manual. Uso autenticado com anúncio real não exercitado.",
+      "checks": [],
+      "publicacao": null
     }
   ]
 }
