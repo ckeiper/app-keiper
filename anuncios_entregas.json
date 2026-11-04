@@ -800,6 +800,18 @@
         "status": "live",
         "horario_brasilia": "2026-11-04T17:22:50.030279-03:00"
       }
+    },
+    {
+      "id": "ficha-valores-confirmados",
+      "escopo": "Conferência por campo dos valores anteriores, selecionados e retornados na leitura de confirmação, sem chamadas adicionais ou reenvio.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-04T17:41:42.051293-03:00",
+      "lacuna": "Aguardando checks e publicação desta etapa. Uso autenticado com anúncio real não exercitado; resultados antigos não possuem valores registrados."
     }
   ]
 }

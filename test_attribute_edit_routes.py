@@ -57,7 +57,7 @@ class EditorViewTests(TestCase):
  def test_confirmed_inventory_is_updated_without_rewriting_audit_source(self):
   p=plan('confirmed');original=deepcopy(p['data']);p['result']=dict(fields=[dict(id='MATERIAL',name='Material',confirmed=True)])
   text=render(1,'MLB123','Produto','csrf','k'*24,p)
-  self.assertIn('Gravado: Aço',text);self.assertIn('Valor confirmado por nova leitura',text);self.assertEqual(p['data'],original)
+  self.assertIn('Selecionado: Aço',text);self.assertIn('Valor confirmado por nova leitura',text);self.assertEqual(p['data'],original)
 
  def test_old_reader_or_expired_analysis_does_not_offer_send(self):
   p=plan();p['data'].pop('extractor_version',None)
