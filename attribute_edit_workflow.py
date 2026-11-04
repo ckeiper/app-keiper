@@ -13,7 +13,8 @@ def selected_proposals(data,codes):
 
 def verification(data,codes,item):
     proposals=selected_proposals(data,codes)
-    rows=[dict(id=p['id'],name=p['name'],confirmed=matches(p,item)) for p in proposals]
+    from attribute_readback import field
+    rows=[field(p,item,matches(p,item)) for p in proposals]
     from attribute_variations import preserved
     integrity=preserved(data,proposals,item)
     return dict(preserved=integrity,message='Atualização confirmada por nova leitura.' if all(r['confirmed'] for r in rows) and integrity else 'Envio sem confirmação integral. Confira os campos antes de qualquer nova tentativa.',fields=rows)
