@@ -14,7 +14,7 @@ def render(cid,item,shop,model,token,values=None,message=''):
     out=STYLE+EXTRA+'<section class="lc content-review"><h2>Revisão de conteúdo</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><p>Avaliação manual com evidências. Nenhum critério é aprovado automaticamente. A revisão descreve o que foi conferido naquela data; não comprova o conteúdo atual nem garante conversão.</p><nav><a href="/diagnostico/'+str(int(cid))+'/'+item+'">Diagnóstico</a><a href="/anuncios/'+str(int(cid))+'/'+item+'/tarefas">Planejar ajustes</a></nav>'
     photos=shop.get('fotos');clips=shop.get('clips')
     base='/anuncios/'+str(int(cid))+'/'+item
-    tools=[('conteudo-atual','Conteúdo atual','Consultar atributos e ficha técnica'),('imagem-principal','Imagem principal','Diagnóstico oficial do Mercado Livre'),('perguntas','Perguntas','Consultar dúvidas registradas'),('avaliacoes','Avaliações do produto','Consultar notas e comentários')]
+    tools=[('conteudo-atual','Conteúdo atual','Consultar atributos e ficha técnica'),('imagem-principal','Imagens do anúncio','Diagnóstico oficial do Mercado Livre'),('perguntas','Perguntas','Consultar dúvidas registradas'),('avaliacoes','Avaliações do produto','Consultar notas e comentários')]
     out+='<nav class="cr-tools" aria-label="Fontes para revisão">'+''.join('<a href="'+base+'/'+suffix+'"><strong>'+label+'</strong><small>'+hint+'</small></a>' for suffix,label,hint in tools)+'</nav>'
     out+='<p>Última contagem coletada: fotos '+esc(photos if photos is not None else 'não verificadas')+' · clips '+esc(clips if clips is not None else 'não verificados')+'. Contagem não mede qualidade. Confira o anúncio antes de registrar.</p>'
     if message:out+='<p role="status">'+esc(message)+'</p>'
