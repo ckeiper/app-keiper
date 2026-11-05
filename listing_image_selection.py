@@ -7,6 +7,22 @@ from listing_content_snapshot import read,ContentUnavailable
 ROLES={'thumbnail':'Principal do anúncio','variation_thumbnail':'Principal de variação','other':'Secundária'}
 
 
+def variation_label(variation):
+    """Bound optional display metadata; the verified ID remains the fallback."""
+    label='Variação '+str(variation['id'])
+    combinations=variation.get('attribute_combinations')
+    if not isinstance(combinations,list) or not 1<=len(combinations)<=10:return label
+    parts=[]
+    for row in combinations:
+        if not isinstance(row,dict):return label
+        name=row.get('name');value=row.get('value_name')
+        if (not isinstance(name,str) or not name.strip() or len(name)>80
+                or not isinstance(value,str) or not value.strip() or len(value)>120):return label
+        parts.append(name.strip()+': '+value.strip())
+    detail=' · '.join(parts)
+    return label+' — '+(detail if len(detail)<=240 else detail[:240]+'…')
+
+
 def preview_url(value):
     if not isinstance(value,str) or len(value)>2048 or any(ord(c)<=32 for c in value):return None
     try:
@@ -27,11 +43,17 @@ def gallery(choices):
         url=preview_url(p.get('preview_url'))
         if url:out+='<img src="'+esc(url)+'" alt="'+esc(label)+'" loading="lazy" decoding="async" referrerpolicy="no-referrer">'
         else:out+='<span class="id-photo-missing">Prévia indisponível</span>'
-        out+='</span><strong>'+esc(label)+'</strong><span>'+esc(ROLES[p['role']])+'</span><span class="id-picked">Selecionada</span></label>'
+        out+='</span><strong>'+esc(label)+'</strong><span>'+esc(ROLES[p['role']])+'</span>'
+        links=p.get('variations',[])
+        if links:
+            out+='<span class="id-photo-variations">Vinculada a '+str(len(links))+(' variação' if len(links)==1 else ' variações')+'</span><ul class="id-photo-variation-list">'
+            out+=''.join('<li>'+esc(v)+'</li>' for v in links[:3])+'</ul>'
+            if len(links)>3:out+='<span>Mais '+str(len(links)-3)+(' variação vinculada.' if len(links)==4 else ' variações vinculadas.')+'</span>'
+        out+='<span class="id-picked">Selecionada</span></label>'
     return out+'</div></fieldset>'
 
 
-GALLERY_STYLE='''<style>.id-photo-choices{min-width:0;margin:0;padding:0;border:0}.id-photo-choices legend{padding:0;margin-bottom:12px}.id-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr));gap:12px}.image-diagnostic .id-photo-card{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px;border:2px solid #7892aa;border-radius:12px;cursor:pointer;overflow-wrap:anywhere}.id-photo-card:focus-within{outline:3px solid #d09a42;outline-offset:2px}.id-photo-card:has(input:checked){border-color:#65b9ff;background:#143a5b}.id-photo-card input{align-self:flex-start;width:20px!important;height:20px;margin:0;accent-color:#247bc1}.id-photo-preview{display:flex;align-items:center;justify-content:center;aspect-ratio:4/3;min-width:0;background:#fff;color:#243e59;border-radius:8px;overflow:hidden}.id-photo-preview img{display:block;width:100%;height:100%;object-fit:contain}.id-photo-missing{padding:10px;text-align:center}.id-picked{display:none;font-weight:700}.id-photo-card:has(input:checked) .id-picked{display:inline}html[data-theme=light] body .id-photo-card:has(input:checked){background:#e6f0fd!important;border-color:#24659b!important;color:#172d47!important}</style>'''
+GALLERY_STYLE='''<style>.id-photo-choices{min-width:0;margin:0;padding:0;border:0}.id-photo-choices legend{padding:0;margin-bottom:12px}.id-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr));gap:12px}.image-diagnostic .id-photo-card{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px;border:2px solid #7892aa;border-radius:12px;cursor:pointer;overflow-wrap:anywhere}.id-photo-card:focus-within{outline:3px solid #d09a42;outline-offset:2px}.id-photo-card:has(input:checked){border-color:#65b9ff;background:#143a5b}.id-photo-card input{align-self:flex-start;width:20px!important;height:20px;margin:0;accent-color:#247bc1}.id-photo-preview{display:flex;align-items:center;justify-content:center;aspect-ratio:4/3;min-width:0;background:#fff;color:#243e59;border-radius:8px;overflow:hidden}.id-photo-preview img{display:block;width:100%;height:100%;object-fit:contain}.id-photo-variation-list{margin:0;padding-left:18px;min-width:0}.id-photo-variation-list li{margin:0 0 6px;overflow-wrap:anywhere}.id-photo-missing{padding:10px;text-align:center}.id-picked{display:none;font-weight:700}.id-photo-card:has(input:checked) .id-picked{display:inline}html[data-theme=light] body .id-photo-card:has(input:checked){background:#e6f0fd!important;border-color:#24659b!important;color:#172d47!important}</style>'''
 
 
 def load(token,seller,item_id,get):
@@ -53,7 +75,7 @@ def load(token,seller,item_id,get):
     ids=[p.get('id') if isinstance(p,dict) else None for p in pictures]
     if any(not valid(p) for p in ids) or len(set(ids))!=len(ids) or main not in ids:
         raise ContentUnavailable('Fotos do anúncio não verificáveis para seleção.')
-    primary_variations=set();seen=set();known=set(ids)
+    primary_variations=set();seen=set();known=set(ids);links={p:[] for p in ids}
     for variation in variations:
         if not isinstance(variation,dict):raise ContentUnavailable('Variações não verificáveis.')
         vid=variation.get('id');vp=variation.get('picture_ids')
@@ -62,5 +84,7 @@ def load(token,seller,item_id,get):
                 or any(not valid(p) or p not in known for p in vp) or len(set(vp))!=len(vp)):
             raise ContentUnavailable('Fotos das variações não verificáveis para seleção.')
         seen.add(str(vid));primary_variations.add(vp[0])
-    rows=[dict(id=p,role='thumbnail' if p==main else 'variation_thumbnail' if p in primary_variations else 'other',position=i+1,preview_url=preview_url(pictures[i].get('secure_url'))) for i,p in enumerate(ids)]
+        label=variation_label(variation)
+        for picture in vp:links[picture].append(label)
+    rows=[dict(id=p,role='thumbnail' if p==main else 'variation_thumbnail' if p in primary_variations else 'other',position=i+1,preview_url=preview_url(pictures[i].get('secure_url')),variations=links[p]) for i,p in enumerate(ids)]
     return item,rows
