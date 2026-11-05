@@ -32,6 +32,8 @@ on:
       - 'listing_sku*.py'
       - 'test_listing_sku*.py'
       - 'scripts/listing_sku*'
+      - 'listing_account_permission.py'
+      - 'test_listing_account_permission.py'
       - 'listing_moderation.py'
       - 'test_listing_moderation.py'
       - 'listing_pause_reasons.py'

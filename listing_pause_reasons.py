@@ -40,7 +40,9 @@ def inspect(token, seller, item_id, request_get, include_moderation=False):
     codes = item.get('sub_status')
     verified = (isinstance(codes, list) and len(codes) <= 100
                 and all(isinstance(c, str) and 0 < len(c) <= 200 for c in codes))
-    result.update(state='read', status=status,codes=list(dict.fromkeys(codes)) if verified else None)
+    from listing_account_permission import normalize as account_permission
+    result.update(state='read', status=status,codes=list(dict.fromkeys(codes)) if verified else None,
+                  account_permission=account_permission(account))
     if include_moderation:
         from listing_moderation import inspect as inspect_moderation
         result['moderation']=inspect_moderation(token,item_id,request_get)
@@ -64,6 +66,8 @@ def render(token, result=None):
             for code in result['codes'] or []:
                 label, guidance = REASONS.get(code, ('Código sem interpretação local', 'Confira o detalhe no Mercado Livre.'))
                 out += '<p><strong>'+esc(label)+'</strong> · <code>'+esc(code)+'</code><br>'+esc(guidance)+'</p>'
+    from listing_account_permission import render as render_account_permission
+    out+=render_account_permission(result.get('account_permission') if result else None)
     from listing_moderation import render as render_moderation
     out+=render_moderation(result.get('moderation') if result else None)
     out += '<p>Fonte: status e substatus do anúncio na API. Moderação consultada somente pelo botão correspondente. Esta leitura não confirma elegibilidade nem altera a oferta.</p>'

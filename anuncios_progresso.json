@@ -805,20 +805,22 @@
       "area": "Conteúdo",
       "capacidade": "Reativação de anúncios",
       "estado": "parcial",
-      "implementado": "Tela dedicada à revisão de reativação por anúncio: status recente e estoque verificado, orientações de conferência de motivo/restrições/oferta, tarefa de elegibilidade com descrição/responsável/prazo explícitos, calendário e histórico das tarefas. Acompanha mudanças de status observadas nas coletas, com datas anterior/detecção e limite explícito de dez eventos. Nenhuma alteração no marketplace. Consulta sob demanda de status e substatus oficiais com conta e propriedade verificadas, códigos desconhecidos preservados e falhas explícitas. Leitura transitória, sem gravar oferta ou tarefa. Consulta opcional da última moderação oficial, após validar conta e propriedade, exibindo motivo, ação sugerida e evidências em texto escapado. Falha da terceira chamada preserva status/substatus. Limites explícitos para registros, mensagens, evidências e textos; códigos e datas originais preservados sem inferir elegibilidade.",
-      "falta": "Histórico completo de moderações e restrições da conta não consultados. Elegibilidade não validada automaticamente. Uso autenticado com anúncio real não exercitado nesta entrega. A decisão e eventual reativação seguem externas e manuais.",
+      "implementado": "Tela dedicada à revisão de reativação por anúncio: status recente e estoque verificado, orientações de conferência de motivo/restrições/oferta, tarefa de elegibilidade com descrição/responsável/prazo explícitos, calendário e histórico das tarefas. Acompanha mudanças de status observadas nas coletas, com datas anterior/detecção e limite explícito de dez eventos. Nenhuma alteração no marketplace. Consulta sob demanda de status e substatus oficiais com conta e propriedade verificadas, códigos desconhecidos preservados e falhas explícitas. Leitura transitória, sem gravar oferta ou tarefa. Consulta opcional da última moderação oficial, após validar conta e propriedade, exibindo motivo, ação sugerida e evidências em texto escapado. Falha da terceira chamada preserva status/substatus. Limites explícitos para registros, mensagens, evidências e textos; códigos e datas originais preservados sem inferir elegibilidade. Permissão oficial de publicação da conta obtida da resposta autenticada já existente, sem novas chamadas. Diferencia booleanos true/false de campos ausentes ou inválidos, preserva códigos oficiais limitados e escapados e mantém a distinção entre permissão da conta e elegibilidade da oferta.",
+      "falta": "Histórico completo de moderações e outras restrições da conta não consultados. Permissão de publicação da conta não certifica elegibilidade deste anúncio. Uso autenticado com anúncio real não exercitado nesta entrega. A decisão e eventual reativação seguem externas e manuais.",
       "fontes": [
         "listing_reactivation.py",
         "listing_reactivation_routes.py",
         "listing_pause_reasons.py",
-        "listing_moderation.py"
+        "listing_moderation.py",
+        "listing_account_permission.py"
       ],
       "testes": [
         "test_listing_reactivation.py",
         "test_listing_reactivation_integration.py",
         "scripts/listing_reactivation_browser_check.cjs",
         "test_listing_pause_reasons.py",
-        "test_listing_moderation.py"
+        "test_listing_moderation.py",
+        "test_listing_account_permission.py"
       ],
       "prs": [
         363,

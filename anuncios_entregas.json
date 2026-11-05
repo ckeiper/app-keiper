@@ -914,6 +914,18 @@
         "status": "live",
         "horario_brasilia": "2026-11-04T22:48:19.040-03:00"
       }
+    },
+    {
+      "id": "reativacao-permissao-conta",
+      "escopo": "Mostrar a permissão oficial de publicação da conta na revisão do anúncio, reaproveitando a consulta autenticada existente.",
+      "frentes": [
+        "reativacao"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-04T23:21:26.783889-03:00",
+      "lacuna": "Aguardando CI. Permissão da conta não verifica elegibilidade da oferta. Histórico completo e outras restrições fora desta etapa; consulta real não exercitada."
     }
   ]
 }
