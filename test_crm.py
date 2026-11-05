@@ -10,6 +10,45 @@ import crm
 
 
 class CRMUnitTests(unittest.TestCase):
+    def test_gemini_notes_without_key_fill_explicit_facts_not_consultant_dialogue(self):
+        text = ('nov. 4, 2026\nReunião Lead Exemplo\n'
+                'convidado clinton@keiperconsultoria.com.br lead@example.com\n'
+                'Registros da reunião Transcrição\n\nResumo\n'
+                'Dificuldades operacionais\nEstoque indisponível no canal.\n\n'
+                'Objetivos\nAmpliar o catálogo.\n\nPróximas etapas\n'
+                '* [Lead Exemplo] Analisar proposta com sócio.\n\nDetalhes\n'
+                'Equipe e logística: Dois funcionários na expedição.\n\n'
+                'Reunião Lead Exemplo - Transcrição\n00:00:01\n'
+                'Clinton: Nome: Consultor\nEmpresa: Não extrair do diálogo\n')
+        with patch('crm.requests.post') as post:
+            data, summary, warning, _ = crm.extract(text)
+        post.assert_not_called()
+        self.assertEqual(data['nome'], 'Lead Exemplo')
+        self.assertEqual(data['email'], 'lead@example.com')
+        self.assertEqual(data['empresa'], '')
+        self.assertEqual(data['data_reuniao'], '2026-11-04')
+        self.assertIn('Estoque indisponível', data['dificuldades'])
+        self.assertIn('Ampliar', data['objetivos'])
+        self.assertIn('Dois funcionários', data['estrutura'])
+        self.assertIn('sócio', data['proxima_acao'])
+        self.assertEqual(data['data_followup'], '')
+        self.assertIn('Dificuldades', summary)
+        self.assertIn('não foi interpretada', warning)
+
+    def test_gemini_does_not_guess_client_email_from_multiple_guests(self):
+        data = crm.basic_extract('Reunião Exemplo\nconvidado a@example.com b@example.com\nResumo\nTexto')
+        self.assertEqual(data['email'], '')
+
+    def test_gemini_automatic_meet_title_is_not_a_client_name(self):
+        data, summary, _, _ = crm.extract('nov. 4, 2026\n'
+            'Reunião em 4 de nov. de 2026 às 15:31 GMT-03:00\n'
+            'Resumo\nDiagnóstico\nAnálise de vendas.\n\nPróximas etapas\n'
+            '[Cliente] Enviar métricas de conversão.')
+        self.assertEqual(data['nome'], '')
+        self.assertEqual(data['data_reuniao'], '2026-11-04')
+        self.assertIn('Enviar métricas', data['proxima_acao'])
+        self.assertIn('Análise de vendas', summary)
+
     def test_only_explicit_fields_and_valid_dates(self):
         text = ('Clinton: Olá João, meu telefone é (19) 99999-1234.\n'
                 'Nome do lead: João Silva\nEmpresa: Loja A\nE-mail: joao@example.com\n'
@@ -165,6 +204,32 @@ class CRMIntegrationTests(unittest.TestCase):
         r=self.post(review,nome='Antigo',versao='1')
         self.assertIn('cadastro mudou',r.text)
         self.assertEqual(self.get_lead(lead_id)['nome'],'Alterado')
+
+    def test_reprocess_saved_source_requires_review_and_preserves_single_meeting(self):
+        lead_id = self.create(email='saved@example.com', etapa='Em negociação')
+        with self.bank() as conn:
+            item_id = self.query(conn, """INSERT INTO crm_historico
+                (lead_id,tipo,texto,transcricao,data_reuniao)
+                VALUES(%s,'Reunião importada','',%s,'2026-11-04') RETURNING id""",
+                (lead_id, 'Nome: Lead teste\nObjetivo: Ampliar catálogo'))[0]['id']
+        path = f'/crm/{lead_id}/historico/{item_id}/reprocessar'
+        self.assertEqual(self.client.post(path).status_code, 400)
+        self.assertEqual(self.post(f'/crm/{lead_id}/historico/0/reprocessar').status_code, 404)
+        with patch('crm.extract', wraps=crm.extract):
+            response = self.post(path)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.get_lead(lead_id)['versao'], 1)
+        view = self.client.get(response.location).text
+        self.assertIn('Ampliar catálogo', view)
+        self.assertIn('saved@example.com', view)
+        result = self.post(response.location, nome='Lead teste', email='saved@example.com',
+                           etapa='Em negociação', objetivos='Ampliar catálogo', resumo='Revisado')
+        self.assertEqual(result.status_code, 302)
+        with self.bank() as conn:
+            rows = self.query(conn, 'SELECT * FROM crm_historico WHERE lead_id=%s', (lead_id,))
+        self.assertEqual(sum(bool(r['transcricao']) for r in rows), 1)
+        self.assertTrue(any(r['tipo'] == 'Transcrição reprocessada' for r in rows))
+        self.assertEqual(self.get_lead(lead_id)['etapa'], 'Em negociação')
 
     def test_link_matching_phone_preserves_draft_edits_and_requires_review(self):
         lead_id=self.create(celular='+55 (19) 98888-7766',empresa='Empresa preservada',etapa='Em negociação')
