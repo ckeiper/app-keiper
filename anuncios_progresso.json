@@ -892,15 +892,26 @@
       "id": "sazonalidade",
       "area": "Mercado",
       "capacidade": "Sazonalidade",
-      "estado": "pendente",
-      "implementado": "",
-      "falta": "Não foi identificado módulo de análise sazonal por anúncio com histórico suficiente e método definido.",
-      "fontes": [],
-      "testes": [],
-      "prs": [],
+      "estado": "parcial",
+      "implementado": "Perfil descritivo de unidades por dia da semana nas oito últimas semanas completas de segunda a domingo, em Brasília. Exige cobertura dos 56 dias e validação integral existente de pedidos pagos, pagamentos e vínculo de itens. Médias com oito observações por dia, mediana, mínimo/máximo, semanas com venda e participação; zero apenas em base verificada. Cobertura diária, estados indisponíveis e navegação pelo diagnóstico. Leitura administrativa por loja/anúncio, sem chamadas externas ou escrita.",
+      "falta": "Faltam sazonalidade mensal/anual e modelo preditivo com controle de preço, promoções, feriados, disponibilidade e validação histórica. O perfil semanal descreve a janela de calendário, incluindo pausas, dias antes da criação e ruptura sem normalizar tempo ativo; não certifica repetição futura, causa ou melhor dia de anunciar. Exige 56 dias integralmente verificáveis. Uso autenticado em anúncio real não exercitado nesta entrega.",
+      "fontes": [
+        "listing_weekly_pattern.py",
+        "listing_sales.py",
+        "profitability_store.py",
+        "docs/listing-weekly-pattern.md"
+      ],
+      "testes": [
+        "test_listing_weekly_pattern.py",
+        "test_listing_weekly_pattern_integration.py",
+        "scripts/listing_weekly_pattern_browser_check.cjs"
+      ],
+      "prs": [
+        378
+      ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-11-05"
     },
     {
       "id": "semelhantes",
@@ -1972,6 +1983,20 @@
       "total": 44,
       "prs": [
         374
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-05",
+      "resumo": "Perfil descritivo de vendas por dia da semana em oito semanas completas, com cobertura integral e validação dos pedidos.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        378
       ]
     }
   ],

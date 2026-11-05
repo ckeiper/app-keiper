@@ -1104,6 +1104,18 @@
           "head_sha": "5390d261567cab05c3e66764aed07b98fe0d1eb6"
         }
       ]
+    },
+    {
+      "id": "sazonalidade-perfil-semanal",
+      "escopo": "Distribuição descritiva de unidades por dia da semana em oito semanas de calendário completas, com cobertura e integridade verificadas.",
+      "frentes": [
+        "sazonalidade"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-05T15:26:33.727059-03:00",
+      "lacuna": "Faltam sazonalidade mensal/anual e modelo preditivo com controle de preço, promoções, feriados, disponibilidade e validação histórica. O perfil semanal descreve a janela de calendário, incluindo pausas, dias antes da criação e ruptura sem normalizar tempo ativo; não certifica repetição futura, causa ou melhor dia de anunciar. Exige 56 dias integralmente verificáveis. Uso autenticado em anúncio real não exercitado nesta entrega."
     }
   ]
 }

@@ -80,6 +80,9 @@ on:
       - 'listing_buyer_reviews.py'
       - 'test_listing_buyer_reviews.py'
       - 'scripts/listing_buyer_reviews*'
+      - 'listing_weekly_pattern.py'
+      - 'test_listing_weekly_pattern*.py'
+      - 'scripts/listing_weekly_pattern*'
       - 'listing_questions.py'
       - 'question_sync.py'
       - 'test_question_sync.py'
@@ -221,6 +224,7 @@ jobs:
       - run: python scripts/listing_image_diagnostic_preview.py
       - run: python scripts/listing_buyer_reviews_preview.py
       - run: python scripts/listing_questions_preview.py
+      - run: python scripts/listing_weekly_pattern_preview.py
       - run: python scripts/listing_content_preview.py
       - run: python scripts/listing_content_snapshot_preview.py
       - run: python scripts/content_rate_limit_preview.py
@@ -264,6 +268,7 @@ jobs:
       - run: node scripts/listing_image_diagnostic_browser_check.cjs
       - run: node scripts/listing_buyer_reviews_browser_check.cjs
       - run: node scripts/listing_questions_browser_check.cjs
+      - run: node scripts/listing_weekly_pattern_browser_check.cjs
       - run: node scripts/listing_content_browser_check.cjs
       - run: node scripts/listing_content_snapshot_browser_check.cjs
       - run: node scripts/content_rate_limit_browser_check.cjs
