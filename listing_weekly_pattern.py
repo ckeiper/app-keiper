@@ -54,7 +54,7 @@ def analyze(context,cid,item,today):
     for weekday,label in enumerate(WEEKDAYS):
         sample=[r for r in daily if r['day'].weekday()==weekday]
         values=[r['units'] for r in sample];total=sum(values)
-        rows.append(dict(label=label,total=total,mean=Decimal(total)/WEEKS,median=median(values),
+        rows.append(dict(label=label,total=total,mean=Decimal(total)/WEEKS,median=median([Decimal(v) for v in values]),
             minimum=min(values),maximum=max(values),selling_weeks=sum(v>0 for v in values),
             share=Decimal(total)*100/summary['units'] if summary['units'] else None))
     result.update(available=True,rows=rows,daily=daily,summary=summary)

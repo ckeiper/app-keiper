@@ -906,7 +906,9 @@
         "test_listing_weekly_pattern_integration.py",
         "scripts/listing_weekly_pattern_browser_check.cjs"
       ],
-      "prs": [],
+      "prs": [
+        378
+      ],
       "numero_original": null,
       "prioridade": 100,
       "atualizado_em": "2026-11-05"
@@ -1979,7 +1981,9 @@
         "pendente": 1
       },
       "total": 44,
-      "prs": []
+      "prs": [
+        378
+      ]
     }
   ],
   "publicacoes": [

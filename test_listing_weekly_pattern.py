@@ -68,6 +68,15 @@ class PatternTests(unittest.TestCase):
                 self.assertFalse(data['available']);self.assertEqual(data['rows'],[])
                 self.assertNotIn('<table>',render(7,'MLB1',{},data));self.assertTrue(data['reason'])
 
+    def test_median_preserves_half_unit_at_large_counts(self):
+        context=fixture()
+        for i in range(8):
+            qty=10**16+i;index=i*7
+            context['orders'][index].update(unidades=qty,total=qty*10)
+            context['items'][index]['quantidade']=qty
+        row=analyze(context,7,'MLB1',TODAY)['rows'][0]
+        self.assertEqual(row['median'],Decimal('10000000000000003.5'))
+
     def test_item_scope_timezone_and_closed_week_boundaries(self):
         c=fixture();start,end=window(TODAY)
         c['orders'][0]['criado_em']=(start+timedelta(days=1)).isoformat()+'T01:00:00Z' # Monday 22h Brasília
