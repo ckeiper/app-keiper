@@ -1974,6 +1974,20 @@
     {
       "base": "frentes_auditadas",
       "data": "2026-11-05",
+      "resumo": "Galeria identifica as variações vinculadas às fotos, inclusive secundárias e compartilhadas, com combinações retornadas e apresentação limitada por card. Conteúdo permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        374
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-05",
       "resumo": "Perfil descritivo de vendas por dia da semana em oito semanas completas, com cobertura integral e validação dos pedidos.",
       "contagens": {
         "concluida": 26,
