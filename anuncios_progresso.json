@@ -800,7 +800,8 @@
       ],
       "prs": [
         324,
-        326
+        326,
+        375
       ],
       "numero_original": null,
       "prioridade": 3,
@@ -1944,6 +1945,20 @@
       "prs": [
         371
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-05",
+      "resumo": "Fila de perguntas aguardando resposta por anúncio, mais antigas primeiro, com tempo de espera e temas claro/escuro.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        375
+      ]
     }
   ],
   "publicacoes": [
@@ -2125,6 +2140,13 @@
       "commit": "02239eb8102e09820538708812b7dddfa6272ad0",
       "status": "live",
       "horario_brasilia": "2026-11-05T09:39:23.847619-03:00"
+    },
+    {
+      "pr": 375,
+      "deploy_id": "dep-dbmbun17lnhs73913rhg",
+      "commit": "e778d0fa9963b0111f49430b0ba04068de7f0e4f",
+      "status": "live",
+      "horario_brasilia": "2026-11-05T14:42:32.536277-03:00"
     }
   ]
 }
