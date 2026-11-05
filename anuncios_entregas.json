@@ -1066,6 +1066,44 @@
           "head_sha": "a2da5275d2431b07564cb30ecf4932babe917c70"
         }
       ]
+    },
+    {
+      "id": "galeria-variacoes-374",
+      "escopo": "Identificação das variações vinculadas a cada foto na galeria de diagnóstico, reutilizando a leitura autenticada existente.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "publicada",
+      "pr": 374,
+      "head_sha": "5390d261567cab05c3e66764aed07b98fe0d1eb6",
+      "atualizado_em": "2026-11-05T15:30:09-03:00",
+      "lacuna": "Até três vínculos exibidos por card, com contagem dos demais. Uso autenticado com anúncio real não exercitado. Mantidos os limites de fotos e variações; não certifica coerência visual ou qualidade.",
+      "publicacao": {
+        "deploy_id": "dep-dbmck3o473hc73827ct0",
+        "commit": "f0a9ef37625c9df8b7a6499f4132bcfe12686c27",
+        "status": "live",
+        "horario_brasilia": "2026-11-05T15:28:07.247782-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42044490685,
+          "resultado": "success",
+          "head_sha": "5390d261567cab05c3e66764aed07b98fe0d1eb6"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42044490950,
+          "resultado": "success",
+          "head_sha": "5390d261567cab05c3e66764aed07b98fe0d1eb6"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42044490804,
+          "resultado": "success",
+          "head_sha": "5390d261567cab05c3e66764aed07b98fe0d1eb6"
+        }
+      ]
     }
   ]
 }
