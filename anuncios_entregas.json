@@ -1111,11 +1111,37 @@
       "frentes": [
         "sazonalidade"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-05T15:26:33.727059-03:00",
-      "lacuna": "Faltam sazonalidade mensal/anual e modelo preditivo com controle de preço, promoções, feriados, disponibilidade e validação histórica. O perfil semanal descreve a janela de calendário, incluindo pausas, dias antes da criação e ruptura sem normalizar tempo ativo; não certifica repetição futura, causa ou melhor dia de anunciar. Exige 56 dias integralmente verificáveis. Uso autenticado em anúncio real não exercitado nesta entrega."
+      "etapa": "publicada",
+      "pr": 378,
+      "head_sha": "2cb95dba8400066f9757b84ca3f2e7e55a220a7a",
+      "atualizado_em": "2026-11-05T15:55:48.598-03:00",
+      "lacuna": "Faltam sazonalidade mensal/anual e modelo preditivo com controle de preço, promoções, feriados, disponibilidade e validação histórica. O perfil semanal descreve a janela de calendário, incluindo pausas, dias antes da criação e ruptura sem normalizar tempo ativo; não certifica repetição futura, causa ou melhor dia de anunciar. Exige 56 dias integralmente verificáveis. Uso autenticado em anúncio real não exercitado nesta entrega.",
+      "publicacao": {
+        "deploy_id": "dep-dbmd0k7lk1mc73eo4o70",
+        "commit": "4c4e40249f21cb1eac28e2526ac213dfa5749448",
+        "status": "live",
+        "horario_brasilia": "2026-11-05T15:54:53.050-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42086945621,
+          "resultado": "success",
+          "head_sha": "2cb95dba8400066f9757b84ca3f2e7e55a220a7a"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42086945630,
+          "resultado": "success",
+          "head_sha": "2cb95dba8400066f9757b84ca3f2e7e55a220a7a"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42086945644,
+          "resultado": "success",
+          "head_sha": "2cb95dba8400066f9757b84ca3f2e7e55a220a7a"
+        }
+      ]
     }
   ]
 }

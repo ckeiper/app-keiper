@@ -2186,6 +2186,13 @@
       "commit": "e778d0fa9963b0111f49430b0ba04068de7f0e4f",
       "status": "live",
       "horario_brasilia": "2026-11-05T14:42:32.536277-03:00"
+    },
+    {
+      "pr": 378,
+      "deploy_id": "dep-dbmd0k7lk1mc73eo4o70",
+      "commit": "4c4e40249f21cb1eac28e2526ac213dfa5749448",
+      "status": "live",
+      "horario_brasilia": "2026-11-05T15:54:53.050-03:00"
     }
   ]
 }
