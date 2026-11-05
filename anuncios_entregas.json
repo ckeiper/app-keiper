@@ -1035,11 +1035,37 @@
       "frentes": [
         "perguntas-avaliacoes"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-05T14:26:00.240763-03:00",
-      "lacuna": "Amostra local de até 1.000 perguntas; confirmação das últimas seis horas. Datas inválidas não geram duração. Não responde pelo sistema nem conclui histórico integral ou análise semântica."
+      "etapa": "publicada",
+      "pr": 375,
+      "head_sha": "a2da5275d2431b07564cb30ecf4932babe917c70",
+      "atualizado_em": "2026-11-05T14:43:09.602211-03:00",
+      "lacuna": "Amostra local de até 1.000 perguntas; confirmação das últimas seis horas. Datas inválidas não geram duração. Não responde pelo sistema nem conclui histórico integral ou análise semântica.",
+      "publicacao": {
+        "deploy_id": "dep-dbmbun17lnhs73913rhg",
+        "commit": "e778d0fa9963b0111f49430b0ba04068de7f0e4f",
+        "status": "live",
+        "horario_brasilia": "2026-11-05T14:42:32.536277-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42075427764,
+          "resultado": "success",
+          "head_sha": "a2da5275d2431b07564cb30ecf4932babe917c70"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42075427440,
+          "resultado": "success",
+          "head_sha": "a2da5275d2431b07564cb30ecf4932babe917c70"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42075427427,
+          "resultado": "success",
+          "head_sha": "a2da5275d2431b07564cb30ecf4932babe917c70"
+        }
+      ]
     }
   ]
 }
