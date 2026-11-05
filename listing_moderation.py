@@ -71,4 +71,4 @@ def render(result):
         for ev in row['evidence']:
             out+='<p class="rr-note">Evidência · '+esc(ev['section'] or 'Seção não informada')+': '+esc(ev['value'] or 'Texto não informado')+'</p>'
         out+='</div>'
-    return out+'<p>As mensagens são do Mercado Livre e podem mudar após esta leitura. Histórico completo e restrições da conta não consultados. Nenhuma ação foi executada.</p></section>'
+    return out+'<p>As mensagens são do Mercado Livre e podem mudar após esta leitura. Histórico completo e outras restrições da conta não consultados. Nenhuma ação foi executada.</p></section>'
