@@ -16,7 +16,16 @@ for(const mode of ['ready','zero','partial','pending','invalid','spike'])for(con
  if(theme==='light'){
   assert.equal(await page.locator('.wp').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 255, 255)');
   if(ready)assert.equal(await page.locator('.wp-stats article').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(242, 246, 251)');
- }else assert.equal(await page.locator('.wp').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(16, 34, 56)');
+ }else{
+  assert.equal(await page.locator('.wp').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(16, 34, 56)');
+  assert.equal(await page.locator('.wp h2').evaluate(e=>getComputedStyle(e).color),'rgb(234, 242, 255)');
+  if(ready){
+   assert.equal(await page.locator('.wp td').first().evaluate(e=>getComputedStyle(e).color),'rgb(234, 242, 255)');
+   assert.equal(await page.locator('.wp thead th').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(24, 46, 73)');
+   await page.locator('.wp tbody tr').first().hover();
+   assert.equal(await page.locator('.wp td').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(28, 53, 79)');
+  }
+ }
  await page.locator('.wp summary').click();
  assert.equal(await page.locator('.wp-days span').count(),56);
  if(ready && width<650){
