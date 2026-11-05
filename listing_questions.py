@@ -1,5 +1,7 @@
 """Bounded analysis of saved questions, without semantic/AI inference."""
 from collections import Counter
+import unicodedata
+import re
 from datetime import datetime
 from html import escape
 from urllib.parse import urlencode
@@ -8,6 +10,8 @@ from listing_calendar import STYLE
 from question_sync import STATUSES,FRESH_SECONDS
 
 LIMIT=1000
+SEARCH_LIMIT=200
+COMMON_MARKS=re.compile(r'[\u0300-\u036f]')
 STATUS_LABELS={'UNANSWERED':'Sem resposta','ANSWERED':'Respondida','CLOSED_UNANSWERED':'Encerrada sem resposta','BANNED':'Bloqueada','DELETED':'Excluída','DISABLED':'Desativada','UNDER_REVIEW':'Em análise'}
 
 def persist(conn,execute,cid,payload,now,expected_seller=None):
@@ -91,12 +95,24 @@ def waiting_label(seconds):
     return 'Aguardando há '+' '.join(parts)
 
 
+def search_text(value):
+    """Literal text folding, preserving non-Latin text and punctuation."""
+    if not isinstance(value,str):return ''
+    value=COMMON_MARKS.sub('',unicodedata.normalize('NFKD',value.casefold()))
+    if not value.isascii():value=''.join(c for c in value if not unicodedata.combining(c))
+    return ' '.join(value.split())
+
+
 def model(rows,args,now=None,seller_id=None):
     import time
     now=int(time.time()) if now is None else now
     limited=len(rows)>LIMIT;rows=rows[:LIMIT]
     selected=args.get('status','all')
     if selected not in ('all','UNANSWERED','ANSWERED','pending'):selected='all'
+    search=args.get('q','')
+    search=search if isinstance(search,str) else ''
+    search_limited=len(search)>SEARCH_LIMIT
+    search=search[:SEARCH_LIMIT].strip();needle=search_text(search)
     counts=Counter(r.get('status') for r in rows)
     verified=[r for r in rows if verified_status(r,now,seller_id)]
     recent=Counter(r.get('status') for r in verified)
@@ -106,6 +122,10 @@ def model(rows,args,now=None,seller_id=None):
         # Known creation dates first, oldest first. Unknown dates remain visible at the end.
         filtered=sorted(queue,key=lambda r: (waiting_seconds(r,now) is None,-(waiting_seconds(r,now) or 0),str(r.get('pergunta_id',''))))
     else:filtered=[r for r in rows if selected=='all' or r.get('status')==selected]
+    if search and not needle:filtered=[]
+    elif needle:
+        filtered=[r for r in filtered if needle in search_text(r.get('texto'))
+                  or (r.get('resposta_status') not in ('BANNED','DISABLED') and needle in search_text(r.get('resposta')))]
     def page(key,total):
         pages=max(1,(total+9)//10)
         try:p=max(1,min(pages,int(args.get(key,'1'))))
@@ -120,7 +140,7 @@ def model(rows,args,now=None,seller_id=None):
         groups[key]['n']+=1;groups[key]['pending']+=row.get('status')=='UNANSWERED'
     repeated=sorted((g for g in groups.values() if g['n']>=2),key=lambda g:(-g['n'],g['text'].casefold()))
     gp,gpages=page('recorrencias',len(repeated))
-    return dict(rows=filtered[(p-1)*10:p*10],recent=recent,pending=pending,unknown=len(rows)-len(verified),now=now,seller_id=seller_id,total=len(rows),filtered=len(filtered),counts=counts,limited=limited,
+    return dict(search=search,search_limited=search_limited,rows=filtered[(p-1)*10:p*10],recent=recent,pending=pending,unknown=len(rows)-len(verified),now=now,seller_id=seller_id,total=len(rows),filtered=len(filtered),counts=counts,limited=limited,
                 status=selected,page=p,pages=pages,groups=repeated[(gp-1)*10:gp*10],group_total=len(repeated),group_page=gp,group_pages=gpages)
 
 
@@ -128,7 +148,7 @@ def render(cid,item,shop,data):
     esc=lambda x:escape(str(x),quote=True)
     path=f'/anuncios/{int(cid)}/{item}/perguntas'
     from section_refresh import render as render_refresh
-    out=render_refresh(cid,'perguntas')+STYLE+'''<style>.lq-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.lq-cards article,.lq-row{background:#182e49;border:1px solid #426184;border-radius:10px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.lq-cards{margin:16px 0}.lq-cards article{display:grid;gap:8px;font-size:12px;margin:0}.lq-cards strong{font-size:24px}.lq-card-link{display:grid;gap:8px;height:100%}.lq-cards article:has(a):hover{border-color:#85c8ec}.listing-questions .lq-wait{font-weight:700;color:#b9e5ff}.listing-questions .lq-cards article:has(a){padding:0}.listing-questions .lq-card-link{padding:14px;box-sizing:border-box}@layer keiper-appearance{html[data-theme="light"] .listing-questions{background:#fff!important;color:#172c46!important;border-color:#c7d6e7!important}html[data-theme="light"] .listing-questions :is(h2,h3,strong){color:#172c46!important}html[data-theme="light"] .listing-questions :is(p,small){color:#405775!important}html[data-theme="light"] .listing-questions a{color:#175d98!important}html[data-theme="light"] .listing-questions :is(.lq-cards article,.lq-row){background:#f2f6fb!important;border-color:#c7d6e7!important}html[data-theme="light"] .listing-questions select{background:#fff!important;color:#172c46!important;color-scheme:light!important;border-color:#8aa5c3!important}html[data-theme="light"] .listing-questions :focus-visible{outline-color:#175d98!important}}.lq-text{white-space:pre-wrap}@media(max-width:650px){.lq-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>'''
+    out=render_refresh(cid,'perguntas')+STYLE+'''<style>.lq-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.lq-cards article,.lq-row{background:#182e49;border:1px solid #426184;border-radius:10px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.lq-cards{margin:16px 0}.lq-cards article{display:grid;gap:8px;font-size:12px;margin:0}.lq-cards strong{font-size:24px}.lq-card-link{display:grid;gap:8px;height:100%}.lq-cards article:has(a):hover{border-color:#85c8ec}.listing-questions .lq-wait{font-weight:700;color:#b9e5ff}.listing-questions .lq-cards article:has(a){padding:0}.listing-questions .lq-card-link{padding:14px;box-sizing:border-box}@layer keiper-appearance{html[data-theme="light"] .listing-questions{background:#fff!important;color:#172c46!important;border-color:#c7d6e7!important}html[data-theme="light"] .listing-questions :is(h2,h3,strong){color:#172c46!important}html[data-theme="light"] .listing-questions :is(p,small){color:#405775!important}html[data-theme="light"] .listing-questions a{color:#175d98!important}html[data-theme="light"] .listing-questions :is(.lq-cards article,.lq-row){background:#f2f6fb!important;border-color:#c7d6e7!important}html[data-theme="light"] .listing-questions :is(select,input[type=search]){background:#fff!important;color:#172c46!important;color-scheme:light!important;border-color:#8aa5c3!important}html[data-theme="light"] .listing-questions :focus-visible{outline-color:#175d98!important}}.lq-search-form{display:grid;gap:12px;min-width:0}.lq-search-form input{width:100%;max-width:100%;min-width:0;box-sizing:border-box;padding:10px;border:1px solid #8aa5c3;border-radius:8px;font-size:16px}.lq-text{white-space:pre-wrap}@media(max-width:650px){.lq-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>'''
     out+='<section class="lc listing-questions"><h2>Perguntas e recorrências</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><nav><a href="/anuncios/'+str(int(cid))+'/'+item+'/conteudo">Revisar conteúdo</a><a href="/anuncios/'+str(int(cid))+'/'+item+'/tarefas">Planejar ajustes</a><a href="/anuncios/'+str(int(cid))+'/'+item+'/avaliacoes">Avaliações do produto</a></nav><p>Perguntas salvas e status conferidos nas coletas.</p>'
     if data['limited']:out+='<p role="status">Amostra limitada aos 1.000 registros com coleta mais recente deste anúncio. Cards e recorrências usam somente essa amostra.</p>'
     out+='<div class="lq-cards">'
@@ -157,12 +177,17 @@ def render(cid,item,shop,data):
         for label,target in [('Anterior',p-1),('Próxima',p+1)]:
             if 1<=target<=total:
                 params=dict(status=data['status'],pagina=data['page'],recorrencias=data['group_page']);params[key]=target
+                if data['search']:params['q']=data['search']
                 text+=' <a href="'+esc(path+'?'+urlencode(params)+'#'+anchor)+'">'+label+'</a>'
         return text+'</nav>'
     out+='<section id="recorrencias"><h3>Textos repetidos</h3><p>'+str(data['group_total'])+' grupos de textos iguais na base analisada, considerando todos os status salvos.</p>'
     for group in data['groups']:out+='<article class="lq-row"><strong>'+str(group['n'])+' ocorrências · '+str(group['pending'])+' sem resposta registrada</strong><p class="lq-text">'+esc(group['text'])+'</p></article>'
     if not data['groups']:out+='<p>Nenhum texto repetido identificado nesta base.</p>'
-    out+=pages(data['group_page'],data['group_pages'],'recorrencias','recorrencias')+'</section><section id="perguntas"><h3>'+('Aguardando resposta' if data['status']=='pending' else 'Perguntas salvas')+'</h3><form method="get"><label>Exibir perguntas<select name="status">'+''.join('<option value="'+s+'"'+(' selected' if data['status']==s else '')+'>'+label+'</option>' for s,label in [('all','Todos'),('pending','Aguardando resposta · consulta recente'),('UNANSWERED','Sem resposta no registro'),('ANSWERED','Respondidas no registro')])+'</select></label><button>Filtrar</button></form><p>'+str(data['filtered'])+' perguntas neste filtro. '+('Mais antigas primeiro pela data da pergunta; datas não verificáveis no final.' if data['status']=='pending' else 'Ordenação por coleta mais recente; datas em Brasília.')+'</p>'
+    out+=pages(data['group_page'],data['group_pages'],'recorrencias','recorrencias')+'</section><section id="perguntas"><h3>'+('Aguardando resposta' if data['status']=='pending' else 'Perguntas salvas')+'</h3><form method="get" class="lq-search-form"><label>Exibir perguntas<select name="status">'+''.join('<option value="'+s+'"'+(' selected' if data['status']==s else '')+'>'+label+'</option>' for s,label in [('all','Todos'),('pending','Aguardando resposta · consulta recente'),('UNANSWERED','Sem resposta no registro'),('ANSWERED','Respondidas no registro')])+'</select></label><label>Buscar na pergunta ou resposta<input type="search" name="q" maxlength="200" value="'+esc(data['search'])+'" placeholder="Ex.: voltagem"></label><button>Filtrar</button></form><p>'+str(data['filtered'])+' perguntas neste filtro. '+('Mais antigas primeiro pela data da pergunta; datas não verificáveis no final.' if data['status']=='pending' else 'Ordenação por coleta mais recente; datas em Brasília.')+'</p>'
+    out+='<p>A busca procura um trecho, ignorando acentos, maiúsculas e espaços repetidos, somente nos textos disponíveis desta amostra. Cards e textos repetidos continuam mostrando a amostra inteira.</p>'
+    if data['search']:
+        out+='<p>Busca: <strong>'+esc(data['search'])+'</strong> · <a href="'+esc(path+'?'+urlencode(dict(status=data['status']))+'#perguntas')+'">Limpar busca</a></p>'
+    if data['search_limited']:out+='<p role="status">Busca limitada aos primeiros 200 caracteres.</p>'
     if data['status']=='pending':out+='<p>A fila usa a amostra local e status consultados nas últimas seis horas. Tempo de espera desde a criação da pergunta, até a abertura desta página.</p>'
     def stamp(value):
         try:
@@ -178,7 +203,7 @@ def render(cid,item,shop,data):
         evidence='Status consultado nas últimas seis horas' if confirmed else 'Status sem verificação recente · último registro salvo'
         wait='<p class="lq-wait">'+waiting_label(waiting_seconds(row,data['now']))+'</p>' if actionable(row,data['now'],data.get('seller_id')) else ''
         out+='<article class="lq-row"><strong>Pergunta #'+esc(row.get('pergunta_id',''))+'</strong>'+wait+'<p>'+stamp(row.get('data'))+' · '+evidence+' · '+esc(STATUS_LABELS.get(row.get('status'),row.get('status') or 'não informado'))+' · coleta '+collected+'</p><p>'+esc(visibility)+'</p><p class="lq-text">'+esc(row.get('texto') or 'Texto não disponível')+'</p><p class="lq-text">Resposta registrada: '+esc('não disponível · '+str(row['resposta_status']) if row.get('resposta_status') in ('BANNED','DISABLED') else row.get('resposta') or 'não disponível')+'</p></article>'
-    if not data['rows']:out+='<p>'+('Nenhuma pergunta aguardando resposta confirmada nesta amostra. Atualize Perguntas para conferir o status.' if data['status']=='pending' else 'Nenhuma pergunta salva neste filtro. Ausência de registros não comprova ausência de dúvidas.')+'</p>'
+    if not data['rows']:out+='<p>'+('Nenhuma pergunta encontrada para este trecho e filtro na amostra disponível. Isso não comprova ausência de dúvidas.' if data['search'] else 'Nenhuma pergunta aguardando resposta confirmada nesta amostra. Atualize Perguntas para conferir o status.' if data['status']=='pending' else 'Nenhuma pergunta salva neste filtro. Ausência de registros não comprova ausência de dúvidas.')+'</p>'
     return out+pages(data['page'],data['pages'],'pagina','perguntas')+'</section></section>'
 
 
