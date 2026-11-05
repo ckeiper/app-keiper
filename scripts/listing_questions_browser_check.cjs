@@ -1,16 +1,34 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');const {chromium}=require('playwright');
 (async()=>{const browser=await chromium.launch({headless:true});try{const page=await browser.newPage();
-for(const mode of ['empty','ready','limited','page2','fresh','unknown','partial'])for(const theme of ['dark','light'])for(const width of [1440,390,320]){
+for(const mode of ['empty','ready','limited','page2','fresh','unknown','partial','queue','queue-page2','queue-empty'])for(const theme of ['dark','light'])for(const width of [1440,390,320]){
  await page.setViewportSize({width,height:900});await page.setContent(fs.readFileSync(`visual-qa/listing-questions-${mode}.html`,'utf8'));
  await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  assert.equal(await page.locator('.lq-cards article').count(),4);
  assert.equal(await page.locator('.k-refresh').count(),1);
  assert.equal(await page.locator('.k-refresh button').textContent(),'Atualizar Perguntas');
+ if(theme==='light'){
+ assert.equal(await page.locator('.listing-questions').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 255, 255)');
+ assert.equal(await page.locator('.lq-cards article').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(242, 246, 251)');
+ }
  if(theme==='dark')assert.equal(await page.locator('.listing-questions').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(16, 34, 56)');
- assert.equal(await page.locator('.listing-questions #perguntas .lq-row').count(),mode==='empty'?0:10);
+ assert.equal(await page.locator('.listing-questions #perguntas .lq-row').count(),['empty','queue-empty'].includes(mode)?0:mode==='queue-page2'?1:10);
  assert.equal(await page.locator('.listing-questions #recorrencias .lq-row').count(),mode==='empty'?0:3);
  assert.equal(await page.locator('.listing-questions form[method=post]').count(),0);
+ const queueLink=page.locator('.lq-card-link').filter({hasText:'Aguardando resposta'});
+ assert.ok((await queueLink.getAttribute('href')).includes('status=pending#perguntas'));
+ if(mode.startsWith('queue')){
+ assert.equal(await page.locator('.listing-questions select').inputValue(),'pending');
+ assert.ok((await page.locator('#perguntas').textContent()).includes('Mais antigas primeiro'));
+ if(mode==='queue') {
+ assert.equal(await page.locator('#perguntas .lq-row strong').first().textContent(),'Pergunta #22');
+ assert.equal(await page.locator('#perguntas .lq-wait').count(),10);
+ assert.ok((await page.locator('#perguntas nav a').getAttribute('href')).includes('status=pending'));
+ }
+ if(mode==='queue-page2')assert.equal(await page.locator('#perguntas .lq-wait').textContent(),'Tempo de espera não verificado');
+ if(mode==='queue-empty')assert.ok((await page.locator('#perguntas').textContent()).includes('confirmada nesta amostra'));
+ }
+ await page.locator('.listing-questions select').selectOption('pending');
  await page.locator('.listing-questions select').selectOption('ANSWERED');
  assert.equal(await page.locator('.listing-questions select').inputValue(),'ANSWERED');
  await page.locator('.listing-questions select').selectOption('all');

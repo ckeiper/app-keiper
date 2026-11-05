@@ -23,3 +23,9 @@ O aviso do painel da loja usa a função pending_count: somente UNANSWERED, leit
 ## Validação
 
 Testes unitários cobrem limites, paginação deslocada/incompleta, ID canônico, lote atômico, timeout, limite 429, HTTP 404, vendedor divergente, vínculo ID/anúncio, concorrência e ausência de contatos nos parâmetros persistidos. Testes PostgreSQL exercitam status antigo alterado, preservação em falha, rodízio e o predicado real do aviso. Browser checks cobrem 42 combinações de estado, tema e largura (320,390,1440), incluindo leitura antiga, recente, parcial e indisponível. A frente permanece parcial: faltam histórico integral e análise validada de objeções semânticas. As avaliações têm consulta sob demanda separada, descrita em `listing-buyer-reviews.md`, sem armazenamento ou cobertura integral.
+
+## Fila de perguntas aguardando resposta
+
+O filtro `status=pending` e o card correspondente usam exatamente a mesma confirmação de conta, status, visibilidade e janela de seis horas do aviso. A fila cobre somente os até 1.000 registros da amostra local. Ordena pela data de criação com fuso, da mais antiga à mais nova; datas inválidas, sem fuso ou futuras ficam no final com tempo não verificado. A duração vai da criação até a abertura da página, sem SLA presumido, tempo útil ou inferência de impacto em vendas. Paginação mantém o filtro. Os filtros de último status salvo continuam separados e preservam sua ordenação por coleta. Nenhuma chamada externa, escrita ou resposta é feita ao abrir ou filtrar o relatório.
+
+Testes adicionais: `test_listing_questions_queue.py` (fronteiras de confirmação, conta, visibilidade, datas, ordenação e amostra), integração PostgreSQL e 60 combinações visuais (dez estados, dois temas e três larguras).

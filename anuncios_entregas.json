@@ -1028,6 +1028,18 @@
           "head_sha": "8721d502931809cf18b0b96dc2dbb02c6e1dfd42"
         }
       ]
+    },
+    {
+      "id": "perguntas-fila-confirmada",
+      "escopo": "Fila por anúncio com perguntas confirmadas como aguardando resposta, mais antigas primeiro e tempo de espera.",
+      "frentes": [
+        "perguntas-avaliacoes"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-05T14:26:00.240763-03:00",
+      "lacuna": "Amostra local de até 1.000 perguntas; confirmação das últimas seis horas. Datas inválidas não geram duração. Não responde pelo sistema nem conclui histórico integral ou análise semântica."
     }
   ]
 }
