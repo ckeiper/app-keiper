@@ -19,4 +19,3 @@ for mode in ('initial','findings','empty','catalog','unknown','rate-limit','wron
     if mode in ('secondary','variation'):
         result=read_result();result['picture_type']='other' if mode=='secondary' else 'variation_thumbnail'
     (dest/('image-diagnostic-'+mode+'.html')).write_text(page('Diagnóstico da imagem principal',1,'Loja fictícia','anuncios',render(1,'MLB123','Produto de demonstração','csrf-test',result),refresh=False),encoding='utf-8')
-
