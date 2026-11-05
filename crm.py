@@ -133,7 +133,10 @@ def read_transcript(upload, pasted=''):
 
 def basic_extract(text):
     """Only explicit labelled facts; never infer names from speaker labels."""
-    data = {key: '' for key in FIELDS}
+    from crm_gemini import extract_notes
+    notes, _ = extract_notes(text)
+    data = {key: notes.get(key, '') for key in FIELDS}
+    labelled_text = re.split(r'(?m)^Reunião .+ - Transcrição\s*$|^\d\d:\d\d:\d\d\s*$', text, maxsplit=1)[0] if notes else text
     for key, label in FIELDS.items():
         labels = [label, key.replace('_', ' ')]
         aliases = {'nome': ['Nome do lead', 'Cliente'], 'empresa': ['Empresa', 'Loja'],
@@ -143,7 +146,7 @@ def basic_extract(text):
                    'objetivos': ['Objetivo'], 'valor_proposto': ['Proposta']}
         labels += aliases.get(key, [])
         match = re.search(r'(?im)^\s*(?:' + '|'.join(re.escape(x) for x in labels)
-                          + r')\s*:\s*([^\n]+)', text)
+                          + r')\s*:\s*([^\n]+)', labelled_text)
         if match:
             data[key] = match.group(1).strip()[:5000 if key in LONG else 300]
     # Unlabelled contacts may belong to the consultant; leave them for review.
@@ -168,7 +171,9 @@ def basic_extract(text):
 def extract(text, key=None, meeting_date=''):
     basic = basic_extract(text)
     if not key:
-        return basic, '', 'Pré-preenchimento básico: apenas campos explícitos e marketplaces mencionados. IA ainda não configurada.', ''
+        from crm_gemini import extract_notes
+        _, summary = extract_notes(text)
+        return basic, summary, 'Pré-preenchimento básico das notas: a IA não está configurada. A conversa não foi interpretada. Apenas informações explícitas foram preenchidas; confira os campos.', ''
     properties = {k: {'type': 'string'} for k in FIELDS}
     properties.update({k: {'type': 'string'} for k in ('resumo', 'sugestao')})
     schema = {'type': 'object', 'properties': properties,
@@ -212,7 +217,9 @@ def extract(text, key=None, meeting_date=''):
                     data[k] = ''
         return data, result['resumo'][:8000], 'Extraído com IA. Confira os fatos e as datas antes de salvar.', result['sugestao'][:3000]
     except (requests.RequestException, ValueError, KeyError, IndexError, TypeError):
-        return basic, '', 'A IA não respondeu. Preservamos a transcrição e fizemos o pré-preenchimento básico; revise ou tente novamente.', ''
+        from crm_gemini import extract_notes
+        _, summary = extract_notes(text)
+        return basic, summary, 'A IA não respondeu. Preservamos a transcrição e fizemos a leitura básica das notas; a conversa não foi interpretada. Revise ou tente novamente.', ''
 
 
 STYLE = """<style>
@@ -242,7 +249,7 @@ LIST = """<div class="stats">{% for stage in stages %}<a class="stat" href="/crm
 IMPORT = """<div class="card"><h3>{{ 'Adicionar reunião ao lead' if lead else 'Importar reunião' }}</h3><p>Envie TXT, VTT, SRT, DOCX ou PDF com texto (até 2 MB), ou cole a transcrição.</p><p class="muted">{{ 'A IA está ativa. Ao extrair, o texto será enviado à OpenAI para preencher os campos.' if ai else 'Pré-preenchimento básico ativo. Configure a IA para interpretar a conversa e gerar a síntese.' }} Você revisa tudo antes de salvar.</p>
 <form method="post" enctype="multipart/form-data" class="grid"><input type="hidden" name="csrf_token" value="{{ csrf }}"><div><label for="arquivo">Arquivo de transcrição</label><input id="arquivo" type="file" name="arquivo" accept=".txt,.vtt,.srt,.docx,.pdf"></div><div><label for="reuniao">Data da reunião (opcional)</label><input type="date" id="reuniao" name="data_reuniao" value="{{ meeting_date }}"></div><div class="wide"><label for="texto">Ou cole o texto</label><textarea id="texto" name="texto" maxlength="120000" rows="12">{{ text }}</textarea></div><button class="btn-acoes" type="submit">Extrair e revisar</button></form></div></main>"""
 DETAIL = """<div class="card"><h3>Registrar contato</h3><form method="post" action="/crm/{{ lead.id }}/contato" class="grid"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="versao" value="{{ version }}"><div class="wide"><label for="resultado">Resultado da conversa</label><textarea id="resultado" name="resultado" required maxlength="5000"></textarea></div><div><label for="acao_contato">Próxima ação</label><input id="acao_contato" name="proxima_acao" maxlength="300"></div><div><label for="data_contato">Próximo follow-up</label><input id="data_contato" name="data_followup" type="date"></div><div class="wide"><button class="btn-acoes">Registrar contato e atualizar acompanhamento</button><p class="muted">Sem nova data, o retorno anterior será concluído e o lead ficará sem data.</p></div></form></div>
-<div class="card"><div class="actions"><h3>Histórico</h3><a href="/crm/importar?lead={{ lead.id }}">+ Importar outra reunião</a></div>{% for item in history %}<article class="leadrow"><div><strong>{{ item.tipo }}</strong> · {{ item.criado_em.astimezone(tz).strftime('%d/%m/%Y %H:%M') }}{% if item.data_reuniao %} · Reunião {{ item.data_reuniao.strftime('%d/%m/%Y') }}{% endif %}<pre>{{ item.texto }}</pre>{% if item.transcricao %}<details><summary>Transcrição original</summary><pre>{{ item.transcricao }}</pre></details>{% endif %}</div></article>{% else %}<p>Sem contatos registrados.</p>{% endfor %}</div></main>"""
+<div class="card"><div class="actions"><h3>Histórico</h3><a href="/crm/importar?lead={{ lead.id }}">+ Importar outra reunião</a></div>{% for item in history %}<article class="leadrow"><div><strong>{{ item.tipo }}</strong> · {{ item.criado_em.astimezone(tz).strftime('%d/%m/%Y %H:%M') }}{% if item.data_reuniao %} · Reunião {{ item.data_reuniao.strftime('%d/%m/%Y') }}{% endif %}<pre>{{ item.texto }}</pre>{% if item.transcricao %}<details><summary>Transcrição original</summary><pre>{{ item.transcricao }}</pre></details><form method="post" action="/crm/{{ lead.id }}/historico/{{ item.id }}/reprocessar"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn-acoes cinza">Reprocessar transcrição</button></form>{% endif %}</div></article>{% else %}<p>Sem contatos registrados.</p>{% endfor %}</div></main>"""
 from crm_home import SUMMARY, HOME_WIDGET
 
 
@@ -421,6 +428,31 @@ def register_crm(app, bank, query, execute, page):
             return render('</main>', error=str(exc)), 400
         return redirect('/crm/' + str(lead_id))
 
+    @app.route('/crm/<int:lead_id>/historico/<int:item_id>/reprocessar', methods=['POST'])
+    @admin
+    def crm_reprocess(lead_id, item_id):
+        # Read only this lead's saved source; extraction never writes the lead.
+        with bank() as conn:
+            lead = get_lead(conn, lead_id)
+            items = query(conn, 'SELECT * FROM crm_historico WHERE id=%s AND lead_id=%s',
+                          (item_id, lead_id))
+        if not items or not items[0]['transcricao']:
+            abort(404)
+        item = items[0]
+        meeting_date = item['data_reuniao'].isoformat() if item['data_reuniao'] else ''
+        text = read_transcript(None, item['transcricao'])
+        data, summary, warning, suggestion = extract(text, api_key(), meeting_date)
+        if meeting_date:
+            data['data_reuniao'] = meeting_date
+        data['_source_history_id'] = item_id
+        draft_id = str(uuid.uuid4())
+        with bank() as conn:
+            execute(conn, """INSERT INTO crm_rascunhos(id,usuario_id,lead_id,versao,dados,transcricao,resumo,aviso,sugestao)
+                VALUES(%s,%s,%s,%s,%s::jsonb,%s,%s,%s,%s)""",
+                (draft_id, session['usuario_id'], lead_id, lead['versao'],
+                 json.dumps(data), text, summary, warning, suggestion))
+        return redirect('/crm/revisar/' + draft_id)
+
     @app.route('/crm/importar', methods=['GET','POST'])
     @admin
     def crm_import():
@@ -462,7 +494,7 @@ def register_crm(app, bank, query, execute, page):
             lead = get_lead(conn,draft['lead_id'],True) if draft['lead_id'] else None
             data = dict(lead['dados'],etapa=lead['etapa']) if lead else {}
             # Blank extracted fields must not erase existing facts.
-            data.update({k:v for k,v in draft['dados'].items() if v})
+            data.update({k:v for k,v in draft['dados'].items() if v and k in FIELDS})
             if request.method == 'POST':
                 data = request.form.to_dict()
                 try:
@@ -470,8 +502,15 @@ def register_crm(app, bank, query, execute, page):
                     if lead and lead['versao'] != draft['versao']:
                         raise ValueError('O cadastro mudou desde a importação. Importe novamente para revisar os dados atuais.')
                     saved_id = save(conn,clean,lead)
-                    history(conn,saved_id,'Reunião importada',request.form.get('resumo','')[:8000],
-                            draft['transcricao'],clean['data_reuniao'])
+                    source_id = draft['dados'].get('_source_history_id')
+                    if source_id:
+                        # Reanalysis is an audit event, not a second copy of the meeting.
+                        history(conn,saved_id,'Transcrição reprocessada',
+                                'Revisão da reunião do histórico #' + str(source_id) + '\n'
+                                + request.form.get('resumo','')[:7800])
+                    else:
+                        history(conn,saved_id,'Reunião importada',request.form.get('resumo','')[:8000],
+                                draft['transcricao'],clean['data_reuniao'])
                     execute(conn,'UPDATE crm_leads SET ultima_interacao=NOW() WHERE id=%s',(saved_id,))
                     execute(conn,'DELETE FROM crm_rascunhos WHERE id=%s',(draft_id,))
                     return redirect('/crm/' + str(saved_id))

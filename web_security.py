@@ -16,7 +16,7 @@ SAFE_METHODS = {'GET', 'HEAD', 'OPTIONS'}
 # These handlers already enforce a session-bound token before every write.
 SCOPED_CSRF = {'competitor_list', 'competitor_state', 'listing_interventions',
                'auditoria_frete', 'crm_edit', 'crm_contact', 'crm_import',
-               'crm_review', 'crm_link_draft', 'crm_settings'}
+               'crm_review', 'crm_link_draft', 'crm_settings', 'crm_reprocess'}
 
 
 def session_key():
