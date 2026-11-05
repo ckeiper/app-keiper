@@ -801,7 +801,8 @@
       "prs": [
         324,
         326,
-        375
+        375,
+        382
       ],
       "numero_original": null,
       "prioridade": 3,
@@ -2011,6 +2012,20 @@
       "total": 44,
       "prs": [
         379
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-05",
+      "resumo": "Busca literal nos textos disponíveis de perguntas e respostas salvas, combinada com status e fila de resposta, com paginação preservada e sem novas consultas à API. Frente permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        382
       ]
     }
   ],
