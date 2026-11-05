@@ -1180,6 +1180,44 @@
           "head_sha": "0199341b296a1d6fde1d65e962dcafdcce47d3ea"
         }
       ]
+    },
+    {
+      "id": "busca-perguntas-382",
+      "escopo": "Busca literal por trecho nas perguntas e respostas disponíveis da amostra local do anúncio, combinada com status e paginação.",
+      "frentes": [
+        "perguntas-avaliacoes"
+      ],
+      "etapa": "publicada",
+      "pr": 382,
+      "head_sha": "f5ae2fa631799f6e160416c631781eb548f7f893",
+      "atualizado_em": "2026-11-05T17:01:26-03:00",
+      "lacuna": "Limitada a mil perguntas salvas e termos de até duzentos caracteres. Não reconstrói histórico integral, não busca respostas ocultadas e não interpreta objeções. Uso autenticado com anúncio real não exercitado.",
+      "publicacao": {
+        "deploy_id": "dep-dbmdupl9el5s73csine0",
+        "commit": "f6d39702da7b29345b0dca053ef8fc9f3b6077e3",
+        "status": "live",
+        "horario_brasilia": "2026-11-05T16:59:02-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42097627304,
+          "resultado": "success",
+          "head_sha": "f5ae2fa631799f6e160416c631781eb548f7f893"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42097627221,
+          "resultado": "success",
+          "head_sha": "f5ae2fa631799f6e160416c631781eb548f7f893"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42097627346,
+          "resultado": "success",
+          "head_sha": "f5ae2fa631799f6e160416c631781eb548f7f893"
+        }
+      ]
     }
   ]
 }
