@@ -2,7 +2,7 @@ from catalog_preview import page,dest
 from test_listing_image_diagnostic import item,payload,requester,poster,read_result,NOW,ID
 from listing_image_diagnostic import render
 from unittest.mock import Mock
-for mode in ('initial','findings','empty','catalog','unknown','rate-limit','wrong-role','selection','secondary','variation','gallery-missing','gallery-broken','gallery-variations'):
+for mode in ('initial','findings','empty','catalog','unknown','rate-limit','wrong-role','selection','secondary','variation','gallery-missing','gallery-broken','gallery-variations','page-first','page-middle','page-last'):
     p=payload('empty' if mode=='empty' else 'diagnostic')
     if mode=='wrong-role':p['diagnostics'][0]['picture_type']='other'
     result=read_result(get=requester([dict(id=7),item(catalog_listing=mode=='catalog')]),post=poster(p))
@@ -15,6 +15,10 @@ for mode in ('initial','findings','empty','catalog','unknown','rate-limit','wron
         for i,pic in enumerate(result['choices'][:2]):pic['preview_url']='https://http2.mlstatic.com/synthetic-'+str(i)+'.jpg'
     if mode=='gallery-variations':
         for pic in result['choices']:pic['variations']=['Variação '+str(i)+' — Cor: Azul · Tamanho: '+('G'*120) for i in range(5)]
+    if mode.startswith('page-'):
+        number={'page-first':1,'page-middle':2,'page-last':3}[mode]
+        start=(number-1)*50
+        result=dict(state='selection',checked_at=NOW,total=103,page=number,pages=3,choices=[dict(id='P'+str(i),position=i+1,role='other') for i in range(start,min(start+50,103))])
     if mode=='gallery-broken':result['choices'][0]['preview_url']='https://http2.mlstatic.com/missing.jpg'
     if mode in ('secondary','variation'):
         result=read_result();result['picture_type']='other' if mode=='secondary' else 'variation_thumbnail'

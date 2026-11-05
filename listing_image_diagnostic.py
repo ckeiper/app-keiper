@@ -44,17 +44,23 @@ def normalize(payload,expected_id,picture_type='thumbnail'):
     return dict(action=action,findings=findings)
 
 
-def inspect(token,seller_id,item_id,request_get,request_post,now=None,selected_picture=None,load_pictures=False):
+def inspect(token,seller_id,item_id,request_get,request_post,now=None,selected_picture=None,load_pictures=False,picture_page=1):
     result=dict(state='unknown',checked_at=now or datetime.now(timezone.utc))
     if (not isinstance(token,str) or not token or type(seller_id) is bool or not re.fullmatch(r'[1-9][0-9]{0,19}',str(seller_id))
             or not isinstance(item_id,str) or not re.fullmatch(r'MLB[0-9]{1,20}',item_id)):
         return dict(result,message='Conexão ou anúncio não verificável.')
+    if load_pictures and (type(picture_page) is not int or not 1<=picture_page<=20):
+        return dict(result,message='Página de fotos inválida. Carregue a seleção novamente.')
     try:
         if load_pictures or selected_picture is not None:
             from listing_image_selection import load
             item,choices=load(token,seller_id,item_id,request_get)
-            if load_pictures:return dict(result,state='selection',choices=choices[:50],total=len(choices))
-            matches=[p for p in choices[:50] if p['id']==selected_picture]
+            if load_pictures:
+                pages=(len(choices)+49)//50
+                if picture_page>pages:raise ContentUnavailable('Esta página não está mais disponível. Carregue a seleção novamente.')
+                start=(picture_page-1)*50
+                return dict(result,state='selection',choices=choices[start:start+50],total=len(choices),page=picture_page,pages=pages)
+            matches=[p for p in choices if p['id']==selected_picture]
             if len(matches)!=1:raise ContentUnavailable('A foto selecionada não está entre as fotos disponíveis deste anúncio. Carregue a seleção novamente.')
             chosen=matches[0]
             return diagnose(item,chosen['id'],chosen['role'],token,request_post,result)
@@ -102,9 +108,18 @@ def render(cid,item_id,title,csrf,result=None):
     out=CSS+'<div class="pf image-diagnostic"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Imagens</span><h2>Diagnóstico oficial das imagens</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p></header><section class="pf-card"><h3>Consultar no Mercado Livre</h3><p>Consulte a principal ou carregue as fotos para escolher outra imagem. Não troca fotos nem altera a publicação.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><button>Consultar imagem principal</button><button name="action" value="load_pictures">Escolher outra foto</button></form></section>'
     if result and result['state']=='selection':
         from listing_image_selection import gallery,GALLERY_STYLE
-        out+=GALLERY_STYLE+'<section class="pf-card id-selection"><h3>Escolher foto do anúncio</h3><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="diagnose_picture">'
+        out+=GALLERY_STYLE+'<section class="pf-card id-selection"><h3>Escolher foto do anúncio</h3>'
+        page=result.get('page',1);pages=result.get('pages',1)
+        first=(page-1)*50+1;last=first+len(result['choices'])-1
+        out+='<p>Fotos '+str(first)+' a '+str(last)+' de '+str(result['total'])+' · Página '+str(page)+' de '+str(pages)+'. A propriedade e o tipo da foto serão conferidos novamente ao consultar.</p>'
+        if pages>1:
+            out+='<nav aria-label="Páginas de fotos"><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="load_pictures">'
+            if page>1:out+='<button name="picture_page" value="'+str(page-1)+'">Fotos anteriores</button>'
+            if page<pages:out+='<button name="picture_page" value="'+str(page+1)+'">Próximas fotos</button>'
+            out+='</form></nav><p>Cada página consulta novamente as fotos atuais do anúncio. Ao trocar de página, escolha a foto que deseja consultar.</p>'
+        out+='<form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="diagnose_picture">'
         out+=gallery(result['choices'])
-        out+='<button>Consultar foto selecionada</button></form><p>'+str(len(result['choices']))+' de '+str(result['total'])+' fotos disponíveis nesta seleção. A propriedade e o tipo da foto serão conferidos novamente ao consultar.</p></section>'
+        out+='<button>Consultar foto selecionada</button></form></section>'
     if result and result['state']!='selection':
         stamp=result['checked_at'].astimezone(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y às %H:%M:%S · Brasília')
         out+='<section class="pf-card" id="image-diagnostic-result"><h3>Leitura consultada</h3><p>'+esc(stamp)+'</p>'
@@ -121,7 +136,7 @@ def render(cid,item_id,title,csrf,result=None):
                     out+='<article class="id-finding"><strong>'+LABELS[finding['name']]+'</strong>'+''.join('<p>'+esc(message)+'</p>' for message in finding['messages'])+'</article>'
             out+='<details><summary>Identificador da consulta</summary><p>'+esc(result['diagnostic_id'])+'</p></details>'
         out+='</section>'
-    out+='<section class="pf-card"><details><summary>Critérios e cobertura</summary><p>A API pode apontar fundo, tamanho mínimo, textos/logotipos e marcas d’água conforme a categoria. Não aplicamos um tamanho ou fundo obrigatório por conta própria. Cada consulta analisa somente a foto selecionada. Não analisa clips, coerência com o produto ou impacto nas vendas. Seleção limitada às primeiras cinquenta fotos e a cem variações verificáveis; fotos fora dessa estrutura ficam para revisão externa. Uma falha não significa foto incorreta nem ausência de problemas. A leitura não substitui a revisão manual e pode mudar depois.</p></details><a class="id-back" href="'+path+'/conteudo">Voltar ao checklist de conteúdo</a></section></div>'
+    out+='<section class="pf-card"><details><summary>Critérios e cobertura</summary><p>A API pode apontar fundo, tamanho mínimo, textos/logotipos e marcas d’água conforme a categoria. Não aplicamos um tamanho ou fundo obrigatório por conta própria. Cada consulta analisa somente a foto selecionada. Não analisa clips, coerência com o produto ou impacto nas vendas. Seleção em páginas de cinquenta fotos, com até mil fotos e cem variações verificáveis; fotos fora dessa estrutura ficam para revisão externa. Uma falha não significa foto incorreta nem ausência de problemas. A leitura não substitui a revisão manual e pode mudar depois.</p></details><a class="id-back" href="'+path+'/conteudo">Voltar ao checklist de conteúdo</a></section></div>'
     return out+'<style>.image-diagnostic{min-width:0}.image-diagnostic :is(p,strong){overflow-wrap:anywhere}.image-diagnostic select{max-width:100%;width:100%;box-sizing:border-box}.id-selection form{display:grid;gap:12px;min-width:0}.id-finding{padding:14px;border:1px solid #426184;border-left:3px solid #c08d54;border-radius:10px;margin:12px 0}.id-finding p{white-space:pre-wrap}.id-back{display:inline-block;padding:14px;border:1px solid #7892aa;border-radius:10px;margin-top:12px}.image-diagnostic button{white-space:normal;max-width:100%}html[data-theme=light] body .image-diagnostic .pf-hero{background:#e6f0fd!important;color:#193a60!important}</style>'
 
 
@@ -140,5 +155,7 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,requ
         action=request.form.get('action','')
         if request.method=='POST' and action not in ('','load_pictures','diagnose_picture'):return 'Ação inválida.',400
         if request.method=='POST' and action=='diagnose_picture' and not request.form.get('selected_picture'):return 'Selecione uma foto.',400
-        result=inspect(resolve_token(shops[0]),shops[0]['user_id'],item_id,request_get,request_post,selected_picture=request.form.get('selected_picture') if action=='diagnose_picture' else None,load_pictures=action=='load_pictures') if request.method=='POST' else None
+        picture_page=request.form.get('picture_page','1')
+        if request.method=='POST' and action=='load_pictures' and not re.fullmatch(r'(?:[1-9]|1[0-9]|20)',picture_page):return 'Página de fotos inválida.',400
+        result=inspect(resolve_token(shops[0]),shops[0]['user_id'],item_id,request_get,request_post,selected_picture=request.form.get('selected_picture') if action=='diagnose_picture' else None,load_pictures=action=='load_pictures',picture_page=int(picture_page) if action=='load_pictures' else 1) if request.method=='POST' else None
         return shop_page('Diagnóstico das imagens',cid,shops[0]['cliente'],'anuncios',render(cid,item_id,shops[0]['titulo'],csrf,result),refresh=False)
