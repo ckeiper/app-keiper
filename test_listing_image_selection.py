@@ -12,10 +12,10 @@ def listing(**changes):
 
 
 class ImageSelectionTests(unittest.TestCase):
-    def read(self,value=None,selected=None,load=False,p=None):
+    def read(self,value=None,selected=None,load=False,p=None,page=1):
         get=requester([dict(id=7),listing() if value is None else value]);post=poster(p)
         with patch('listing_image_diagnostic.uuid4',return_value=ID):
-            result=inspect('token',7,'MLB123',get,post,NOW,selected_picture=selected,load_pictures=load)
+            result=inspect('token',7,'MLB123',get,post,NOW,selected_picture=selected,load_pictures=load,picture_page=page)
         return result,get,post
 
     def test_load_roles_without_diagnostic(self):
@@ -51,7 +51,8 @@ class ImageSelectionTests(unittest.TestCase):
         value=listing(pictures=pictures,variations=[])
         result,_,_=self.read(value,load=True)
         self.assertEqual(len(result['choices']),50);self.assertEqual(result['total'],61)
-        result,_,post=self.read(value,selected='P59');self.assertEqual(result['state'],'unknown');post.assert_not_called()
+        p=payload('empty');p['diagnostics'][0]['picture_type']='other'
+        result,_,post=self.read(value,selected='P59',p=p);self.assertEqual(result['state'],'read');self.assertEqual(post.call_count,1)
         value=listing(variations=[dict(id=i+1,picture_ids=['VAR']) for i in range(101)])
         result,_,post=self.read(value,load=True);self.assertEqual(result['state'],'unknown');post.assert_not_called()
 
@@ -77,3 +78,47 @@ class ImageSelectionTests(unittest.TestCase):
         with patch('listing_image_diagnostic.uuid4',return_value=ID):
             result=client.post(path,data=dict(action='diagnose_picture',selected_picture='SECOND',picture_type='thumbnail',_csrf='csrf'))
         self.assertEqual(result.status_code,200);self.assertEqual(post.call_args.kwargs['json']['context']['picture_type'],'other')
+
+    def test_pages_cover_all_verified_photos_with_original_positions(self):
+        value=listing(pictures=[dict(id=PHOTO)]+[dict(id='P'+str(i)) for i in range(60)],variations=[])
+        result,get,post=self.read(value,load=True,page=2)
+        self.assertEqual((result['page'],result['pages'],result['total']),(2,2,61))
+        self.assertEqual([p['position'] for p in result['choices']],list(range(51,62)))
+        self.assertEqual(result['choices'][-1]['id'],'P59')
+        self.assertEqual(get.call_count,2);post.assert_not_called()
+        html=render(1,'MLB123','Produto','csrf',result)
+        self.assertIn('Fotos 51 a 61 de 61',html);self.assertIn('Fotos anteriores',html)
+        self.assertNotIn('Próximas fotos',html);self.assertNotIn(' checked',html)
+        self.assertIn('name="picture_page" value="1"',html)
+
+    def test_page_validation_and_photo_limit_never_diagnose(self):
+        for page in (0,-1,21,True,'2',None):
+            result,get,post=self.read(load=True,page=page)
+            self.assertEqual(result['state'],'unknown');get.assert_not_called();post.assert_not_called()
+        result,get,post=self.read(load=True,page=2)
+        self.assertEqual(result['state'],'unknown');self.assertNotIn('choices',result);post.assert_not_called()
+        pictures=[dict(id=PHOTO)]+[dict(id='P'+str(i)) for i in range(999)]
+        result,_,_=self.read(listing(pictures=pictures,variations=[]),load=True,page=20)
+        self.assertEqual(len(result['choices']),50);self.assertEqual(result['choices'][-1]['position'],1000)
+        result,_,post=self.read(listing(pictures=pictures+[dict(id='TOO_MANY')],variations=[]),load=True)
+        self.assertEqual(result['state'],'unknown');post.assert_not_called()
+
+    def test_route_pagination_validates_input_before_external_reads(self):
+        app=Flask(__name__);app.secret_key='test'
+        query=Mock(return_value=[dict(user_id=7,cliente='Loja',titulo='Produto')])
+        value=listing(pictures=[dict(id=PHOTO)]+[dict(id='P'+str(i)) for i in range(60)],variations=[])
+        get=requester([dict(id=7),value]);post=poster()
+        register(app,lambda f:f,lambda cid:cid==1,lambda:contextlib.nullcontext(None),query,lambda *a,**kw:a[4],lambda s:'token',get,post)
+        client=app.test_client();path='/anuncios/1/MLB123/imagem-principal'
+        with client.session_transaction() as session:session.update(tipo='admin',usuario_id=1,_csrf='csrf')
+        for page in ('0','-1','21','1.5','01','99999999999999999999','<script>'):
+            self.assertEqual(client.post(path,data=dict(action='load_pictures',picture_page=page,_csrf='csrf')).status_code,400)
+        get.assert_not_called();post.assert_not_called()
+        self.assertEqual(client.post(path,data=dict(action='load_pictures',picture_page='2',_csrf='bad')).status_code,400)
+        get.assert_not_called()
+        response=client.post(path,data=dict(action='load_pictures',picture_page='2',_csrf='csrf'))
+        self.assertEqual(response.status_code,200);self.assertIn('Fotos 51 a 61 de 61',response.get_data(as_text=True))
+        self.assertEqual(get.call_count,2);post.assert_not_called()
+        get.side_effect=requester([dict(id=7),listing(variations=[])]).side_effect
+        response=client.post(path,data=dict(action='diagnose_picture',selected_picture='P59',_csrf='csrf'))
+        self.assertIn('não está entre as fotos disponíveis',response.get_data(as_text=True));post.assert_not_called()
