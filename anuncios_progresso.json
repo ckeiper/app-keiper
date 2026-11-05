@@ -778,7 +778,7 @@
       "area": "Conteúdo",
       "capacidade": "Perguntas e avaliações",
       "estado": "parcial",
-      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder. O botão Atualizar Perguntas usa a fila de atualização por seção, com proteção e exclusão por loja existentes, sem recoletar anúncios, promoções, vendas ou Ads. Consulta administrativa sob demanda de avaliações oficiais por anúncio, com conta e propriedade verificadas, média, total, distribuição e até cinco comentários publicados por página. Distingue avaliações compartilhadas do catálogo da reputação da loja, trata falhas como não verificadas e limita a consulta às primeiras 100 posições, sem persistir dados de compradores.",
+      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder. O botão Atualizar Perguntas usa a fila de atualização por seção, com proteção e exclusão por loja existentes, sem recoletar anúncios, promoções, vendas ou Ads. Consulta administrativa sob demanda de avaliações oficiais por anúncio, com conta e propriedade verificadas, média, total, distribuição e até cinco comentários publicados por página. Distingue avaliações compartilhadas do catálogo da reputação da loja, trata falhas como não verificadas e limita a consulta às primeiras 100 posições, sem persistir dados de compradores. Fila local de perguntas aguardando resposta com a mesma confirmação de conta/status/visibilidade das últimas seis horas, ordenação pela criação (mais antigas primeiro), tempo decorrido e datas não verificáveis no final. Cards levam aos filtros; tema claro e escuro na tela de perguntas.",
       "falta": "A busca de perguntas permanece limitada a 100 por atualização e a dois status antigos por rodada; não certifica histórico integral nem reconstrói perguntas apagadas. Avaliações são consultadas sob demanda, sem histórico persistido ou cobertura integral; comentários limitados a 100 posições e textos abreviados. Falta análise validada de objeções semânticas; opiniões não comprovam defeitos, reputação da loja ou impacto em vendas.",
       "fontes": [
         "listing_questions.py",
@@ -795,7 +795,8 @@
         "scripts/listing_questions_browser_check.cjs",
         "test_question_sync.py",
         "test_listing_buyer_reviews.py",
-        "scripts/listing_buyer_reviews_browser_check.cjs"
+        "scripts/listing_buyer_reviews_browser_check.cjs",
+        "test_listing_questions_queue.py"
       ],
       "prs": [
         324,
@@ -803,7 +804,7 @@
       ],
       "numero_original": null,
       "prioridade": 3,
-      "atualizado_em": "2026-10-30"
+      "atualizado_em": "2026-11-05"
     },
     {
       "id": "reativacao",

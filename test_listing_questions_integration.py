@@ -97,6 +97,28 @@ class QuestionIntegrationTests(unittest.TestCase):
         self.assertIn('Última coleta da loja',text)
         self.assertIn('Status sem verificação recente',text)
         self.assertNotIn('private@example.invalid',text)
+ def test_pending_queue_readonly_order_scope_and_stale_exclusion(self):
+    import time
+    from datetime import datetime,timezone
+    m=self.m;now=int(time.time());cid=self.ids[0]
+    with m.banco() as conn:
+        m.executar(conn,'UPDATE conexoes SET user_id=123 WHERE id=%s',(cid,))
+        questions=[self.payload(i,text='Fila '+str(i)) for i in range(1,15)]
+        for i,q in enumerate(questions):q['date_created']=datetime.fromtimestamp(now-(i+1)*3600,timezone.utc).isoformat()
+        questions[0]['hold']=True
+        persist(conn,m.executar,cid,dict(questions=questions),now,123)
+        persist(conn,m.executar,cid,dict(questions=[self.payload(99,text='STATUS ANTIGO')]),now-22000,123)
+        persist(conn,m.executar,self.ids[1],dict(questions=[self.payload(100,text='OUTRA LOJA')]),now,123)
+    with patch.object(m.requests,'get',side_effect=AssertionError('network during queue')):
+        response=self.c.get(self.path+'?status=pending')
+        page2=self.c.get(self.path+'?status=pending&pagina=2')
+    text=response.get_data(as_text=True).split('<section id="perguntas">')[1]
+    self.assertEqual(response.status_code,200)
+    self.assertIn('13 perguntas neste filtro',text)
+    self.assertLess(text.index('Pergunta #14'),text.index('Pergunta #13'))
+    self.assertEqual(text.count('class="lq-wait"'),10)
+    self.assertNotIn('STATUS ANTIGO',text);self.assertNotIn('OUTRA LOJA',text)
+    self.assertEqual(page2.get_data(as_text=True).count('class="lq-wait"'),3)
  def test_refresh_round_robin_and_wrong_owner_never_update_question_content(self):
     import time
     from question_sync import collect
