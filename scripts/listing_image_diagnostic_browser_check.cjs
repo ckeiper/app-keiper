@@ -1,12 +1,14 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');const {chromium}=require('playwright');
-(async()=>{const b=await chromium.launch();try{const p=await b.newPage();for(const mode of ['initial','findings','empty','catalog','unknown','rate-limit','wrong-role','selection','secondary','variation'])for(const theme of ['dark','light'])for(const width of [1440,390,320]){
+(async()=>{const b=await chromium.launch();try{const p=await b.newPage();await p.route('https://http2.mlstatic.com/**',r=>r.fulfill({status:r.request().url().includes('missing.jpg')?404:200,contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="240" height="180"><rect width="240" height="180" fill="white"/><circle cx="120" cy="90" r="55" fill="navy"/></svg>'}));for(const mode of ['initial','findings','empty','catalog','unknown','rate-limit','wrong-role','selection','secondary','variation','gallery-missing','gallery-broken'])for(const theme of ['dark','light'])for(const width of [1440,390,320]){
  await p.setViewportSize({width,height:900});await p.setContent(fs.readFileSync(`visual-qa/image-diagnostic-${mode}.html`,'utf8'));await p.addStyleTag({content:'*,*::before,*::after{transition:none!important;animation:none!important}'});await p.evaluate(t=>document.documentElement.dataset.theme=t,theme);
  assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
- assert.equal(await p.locator('.k-refresh').count(),0);assert.equal(await p.locator('.image-diagnostic form').count(),mode==='selection'?2:1);
+ assert.equal(await p.locator('.k-refresh').count(),0);assert.equal(await p.locator('.image-diagnostic form').count(),['selection','gallery-missing','gallery-broken'].includes(mode)?2:1);
  assert.equal(await p.locator('.image-diagnostic form').first().getAttribute('method'),'post');
  assert.equal(await p.locator('.image-diagnostic input[name=_csrf]').first().getAttribute('value'),'csrf-test');
- assert.equal(await p.locator('.image-diagnostic img').count(),0);assert.equal(await p.locator('.image-diagnostic script').count(),0);
- if(mode==='selection'){assert.equal(await p.locator('.id-selection option').count(),3);await p.locator('.id-selection select').selectOption('P2');assert.equal(await p.locator('.id-selection select').inputValue(),'P2');assert.ok(await p.locator('.id-selection form').evaluate(f=>f.checkValidity()));}
+ assert.equal(await p.locator('.image-diagnostic img').count(),mode==='selection'?2:mode==='gallery-broken'?1:0);assert.equal(await p.locator('.image-diagnostic script').count(),0);
+ if(['selection','gallery-missing','gallery-broken'].includes(mode)){const radios=p.locator('.id-photo-card input');assert.equal(await radios.count(),3);assert.ok(await radios.nth(0).isVisible());assert.equal(await p.locator('.id-selection form').evaluate(f=>f.checkValidity()),false);await p.locator('.id-photo-card').nth(2).click();assert.equal(await p.locator('input[name=selected_picture]:checked').inputValue(),'P2');assert.ok(await p.locator('.id-selection form').evaluate(f=>f.checkValidity()));assert.equal(await p.locator('.id-picked:visible').count(),1);await radios.nth(0).focus();await p.keyboard.press('ArrowRight');assert.equal(await p.locator('input[name=selected_picture]:checked').inputValue(),'P1');}
+ if(mode==='selection'){await p.locator('.id-photo-preview img').first().scrollIntoViewIfNeeded();await p.waitForFunction(()=>document.querySelector('.id-photo-preview img').naturalWidth>0);}
+ if(mode==='gallery-broken'){await p.locator('.id-photo-preview img').first().scrollIntoViewIfNeeded();await p.waitForFunction(()=>{const i=document.querySelector('.id-photo-preview img');return i.complete&&i.naturalWidth===0;});}
  if(mode==='secondary')assert.ok((await p.locator('.id-source').textContent()).includes('Secundária'));
  if(mode==='variation')assert.ok((await p.locator('.id-source').textContent()).includes('Principal de variação'));
  if(mode==='initial')assert.equal(await p.locator('#image-diagnostic-result').count(),0);
@@ -20,4 +22,4 @@ const assert=require('node:assert/strict'),fs=require('node:fs');const {chromium
   const bg=lum(rgb(getComputedStyle(e).backgroundColor)),fg=lum(rgb(getComputedStyle(e.querySelector('h2')).color));return (Math.max(bg,fg)+.05)/(Math.min(bg,fg)+.05)>=4.5;
  }));
  if(width===390)await p.screenshot({path:`visual-qa/image-diagnostic-${mode}-${theme}-${width}.png`,fullPage:true});
-}console.log('60 official image diagnostic scope/theme/viewport cases passed.');}finally{await b.close();}})().catch(e=>{console.error(e);process.exitCode=1});
+}console.log('72 official image diagnostic scope/theme/viewport cases passed.');}finally{await b.close();}})().catch(e=>{console.error(e);process.exitCode=1});

@@ -990,6 +990,18 @@
         "status": "live",
         "horario_brasilia": "2026-11-05T01:13:40.897-03:00"
       }
+    },
+    {
+      "id": "conteudo-galeria-diagnostico",
+      "escopo": "Galeria visual para selecionar a foto do diagnóstico, com prévia oficial e alternativa quando indisponível.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-05T09:13:28.436505-03:00",
+      "lacuna": "Aguardando CI. A prévia pode não estar disponível; o ID continua reconferido no diagnóstico. Limites de seleção e lacunas de coerência visual/clips preservados. Uso real autenticado não exercitado."
     }
   ]
 }
