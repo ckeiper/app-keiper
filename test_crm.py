@@ -39,6 +39,16 @@ class CRMUnitTests(unittest.TestCase):
         data = crm.basic_extract('Reunião Exemplo\nconvidado a@example.com b@example.com\nResumo\nTexto')
         self.assertEqual(data['email'], '')
 
+    def test_gemini_automatic_meet_title_is_not_a_client_name(self):
+        data, summary, _, _ = crm.extract('nov. 4, 2026\n'
+            'Reunião em 4 de nov. de 2026 às 15:31 GMT-03:00\n'
+            'Resumo\nDiagnóstico\nAnálise de vendas.\n\nPróximas etapas\n'
+            '[Cliente] Enviar métricas de conversão.')
+        self.assertEqual(data['nome'], '')
+        self.assertEqual(data['data_reuniao'], '2026-11-04')
+        self.assertIn('Enviar métricas', data['proxima_acao'])
+        self.assertIn('Análise de vendas', summary)
+
     def test_only_explicit_fields_and_valid_dates(self):
         text = ('Clinton: Olá João, meu telefone é (19) 99999-1234.\n'
                 'Nome do lead: João Silva\nEmpresa: Loja A\nE-mail: joao@example.com\n'

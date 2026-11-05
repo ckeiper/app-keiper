@@ -9,10 +9,12 @@ def extract_notes(text):
     end = next((i for i, line in enumerate(lines)
                 if re.search(r'^Reunião .+ - Transcrição$|^\d\d:\d\d:\d\d$', line.strip())), len(lines))
     notes = '\n'.join(lines[:end])
-    title = re.search(r'(?im)^Reunião[ \t]+([^\n:]+)$', notes)
+    title = re.search(r'(?im)^Reunião[ \t]+([^\n]+)$', notes)
     if not title:
         return {}, ''
-    data = {'nome': title.group(1).strip()}
+    name = title.group(1).strip()
+    # Meet sometimes uses a date as its title, not the participant's name.
+    data = {} if re.match(r'(?:em\s+)?\d', name, re.I) else {'nome': name}
     invited = re.search(r'(?im)^convidad[oa]s?\s+(.+)$', notes)
     if invited:
         emails = re.findall(r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}', invited.group(1))
