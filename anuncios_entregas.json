@@ -1142,6 +1142,44 @@
           "head_sha": "2cb95dba8400066f9757b84ca3f2e7e55a220a7a"
         }
       ]
+    },
+    {
+      "id": "fotos-paginadas-379",
+      "escopo": "Navegação por todas as fotos verificáveis do anúncio, em páginas de cinquenta, até mil fotos e cem variações.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "publicada",
+      "pr": 379,
+      "head_sha": "0199341b296a1d6fde1d65e962dcafdcce47d3ea",
+      "atualizado_em": "2026-11-05T16:02:28-03:00",
+      "lacuna": "Cada página faz nova leitura; mudanças externas podem alterar posições. Uso autenticado com anúncio real não exercitado. Fotos além de mil ou estrutura com mais de cem variações exigem revisão externa. Clips e coerência visual permanecem pendentes.",
+      "publicacao": {
+        "deploy_id": "dep-dbmd2s0473hc73830ceg",
+        "commit": "ca8b8c4fa0015a351b935314a753549d8f44bb3c",
+        "status": "live",
+        "horario_brasilia": "2026-11-05T15:59:45.125922-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42087985047,
+          "resultado": "success",
+          "head_sha": "0199341b296a1d6fde1d65e962dcafdcce47d3ea"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42087985068,
+          "resultado": "success",
+          "head_sha": "0199341b296a1d6fde1d65e962dcafdcce47d3ea"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42087984794,
+          "resultado": "success",
+          "head_sha": "0199341b296a1d6fde1d65e962dcafdcce47d3ea"
+        }
+      ]
     }
   ]
 }
