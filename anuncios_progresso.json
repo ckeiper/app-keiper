@@ -764,7 +764,8 @@
         355,
         357,
         359,
-        361
+        361,
+        369
       ],
       "numero_original": null,
       "prioridade": 2,
@@ -1912,6 +1913,20 @@
       "prs": [
         367
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-05",
+      "resumo": "Diagnóstico oficial individual de fotos secundárias e de variações com seleção e papel reconferidos; conteúdo permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        369
+      ]
     }
   ],
   "publicacoes": [
@@ -2079,6 +2094,13 @@
       "commit": "7f1dc21312bfe08fc5b203c36d0deeae92538800",
       "status": "live",
       "horario_brasilia": "2026-11-04T23:31:18.343-03:00"
+    },
+    {
+      "pr": 369,
+      "deploy_id": "dep-dbm03grbc2fs73ajmhq0",
+      "commit": "3eef929def183e724f7580a4977a33d47f7b62a1",
+      "status": "live",
+      "horario_brasilia": "2026-11-05T01:13:40.897-03:00"
     }
   ]
 }

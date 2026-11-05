@@ -959,11 +959,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-05T00:58:50.289996-03:00",
-      "lacuna": "Aguardando CI. Seleção limitada a cinquenta fotos e cem variações verificáveis; sem clips ou certificação de coerência visual. Uso autenticado real não exercitado."
+      "etapa": "publicada",
+      "pr": 369,
+      "head_sha": "9c5c00875729b72fa30b368ea5251e7c43218b47",
+      "atualizado_em": "2026-11-05T01:14:33.501-03:00",
+      "lacuna": "Seleção limitada a cinquenta fotos e cem variações verificáveis. Clips e coerência visual fora desta etapa. Uso autenticado com anúncio real não exercitado.",
+      "checks": [
+        {
+          "nome": "Management browser checks",
+          "run_id": 41965372599,
+          "resultado": "success",
+          "head_sha": "9c5c00875729b72fa30b368ea5251e7c43218b47"
+        },
+        {
+          "nome": "Sales tests",
+          "run_id": 41965372613,
+          "resultado": "success",
+          "head_sha": "9c5c00875729b72fa30b368ea5251e7c43218b47"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41965372611,
+          "resultado": "success",
+          "head_sha": "9c5c00875729b72fa30b368ea5251e7c43218b47"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbm03grbc2fs73ajmhq0",
+        "commit": "3eef929def183e724f7580a4977a33d47f7b62a1",
+        "status": "live",
+        "horario_brasilia": "2026-11-05T01:13:40.897-03:00"
+      }
     }
   ]
 }
