@@ -108,9 +108,7 @@ def render(cid,item_id,title,csrf,result=None):
     out=CSS+'<div class="pf image-diagnostic"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Imagens</span><h2>Diagnóstico oficial das imagens</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p></header><section class="pf-card"><h3>Consultar no Mercado Livre</h3><p>Consulte a principal ou carregue as fotos para escolher outra imagem. Não troca fotos nem altera a publicação.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><button>Consultar imagem principal</button><button name="action" value="load_pictures">Escolher outra foto</button></form></section>'
     if result and result['state']=='selection':
         from listing_image_selection import gallery,GALLERY_STYLE
-        out+=GALLERY_STYLE+'<section class="pf-card id-selection"><h3>Escolher foto do anúncio</h3><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="diagnose_picture">'
-        out+=gallery(result['choices'])
-        out+='<button>Consultar foto selecionada</button></form>'
+        out+=GALLERY_STYLE+'<section class="pf-card id-selection"><h3>Escolher foto do anúncio</h3>'
         page=result.get('page',1);pages=result.get('pages',1)
         first=(page-1)*50+1;last=first+len(result['choices'])-1
         out+='<p>Fotos '+str(first)+' a '+str(last)+' de '+str(result['total'])+' · Página '+str(page)+' de '+str(pages)+'. A propriedade e o tipo da foto serão conferidos novamente ao consultar.</p>'
@@ -119,7 +117,9 @@ def render(cid,item_id,title,csrf,result=None):
             if page>1:out+='<button name="picture_page" value="'+str(page-1)+'">Fotos anteriores</button>'
             if page<pages:out+='<button name="picture_page" value="'+str(page+1)+'">Próximas fotos</button>'
             out+='</form></nav><p>Cada página consulta novamente as fotos atuais do anúncio. Ao trocar de página, escolha a foto que deseja consultar.</p>'
-        out+='</section>'
+        out+='<form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="diagnose_picture">'
+        out+=gallery(result['choices'])
+        out+='<button>Consultar foto selecionada</button></form></section>'
     if result and result['state']!='selection':
         stamp=result['checked_at'].astimezone(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y às %H:%M:%S · Brasília')
         out+='<section class="pf-card" id="image-diagnostic-result"><h3>Leitura consultada</h3><p>'+esc(stamp)+'</p>'
