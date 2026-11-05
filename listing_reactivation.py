@@ -26,7 +26,7 @@ def load(conn,query,cid,item,args):
     return dict(shop=shops[0],tasks=tasks,total=n,page=p,pages=pages,events=events[:10],events_limited=len(events)>10)
 
 
-def render(cid,item,data,today,now,token,values=None,message=''):
+def render(cid,item,data,today,now,token,values=None,message='',official=None):
     values=values or {};esc=lambda v:escape(str(v),quote=True);shop=data['shop'];path=f'/anuncios/{int(cid)}/{item}'
     def stamp(v):
         try:return datetime.fromtimestamp(int(v),SAO_PAULO).strftime('%d/%m/%Y %H:%M')
@@ -39,7 +39,9 @@ def render(cid,item,data,today,now,token,values=None,message=''):
     out+='<section class="lc reactivation"><h2>Revisão de reativação</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><nav><a href="/diagnostico/'+str(int(cid))+'/'+item+'">Diagnóstico</a><a href="'+path+'/conteudo">Checklist de conteúdo</a><a href="'+path+'/tarefas">Tarefas e histórico</a></nav><article class="rr-source"><strong>Status observado: '+status+'</strong><p>Estoque geral observado: '+stock+' · coleta: '+stamp(raw)+'. A leitura não comprova disponibilidade atual, inventário Full ou estoque por variação.</p></article>'
     out+='<p>Conferência interna antes de decidir no marketplace. O status pausado não informa o motivo, nem prova que a oferta está elegível para reativação. Esta tela não ativa, pausa ou altera anúncios.</p>'
     if fresh and shop.get('status')!='paused':out+='<p role="status">A leitura recente não indica anúncio pausado. A tarefa, se criada, será apenas uma conferência; não registra uma reativação.</p>'
-    out+='<h3>Antes de decidir</h3><article><strong>1. Motivo e restrições</strong><p>Confira o motivo exibido no marketplace e eventuais restrições da conta ou da oferta. Não foi coletado um motivo oficial nesta tela.</p></article><article><strong>2. Oferta e disponibilidade</strong><p>Confira preço final, custos documentados, disponibilidade real e condições logísticas. Estoque positivo isolado não garante elegibilidade.</p></article><article><strong>3. Conteúdo e acompanhamento</strong><p>Revise o checklist e registre o que foi conferido. Se houver uma ação executada no marketplace, documente-a no histórico de ações; concluir a tarefa não substitui esse registro.</p></article>'
+    out+='<h3>Antes de decidir</h3><article><strong>1. Motivo e restrições</strong><p>Confira o motivo exibido no marketplace e eventuais restrições da conta ou da oferta. Use a consulta abaixo para conferir os substatus atuais retornados pela API.</p></article><article><strong>2. Oferta e disponibilidade</strong><p>Confira preço final, custos documentados, disponibilidade real e condições logísticas. Estoque positivo isolado não garante elegibilidade.</p></article><article><strong>3. Conteúdo e acompanhamento</strong><p>Revise o checklist e registre o que foi conferido. Se houver uma ação executada no marketplace, documente-a no histórico de ações; concluir a tarefa não substitui esse registro.</p></article>'
+    from listing_pause_reasons import render as render_reasons
+    out+=render_reasons(token,official)
     if message:out+='<p role="status">'+esc(message)+'</p>'
     out+='<details'+(' open' if values else '')+'><summary>Planejar conferência</summary><form method="post">'
     for k,v in dict(_csrf=token,submission_key=values.get('submission_key') or secrets.token_urlsafe(24)).items():out+='<input type="hidden" name="'+k+'" value="'+esc(v)+'">'
