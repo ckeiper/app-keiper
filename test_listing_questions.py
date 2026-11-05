@@ -39,3 +39,51 @@ class QuestionTests(unittest.TestCase):
     q.side_effect=[[dict(cliente='Loja')],[],[row()]];self.assertEqual(c.get(path).status_code,200)
     self.assertEqual(q.call_args.args[2],(7,'MLB1'));self.assertIn('LIMIT 1001',q.call_args.args[1]);self.assertIn('READ ONLY',e.call_args.args[1])
     self.assertEqual(c.post(path).status_code,405)
+
+ def test_search_matches_visible_literal_text_with_accents_and_spaces(self):
+    rows=[row(1,texto='Qual é a MEDIDA   interna?'),row(2,texto='Serve?',resposta='A voltagem é 220 V.'),
+          row(3,texto='電圧は?',resposta='Outra resposta'),row(4,texto=None,resposta=None),
+          row(5,resposta='Resposta oculta voltagem',resposta_status='BANNED'),
+          row(6,resposta='Resposta oculta voltagem',resposta_status='DISABLED')]
+    self.assertEqual([r['pergunta_id'] for r in model(rows,dict(q='medida interna'))['rows']],['1'])
+    self.assertEqual([r['pergunta_id'] for r in model(rows,dict(q='VOLTAGEM'))['rows']],['2'])
+    self.assertEqual([r['pergunta_id'] for r in model(rows,dict(q='電圧'))['rows']],['3'])
+    self.assertEqual(model(rows,dict(q='medida.*interna'))['filtered'],0)
+    self.assertEqual(model(rows,dict(q=''))['filtered'],6)
+    self.assertEqual(model(rows,dict(q='\u0301'))['filtered'],0)
+
+ def test_search_combines_status_queue_and_pagination_without_changing_counts(self):
+    rows=[row(i,texto='Voltagem?',status='ANSWERED' if i%2 else 'UNANSWERED',consulta_estado='read',
+              status_confirmado_em=100,vendedor_confirmado='7',excluida_do_anuncio=False,em_espera=False) for i in range(25)]
+    rows.append(row(30,texto='Outro assunto'))
+    data=model(rows,dict(q='voltagem',status='pending',pagina='2'),100,7)
+    self.assertEqual((data['pending'],data['total'],data['filtered'],data['page'],len(data['rows'])),(13,26,13,2,3))
+    self.assertEqual(data['group_total'],1);self.assertEqual(data['groups'][0]['n'],25)
+    text=render(7,'MLB1',{},data)
+    from urllib.parse import urlsplit,parse_qs
+    from html import unescape
+    import re
+    links=re.findall(r'href="([^"]+)"',text)
+    question_links=[parse_qs(urlsplit(unescape(link)).query) for link in links if 'pagina=' in link]
+    self.assertTrue(any(link.get('q')==['voltagem'] and link.get('status')==['pending'] for link in question_links))
+    self.assertIn('Limpar busca',text)
+
+ def test_search_limits_escapes_and_preserves_empty_state_meaning(self):
+    data=model([row()],dict(q='<script>searchAttack()</script>'))
+    text=render(7,'MLB1',{},data)
+    self.assertIn('&lt;script&gt;searchAttack()',text);self.assertNotIn('<script>searchAttack()',text)
+    self.assertIn('Nenhuma pergunta encontrada para este trecho',text)
+    data=model([row(texto='x'*1000)],dict(q='x'*300))
+    self.assertEqual(len(data['search']),200);self.assertTrue(data['search_limited'])
+    self.assertIn('primeiros 200 caracteres',render(7,'MLB1',{},data))
+    for value in (None,123,[],{}):self.assertEqual(model([row()],dict(q=value))['search'],'')
+
+ def test_route_search_keeps_fixed_readonly_scope_and_does_not_send_answer(self):
+    app=Flask(__name__);app.secret_key='test';q=Mock(side_effect=[[dict(cliente='Loja')],[],[row(texto='Medida interna?',status='ANSWERED')]])
+    e=Mock();register_questions(app,lambda f:f,lambda cid:cid==7,lambda:contextlib.nullcontext(None),q,e,lambda *a:a[-1])
+    client=app.test_client()
+    with client.session_transaction() as session:session.update(tipo='admin')
+    response=client.get('/anuncios/7/MLB1/perguntas?q=MEDIDA&status=ANSWERED')
+    self.assertEqual(response.status_code,200);self.assertIn('1 perguntas neste filtro',response.get_data(as_text=True))
+    self.assertEqual(q.call_count,3);self.assertEqual(q.call_args.args[2],(7,'MLB1'))
+    self.assertNotIn('MEDIDA',q.call_args.args[1]);self.assertEqual(e.call_count,1)
