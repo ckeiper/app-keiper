@@ -18,7 +18,7 @@ REASONS = {
 }
 
 
-def inspect(token, seller, item_id, request_get):
+def inspect(token, seller, item_id, request_get, include_moderation=False):
     result = dict(state='unknown', checked_at=datetime.now(timezone.utc))
     if (not isinstance(token, str) or not token or isinstance(seller, bool)
             or not re.fullmatch(r'[1-9][0-9]{0,19}', str(seller))):
@@ -40,14 +40,17 @@ def inspect(token, seller, item_id, request_get):
     codes = item.get('sub_status')
     verified = (isinstance(codes, list) and len(codes) <= 100
                 and all(isinstance(c, str) and 0 < len(c) <= 200 for c in codes))
-    return dict(result, state='read', status=status,
-                codes=list(dict.fromkeys(codes)) if verified else None)
+    result.update(state='read', status=status,codes=list(dict.fromkeys(codes)) if verified else None)
+    if include_moderation:
+        from listing_moderation import inspect as inspect_moderation
+        result['moderation']=inspect_moderation(token,item_id,request_get)
+    return result
 
 
 def render(token, result=None):
     esc = lambda v: escape(str(v), quote=True)
     out = '<article class="rr-official"><h3>Motivos retornados pelo Mercado Livre</h3>'
-    out += '<form method="post"><input type="hidden" name="_csrf" value="'+esc(token)+'"><button name="action" value="consultar_motivos">Consultar motivos atuais</button></form>'
+    out += '<form method="post"><input type="hidden" name="_csrf" value="'+esc(token)+'"><button name="action" value="consultar_motivos">Consultar motivos atuais</button><button name="action" value="consultar_moderacao">Consultar motivos e moderação</button></form>'
     if result:
         out += '<p>Consulta: '+esc(result['checked_at'].astimezone(SAO_PAULO).strftime('%d/%m/%Y %H:%M:%S'))+' · Brasília</p>'
         if result['state'] != 'read':
@@ -61,5 +64,7 @@ def render(token, result=None):
             for code in result['codes'] or []:
                 label, guidance = REASONS.get(code, ('Código sem interpretação local', 'Confira o detalhe no Mercado Livre.'))
                 out += '<p><strong>'+esc(label)+'</strong> · <code>'+esc(code)+'</code><br>'+esc(guidance)+'</p>'
-    out += '<p>Fonte: status e substatus do anúncio na API. Detalhes de moderação e restrições da conta não são consultados. Esta leitura não confirma elegibilidade nem altera a oferta.</p>'
+    from listing_moderation import render as render_moderation
+    out+=render_moderation(result.get('moderation') if result else None)
+    out += '<p>Fonte: status e substatus do anúncio na API. Moderação consultada somente pelo botão correspondente. Esta leitura não confirma elegibilidade nem altera a oferta.</p>'
     return out+'<a href="'+SOURCE+'" target="_blank" rel="noopener noreferrer">Documentação dos status</a></article>'

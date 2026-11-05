@@ -876,6 +876,18 @@
         "status": "live",
         "horario_brasilia": "2026-11-04T21:36:36.912-03:00"
       }
+    },
+    {
+      "id": "reativacao-detalhes-moderacao",
+      "escopo": "Consulta sob demanda da última moderação do anúncio, com motivo, ação sugerida e evidências retornados pela API oficial.",
+      "frentes": [
+        "reativacao"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-04T22:37:14.325963-03:00",
+      "lacuna": "Implementação e testes em andamento. Histórico completo e restrições da conta fora desta etapa. Sem validação de elegibilidade ou reativação automática."
     }
   ]
 }

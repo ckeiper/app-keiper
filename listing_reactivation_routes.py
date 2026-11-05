@@ -21,13 +21,13 @@ def register_reactivation(app,login_required,can_view,bank,query,execute,shop_pa
             data=load(conn,query,cid,item_id,request.args)
         if data is None:return 'Anúncio não encontrado nesta loja.',404
         values={};message='';status=200;official=None
-        if request.method=='POST' and request.form.get('action')=='consultar_motivos':
+        if request.method=='POST' and request.form.get('action') in ('consultar_motivos','consultar_moderacao'):
             from listing_pause_reasons import inspect
             with bank() as conn:
                 shops=query(conn,'SELECT * FROM conexoes WHERE id=%s AND status=%s',(cid,'ativa'))
             if not shops or resolve_token is None or request_get is None:
                 return 'Conexão ativa indisponível para consulta.',409
-            official=inspect(resolve_token(shops[0]),shops[0].get('user_id'),item_id,request_get)
+            official=inspect(resolve_token(shops[0]),shops[0].get('user_id'),item_id,request_get,include_moderation=request.form.get('action')=='consultar_moderacao')
         elif request.method=='POST':
             values=dict(request.form)
             try:
