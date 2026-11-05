@@ -5724,6 +5724,8 @@ from listing_content_routes import register_content
 register_content(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_questions import register_questions
 register_questions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_weekly_pattern import register as register_weekly_pattern
+register_weekly_pattern(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from profitability_routes import register_profitability
 register_profitability(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from promotion_comparison import register as register_promotion_comparison
