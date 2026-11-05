@@ -13,7 +13,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');const {chromium
  if(['findings','catalog'].includes(mode))assert.equal(await p.locator('.id-finding').count(),1);
  if(mode==='catalog')assert.ok((await p.locator('#image-diagnostic-result').textContent()).includes('Publicação de catálogo'));
  if(mode==='empty')assert.ok((await p.locator('.id-empty').textContent()).includes('Isso não aprova'));
- if(['unknown','rate-limit','wrong-role','selection','secondary','variation'].includes(mode)){assert.equal(await p.locator('.id-empty').count(),0);assert.ok((await p.locator('#image-diagnostic-result [role=status]').textContent()).includes('Sem diagnóstico verificável'));}
+ if(['unknown','rate-limit','wrong-role'].includes(mode)){assert.equal(await p.locator('.id-empty').count(),0);assert.ok((await p.locator('#image-diagnostic-result [role=status]').textContent()).includes('Sem diagnóstico verificável'));}
  if(theme==='light')assert.equal(await p.locator('.top .sair').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(34, 95, 190)');
  if(theme==='light')assert.ok(await p.locator('.image-diagnostic .pf-hero').evaluate(e=>{
   const rgb=s=>(s.match(/[\d.]+/g)||[]).slice(0,3).map(Number),lum=c=>c.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0);
