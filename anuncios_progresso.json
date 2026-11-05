@@ -1998,6 +1998,20 @@
       "prs": [
         378
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-05",
+      "resumo": "Seleção de fotos em páginas de cinquenta, cobrindo até mil fotos verificáveis com releitura de conta, anúncio e vínculos antes do diagnóstico. Conteúdo permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        379
+      ]
     }
   ],
   "publicacoes": [
