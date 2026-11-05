@@ -845,11 +845,37 @@
       "frentes": [
         "reativacao"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-04T21:24:01.222491-03:00",
-      "lacuna": "Implementada consulta autenticada sob demanda de status e substatus do item, com verificação de conta e propriedade. Aguardando testes e CI; detalhes de moderação e restrições da conta permanecem fora desta etapa. Sem validação automática de elegibilidade ou reativação."
+      "etapa": "parcialmente_concluida",
+      "pr": 363,
+      "head_sha": "756d3ade311114f2241572580025957424db4bab",
+      "atualizado_em": "2026-11-04T21:37:05.290-03:00",
+      "lacuna": "Substatus oficiais consultados sob demanda. Detalhes de moderação e restrições da conta não consultados; elegibilidade não certificada. Uso autenticado com anúncio real não exercitado nesta entrega.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41941434938,
+          "resultado": "success",
+          "head_sha": "756d3ade311114f2241572580025957424db4bab"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41941434948,
+          "resultado": "success",
+          "head_sha": "756d3ade311114f2241572580025957424db4bab"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41941434892,
+          "resultado": "success",
+          "head_sha": "756d3ade311114f2241572580025957424db4bab"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dblstu3ncjis73fvsbq0",
+        "commit": "ca28b84b5fc2141aa0e2557c94933e7faed312db",
+        "status": "live",
+        "horario_brasilia": "2026-11-04T21:36:36.912-03:00"
+      }
     }
   ]
 }

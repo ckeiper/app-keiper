@@ -818,7 +818,9 @@
         "scripts/listing_reactivation_browser_check.cjs",
         "test_listing_pause_reasons.py"
       ],
-      "prs": [],
+      "prs": [
+        363
+      ],
       "numero_original": null,
       "prioridade": 7,
       "atualizado_em": "2026-11-04"
@@ -1860,6 +1862,20 @@
       "prs": [
         361
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-04",
+      "resumo": "Consulta autenticada de status e substatus oficiais na revisão de pausa, sem reativação automática. Detalhes de moderação e elegibilidade permanecem parciais.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        363
+      ]
     }
   ],
   "publicacoes": [
@@ -2006,6 +2022,13 @@
       "commit": "3c0afeabae786459e6121204b179aec48c371f4a",
       "status": "live",
       "horario_brasilia": "2026-11-04T17:53:35.706599-03:00"
+    },
+    {
+      "pr": 363,
+      "deploy_id": "dep-dblstu3ncjis73fvsbq0",
+      "commit": "ca28b84b5fc2141aa0e2557c94933e7faed312db",
+      "status": "live",
+      "horario_brasilia": "2026-11-04T21:36:36.912-03:00"
     }
   ]
 }
