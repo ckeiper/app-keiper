@@ -821,7 +821,8 @@
         "test_listing_moderation.py"
       ],
       "prs": [
-        363
+        363,
+        365
       ],
       "numero_original": null,
       "prioridade": 7,
@@ -1878,6 +1879,20 @@
       "prs": [
         363
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-04",
+      "resumo": "Última moderação oficial na revisão de pausa, com motivo, ação sugerida e evidências, sem execução automática. Frente permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        365
+      ]
     }
   ],
   "publicacoes": [
@@ -2031,6 +2046,13 @@
       "commit": "ca28b84b5fc2141aa0e2557c94933e7faed312db",
       "status": "live",
       "horario_brasilia": "2026-11-04T21:36:36.912-03:00"
+    },
+    {
+      "pr": 365,
+      "deploy_id": "dep-dbltv73bc2fs73ahccpg",
+      "commit": "f2eeef77fdf4a68c5cf0758115bf6e04016d4299",
+      "status": "live",
+      "horario_brasilia": "2026-11-04T22:48:19.040-03:00"
     }
   ]
 }

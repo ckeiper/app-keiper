@@ -883,11 +883,37 @@
       "frentes": [
         "reativacao"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-04T22:37:14.325963-03:00",
-      "lacuna": "Implementação e testes em andamento. Histórico completo e restrições da conta fora desta etapa. Sem validação de elegibilidade ou reativação automática."
+      "etapa": "publicada",
+      "pr": 365,
+      "head_sha": "67b8c49cf2a1acc28441245d84465433924c13ee",
+      "atualizado_em": "2026-11-04T22:48:55.448-03:00",
+      "lacuna": "Histórico completo e restrições da conta não consultados; elegibilidade não certificada. Uso autenticado com anúncio real não exercitado nesta entrega.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41949822851,
+          "resultado": "success",
+          "head_sha": "67b8c49cf2a1acc28441245d84465433924c13ee"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41949822849,
+          "resultado": "success",
+          "head_sha": "67b8c49cf2a1acc28441245d84465433924c13ee"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41949822813,
+          "resultado": "success",
+          "head_sha": "67b8c49cf2a1acc28441245d84465433924c13ee"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbltv73bc2fs73ahccpg",
+        "commit": "f2eeef77fdf4a68c5cf0758115bf6e04016d4299",
+        "status": "live",
+        "horario_brasilia": "2026-11-04T22:48:19.040-03:00"
+      }
     }
   ]
 }
