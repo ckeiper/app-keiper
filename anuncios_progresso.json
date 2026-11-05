@@ -824,7 +824,8 @@
       ],
       "prs": [
         363,
-        365
+        365,
+        367
       ],
       "numero_original": null,
       "prioridade": 7,
@@ -1895,6 +1896,20 @@
       "prs": [
         365
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-04",
+      "resumo": "Permissão oficial de publicação da conta na revisão do anúncio, sem novas chamadas. Elegibilidade da oferta permanece não certificada.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        367
+      ]
     }
   ],
   "publicacoes": [
@@ -2055,6 +2070,13 @@
       "commit": "f2eeef77fdf4a68c5cf0758115bf6e04016d4299",
       "status": "live",
       "horario_brasilia": "2026-11-04T22:48:19.040-03:00"
+    },
+    {
+      "pr": 367,
+      "deploy_id": "dep-dblujke7bikc73ebk0dg",
+      "commit": "7f1dc21312bfe08fc5b203c36d0deeae92538800",
+      "status": "live",
+      "horario_brasilia": "2026-11-04T23:31:18.343-03:00"
     }
   ]
 }

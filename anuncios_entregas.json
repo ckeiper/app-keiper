@@ -921,11 +921,37 @@
       "frentes": [
         "reativacao"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-04T23:21:26.783889-03:00",
-      "lacuna": "Aguardando CI. Permissão da conta não verifica elegibilidade da oferta. Histórico completo e outras restrições fora desta etapa; consulta real não exercitada."
+      "etapa": "publicada",
+      "pr": 367,
+      "head_sha": "dff61ff03d091075861ed626069f53e39124acb4",
+      "atualizado_em": "2026-11-04T23:31:58.254-03:00",
+      "lacuna": "Permissão da conta não certifica elegibilidade da oferta. Histórico completo e outras restrições fora desta etapa. Consulta autenticada com anúncio real não exercitada.",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 41954761501,
+          "resultado": "success",
+          "head_sha": "dff61ff03d091075861ed626069f53e39124acb4"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 41954761395,
+          "resultado": "success",
+          "head_sha": "dff61ff03d091075861ed626069f53e39124acb4"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 41954761403,
+          "resultado": "success",
+          "head_sha": "dff61ff03d091075861ed626069f53e39124acb4"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dblujke7bikc73ebk0dg",
+        "commit": "7f1dc21312bfe08fc5b203c36d0deeae92538800",
+        "status": "live",
+        "horario_brasilia": "2026-11-04T23:31:18.343-03:00"
+      }
     }
   ]
 }
