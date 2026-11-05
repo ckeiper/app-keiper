@@ -766,7 +766,8 @@
         357,
         359,
         361,
-        369
+        369,
+        371
       ],
       "numero_original": null,
       "prioridade": 2,
@@ -1928,6 +1929,20 @@
       "prs": [
         369
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-05",
+      "resumo": "Galeria visual para escolher a foto do diagnóstico, com prévias, papel e seleção destacada. Conteúdo permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 16,
+        "pendente": 2
+      },
+      "total": 44,
+      "prs": [
+        371
+      ]
     }
   ],
   "publicacoes": [
@@ -2102,6 +2117,13 @@
       "commit": "3eef929def183e724f7580a4977a33d47f7b62a1",
       "status": "live",
       "horario_brasilia": "2026-11-05T01:13:40.897-03:00"
+    },
+    {
+      "pr": 371,
+      "deploy_id": "dep-dbm7fu3m8hqs73ctaatg",
+      "commit": "02239eb8102e09820538708812b7dddfa6272ad0",
+      "status": "live",
+      "horario_brasilia": "2026-11-05T09:39:23.847619-03:00"
     }
   ]
 }

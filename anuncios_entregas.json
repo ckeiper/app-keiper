@@ -997,11 +997,37 @@
       "frentes": [
         "conteudo-checklist"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-05T09:13:28.436505-03:00",
-      "lacuna": "Aguardando CI. A prévia pode não estar disponível; o ID continua reconferido no diagnóstico. Limites de seleção e lacunas de coerência visual/clips preservados. Uso real autenticado não exercitado."
+      "etapa": "publicada",
+      "pr": 371,
+      "head_sha": "8721d502931809cf18b0b96dc2dbb02c6e1dfd42",
+      "atualizado_em": "2026-11-05T09:54:02.315991-03:00",
+      "lacuna": "A prévia pode não estar disponível; o ID continua reconferido no diagnóstico. Limites de seleção e lacunas de coerência visual/clips preservados. Uso real autenticado não exercitado.",
+      "publicacao": {
+        "deploy_id": "dep-dbm7fu3m8hqs73ctaatg",
+        "commit": "02239eb8102e09820538708812b7dddfa6272ad0",
+        "status": "live",
+        "horario_brasilia": "2026-11-05T09:39:23.847619-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42027307076,
+          "resultado": "success",
+          "head_sha": "8721d502931809cf18b0b96dc2dbb02c6e1dfd42"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42027306927,
+          "resultado": "success",
+          "head_sha": "8721d502931809cf18b0b96dc2dbb02c6e1dfd42"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42027307006,
+          "resultado": "success",
+          "head_sha": "8721d502931809cf18b0b96dc2dbb02c6e1dfd42"
+        }
+      ]
     }
   ]
 }
