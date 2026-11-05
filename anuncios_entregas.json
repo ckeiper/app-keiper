@@ -952,6 +952,18 @@
         "status": "live",
         "horario_brasilia": "2026-11-04T23:31:18.343-03:00"
       }
+    },
+    {
+      "id": "conteudo-diagnostico-fotos-selecionadas",
+      "escopo": "Selecionar fotos secundárias e de variações para diagnóstico oficial individual, com papel e propriedade reconferidos.",
+      "frentes": [
+        "conteudo-checklist"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-05T00:58:50.289996-03:00",
+      "lacuna": "Aguardando CI. Seleção limitada a cinquenta fotos e cem variações verificáveis; sem clips ou certificação de coerência visual. Uso autenticado real não exercitado."
     }
   ]
 }

@@ -1,4 +1,4 @@
-"""On-demand official diagnostics for the verified thumbnail; never edits a listing."""
+"""On-demand official diagnostics for verified listing images; never edits a listing."""
 import hmac
 import re
 import secrets
@@ -15,14 +15,14 @@ RATE_LIMIT_MESSAGE='Limite de consultas atingido. Aguarde antes de tentar novame
 LABELS={'white_background':'Fundo da imagem','minimum_size':'Tamanho da imagem','text_logo':'Textos ou logotipos','watermark':'Marca d’água'}
 
 
-def normalize(payload,expected_id):
+def normalize(payload,expected_id,picture_type='thumbnail'):
     if not isinstance(payload,dict) or payload.get('id')!=expected_id:
         raise ContentUnavailable('Resposta do diagnóstico não corresponde à consulta.')
     rows=payload.get('diagnostics')
     if not isinstance(rows,list) or not 1<=len(rows)<=10 or any(not isinstance(row,dict) for row in rows):
         raise ContentUnavailable('Diagnóstico da imagem não verificável na resposta.')
-    selected=[row for row in rows if row.get('picture_type')=='thumbnail']
-    if len(selected)!=1:raise ContentUnavailable('Diagnóstico da imagem principal ausente ou ambíguo.')
+    selected=[row for row in rows if row.get('picture_type')==picture_type]
+    if len(selected)!=1:raise ContentUnavailable('Diagnóstico do tipo de imagem solicitado ausente ou ambíguo.')
     row=selected[0];detections=row.get('detections');action=row.get('action')
     if (action not in ('empty','diagnostic') or not isinstance(detections,list) or len(detections)>20
             or (action=='empty' and detections) or (action=='diagnostic' and not detections)):
@@ -44,12 +44,20 @@ def normalize(payload,expected_id):
     return dict(action=action,findings=findings)
 
 
-def inspect(token,seller_id,item_id,request_get,request_post,now=None):
+def inspect(token,seller_id,item_id,request_get,request_post,now=None,selected_picture=None,load_pictures=False):
     result=dict(state='unknown',checked_at=now or datetime.now(timezone.utc))
     if (not isinstance(token,str) or not token or type(seller_id) is bool or not re.fullmatch(r'[1-9][0-9]{0,19}',str(seller_id))
             or not isinstance(item_id,str) or not re.fullmatch(r'MLB[0-9]{1,20}',item_id)):
         return dict(result,message='Conexão ou anúncio não verificável.')
     try:
+        if load_pictures or selected_picture is not None:
+            from listing_image_selection import load
+            item,choices=load(token,seller_id,item_id,request_get)
+            if load_pictures:return dict(result,state='selection',choices=choices[:50],total=len(choices))
+            matches=[p for p in choices[:50] if p['id']==selected_picture]
+            if len(matches)!=1:raise ContentUnavailable('A foto selecionada não está entre as fotos disponíveis deste anúncio. Carregue a seleção novamente.')
+            chosen=matches[0]
+            return diagnose(item,chosen['id'],chosen['role'],token,request_post,result)
         account=read(token,'/users/me',request_get)
         if str(account.get('id'))!=str(seller_id):raise ContentUnavailable('A autorização não corresponde à conta desta loja.')
         item=read(token,'/items/'+item_id,request_get)
@@ -63,7 +71,16 @@ def inspect(token,seller_id,item_id,request_get,request_post,now=None):
         ids=[row.get('id') if isinstance(row,dict) else None for row in pictures]
         if any(not valid_picture(value) for value in ids) or len(set(ids))!=len(ids) or picture not in ids:
             raise ContentUnavailable('A imagem principal não corresponde a uma foto verificável do anúncio.')
-        context=dict(category_id=category,picture_type='thumbnail')
+        return diagnose(item,picture,'thumbnail',token,request_post,result)
+    except ContentUnavailable as exc:return dict(result,message=str(exc))
+    except (requests.RequestException,ValueError,TypeError):
+        return dict(result,message='Falha de rede ou resposta inválida. A imagem não foi verificada.')
+
+
+def diagnose(item,picture,picture_type,token,request_post,result):
+    try:
+        category=item['category_id']
+        context=dict(category_id=category,picture_type=picture_type)
         title=item.get('title')
         if isinstance(title,str) and title.strip() and len(title)<=1000:context['title']=title
         diagnostic_id=str(uuid4())
@@ -72,8 +89,8 @@ def inspect(token,seller_id,item_id,request_get,request_post,now=None):
             timeout=(3,8),allow_redirects=False)
         if response.status_code==429:raise ContentUnavailable(RATE_LIMIT_MESSAGE)
         if response.status_code!=200:raise ContentUnavailable('Diagnóstico indisponível no Mercado Livre. Nenhuma aprovação ou ausência foi presumida.')
-        data=normalize(response.json(),diagnostic_id)
-        return dict(result,**data,state='read',picture_id=picture,category=category,diagnostic_id=diagnostic_id,catalog=item.get('catalog_listing') is True)
+        data=normalize(response.json(),diagnostic_id,picture_type)
+        return dict(result,**data,state='read',picture_id=picture,picture_type=picture_type,category=category,diagnostic_id=diagnostic_id,catalog=item.get('catalog_listing') is True)
     except ContentUnavailable as exc:return dict(result,message=str(exc))
     except (requests.RequestException,ValueError,TypeError):
         return dict(result,message='Falha de rede ou resposta inválida. A imagem não foi verificada.')
@@ -82,23 +99,30 @@ def inspect(token,seller_id,item_id,request_get,request_post,now=None):
 def render(cid,item_id,title,csrf,result=None):
     esc=lambda value:escape(str(value),quote=True)
     path='/anuncios/'+str(int(cid))+'/'+esc(item_id)
-    out=CSS+'<div class="pf image-diagnostic"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Imagem principal</span><h2>Diagnóstico oficial da imagem</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p></header><section class="pf-card"><h3>Consultar no Mercado Livre</h3><p>Analisa apenas a imagem identificada como principal no anúncio. Não troca fotos nem altera a publicação.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><button>Consultar imagem principal</button></form></section>'
-    if result:
+    out=CSS+'<div class="pf image-diagnostic"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Imagens</span><h2>Diagnóstico oficial das imagens</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p></header><section class="pf-card"><h3>Consultar no Mercado Livre</h3><p>Consulte a principal ou carregue as fotos para escolher outra imagem. Não troca fotos nem altera a publicação.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><button>Consultar imagem principal</button><button name="action" value="load_pictures">Escolher outra foto</button></form></section>'
+    if result and result['state']=='selection':
+        from listing_image_selection import ROLES
+        out+='<section class="pf-card id-selection"><h3>Escolher foto do anúncio</h3><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="diagnose_picture"><label>Foto<select name="selected_picture" required>'
+        out+=''.join('<option value="'+esc(p['id'])+'">Foto '+str(p['position'])+' · '+ROLES[p['role']]+' · '+esc(p['id'])+'</option>' for p in result['choices'])
+        out+='</select></label><button>Consultar foto selecionada</button></form><p>'+str(len(result['choices']))+' de '+str(result['total'])+' fotos disponíveis nesta seleção. A propriedade e o tipo da foto serão conferidos novamente ao consultar.</p></section>'
+    if result and result['state']!='selection':
         stamp=result['checked_at'].astimezone(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y às %H:%M:%S · Brasília')
         out+='<section class="pf-card" id="image-diagnostic-result"><h3>Leitura consultada</h3><p>'+esc(stamp)+'</p>'
         if result['state']!='read':out+='<p role="status">Sem diagnóstico verificável. '+esc(result['message'])+'</p>'
         else:
-            out+='<p class="id-source">Imagem '+esc(result['picture_id'])+' · categoria '+esc(result['category'])+'</p>'
+            from listing_image_selection import ROLES
+            role=result.get('picture_type','thumbnail')
+            out+='<p class="id-source">Imagem '+esc(result['picture_id'])+' · '+esc(ROLES.get(role,'Tipo não verificado'))+' · categoria '+esc(result['category'])+'</p>'
             if result['catalog']:out+='<p>Publicação de catálogo: confira a gestão das imagens do produto antes de propor uma edição.</p>'
-            if result['action']=='empty':out+='<p class="id-empty">Nenhum apontamento retornado para a imagem principal nos critérios desta consulta. Isso não aprova o anúncio nem certifica toda a qualidade visual.</p>'
+            if result['action']=='empty':out+='<p class="id-empty">Nenhum apontamento retornado para esta imagem nos critérios desta consulta. Isso não aprova o anúncio nem certifica toda a qualidade visual.</p>'
             else:
                 out+='<h4>Apontamentos do Mercado Livre</h4>'
                 for finding in result['findings']:
                     out+='<article class="id-finding"><strong>'+LABELS[finding['name']]+'</strong>'+''.join('<p>'+esc(message)+'</p>' for message in finding['messages'])+'</article>'
             out+='<details><summary>Identificador da consulta</summary><p>'+esc(result['diagnostic_id'])+'</p></details>'
         out+='</section>'
-    out+='<section class="pf-card"><details><summary>Critérios e cobertura</summary><p>A API pode apontar fundo, tamanho mínimo, textos/logotipos e marcas d’água conforme a categoria. Não aplicamos um tamanho ou fundo obrigatório por conta própria. Não analisa aqui as demais fotos, variações, clips, coerência com o produto ou impacto nas vendas. Uma falha não significa foto incorreta nem ausência de problemas. A leitura não substitui a revisão manual e pode mudar depois.</p></details><a class="id-back" href="'+path+'/conteudo">Voltar ao checklist de conteúdo</a></section></div>'
-    return out+'<style>.image-diagnostic{min-width:0}.image-diagnostic :is(p,strong){overflow-wrap:anywhere}.id-finding{padding:14px;border:1px solid #426184;border-left:3px solid #c08d54;border-radius:10px;margin:12px 0}.id-finding p{white-space:pre-wrap}.id-back{display:inline-block;padding:14px;border:1px solid #7892aa;border-radius:10px;margin-top:12px}.image-diagnostic button{white-space:normal;max-width:100%}html[data-theme=light] body .image-diagnostic .pf-hero{background:#e6f0fd!important;color:#193a60!important}</style>'
+    out+='<section class="pf-card"><details><summary>Critérios e cobertura</summary><p>A API pode apontar fundo, tamanho mínimo, textos/logotipos e marcas d’água conforme a categoria. Não aplicamos um tamanho ou fundo obrigatório por conta própria. Cada consulta analisa somente a foto selecionada. Não analisa clips, coerência com o produto ou impacto nas vendas. Seleção limitada às primeiras cinquenta fotos e a cem variações verificáveis; fotos fora dessa estrutura ficam para revisão externa. Uma falha não significa foto incorreta nem ausência de problemas. A leitura não substitui a revisão manual e pode mudar depois.</p></details><a class="id-back" href="'+path+'/conteudo">Voltar ao checklist de conteúdo</a></section></div>'
+    return out+'<style>.image-diagnostic{min-width:0}.image-diagnostic :is(p,strong){overflow-wrap:anywhere}.image-diagnostic select{max-width:100%;width:100%;box-sizing:border-box}.id-selection form{display:grid;gap:12px;min-width:0}.id-finding{padding:14px;border:1px solid #426184;border-left:3px solid #c08d54;border-radius:10px;margin:12px 0}.id-finding p{white-space:pre-wrap}.id-back{display:inline-block;padding:14px;border:1px solid #7892aa;border-radius:10px;margin-top:12px}.image-diagnostic button{white-space:normal;max-width:100%}html[data-theme=light] body .image-diagnostic .pf-hero{background:#e6f0fd!important;color:#193a60!important}</style>'
 
 
 def register(app,login_required,can_view,bank,query,shop_page,resolve_token,request_get,request_post):
@@ -113,5 +137,8 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,requ
             shops=query(conn,'''SELECT c.*,a.titulo FROM conexoes c JOIN anuncios a
                 ON a.conexao_id=c.id WHERE c.id=%s AND a.item_id=%s''',(cid,item_id))
         if not shops:return 'Anúncio não encontrado nesta loja.',404
-        result=inspect(resolve_token(shops[0]),shops[0]['user_id'],item_id,request_get,request_post) if request.method=='POST' else None
-        return shop_page('Diagnóstico da imagem principal',cid,shops[0]['cliente'],'anuncios',render(cid,item_id,shops[0]['titulo'],csrf,result),refresh=False)
+        action=request.form.get('action','')
+        if request.method=='POST' and action not in ('','load_pictures','diagnose_picture'):return 'Ação inválida.',400
+        if request.method=='POST' and action=='diagnose_picture' and not request.form.get('selected_picture'):return 'Selecione uma foto.',400
+        result=inspect(resolve_token(shops[0]),shops[0]['user_id'],item_id,request_get,request_post,selected_picture=request.form.get('selected_picture') if action=='diagnose_picture' else None,load_pictures=action=='load_pictures') if request.method=='POST' else None
+        return shop_page('Diagnóstico das imagens',cid,shops[0]['cliente'],'anuncios',render(cid,item_id,shops[0]['titulo'],csrf,result),refresh=False)

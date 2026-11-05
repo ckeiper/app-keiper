@@ -71,6 +71,8 @@ on:
       - 'test_portfolio_impact.py'
       - 'test_portfolio_view.py'
       - 'scripts/portfolio*'
+      - 'listing_image_selection.py'
+      - 'test_listing_image_selection.py'
       - 'listing_image_diagnostic.py'
       - 'test_listing_image_diagnostic.py'
       - 'scripts/listing_image_diagnostic*'
