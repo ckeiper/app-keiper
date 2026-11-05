@@ -8,7 +8,7 @@ from listing_tasks import validate,create
 from listing_reactivation import TITLE,load,render
 
 
-def register_reactivation(app,login_required,can_view,bank,query,execute,shop_page,today=reporting_today):
+def register_reactivation(app,login_required,can_view,bank,query,execute,shop_page,today=reporting_today,resolve_token=None,request_get=None):
     @app.route('/anuncios/<int:cid>/<item_id>/reativacao',methods=['GET','POST'])
     @login_required
     def listing_reactivation_review(cid,item_id):
@@ -20,8 +20,15 @@ def register_reactivation(app,login_required,can_view,bank,query,execute,shop_pa
             execute(conn,'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
             data=load(conn,query,cid,item_id,request.args)
         if data is None:return 'Anúncio não encontrado nesta loja.',404
-        values={};message='';status=200
-        if request.method=='POST':
+        values={};message='';status=200;official=None
+        if request.method=='POST' and request.form.get('action')=='consultar_motivos':
+            from listing_pause_reasons import inspect
+            with bank() as conn:
+                shops=query(conn,'SELECT * FROM conexoes WHERE id=%s AND status=%s',(cid,'ativa'))
+            if not shops or resolve_token is None or request_get is None:
+                return 'Conexão ativa indisponível para consulta.',409
+            official=inspect(resolve_token(shops[0]),shops[0].get('user_id'),item_id,request_get)
+        elif request.method=='POST':
             values=dict(request.form)
             try:
                 if len(str(values.get('description','')).strip())<10:raise ValueError('Descreva a conferência com pelo menos dez caracteres.')
@@ -29,4 +36,4 @@ def register_reactivation(app,login_required,can_view,bank,query,execute,shop_pa
                 with bank() as conn:tid=create(conn,query,execute,cid,item_id,task,session['usuario_id'])
                 return redirect(f'/anuncios/{cid}/{item_id}/tarefas?status=all&tarefa={tid}#lt-historico',code=303)
             except ValueError as exc:message,status=str(exc),400
-        return shop_page('Revisão de reativação',cid,data['shop']['cliente'],'anuncios',render(cid,item_id,data,today(),int(time.time()),token,values,message)),status
+        return shop_page('Revisão de reativação',cid,data['shop']['cliente'],'anuncios',render(cid,item_id,data,today(),int(time.time()),token,values,message,official)),status

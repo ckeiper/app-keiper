@@ -805,21 +805,23 @@
       "area": "Conteúdo",
       "capacidade": "Reativação de anúncios",
       "estado": "parcial",
-      "implementado": "Tela dedicada à revisão de reativação por anúncio: status recente e estoque verificado, orientações de conferência de motivo/restrições/oferta, tarefa de elegibilidade com descrição/responsável/prazo explícitos, calendário e histórico das tarefas. Acompanha mudanças de status observadas nas coletas, com datas anterior/detecção e limite explícito de dez eventos. Nenhuma alteração no marketplace.",
-      "falta": "Motivo oficial da pausa e validação automática de elegibilidade não foram coletados. A decisão e eventual reativação são externas e manuais; tarefas concluídas não comprovam oferta reativada ou impacto em vendas.",
+      "implementado": "Tela dedicada à revisão de reativação por anúncio: status recente e estoque verificado, orientações de conferência de motivo/restrições/oferta, tarefa de elegibilidade com descrição/responsável/prazo explícitos, calendário e histórico das tarefas. Acompanha mudanças de status observadas nas coletas, com datas anterior/detecção e limite explícito de dez eventos. Nenhuma alteração no marketplace. Consulta sob demanda de status e substatus oficiais com conta e propriedade verificadas, códigos desconhecidos preservados e falhas explícitas. Leitura transitória, sem gravar oferta ou tarefa.",
+      "falta": "Detalhes de moderação e restrições da conta não consultados. Elegibilidade não validada automaticamente. Consulta autenticada com anúncio real não exercitada nesta entrega. A decisão e eventual reativação seguem externas e manuais.",
       "fontes": [
         "listing_reactivation.py",
-        "listing_reactivation_routes.py"
+        "listing_reactivation_routes.py",
+        "listing_pause_reasons.py"
       ],
       "testes": [
         "test_listing_reactivation.py",
         "test_listing_reactivation_integration.py",
-        "scripts/listing_reactivation_browser_check.cjs"
+        "scripts/listing_reactivation_browser_check.cjs",
+        "test_listing_pause_reasons.py"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 7,
-      "atualizado_em": "2026-10-26"
+      "atualizado_em": "2026-11-04"
     },
     {
       "id": "catalogo",

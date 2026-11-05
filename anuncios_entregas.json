@@ -845,11 +845,11 @@
       "frentes": [
         "reativacao"
       ],
-      "etapa": "planejada",
+      "etapa": "em_desenvolvimento",
       "pr": null,
       "head_sha": null,
-      "atualizado_em": "2026-11-04T17:54:58.953643-03:00",
-      "lacuna": "Próxima prioridade selecionada; faltam implementar consulta autenticada, diagnóstico e testes. Status pausado ou estoque positivo não comprovam motivo nem elegibilidade."
+      "atualizado_em": "2026-11-04T21:24:01.222491-03:00",
+      "lacuna": "Implementada consulta autenticada sob demanda de status e substatus do item, com verificação de conta e propriedade. Aguardando testes e CI; detalhes de moderação e restrições da conta permanecem fora desta etapa. Sem validação automática de elegibilidade ou reativação."
     }
   ]
 }
