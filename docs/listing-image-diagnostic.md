@@ -1,16 +1,20 @@
-# Diagnóstico oficial da imagem principal
+# Diagnóstico oficial das imagens do anúncio
 
-Consulta administrativa sob demanda em `/anuncios/<loja>/<item>/imagem-principal`, acessível pelo checklist de conteúdo. GET só apresenta o formulário; POST com CSRF verifica conta (`/users/me`) e item (`/items/{id}`) antes de chamar `POST /moderations/pictures/diagnostic`. Máximo de dois GETs e um POST, sem retry, redirecionamentos, lotes ou chamadas a modelos de IA de terceiros. O POST cria uma consulta de diagnóstico; não publica, associa, troca ou remove fotos e não altera o anúncio.
+Consulta administrativa sob demanda em `/anuncios/<loja>/<item>/imagem-principal`, acessível pelo checklist de conteúdo. GET só apresenta o formulário. Cada POST com CSRF verifica conta (`/users/me`) e item (`/items/{id}`). O diagnóstico faz mais um `POST /moderations/pictures/diagnostic`; carregar uma página de fotos faz somente os dois GETs. Não há retry, redirecionamentos ou consultas em lote. Nenhuma operação publica, troca ou remove fotos do anúncio.
 
-Fontes oficiais consultadas em 30/10/2026:
+A principal usa o `thumbnail_id`, confirmado entre os IDs únicos de `pictures`. A galeria permite escolher uma foto atual do mesmo anúncio, em páginas de cinquenta, até o limite de mil fotos e cem variações verificáveis. Antes de diagnosticar, relê a conta, o anúncio e a estrutura integral suportada e determina `thumbnail`, `variation_thumbnail` ou `other` pelos IDs atuais. O papel enviado pelo navegador não é usado. A principal do anúncio prevalece quando também é principal de variação.
+
+A página solicitada deve ser um inteiro de 1 a 20. Página que deixou de existir informa indisponibilidade e pede recarregar, sem diagnóstico. Cada troca de página faz uma nova leitura, sem snapshot persistido, e exige nova escolha. O número da foto mantém a posição na leitura atual; mudanças externas podem alterar posições entre páginas. O ID da escolha é reconferido em toda a lista atual suportada, inclusive depois da posição cinquenta; foto removida ou externa bloqueia o POST de diagnóstico.
+
+Cards mostram número, papel e vínculos com variações; metadados opcionais incompletos usam o identificador verificado. Até três vínculos são apresentados por card, com contagem dos demais. Prévias usam somente URLs HTTPS do CDN `http2.mlstatic.com` retornadas em `secure_url`, sem credenciais, query ou fragmento. Não há download de mídia no servidor; carregamento lazy e `referrerpolicy=no-referrer`. Prévia inválida ou ausente mantém a escolha por ID disponível.
+
+A resposta deve corresponder ao ID de diagnóstico gerado no servidor e conter exatamente um diagnóstico do papel solicitado. Ações `empty` e `diagnostic` precisam ser coerentes com as detecções. Sinais reconhecidos: fundo, tamanho mínimo, textos/logos e marca d’água. Mensagens `REMEDY_SHORT` são escapadas. Resposta incompleta ou desconhecida não representa aprovação. Um resultado sem apontamentos cobre somente os critérios consultados, sem certificar a qualidade integral da foto.
+
+Limites adicionais: dez diagnósticos, vinte detecções e dez mensagens de até 2.000 caracteres por detecção. Host de API fixo, timeout `(3,8)`, sem redirecionamento. HTTP 429 encerra a consulta sem prazo inventado. Não guarda fotos, respostas brutas ou histórico no banco. Autorização administrativa, isolamento por loja e CSRF permanecem obrigatórios.
+
+Conteúdo permanece parcial: clips e coerência semântica com o produto não são avaliados. Estruturas além dos limites exigem conferência externa. Uso autenticado com anúncio real continua pendente; fixtures e deploy não substituem essa validação. Não criar dados de demonstração em produção.
+
+Referências da implementação original (consultadas em 30/10/2026):
 - https://developers.mercadolivre.com.br/pt_br/diagnostico-de-imagens
 - https://developers.mercadolivre.com.br/en_us/image-diagnostics
 - https://developers.mercadolivre.com.br/pt_br/autenticacao-e-autorizacao/publicacao-de-produtos
-
-A foto é exclusivamente o `thumbnail_id` retornado pelo item da mesma conta e site MLB, confirmado entre os IDs únicos de `pictures`. Não presume que a primeira foto seja principal. ID ausente, vínculo ambíguo ou categoria inválida encerra a leitura como desconhecida. Não aceita URL, base64 ou ID de foto do formulário; não baixa nem renderiza mídia externa. O corpo contém apenas ID de diagnóstico gerado no servidor, `picture_id`, categoria, tipo `thumbnail` e título limitado. Categoria vem do item; não inventa exigência universal de fundo branco ou tamanho mínimo.
-
-A resposta precisa corresponder ao ID da consulta e conter um único diagnóstico `thumbnail`. Não reaproveita apontamentos de `other` ou `variation_thumbnail`. Ações `empty` e `diagnostic` precisam ser coerentes com as detecções. Sinais reconhecidos: fundo, tamanho mínimo, textos/logos e marca d’água. As orientações `REMEDY_SHORT` vêm da API e são exibidas como texto escapado. Regras não reconhecidas, duplicadas, ausentes ou inconsistentes permanecem não verificáveis, nunca viram ausência de problemas. Um resultado sem apontamentos cobre só os critérios efetivamente consultados; não aprova o anúncio ou a qualidade completa da foto.
-
-Limites locais: 1.000 fotos para conferir o vínculo, dez diagnósticos, vinte detecções e dez mensagens de até 2.000 caracteres por detecção. Host fixo, bearer sem exposição, timeout `(3,8)`, sem redirecionamento. HTTP 429 encerra a consulta e pede tentativa posterior, sem prazo inventado. Não guarda fotos, respostas brutas ou histórico no banco. Conta/loja/anúncio, administrador e CSRF são conferidos no servidor; resposta privada usa a proteção global existente. Shell mantém Anúncios ativo e não apresenta botão genérico de atualizar anúncios nesta página.
-
-A frente Conteúdo permanece parcial: nesta etapa só a imagem principal recebe o diagnóstico oficial; fotos secundárias, variações, clips e coerência semântica não são analisadas. Em catálogo, orienta conferir a gestão das imagens antes de propor edição. Uso autenticado e disponibilidade real do endpoint na conta precisam ser distinguidos de testes com fixtures e prova de deploy. Não criar dados de demonstração nem induzir erros ou moderações em produção.
