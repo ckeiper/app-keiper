@@ -900,7 +900,7 @@
       "area": "Mercado",
       "capacidade": "Sazonalidade",
       "estado": "parcial",
-      "implementado": "Perfil descritivo de unidades por dia da semana nas oito últimas semanas completas de segunda a domingo, em Brasília. Exige cobertura dos 56 dias e validação integral existente de pedidos pagos, pagamentos e vínculo de itens. Médias com oito observações por dia, mediana, mínimo/máximo, semanas com venda e participação; zero apenas em base verificada. Cobertura diária, estados indisponíveis e navegação pelo diagnóstico. Leitura administrativa por loja/anúncio, sem chamadas externas ou escrita.",
+      "implementado": "Perfil descritivo de unidades por dia da semana nas oito últimas semanas completas de segunda a domingo, em Brasília. Exige cobertura dos 56 dias e validação integral existente de pedidos pagos, pagamentos e vínculo de itens. Médias com oito observações por dia, mediana, mínimo/máximo, semanas com venda e participação; zero apenas em base verificada. Cobertura diária, estados indisponíveis e navegação pelo diagnóstico. Leitura administrativa por loja/anúncio, sem chamadas externas ou escrita. Comparação descritiva das quatro semanas completas recentes com as quatro anteriores na mesma janela verificada, com quatro ocorrências por dia da semana em cada período. Mostra totais, médias por ocorrência, variação absoluta e percentual por dia e no total, datas explícitas, gráfico pareado com escala única e tabela acessível. Base anterior zero mantém percentual indefinido; lacunas bloqueiam toda a comparação. Reutiliza as vendas diárias já validadas, sem novas consultas ou escrita.",
       "falta": "Faltam sazonalidade mensal/anual e modelo preditivo com controle de preço, promoções, feriados, disponibilidade e validação histórica. O perfil semanal descreve a janela de calendário, incluindo pausas, dias antes da criação e ruptura sem normalizar tempo ativo; não certifica repetição futura, causa ou melhor dia de anunciar. Exige 56 dias integralmente verificáveis. Uso autenticado em anúncio real não exercitado nesta entrega.",
       "fontes": [
         "listing_weekly_pattern.py",
@@ -918,7 +918,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-11-05"
+      "atualizado_em": "2026-11-06"
     },
     {
       "id": "semelhantes",
