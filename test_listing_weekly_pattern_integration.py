@@ -40,16 +40,25 @@ class PatternIntegrationTests(unittest.TestCase):
             self.assertIn('<strong>3</strong><span>Unidades · quatro semanas anteriores',text)
             self.assertIn('<strong>0</strong><span>Unidades · quatro semanas recentes',text)
             self.assertEqual(client.get(path.replace('MLB123','MLB999')).status_code,404)
+            history_path=path.replace('padrao-semanal','conferencia-media')
+            with patch.object(m.requests,'get',side_effect=AssertionError('external call')):
+                history=client.get(history_path)
+            self.assertEqual(history.status_code,200);history_text=history.get_data(as_text=True)
+            self.assertIn('class="ph-chart"',history_text);self.assertEqual(history_text.count('class="wp-cmp-series"'),8)
+            self.assertIn('0,8 unidades estimadas e 0 realizadas',history_text)
+            self.assertNotIn('Weekly B',history_text)
+
             with m.banco() as conn:m.executar(conn,'DELETE FROM vendas_cobertura WHERE conexao_id=%s AND dia=%s',(ids[0],start.isoformat()))
             text=client.get(path).get_data(as_text=True)
             self.assertIn('55 de 56 dias',text);self.assertNotIn('class="wp-chart"',text);self.assertNotIn('class="wp-comparison"',text)
+            self.assertNotIn('class="ph-chart"',client.get(history_path).get_data(as_text=True))
             with m.banco() as conn:
                 m.executar(conn,'INSERT INTO vendas_cobertura(conexao_id,dia,atualizado_em) VALUES(%s,%s,1)',(ids[0],start.isoformat()))
                 m.executar(conn,'DELETE FROM pedidos_itens WHERE conexao_id=%s',(ids[0],))
             self.assertIn('vínculo de anúncios incompleto',client.get(path).get_data(as_text=True))
             other=m.app.test_client()
             with database_session(other) as s:s.update(usuario_id=2,tipo='cliente',conexao_id=ids[0])
-            self.assertEqual(other.get(path).status_code,403)
+            self.assertEqual(other.get(path).status_code,403);self.assertEqual(other.get(history_path).status_code,403)
         finally:
             with m.banco() as conn:
                 for table in ('pedidos_itens','pedidos','vendas_cobertura','anuncios'):
