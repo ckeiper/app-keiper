@@ -1294,6 +1294,44 @@
           "head_sha": "40c61373e64c836583ddf90bebb9bc01e7df41e0"
         }
       ]
+    },
+    {
+      "id": "conferencia-media-389",
+      "escopo": "Conferir uma média fixa de vendas em quatro rodadas retrospectivas, com 28 dias anteriores para cada semana testada e janela integral verificada.",
+      "frentes": [
+        "tendencia"
+      ],
+      "etapa": "publicada",
+      "pr": 389,
+      "head_sha": "b6c5af9ba68657b4c2afd5e1bd033ee8978c4768",
+      "atualizado_em": "2026-11-06T11:25:33.000-03:00",
+      "lacuna": "A conferência cobre apenas uma média fixa em quatro rodadas da janela atual, sem snapshots do que era conhecido em cada data passada. Faltam controle de sazonalidade, disponibilidade, preço e promoções, comparação com modelos e validação fora desta amostra. Não certifica demanda futura ou previsão operacional. Uso autenticado com anúncio real não exercitado.",
+      "publicacao": {
+        "deploy_id": "dep-dbmu4c5g1s2s73de875g",
+        "commit": "033d1862632cc5c41bc1b7d2b8b21c44eac62b80",
+        "status": "live",
+        "horario_brasilia": "2026-11-06T11:23:29.590-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42231907210,
+          "resultado": "success",
+          "head_sha": "b6c5af9ba68657b4c2afd5e1bd033ee8978c4768"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42231907217,
+          "resultado": "success",
+          "head_sha": "b6c5af9ba68657b4c2afd5e1bd033ee8978c4768"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42231907226,
+          "resultado": "success",
+          "head_sha": "b6c5af9ba68657b4c2afd5e1bd033ee8978c4768"
+        }
+      ]
     }
   ]
 }
