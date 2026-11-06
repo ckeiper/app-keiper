@@ -37,10 +37,12 @@ class PatternIntegrationTests(unittest.TestCase):
                 text=client.get(path).get_data(as_text=True)
             self.assertIn('<strong>3</strong><span>Unidades vendidas',text)
             self.assertNotIn('Weekly B',text);self.assertIn('56 de 56 dias',text)
+            self.assertIn('<strong>3</strong><span>Unidades · quatro semanas anteriores',text)
+            self.assertIn('<strong>0</strong><span>Unidades · quatro semanas recentes',text)
             self.assertEqual(client.get(path.replace('MLB123','MLB999')).status_code,404)
             with m.banco() as conn:m.executar(conn,'DELETE FROM vendas_cobertura WHERE conexao_id=%s AND dia=%s',(ids[0],start.isoformat()))
             text=client.get(path).get_data(as_text=True)
-            self.assertIn('55 de 56 dias',text);self.assertNotIn('class="wp-chart"',text)
+            self.assertIn('55 de 56 dias',text);self.assertNotIn('class="wp-chart"',text);self.assertNotIn('class="wp-comparison"',text)
             with m.banco() as conn:
                 m.executar(conn,'INSERT INTO vendas_cobertura(conexao_id,dia,atualizado_em) VALUES(%s,%s,1)',(ids[0],start.isoformat()))
                 m.executar(conn,'DELETE FROM pedidos_itens WHERE conexao_id=%s',(ids[0],))

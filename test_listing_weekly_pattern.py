@@ -112,3 +112,63 @@ class PatternTests(unittest.TestCase):
         self.assertEqual(query.call_args_list[0].args[2],(7,'MLB1'))
         self.assertTrue(all(call.args[2][0]==7 for call in query.call_args_list))
         self.assertIn('READ ONLY',execute.call_args.args[1]);self.assertEqual(client.post(path).status_code,405)
+
+    def test_four_week_comparison_uses_equal_occurrences_and_reconciles(self):
+        data=analyze(fixture(),7,'MLB1',TODAY);c=data['comparison'];start,end=window(TODAY)
+        self.assertEqual((c['previous_start'],c['previous_end'],c['recent_start'],c['recent_end']),
+                         (start,start+timedelta(days=27),start+timedelta(days=28),end))
+        self.assertEqual((c['previous'],c['recent'],c['change'],c['percent']),(112,112,0,Decimal(0)))
+        self.assertEqual(sum(r['previous'] for r in data['rows']),112)
+        self.assertEqual(sum(r['recent'] for r in data['rows']),112)
+        for i,r in enumerate(data['rows']):
+            self.assertEqual(r['previous']+r['recent'],r['total'])
+            self.assertEqual((r['previous_mean'],r['recent_mean'],r['change'],r['percent']),
+                             (Decimal(i+1),Decimal(i+1),0,Decimal(0)))
+
+    def test_comparison_mixed_growth_and_decline_keep_correct_denominators(self):
+        context=fixture()
+        for i in range(28,56):
+            if i%7==6:context['orders'][i]['status']='cancelled'
+            else:
+                qty=2*(i%7+1);context['orders'][i].update(unidades=qty,total=qty*10)
+                context['items'][i]['quantidade']=qty
+        data=analyze(context,7,'MLB1',TODAY);c=data['comparison']
+        self.assertEqual((c['previous'],c['recent'],c['change'],c['percent']),(112,168,56,Decimal(50)))
+        monday,sunday=data['rows'][0],data['rows'][6]
+        self.assertEqual((monday['previous'],monday['recent'],monday['change'],monday['percent']),(4,8,4,Decimal(100)))
+        self.assertEqual((sunday['previous'],sunday['recent'],sunday['change'],sunday['percent']),(28,0,-28,Decimal(-100)))
+        self.assertEqual(sum(r['change'] for r in data['rows']),c['change'])
+
+    def test_comparison_zero_base_stays_undefined_and_recent_zero_is_decline(self):
+        context=fixture()
+        for order in context['orders'][:28]:order['status']='cancelled'
+        data=analyze(context,7,'MLB1',TODAY)
+        self.assertEqual((data['comparison']['previous'],data['comparison']['recent']),(0,112))
+        self.assertIsNone(data['comparison']['percent']);self.assertTrue(all(r['percent'] is None for r in data['rows']))
+        html=render(7,'MLB1',{},data)
+        self.assertIn('— · base zero',html);self.assertNotIn('Infinity',html)
+        zero=analyze(dict(context,orders=[],items=[]),7,'MLB1',TODAY)
+        self.assertIsNone(zero['comparison']['percent']);self.assertEqual(zero['comparison']['change'],0)
+        context=fixture()
+        for order in context['orders'][28:]:order['status']='cancelled'
+        self.assertEqual(analyze(context,7,'MLB1',TODAY)['comparison']['percent'],Decimal(-100))
+
+    def test_comparison_midpoint_uses_brasilia_dates_and_blocks_either_half_gap(self):
+        context=fixture();start,end=window(TODAY);midpoint=start+timedelta(days=28)
+        context['orders'][27]['criado_em']=midpoint.isoformat()+'T02:59:59Z'
+        self.assertEqual(analyze(context,7,'MLB1',TODAY)['comparison']['previous'],112)
+        context['orders'][27]['criado_em']=midpoint.isoformat()+'T03:00:00Z'
+        data=analyze(context,7,'MLB1',TODAY)
+        self.assertEqual((data['comparison']['previous'],data['comparison']['recent']),(105,119))
+        for index in (0,27,28,55):
+            c=fixture();c['coverage'].pop(index);d=analyze(c,7,'MLB1',TODAY)
+            self.assertFalse(d['available']);self.assertIsNone(d['comparison'])
+            self.assertNotIn('class="wp-comparison"',render(7,'MLB1',{},d))
+
+    def test_comparison_render_keeps_totals_means_and_limits_explicit(self):
+        html=render(7,'MLB1',{},analyze(fixture(),7,'MLB1',TODAY))
+        self.assertIn('quatro ocorrências de cada dia',html)
+        self.assertEqual(html.count('class="wp-cmp-series"'),14)
+        self.assertIn('recente menos anterior',html)
+        self.assertIn('não identifica causa',html.lower())
+        self.assertIn('tabindex="0"><table><caption>Totais de unidades',html)
