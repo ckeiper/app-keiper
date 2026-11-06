@@ -467,7 +467,7 @@
       "area": "Rentabilidade",
       "capacidade": "Tarifas por anúncio",
       "estado": "parcial",
-      "implementado": "Tarifas podem ser documentadas nos custos e informadas explicitamente nos simuladores. Comparador de dois ou três pedidos mantém tarifa total e financiamento incluído separados para conferência, sem cobrar financiamento duas vezes; referência e data declaradas por opção. Cotação sob demanda em /sites/MLB/listing_prices após validar conta, propriedade, preço unitário sem variações, categoria, modalidade e logística atuais. Separa tarifa de venda e detalhe fixo incluído, desconhecido de zero, sem persistir como custo histórico. Cotação também aceita anúncios com até 250 variações verificáveis quando todos os preços são positivos e iguais ao preço principal retornado na mesma consulta. IDs ausentes/repetidos, preço desconhecido ou divergente bloqueiam antes do calculador, sem fallback. Resultado identifica o número de variações verificadas; conta, item e preços são relidos em cada POST.",
+      "implementado": "Tarifas podem ser documentadas nos custos e informadas explicitamente nos simuladores. Comparador de dois ou três pedidos mantém tarifa total e financiamento incluído separados para conferência, sem cobrar financiamento duas vezes; referência e data declaradas por opção. Cotação sob demanda em /sites/MLB/listing_prices após validar conta, propriedade, preço unitário verificável, categoria, modalidade e logística atuais. Separa tarifa de venda e detalhe fixo incluído, desconhecido de zero, sem persistir como custo histórico. Cotação também aceita anúncios com até 250 variações verificáveis quando todos os preços são positivos e iguais ao preço principal retornado na mesma consulta. IDs ausentes/repetidos, preço desconhecido ou divergente bloqueiam antes do calculador, sem fallback. Resultado identifica o número de variações verificadas; conta, item e preços são relidos em cada POST. Cabeçalho da cotação com contraste corrigido no tema claro e rótulos dos cards simplificados.",
       "falta": "Falta conferência automática contra cobranças de vendas históricas e cobertura de variações com preços divergentes, User Products e outros contextos comerciais específicos. Preços promocionais ou efetivamente pagos não são certificados por essa leitura. Cotação atual é estimativa da API, não cobrança confirmada nem custo histórico. Consulta autenticada com anúncio real não exercitada nesta entrega.",
       "fontes": [
         "listing_profitability.py",
@@ -485,7 +485,8 @@
       ],
       "prs": [
         235,
-        247
+        247,
+        391
       ],
       "numero_original": null,
       "prioridade": 100,
@@ -2084,6 +2085,20 @@
       "prs": [
         389
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-06",
+      "resumo": "Cotação de tarifas para anúncios com variações verificáveis de preço uniforme e contraste do tema claro.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        391
+      ]
     }
   ],
   "publicacoes": [
@@ -2279,6 +2294,13 @@
       "commit": "4c4e40249f21cb1eac28e2526ac213dfa5749448",
       "status": "live",
       "horario_brasilia": "2026-11-05T15:54:53.050-03:00"
+    },
+    {
+      "pr": 391,
+      "deploy_id": "dep-dbn3gqh42hec73ffl7m0",
+      "commit": "fd08e0573cb80873f3eec0edc3763a45f72c485a",
+      "status": "live",
+      "horario_brasilia": "2026-11-06T17:31:12.335-03:00"
     }
   ]
 }

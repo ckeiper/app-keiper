@@ -9,7 +9,7 @@ O calculador é somente leitura e recebe preço, categoria, modalidade, moeda, l
 
 ## Regra adotada
 
-A cotação existente continua exigindo POST explícito com CSRF, administrador e acesso ao anúncio da loja, confirmação autenticada de `/users/me` e propriedade em `/items/{id}`. Abrir a tela não consulta APIs. São no máximo três GETs, com timeout e redirects bloqueados; nenhum PUT/POST externo é enviado.
+A cotação existente continua exigindo POST explícito com CSRF, administrador e acesso ao anúncio da loja, confirmação autenticada de `/users/me` e propriedade em `/items/{id}`. Abrir a tela não consulta APIs. A rotina de cotação faz no máximo três GETs, com timeout e redirects bloqueados, sem enviar alterações ao anúncio. Obtenção e eventual renovação do token permanecem no fluxo existente de conexão.
 
 Após confirmar a conta e o item, `uniform_price` exige `variations` como lista, no máximo 250 entradas (limite local desta implementação), objetos com IDs positivos verificáveis e únicos e preço positivo válido em cada entrada. Todos os preços devem ser exatamente iguais ao preço principal positivo do anúncio, sem arredondamento de inconsistências. Ausência, divergência, duplicação ou formato inválido interrompe o fluxo antes de `/sites/MLB/listing_prices`. Não há fallback para preço principal, escolha de variação ou preço enviado pelo formulário. A base é relida em cada consulta.
 
