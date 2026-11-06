@@ -584,7 +584,9 @@
         "test_listing_projection_history.py",
         "test_listing_weekly_pattern_integration.py"
       ],
-      "prs": [],
+      "prs": [
+        389
+      ],
       "numero_original": null,
       "prioridade": 100,
       "atualizado_em": "2026-11-06"
@@ -2066,6 +2068,20 @@
       "total": 44,
       "prs": [
         387
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-06",
+      "resumo": "Conferência retrospectiva de média fixa de vendas em quatro rodadas de 28 dias anteriores para a semana seguinte, com estimado/realizado e erros em unidades e percentual, sobre registros atualmente verificados. Tendência permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        389
       ]
     }
   ],
