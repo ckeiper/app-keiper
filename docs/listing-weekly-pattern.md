@@ -18,4 +18,15 @@ Trata-se de perfil descritivo de calendário. Oito observações são o recorte 
 
 ## Verificação
 
-`test_listing_weekly_pattern.py`: janela em todos os dias da semana, aritmética, mediana/pico, zeros, itens/conta, cobertura, datas e transições UTC/Brasília, proteção de rotas e cinco consultas fixas. `test_listing_weekly_pattern_integration.py`: PostgreSQL descartável com cobertura, mapeamento incompleto e lojas distintas, sem chamadas externas. Browser check: 36 combinações de estado, tema e largura (320/390/1440), com tabela, foco, rolagem e indisponibilidade. Fixtures são sintéticas e nunca são inseridas em produção.
+`test_listing_weekly_pattern.py`: janela em todos os dias da semana, aritmética, mediana/pico, zeros, itens/conta, cobertura, datas e transições UTC/Brasília, proteção de rotas e cinco consultas fixas. `test_listing_weekly_pattern_integration.py`: PostgreSQL descartável com cobertura, mapeamento incompleto e lojas distintas, sem chamadas externas. Browser check: 48 combinações de estado, tema e largura (320/390/1440), com tabela, foco, rolagem e indisponibilidade. Fixtures são sintéticas e nunca são inseridas em produção.
+
+
+## Comparação das quatro semanas recentes com as quatro anteriores
+
+A janela verificada de 56 dias é dividida em dois períodos consecutivos de 28 dias, sem usar a semana em curso. Cada dia da semana aparece exatamente quatro vezes em cada período. As mesmas vendas diárias já validadas alimentam os dois recortes; não há nova consulta ao banco, à API ou escrita.
+
+O relatório apresenta totais de unidades por período e por dia da semana, médias por ocorrência do dia (total ÷ 4), variação absoluta (recente − anterior) e percentual ((recente − anterior) ÷ anterior × 100). O total geral é calculado diretamente das unidades, sem tirar média dos percentuais dos dias. Se o anterior for zero, o percentual fica indefinido, inclusive quando ambos forem zero; a variação absoluta continua disponível. Valores desconhecidos não são convertidos em zero: qualquer falha nos critérios da janela inteira bloqueia também a comparação.
+
+O gráfico pareado usa escala única para todas as médias dos dois períodos, com rótulos textuais de Anterior e Recente. Tabela própria com caption, foco e rolagem interna permite conferir totais e variações. As datas de cada período ficam visíveis. A comparação é descritiva: não comprova causa, significância estatística ou repetição futura, nem normaliza disponibilidade, pausas, ruptura, preço, campanhas ou feriados.
+
+Testes adicionais cobrem reconciliação dos totais, altas e quedas simultâneas por dia, base zero, queda até zero, corte do período no fuso de Brasília e bloqueio por lacuna em qualquer metade. A integração PostgreSQL existente verifica os totais separados da loja correta e o bloqueio da comparação quando falta cobertura.
