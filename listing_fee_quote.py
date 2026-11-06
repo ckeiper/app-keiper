@@ -63,7 +63,11 @@ def uniform_price(item):
                 or not re.fullmatch(r'[1-9][0-9]{0,19}',str(identifier)) or str(identifier) in seen):
             raise QuoteUnavailable('Identificação de variações ausente ou repetida.')
         seen.add(str(identifier))
-        if amount(variation.get('price'),positive=True)!=price:
+        try:
+            variation_price=amount(variation.get('price'),positive=True)
+        except QuoteUnavailable:
+            raise QuoteUnavailable('Preço de variação ausente ou inválido para cotação.') from None
+        if variation_price!=price:
             raise QuoteUnavailable('Preços das variações divergem do preço principal. Nenhuma tarifa foi presumida.')
     return price,len(variations)
 
