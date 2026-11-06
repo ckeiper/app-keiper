@@ -914,7 +914,8 @@
         "scripts/listing_weekly_pattern_browser_check.cjs"
       ],
       "prs": [
-        378
+        378,
+        387
       ],
       "numero_original": null,
       "prioridade": 100,
@@ -2046,6 +2047,20 @@
       "total": 44,
       "prs": [
         385
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-06",
+      "resumo": "Comparação das quatro semanas completas recentes com as quatro anteriores, por dia da semana, com totais, médias e variações, base zero explícita e cobertura integral. Sazonalidade permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        387
       ]
     }
   ],
