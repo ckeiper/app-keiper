@@ -1218,6 +1218,44 @@
           "head_sha": "f5ae2fa631799f6e160416c631781eb548f7f893"
         }
       ]
+    },
+    {
+      "id": "pergunta-rascunho-tarefa-385",
+      "escopo": "Preparar tarefa revisável a partir de pergunta salva da mesma loja e anúncio, com referência e trecho limitado, sem criação pelo GET.",
+      "frentes": [
+        "perguntas-avaliacoes"
+      ],
+      "etapa": "publicada",
+      "pr": 385,
+      "head_sha": "eec81777ff1d3f58d6d62692576d57cb0e769d16",
+      "atualizado_em": "2026-11-06T09:42:10-03:00",
+      "lacuna": "Planejamento manual sobre cópia editável do texto salvo, com trecho de até 1.100 caracteres; sem interpretação de objeções ou resposta ao cliente. Uso autenticado com pergunta real não exercitado.",
+      "publicacao": {
+        "deploy_id": "dep-dbmsk0psrm7s73buere0",
+        "commit": "d9056879fbcaf50aca119c850f11e1c8afb59769",
+        "status": "live",
+        "horario_brasilia": "2026-11-06T09:40:10.048-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42218037149,
+          "resultado": "success",
+          "head_sha": "eec81777ff1d3f58d6d62692576d57cb0e769d16"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42218037182,
+          "resultado": "success",
+          "head_sha": "eec81777ff1d3f58d6d62692576d57cb0e769d16"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42218037269,
+          "resultado": "success",
+          "head_sha": "eec81777ff1d3f58d6d62692576d57cb0e769d16"
+        }
+      ]
     }
   ]
 }
