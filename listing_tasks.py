@@ -9,6 +9,27 @@ class MissingTask(LookupError):pass
 class StaleTask(ValueError):pass
 
 
+class MissingQuestion(LookupError):pass
+
+
+def question_draft(conn,query,cid,item,question_id):
+    """Prepare editable text from one scoped saved question; never creates a task."""
+    if not isinstance(question_id,str) or not re.fullmatch(r'[1-9][0-9]{0,19}',question_id):
+        raise ValueError('Referência de pergunta inválida.')
+    rows=query(conn,"""SELECT pergunta_id,texto FROM perguntas
+        WHERE conexao_id=%s AND item_id=%s AND pergunta_id=%s LIMIT 2""",(cid,item,question_id))
+    if len(rows)!=1 or str(rows[0].get('pergunta_id'))!=question_id:
+        raise MissingQuestion('Pergunta não encontrada neste anúncio.')
+    text=rows[0].get('texto')
+    if not isinstance(text,str) or not text.strip() or len(text)>20000 or '\x00' in text:
+        raise MissingQuestion('Texto da pergunta não disponível para preparar a tarefa.')
+    text=text.strip();excerpt=text[:1100]
+    if len(text)>1100:excerpt+='… (trecho abreviado)'
+    return dict(title='Revisar pergunta #'+question_id,
+                description='Pergunta #'+question_id+' do anúncio '+item+'.\nTexto salvo:\n'+excerpt+
+                '\n\nRevisar a dúvida e definir manualmente o ajuste necessário.')
+
+
 def init_schema(conn,execute):
     # Serialize these new DDL statements across workers; released on transaction end.
     execute(conn,'SELECT pg_advisory_xact_lock(186144275)')
