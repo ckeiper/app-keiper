@@ -5,6 +5,10 @@ for(const mode of ['blank','quoted','zero','unknown','missing','uniform','diverg
  await p.evaluate(t=>document.documentElement.dataset.theme=t,theme);
  assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  assert.equal(await p.locator('.fee-quote form[method=post]').count(),1);
+ if(theme==='light'){
+  assert.equal(await p.locator('.fee-quote .pf-hero').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(237, 244, 252)');
+  assert.equal(await p.locator('.fee-quote .pf-hero h2').evaluate(e=>getComputedStyle(e).color),'rgb(23, 45, 71)');
+ }
  if(theme==='dark')assert.ok((await p.locator('.fee-quote .pf-hero').evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(16, 31, 53)'));
  if(['quoted','zero','missing','uniform'].includes(mode)){
   assert.equal(await p.locator('.fee-quote .pf-metric').count(),3);
