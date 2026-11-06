@@ -807,7 +807,8 @@
         324,
         326,
         375,
-        382
+        382,
+        385
       ],
       "numero_original": null,
       "prioridade": 3,
@@ -2031,6 +2032,20 @@
       "total": 44,
       "prs": [
         382
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-06",
+      "resumo": "Rascunho editável de tarefa a partir de pergunta salva, com origem conferida por loja/anúncio, responsável e prazo manuais, confirmação explícita e contraste corrigido no tema claro. Frente de perguntas permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        385
       ]
     }
   ],
