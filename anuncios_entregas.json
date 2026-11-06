@@ -1332,6 +1332,18 @@
           "head_sha": "b6c5af9ba68657b4c2afd5e1bd033ee8978c4768"
         }
       ]
+    },
+    {
+      "id": "tarifas-variacoes-preco-uniforme",
+      "escopo": "Cotação sob demanda de anúncios com variações verificáveis de preço uniforme, sem fallback para preços divergentes.",
+      "frentes": [
+        "tarifas"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-06T17:06:09.281738-03:00",
+      "lacuna": "Falta conferência automática contra cobranças de vendas históricas e cobertura de variações com preços divergentes, User Products e outros contextos comerciais específicos. Preços promocionais ou efetivamente pagos não são certificados por essa leitura. Cotação atual é estimativa da API, não cobrança confirmada nem custo histórico. Consulta autenticada com anúncio real não exercitada nesta entrega."
     }
   ]
 }
