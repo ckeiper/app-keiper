@@ -29,3 +29,12 @@ Testes unitários cobrem limites, paginação deslocada/incompleta, ID canônico
 O filtro `status=pending` e o card correspondente usam exatamente a mesma confirmação de conta, status, visibilidade e janela de seis horas do aviso. A fila cobre somente os até 1.000 registros da amostra local. Ordena pela data de criação com fuso, da mais antiga à mais nova; datas inválidas, sem fuso ou futuras ficam no final com tempo não verificado. A duração vai da criação até a abertura da página, sem SLA presumido, tempo útil ou inferência de impacto em vendas. Paginação mantém o filtro. Os filtros de último status salvo continuam separados e preservam sua ordenação por coleta. Nenhuma chamada externa, escrita ou resposta é feita ao abrir ou filtrar o relatório.
 
 Testes adicionais: `test_listing_questions_queue.py` (fronteiras de confirmação, conta, visibilidade, datas, ordenação e amostra), integração PostgreSQL e 60 combinações visuais (dez estados, dois temas e três larguras).
+
+
+## Rascunho de tarefa a partir da pergunta
+
+Cada pergunta com identificador válido e texto disponível oferece “Planejar ajuste desta pergunta”. O link leva somente o ID, sem incluir o texto na URL. A tela de tarefas confere administrador e acesso à loja/anúncio e lê a pergunta pela combinação `conexao_id`, `item_id` e `pergunta_id`, em transação somente leitura. Referência inválida retorna 400; pergunta ausente ou sem texto verificável retorna 404. Não consulta a API do Mercado Livre.
+
+O GET abre um formulário editável com título genérico, referência à pergunta/anúncio e até 1.100 caracteres do texto salvo; trechos maiores são identificados como abreviados. Não interpreta o conteúdo nem infere o ajuste, prazo ou responsável. A cópia é um ponto de partida manual, não vínculo imutável ou certificação do estado atual da pergunta. Responsável e prazo ficam vazios e obrigatórios. Nenhuma tarefa é criada pelo GET.
+
+O POST reaproveita o fluxo existente de criação com revisão humana, autorização, CSRF, chave idempotente por formulário e auditoria. O parâmetro de origem não reaplica os dados sobre campos revisados ou após erro de validação. Salvar ou concluir a tarefa não responde à pergunta nem altera o anúncio. Testes de integração usam somente PostgreSQL descartável, sem criar dados em produção.
