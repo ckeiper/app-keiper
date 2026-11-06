@@ -467,14 +467,15 @@
       "area": "Rentabilidade",
       "capacidade": "Tarifas por anúncio",
       "estado": "parcial",
-      "implementado": "Tarifas podem ser documentadas nos custos e informadas explicitamente nos simuladores. Comparador de dois ou três pedidos mantém tarifa total e financiamento incluído separados para conferência, sem cobrar financiamento duas vezes; referência e data declaradas por opção. Cotação sob demanda em /sites/MLB/listing_prices após validar conta, propriedade, preço unitário sem variações, categoria, modalidade e logística atuais. Separa tarifa de venda e detalhe fixo incluído, desconhecido de zero, sem persistir como custo histórico.",
-      "falta": "Falta conferência automática contra cobranças de vendas históricas e cobertura de variações e contextos comerciais específicos. Cotação atual é estimativa da API, não cobrança confirmada nem custo histórico.",
+      "implementado": "Tarifas podem ser documentadas nos custos e informadas explicitamente nos simuladores. Comparador de dois ou três pedidos mantém tarifa total e financiamento incluído separados para conferência, sem cobrar financiamento duas vezes; referência e data declaradas por opção. Cotação sob demanda em /sites/MLB/listing_prices após validar conta, propriedade, preço unitário sem variações, categoria, modalidade e logística atuais. Separa tarifa de venda e detalhe fixo incluído, desconhecido de zero, sem persistir como custo histórico. Cotação também aceita anúncios com até 250 variações verificáveis quando todos os preços são positivos e iguais ao preço principal retornado na mesma consulta. IDs ausentes/repetidos, preço desconhecido ou divergente bloqueiam antes do calculador, sem fallback. Resultado identifica o número de variações verificadas; conta, item e preços são relidos em cada POST.",
+      "falta": "Falta conferência automática contra cobranças de vendas históricas e cobertura de variações com preços divergentes, User Products e outros contextos comerciais específicos. Preços promocionais ou efetivamente pagos não são certificados por essa leitura. Cotação atual é estimativa da API, não cobrança confirmada nem custo histórico. Consulta autenticada com anúncio real não exercitada nesta entrega.",
       "fontes": [
         "listing_profitability.py",
         "profitability_scenarios.py",
         "installment_comparison.py",
         "listing_fee_quote.py",
-        "docs/TARIFAS_COTACAO.md"
+        "docs/TARIFAS_COTACAO.md",
+        "docs/listing-fee-variations.md"
       ],
       "testes": [
         "test_listing_profitability.py",
@@ -488,7 +489,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-26"
+      "atualizado_em": "2026-11-06"
     },
     {
       "id": "parcelamento",

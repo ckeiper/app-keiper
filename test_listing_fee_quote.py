@@ -84,6 +84,40 @@ class FeeQuoteTests(unittest.TestCase):
         r = quote('secret', 123, 'MLB100', requester([dict(id=123), item(), value]))
         self.assertEqual(r['state'], 'quoted'); self.assertEqual(r['total'], 0); self.assertIsNone(r['fixed'])
 
+    def test_uniform_variations_quote_only_fresh_common_price(self):
+        value=dict(item(),variations=[dict(id=1,price='100.00'),dict(id='2',price=100)])
+        before=deepcopy(value);get=requester([dict(id=123),value,fee()])
+        result=quote('secret',123,'MLB100',get,NOW)
+        self.assertEqual(result['state'],'quoted');self.assertEqual(result['variation_count'],2)
+        self.assertEqual(get.call_count,3);self.assertEqual(get.call_args.kwargs['params']['price'],'100.00')
+        self.assertNotIn('variation_id',get.call_args.kwargs['params']);self.assertEqual(value,before)
+        self.assertIn('para 2 variações',render(1,'MLB100','Produto','csrf',result))
+        value['variations']=[dict(id=i+1,price=100) for i in range(250)]
+        result=quote('secret',123,'MLB100',requester([dict(id=123),value,fee()]))
+        self.assertEqual(result['state'],'quoted');self.assertEqual(result['variation_count'],250)
+
+    def test_ambiguous_variations_never_reach_calculator(self):
+        cases=[None,{},[None],[dict(price=100)],[dict(id=True,price=100)],
+            [dict(id=0,price=100)],[dict(id='01',price=100)],
+            [dict(id=1,price=100),dict(id='1',price=100)],
+            [dict(id=1)],[dict(id=1,price=0)],[dict(id=1,price=True)],
+            [dict(id=1,price='NaN')],[dict(id=1,price='100.001')],
+            [dict(id=1,price=99)],[dict(id=1,price=101)],
+            [dict(id=i+1,price=100) for i in range(251)]]
+        for variations in cases:
+            with self.subTest(variations=str(variations)[:100]):
+                value=dict(item(),variations=variations);get=requester([dict(id=123),value])
+                result=quote('secret',123,'MLB100',get,NOW)
+                self.assertEqual(result['state'],'unknown');self.assertNotIn('total',result)
+                self.assertEqual(get.call_count,2)
+
+    def test_zero_fee_and_missing_detail_remain_distinct_with_variations(self):
+        value=dict(item(),variations=[dict(id=1,price=100)])
+        payload=dict(fee(),sale_fee_amount=0,sale_fee_details={})
+        result=quote('secret',123,'MLB100',requester([dict(id=123),value,payload]),NOW)
+        self.assertEqual(result['total'],0);self.assertIsNone(result['fixed'])
+        self.assertIn('Não informado',render(1,'MLB100','Produto','csrf',result))
+
     def test_http_network_invalid_json_no_retries_or_remote_error_leak(self):
         for status in (301, 401, 403, 429, 500):
             get = Mock(return_value=Mock(status_code=status, json=Mock(return_value=dict(message='secret-token'))))
@@ -153,3 +187,15 @@ class FeeQuoteRouteTests(unittest.TestCase):
         result = self.client.post(self.path, data=dict(_csrf='test-token'))
         self.assertEqual(result.status_code, 200); self.assertIn('Sem cotação verificável', result.text)
         self.assertNotIn('R$ 0,00', result.text); self.get.assert_not_called()
+
+    def test_variation_price_is_reread_on_each_post_and_divergence_blocks_quote(self):
+        uniform=dict(item(),variations=[dict(id=1,price=100),dict(id=2,price=100)])
+        self.get.side_effect=requester([dict(id=123),uniform,fee()]).side_effect
+        result=self.client.post(self.path,data=dict(_csrf='test-token',price='1',variation_id='999'))
+        self.assertIn('para 2 variações',result.text)
+        self.assertEqual(self.get.call_args.kwargs['params']['price'],'100.00')
+        divergent=dict(item(),variations=[dict(id=1,price=100),dict(id=2,price=101)])
+        self.get.reset_mock();self.get.side_effect=requester([dict(id=123),divergent]).side_effect
+        result=self.client.post(self.path,data=dict(_csrf='test-token'))
+        self.assertIn('Preços das variações divergem',result.text)
+        self.assertEqual(self.get.call_count,2);self.assertNotIn('class="pf-metric"',result.text)

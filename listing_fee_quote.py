@@ -48,6 +48,30 @@ def get(token, path, params, request_get):
         raise QuoteUnavailable('Falha de rede ou resposta oficial inválida. Tente novamente mais tarde.') from None
 
 
+def uniform_price(item):
+    """Traditional variations must agree with the principal price; never pick a cheaper one."""
+    variations=item.get('variations')
+    if not isinstance(variations,list) or len(variations)>250:
+        raise QuoteUnavailable('Estrutura de variações não verificável ou acima do limite local de 250.')
+    price=amount(item.get('price'),positive=True)
+    seen=set()
+    for variation in variations:
+        if not isinstance(variation,dict):
+            raise QuoteUnavailable('Estrutura de variações não verificável para cotação.')
+        identifier=variation.get('id')
+        if (isinstance(identifier,bool) or not isinstance(identifier,(int,str))
+                or not re.fullmatch(r'[1-9][0-9]{0,19}',str(identifier)) or str(identifier) in seen):
+            raise QuoteUnavailable('Identificação de variações ausente ou repetida.')
+        seen.add(str(identifier))
+        try:
+            variation_price=amount(variation.get('price'),positive=True)
+        except QuoteUnavailable:
+            raise QuoteUnavailable('Preço de variação ausente ou inválido para cotação.') from None
+        if variation_price!=price:
+            raise QuoteUnavailable('Preços das variações divergem do preço principal. Nenhuma tarifa foi presumida.')
+    return price,len(variations)
+
+
 def quote(token, seller_id, item_id, request_get, now=None):
     """At most three GETs, no retries/redirects, all paths fixed or validated."""
     now = now or datetime.now(timezone.utc)
@@ -65,10 +89,7 @@ def quote(token, seller_id, item_id, request_get, now=None):
             raise QuoteUnavailable('O anúncio consultado não corresponde à conta desta loja.')
         if item.get('site_id') != 'MLB' or item.get('currency_id') != 'BRL':
             raise QuoteUnavailable('Cotação disponível apenas para anúncios MLB em reais.')
-        # The principal price cannot stand in for variant-specific prices.
-        if not isinstance(item.get('variations'), list) or item['variations']:
-            raise QuoteUnavailable('Preço por variação não coberto por esta cotação unitária.')
-        price = amount(item.get('price'), positive=True)
+        price,variation_count = uniform_price(item)
         category, listing_type = item.get('category_id'), item.get('listing_type_id')
         if not isinstance(category, str) or not re.fullmatch(r'MLB[0-9]{1,20}', category) or listing_type not in ('free', 'gold_special', 'gold_pro'):
             raise QuoteUnavailable('Categoria ou modalidade do anúncio não verificável.')
@@ -94,23 +115,25 @@ def quote(token, seller_id, item_id, request_get, now=None):
             raise QuoteUnavailable('Detalhe fixo incompatível com a tarifa total retornada.')
         # financing_add_on_fee is not treated as BRL: its unit is not certified here.
         return dict(state='quoted', checked_at=now, price=price, total=total, fixed=fixed,
-                    category=category, listing_type=listing_type, logistic=logistic, mode=mode)
+                    category=category, listing_type=listing_type, logistic=logistic, mode=mode,variation_count=variation_count)
     except QuoteUnavailable as exc:
         return unknown(str(exc))
 
 
 def render(cid, item_id, title, csrf, result=None):
     esc = lambda v: escape(str(v), quote=True)
-    out = CSS+'<div class="pf fee-quote"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Consulta sob demanda</span><h2>Cotação atual de tarifa</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="/anuncios/'+str(cid)+'/'+item_id+'/rentabilidade">← Rentabilidade do anúncio</a><p>Estimativa retornada pelo calculador do Mercado Livre para uma unidade, na modalidade e logística atuais. Não é cobrança confirmada de uma venda.</p></header><section class="pf-card"><h3>Consultar com o contexto do anúncio</h3><p>A consulta verifica a conta autorizada e o anúncio antes de solicitar a tarifa. Usa o preço principal retornado agora, categoria, moeda, modalidade, logística, modo de envio e quantidade 1. Anúncios com variações ou contexto incompleto ficam sem cotação.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><button>Consultar tarifa no Mercado Livre</button></form></section>'
+    out = CSS+'<style>@layer keiper-appearance{html[data-theme=light] body .fee-quote .pf-hero{background:#edf4fc!important;color:#172d47!important;border:1px solid #c5d5e6!important}}</style><div class="pf fee-quote"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Consulta sob demanda</span><h2>Cotação atual de tarifa</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="/anuncios/'+str(cid)+'/'+item_id+'/rentabilidade">← Rentabilidade do anúncio</a><p>Estimativa retornada pelo calculador do Mercado Livre para uma unidade, na modalidade e logística atuais. Não é cobrança confirmada de uma venda.</p></header><section class="pf-card"><h3>Consultar com o contexto do anúncio</h3><p>A consulta verifica a conta autorizada e o anúncio antes de solicitar a tarifa. Usa o preço retornado agora, categoria, moeda, modalidade, logística, modo de envio e quantidade 1. Anúncios com variações exigem preços verificáveis e iguais ao preço principal em todas elas. Contexto incompleto ou preços divergentes ficam sem cotação.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><button>Consultar tarifa no Mercado Livre</button></form></section>'
     if result:
         stamp = result['checked_at'].astimezone(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y às %H:%M:%S · Brasília')
         out += '<section class="pf-card" id="fee-quote-result"><h3>Resultado da consulta</h3><p>'+esc(stamp)+'</p>'
         if result['state'] != 'quoted':
             out += '<p class="pf-alert" role="status">Sem cotação verificável. '+esc(result['message'])+'</p>'
         else:
-            out += '<div class="pf-grid"><article class="pf-metric"><span>Preço principal consultado · 1 unidade</span><strong>'+format_brl(result['price'])+'</strong></article><article class="pf-metric"><span>Tarifa de venda estimada · sale_fee_amount</span><strong>'+format_brl(result['total'])+'</strong></article><article class="pf-metric"><span>Detalhe fixo incluído · fixed_fee</span><strong>'+(format_brl(result['fixed']) if result['fixed'] is not None else 'Não informado')+'</strong></article></div><p>O detalhe fixo já pertence à tarifa retornada; não some novamente. Campo ausente é desconhecido, inclusive quando o total é zero.</p><details><summary>Conferir contexto e fonte</summary><p>Fonte: API Mercado Livre · /sites/MLB/listing_prices · canal marketplace · BRL · quantidade 1.</p><p>Categoria: '+esc(result['category'])+' · modalidade: '+esc(result['listing_type'])+' · logística: '+esc(result['logistic'])+' · envio: '+esc(result['mode'])+'.</p></details>'
+            count=result.get('variation_count',0)
+            if count:out+='<p class="fee-variation-scope">Preço comum confirmado na consulta para '+esc(count)+' variações. Nenhum preço promocional ou cobrado em venda foi presumido.</p>'
+            out += '<div class="pf-grid"><article class="pf-metric"><span>Preço do anúncio consultado · 1 unidade</span><strong>'+format_brl(result['price'])+'</strong></article><article class="pf-metric"><span>Tarifa de venda estimada</span><strong>'+format_brl(result['total'])+'</strong></article><article class="pf-metric"><span>Parcela fixa já incluída</span><strong>'+(format_brl(result['fixed']) if result['fixed'] is not None else 'Não informado')+'</strong></article></div><p>O detalhe fixo já pertence à tarifa retornada; não some novamente. Campo ausente é desconhecido, inclusive quando o total é zero.</p><details><summary>Conferir contexto e fonte</summary><p>Fonte: API Mercado Livre · /sites/MLB/listing_prices · canal marketplace · BRL · quantidade 1.</p><p>Categoria: '+esc(result['category'])+' · modalidade: '+esc(result['listing_type'])+' · logística: '+esc(result['logistic'])+' · envio: '+esc(result['mode'])+'.</p></details>'
         out += '</section>'
-    out += '<section class="pf-card"><h3>Limites da cotação</h3><p>A resposta pode mudar conforme condições comerciais e momento da consulta. Não representa todos os preços promocionais, compradores, variações ou quantidades. Não certifica opções de parcelamento e não converte financing_add_on_fee em reais.</p><p>Não inclui nem presume frete, impostos, publicidade, produto, repasse ou lucro. Não salva valores como custos históricos, não altera anúncios e não substitui documentos de cobrança.</p><p><a href="/anuncios/'+str(cid)+'/'+item_id+'/parcelamento">Comparar opções com premissas manuais ↗</a></p></section></div>'
+    out += '<section class="pf-card"><h3>Limites da cotação</h3><p>A resposta pode mudar conforme condições comerciais e momento da consulta. Não representa todos os preços promocionais, compradores ou quantidades; variações com preços divergentes não são cotadas. Não certifica opções de parcelamento e não converte financing_add_on_fee em reais.</p><p>Não inclui nem presume frete, impostos, publicidade, produto, repasse ou lucro. Não salva valores como custos históricos, não altera anúncios e não substitui documentos de cobrança.</p><p><a href="/anuncios/'+str(cid)+'/'+item_id+'/parcelamento">Comparar opções com premissas manuais ↗</a></p></section></div>'
     return out
 
 
