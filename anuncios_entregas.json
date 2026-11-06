@@ -1256,6 +1256,44 @@
           "head_sha": "eec81777ff1d3f58d6d62692576d57cb0e769d16"
         }
       ]
+    },
+    {
+      "id": "comparacao-semanal-387",
+      "escopo": "Comparar os dois períodos consecutivos de quatro semanas completas da janela verificada, por dia da semana e no total.",
+      "frentes": [
+        "sazonalidade"
+      ],
+      "etapa": "publicada",
+      "pr": 387,
+      "head_sha": "40c61373e64c836583ddf90bebb9bc01e7df41e0",
+      "atualizado_em": "2026-11-06T10:46:20.000-03:00",
+      "lacuna": "Comparação descritiva, sem controle de disponibilidade, pausas, ruptura, preços, promoções ou feriados. Não certifica causa, significância ou comportamento futuro. Uso autenticado com anúncio real não exercitado.",
+      "publicacao": {
+        "deploy_id": "dep-dbmtglgn74is73bfvio0",
+        "commit": "6eea737ca3e483e9d54187f5ffe6364ce22cb588",
+        "status": "live",
+        "horario_brasilia": "2026-11-06T10:43:18.100-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42226110812,
+          "resultado": "success",
+          "head_sha": "40c61373e64c836583ddf90bebb9bc01e7df41e0"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42226110784,
+          "resultado": "success",
+          "head_sha": "40c61373e64c836583ddf90bebb9bc01e7df41e0"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42226110820,
+          "resultado": "success",
+          "head_sha": "40c61373e64c836583ddf90bebb9bc01e7df41e0"
+        }
+      ]
     }
   ]
 }
