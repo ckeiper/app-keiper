@@ -81,6 +81,9 @@ on:
       - 'test_listing_buyer_reviews.py'
       - 'scripts/listing_buyer_reviews*'
       - 'listing_weekly_pattern.py'
+      - 'listing_projection_history.py'
+      - 'test_listing_projection_history.py'
+      - 'scripts/listing_projection_history*'
       - 'test_listing_weekly_pattern*.py'
       - 'scripts/listing_weekly_pattern*'
       - 'listing_questions.py'
@@ -225,6 +228,7 @@ jobs:
       - run: python scripts/listing_buyer_reviews_preview.py
       - run: python scripts/listing_questions_preview.py
       - run: python scripts/listing_weekly_pattern_preview.py
+      - run: python scripts/listing_projection_history_preview.py
       - run: python scripts/listing_content_preview.py
       - run: python scripts/listing_content_snapshot_preview.py
       - run: python scripts/content_rate_limit_preview.py
@@ -246,6 +250,7 @@ jobs:
         timeout-minutes: 4
       - run: node scripts/catalog_browser_check.cjs
       - run: node scripts/listing_tasks_browser_check.cjs
+      - run: node scripts/listing_tasks_question_draft_browser_check.cjs
       - run: node scripts/promotion_comparison_browser_check.cjs
       - run: node scripts/listing_kits_browser_check.cjs
       - run: node scripts/listing_calendar_browser_check.cjs
@@ -269,6 +274,7 @@ jobs:
       - run: node scripts/listing_buyer_reviews_browser_check.cjs
       - run: node scripts/listing_questions_browser_check.cjs
       - run: node scripts/listing_weekly_pattern_browser_check.cjs
+      - run: node scripts/listing_projection_history_browser_check.cjs
       - run: node scripts/listing_content_browser_check.cjs
       - run: node scripts/listing_content_snapshot_browser_check.cjs
       - run: node scripts/content_rate_limit_browser_check.cjs

@@ -7,7 +7,7 @@ from catalog_preview import page,dest
 from listing_task_view import render
 from test_listing_tasks import model,task,DAY
 
-for mode in ('open','empty','history','error','page2'):
+for mode in ('open','empty','history','error','page2','question-draft','question-draft-long'):
     data=model();values={};message=''
     data['rows']=[task(id=i,title='Conferir oferta e estoque '+str(i),description='Revisar a fonte coletada antes de alterar o anúncio.') for i in range(1,11)]
     data['total']=15;data['counts']=[dict(status='open',n=15,overdue=15)]
@@ -15,6 +15,13 @@ for mode in ('open','empty','history','error','page2'):
     if mode=='page2':data.update(rows=[task(id=i,title='Conferir oferta e estoque '+str(i),description='Conferir a leitura antes de agir.') for i in range(11,16)],page=2)
     if mode=='error':
         values=dict(title='Revisar fotos',responsible='Equipe responsável',due_date=DAY.isoformat(),description='Conferir imagens.');message='A tarefa foi atualizada em outra aba. Confira o status atual antes de tentar novamente.'
+    if mode.startswith('question-draft'):
+        from listing_tasks import question_draft
+        from unittest.mock import Mock
+        question='Qual a medida interna? <b>Texto salvo</b>' if mode=='question-draft' else 'Detalhes informados na pergunta. '*500
+        values=question_draft(None,Mock(return_value=[dict(pergunta_id='17',texto=question)]),1,'MLB123','17')
+        data.update(rows=[],total=0,counts=[],pages=1)
+        message='Rascunho preparado a partir do texto salvo da pergunta. Revise o conteúdo, informe responsável e prazo e confirme. Nenhuma tarefa foi criada.'
     if mode=='history':
         data['history']=task(id=20,status='done',version=2)
         data['counts'].append(dict(status='done',n=1,overdue=0))

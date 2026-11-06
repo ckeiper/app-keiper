@@ -1218,6 +1218,120 @@
           "head_sha": "f5ae2fa631799f6e160416c631781eb548f7f893"
         }
       ]
+    },
+    {
+      "id": "pergunta-rascunho-tarefa-385",
+      "escopo": "Preparar tarefa revisável a partir de pergunta salva da mesma loja e anúncio, com referência e trecho limitado, sem criação pelo GET.",
+      "frentes": [
+        "perguntas-avaliacoes"
+      ],
+      "etapa": "publicada",
+      "pr": 385,
+      "head_sha": "eec81777ff1d3f58d6d62692576d57cb0e769d16",
+      "atualizado_em": "2026-11-06T09:42:10-03:00",
+      "lacuna": "Planejamento manual sobre cópia editável do texto salvo, com trecho de até 1.100 caracteres; sem interpretação de objeções ou resposta ao cliente. Uso autenticado com pergunta real não exercitado.",
+      "publicacao": {
+        "deploy_id": "dep-dbmsk0psrm7s73buere0",
+        "commit": "d9056879fbcaf50aca119c850f11e1c8afb59769",
+        "status": "live",
+        "horario_brasilia": "2026-11-06T09:40:10.048-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42218037149,
+          "resultado": "success",
+          "head_sha": "eec81777ff1d3f58d6d62692576d57cb0e769d16"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42218037182,
+          "resultado": "success",
+          "head_sha": "eec81777ff1d3f58d6d62692576d57cb0e769d16"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42218037269,
+          "resultado": "success",
+          "head_sha": "eec81777ff1d3f58d6d62692576d57cb0e769d16"
+        }
+      ]
+    },
+    {
+      "id": "comparacao-semanal-387",
+      "escopo": "Comparar os dois períodos consecutivos de quatro semanas completas da janela verificada, por dia da semana e no total.",
+      "frentes": [
+        "sazonalidade"
+      ],
+      "etapa": "publicada",
+      "pr": 387,
+      "head_sha": "40c61373e64c836583ddf90bebb9bc01e7df41e0",
+      "atualizado_em": "2026-11-06T10:46:20.000-03:00",
+      "lacuna": "Comparação descritiva, sem controle de disponibilidade, pausas, ruptura, preços, promoções ou feriados. Não certifica causa, significância ou comportamento futuro. Uso autenticado com anúncio real não exercitado.",
+      "publicacao": {
+        "deploy_id": "dep-dbmtglgn74is73bfvio0",
+        "commit": "6eea737ca3e483e9d54187f5ffe6364ce22cb588",
+        "status": "live",
+        "horario_brasilia": "2026-11-06T10:43:18.100-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42226110812,
+          "resultado": "success",
+          "head_sha": "40c61373e64c836583ddf90bebb9bc01e7df41e0"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42226110784,
+          "resultado": "success",
+          "head_sha": "40c61373e64c836583ddf90bebb9bc01e7df41e0"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42226110820,
+          "resultado": "success",
+          "head_sha": "40c61373e64c836583ddf90bebb9bc01e7df41e0"
+        }
+      ]
+    },
+    {
+      "id": "conferencia-media-389",
+      "escopo": "Conferir uma média fixa de vendas em quatro rodadas retrospectivas, com 28 dias anteriores para cada semana testada e janela integral verificada.",
+      "frentes": [
+        "tendencia"
+      ],
+      "etapa": "publicada",
+      "pr": 389,
+      "head_sha": "b6c5af9ba68657b4c2afd5e1bd033ee8978c4768",
+      "atualizado_em": "2026-11-06T11:25:33.000-03:00",
+      "lacuna": "A conferência cobre apenas uma média fixa em quatro rodadas da janela atual, sem snapshots do que era conhecido em cada data passada. Faltam controle de sazonalidade, disponibilidade, preço e promoções, comparação com modelos e validação fora desta amostra. Não certifica demanda futura ou previsão operacional. Uso autenticado com anúncio real não exercitado.",
+      "publicacao": {
+        "deploy_id": "dep-dbmu4c5g1s2s73de875g",
+        "commit": "033d1862632cc5c41bc1b7d2b8b21c44eac62b80",
+        "status": "live",
+        "horario_brasilia": "2026-11-06T11:23:29.590-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42231907210,
+          "resultado": "success",
+          "head_sha": "b6c5af9ba68657b4c2afd5e1bd033ee8978c4768"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42231907217,
+          "resultado": "success",
+          "head_sha": "b6c5af9ba68657b4c2afd5e1bd033ee8978c4768"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42231907226,
+          "resultado": "success",
+          "head_sha": "b6c5af9ba68657b4c2afd5e1bd033ee8978c4768"
+        }
+      ]
     }
   ]
 }

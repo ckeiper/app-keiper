@@ -87,3 +87,11 @@ class QuestionTests(unittest.TestCase):
     self.assertEqual(response.status_code,200);self.assertIn('1 perguntas neste filtro',response.get_data(as_text=True))
     self.assertEqual(q.call_count,3);self.assertEqual(q.call_args.args[2],(7,'MLB1'))
     self.assertNotIn('MEDIDA',q.call_args.args[1]);self.assertEqual(e.call_count,1)
+
+ def test_task_draft_links_use_only_scoped_id_and_available_question_text(self):
+    rows=[row(1,texto='Qual a medida?'),row(2,texto=None),row(3,texto=' '),row('bad<script>',texto='Texto')]
+    text=render(7,'MLB1',{},model(rows,{}))
+    self.assertEqual(text.count('Planejar ajuste desta pergunta'),1)
+    self.assertIn('/anuncios/7/MLB1/tarefas?pergunta=1#lt-criar',text)
+    self.assertNotIn('pergunta=bad',text);self.assertNotIn('pergunta=2',text)
+    self.assertNotIn('pergunta=Qual',text)

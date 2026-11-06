@@ -15,6 +15,7 @@ for(const mode of ['empty','ready','limited','page2','fresh','unknown','partial'
  assert.equal(await page.locator('.listing-questions #perguntas .lq-row').count(),['empty','queue-empty','search-empty','search-escaped'].includes(mode)?0:mode==='queue-page2'?1:mode==='search-page2'?2:10);
  assert.equal(await page.locator('.listing-questions #recorrencias .lq-row').count(),mode==='empty'?0:3);
  assert.equal(await page.locator('.listing-questions form[method=post]').count(),0);
+ const taskLinks=page.getByRole('link',{name:/Planejar ajuste da pergunta #/});for(const link of await taskLinks.all())assert.match(await link.getAttribute('href'),/^\/anuncios\/1\/MLB123\/tarefas\?pergunta=[1-9][0-9]{0,19}#lt-criar$/);if(mode==='ready')assert.equal(await taskLinks.count(),9);
  const queueLink=page.locator('.lq-card-link').filter({hasText:'Aguardando resposta'});
  assert.ok((await queueLink.getAttribute('href')).includes('status=pending#perguntas'));
  if(mode.startsWith('queue')){

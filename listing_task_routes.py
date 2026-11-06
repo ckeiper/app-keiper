@@ -4,7 +4,7 @@ import re
 import secrets
 from flask import request,session,redirect
 from sales_metrics import reporting_today
-from listing_tasks import validate,create,transition,load,MissingTask,StaleTask
+from listing_tasks import validate,create,transition,load,MissingTask,StaleTask,question_draft,MissingQuestion
 from listing_task_view import render
 
 
@@ -43,8 +43,12 @@ def register_tasks(app,login_required,can_view,bank,query,execute,shop_page,toda
         try:
             with bank() as conn:
                 execute(conn,'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+                if request.method=='GET' and 'pergunta' in request.args:
+                    values=question_draft(conn,query,cid,item_id,request.args.get('pergunta'))
+                    message='Rascunho preparado a partir do texto salvo da pergunta. Revise o conteúdo, informe responsável e prazo e confirme. Nenhuma tarefa foi criada.'
                 model=load(conn,query,cid,item_id,request.args,today())
         except MissingTask:return 'Tarefa não encontrada neste anúncio.',404
+        except MissingQuestion as exc:return str(exc),404
         except ValueError as exc:return str(exc),400
         body=render(cid,item_id,shops[0],model,today(),token,values=values,message=message)
         return shop_page('Tarefas do anúncio',cid,shops[0]['cliente'],'anuncios',body),status

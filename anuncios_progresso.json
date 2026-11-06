@@ -569,20 +569,27 @@
       "area": "Diagnóstico",
       "capacidade": "Tendência inteligente",
       "estado": "parcial",
-      "implementado": "Comparação entre períodos e sinais determinísticos de alta, queda e novas vendas.",
-      "falta": "Não foi identificado modelo específico de tendência com controle de sazonalidade e validação histórica; comparação simples não certifica todo o requisito amplo.",
+      "implementado": "Comparação entre períodos e sinais determinísticos de alta, queda e novas vendas. Conferência retrospectiva de uma média fixa de vendas: quatro rodadas de 28 dias anteriores para estimar a semana seguinte, dentro de oito semanas completas integralmente verificadas. Exibe estimado/realizado, erros por semana, erro absoluto médio, desvio e erro absoluto acumulado dividido pelo realizado, com denominador zero indefinido. Usa somente dias anteriores a cada semana testada e registros atualmente verificados, sem reconstituir disponibilidade da informação no passado. Nova leitura administrativa reutiliza as cinco consultas existentes, sem APIs ou escrita.",
+      "falta": "A conferência cobre apenas uma média fixa em quatro rodadas da janela atual, sem snapshots do que era conhecido em cada data passada. Faltam controle de sazonalidade, disponibilidade, preço e promoções, comparação com modelos e validação fora desta amostra. Não certifica demanda futura ou previsão operacional. Uso autenticado com anúncio real não exercitado.",
       "fontes": [
         "listing_trends.py",
-        "listing_diagnostic_rules.py"
+        "listing_diagnostic_rules.py",
+        "listing_projection_history.py",
+        "listing_weekly_pattern.py",
+        "docs/listing-projection-history.md"
       ],
       "testes": [
         "test_listing_trends.py",
-        "test_listing_diagnostic_rules.py"
+        "test_listing_diagnostic_rules.py",
+        "test_listing_projection_history.py",
+        "test_listing_weekly_pattern_integration.py"
       ],
-      "prs": [],
+      "prs": [
+        389
+      ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-11-06"
     },
     {
       "id": "anomalias",
@@ -778,8 +785,8 @@
       "area": "Conteúdo",
       "capacidade": "Perguntas e avaliações",
       "estado": "parcial",
-      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder. O botão Atualizar Perguntas usa a fila de atualização por seção, com proteção e exclusão por loja existentes, sem recoletar anúncios, promoções, vendas ou Ads. Consulta administrativa sob demanda de avaliações oficiais por anúncio, com conta e propriedade verificadas, média, total, distribuição e até cinco comentários publicados por página. Distingue avaliações compartilhadas do catálogo da reputação da loja, trata falhas como não verificadas e limita a consulta às primeiras 100 posições, sem persistir dados de compradores. Fila local de perguntas aguardando resposta com a mesma confirmação de conta/status/visibilidade das últimas seis horas, ordenação pela criação (mais antigas primeiro), tempo decorrido e datas não verificáveis no final. Cards levam aos filtros; tema claro e escuro na tela de perguntas. Busca literal de trecho nos textos disponíveis das perguntas e respostas salvas, ignorando acentos, maiúsculas e espaços repetidos. Combina com status e fila de resposta, preserva busca na paginação e permite limpar sem perder o status. Não consulta APIs, não busca respostas ocultadas e não altera contagens ou agrupamentos da amostra inteira. Entrada limitada a 200 caracteres, com aviso para excedentes.",
-      "falta": "A busca de perguntas permanece limitada a 100 por atualização e a dois status antigos por rodada; não certifica histórico integral nem reconstrói perguntas apagadas. Avaliações são consultadas sob demanda, sem histórico persistido ou cobertura integral; comentários limitados a 100 posições e textos abreviados. Falta análise validada de objeções semânticas; opiniões não comprovam defeitos, reputação da loja ou impacto em vendas.",
+      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder. O botão Atualizar Perguntas usa a fila de atualização por seção, com proteção e exclusão por loja existentes, sem recoletar anúncios, promoções, vendas ou Ads. Consulta administrativa sob demanda de avaliações oficiais por anúncio, com conta e propriedade verificadas, média, total, distribuição e até cinco comentários publicados por página. Distingue avaliações compartilhadas do catálogo da reputação da loja, trata falhas como não verificadas e limita a consulta às primeiras 100 posições, sem persistir dados de compradores. Fila local de perguntas aguardando resposta com a mesma confirmação de conta/status/visibilidade das últimas seis horas, ordenação pela criação (mais antigas primeiro), tempo decorrido e datas não verificáveis no final. Cards levam aos filtros; tema claro e escuro na tela de perguntas. Busca literal de trecho nos textos disponíveis das perguntas e respostas salvas, ignorando acentos, maiúsculas e espaços repetidos. Combina com status e fila de resposta, preserva busca na paginação e permite limpar sem perder o status. Não consulta APIs, não busca respostas ocultadas e não altera contagens ou agrupamentos da amostra inteira. Entrada limitada a 200 caracteres, com aviso para excedentes. Rascunho editável de tarefa a partir de pergunta salva do mesmo anúncio e loja, com referência e trecho de até 1.100 caracteres. GET somente leitura, sem APIs ou criação automática; responsável e prazo ficam vazios. Criação exige revisão e confirmação pelo fluxo existente, com CSRF, idempotência por formulário e autoria. Dados revisados não são sobrepostos pelo parâmetro de origem no POST; nenhuma resposta ou alteração do anúncio é enviada.",
+      "falta": "A busca de perguntas permanece limitada a 100 por atualização e a dois status antigos por rodada; não certifica histórico integral nem reconstrói perguntas apagadas. Avaliações são consultadas sob demanda, sem histórico persistido ou cobertura integral; comentários limitados a 100 posições e textos abreviados. Falta análise validada de objeções semânticas; opiniões não comprovam defeitos, reputação da loja ou impacto em vendas. Uso autenticado do rascunho com pergunta real não exercitado nesta entrega.",
       "fontes": [
         "listing_questions.py",
         "main.py",
@@ -787,7 +794,10 @@
         "docs/question-collection-coverage.md",
         "section_refresh.py",
         "listing_buyer_reviews.py",
-        "docs/listing-buyer-reviews.md"
+        "docs/listing-buyer-reviews.md",
+        "listing_tasks.py",
+        "listing_task_routes.py",
+        "listing_task_view.py"
       ],
       "testes": [
         "test_listing_questions.py",
@@ -796,17 +806,20 @@
         "test_question_sync.py",
         "test_listing_buyer_reviews.py",
         "scripts/listing_buyer_reviews_browser_check.cjs",
-        "test_listing_questions_queue.py"
+        "test_listing_questions_queue.py",
+        "test_listing_tasks.py",
+        "test_listing_tasks_integration.py"
       ],
       "prs": [
         324,
         326,
         375,
-        382
+        382,
+        385
       ],
       "numero_original": null,
       "prioridade": 3,
-      "atualizado_em": "2026-11-05"
+      "atualizado_em": "2026-11-06"
     },
     {
       "id": "reativacao",
@@ -894,7 +907,7 @@
       "area": "Mercado",
       "capacidade": "Sazonalidade",
       "estado": "parcial",
-      "implementado": "Perfil descritivo de unidades por dia da semana nas oito últimas semanas completas de segunda a domingo, em Brasília. Exige cobertura dos 56 dias e validação integral existente de pedidos pagos, pagamentos e vínculo de itens. Médias com oito observações por dia, mediana, mínimo/máximo, semanas com venda e participação; zero apenas em base verificada. Cobertura diária, estados indisponíveis e navegação pelo diagnóstico. Leitura administrativa por loja/anúncio, sem chamadas externas ou escrita.",
+      "implementado": "Perfil descritivo de unidades por dia da semana nas oito últimas semanas completas de segunda a domingo, em Brasília. Exige cobertura dos 56 dias e validação integral existente de pedidos pagos, pagamentos e vínculo de itens. Médias com oito observações por dia, mediana, mínimo/máximo, semanas com venda e participação; zero apenas em base verificada. Cobertura diária, estados indisponíveis e navegação pelo diagnóstico. Leitura administrativa por loja/anúncio, sem chamadas externas ou escrita. Comparação descritiva das quatro semanas completas recentes com as quatro anteriores na mesma janela verificada, com quatro ocorrências por dia da semana em cada período. Mostra totais, médias por ocorrência, variação absoluta e percentual por dia e no total, datas explícitas, gráfico pareado com escala única e tabela acessível. Base anterior zero mantém percentual indefinido; lacunas bloqueiam toda a comparação. Reutiliza as vendas diárias já validadas, sem novas consultas ou escrita.",
       "falta": "Faltam sazonalidade mensal/anual e modelo preditivo com controle de preço, promoções, feriados, disponibilidade e validação histórica. O perfil semanal descreve a janela de calendário, incluindo pausas, dias antes da criação e ruptura sem normalizar tempo ativo; não certifica repetição futura, causa ou melhor dia de anunciar. Exige 56 dias integralmente verificáveis. Uso autenticado em anúncio real não exercitado nesta entrega.",
       "fontes": [
         "listing_weekly_pattern.py",
@@ -908,11 +921,12 @@
         "scripts/listing_weekly_pattern_browser_check.cjs"
       ],
       "prs": [
-        378
+        378,
+        387
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-11-05"
+      "atualizado_em": "2026-11-06"
     },
     {
       "id": "semelhantes",
@@ -2026,6 +2040,48 @@
       "total": 44,
       "prs": [
         382
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-06",
+      "resumo": "Rascunho editável de tarefa a partir de pergunta salva, com origem conferida por loja/anúncio, responsável e prazo manuais, confirmação explícita e contraste corrigido no tema claro. Frente de perguntas permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        385
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-06",
+      "resumo": "Comparação das quatro semanas completas recentes com as quatro anteriores, por dia da semana, com totais, médias e variações, base zero explícita e cobertura integral. Sazonalidade permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        387
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-06",
+      "resumo": "Conferência retrospectiva de média fixa de vendas em quatro rodadas de 28 dias anteriores para a semana seguinte, com estimado/realizado e erros em unidades e percentual, sobre registros atualmente verificados. Tendência permanece parcial.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        389
       ]
     }
   ],
