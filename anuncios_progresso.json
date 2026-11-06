@@ -569,20 +569,25 @@
       "area": "Diagnóstico",
       "capacidade": "Tendência inteligente",
       "estado": "parcial",
-      "implementado": "Comparação entre períodos e sinais determinísticos de alta, queda e novas vendas.",
-      "falta": "Não foi identificado modelo específico de tendência com controle de sazonalidade e validação histórica; comparação simples não certifica todo o requisito amplo.",
+      "implementado": "Comparação entre períodos e sinais determinísticos de alta, queda e novas vendas. Conferência retrospectiva de uma média fixa de vendas: quatro rodadas de 28 dias anteriores para estimar a semana seguinte, dentro de oito semanas completas integralmente verificadas. Exibe estimado/realizado, erros por semana, erro absoluto médio, desvio e erro absoluto acumulado dividido pelo realizado, com denominador zero indefinido. Usa somente dias anteriores a cada semana testada e registros atualmente verificados, sem reconstituir disponibilidade da informação no passado. Nova leitura administrativa reutiliza as cinco consultas existentes, sem APIs ou escrita.",
+      "falta": "A conferência cobre apenas uma média fixa em quatro rodadas da janela atual, sem snapshots do que era conhecido em cada data passada. Faltam controle de sazonalidade, disponibilidade, preço e promoções, comparação com modelos e validação fora desta amostra. Não certifica demanda futura ou previsão operacional. Uso autenticado com anúncio real não exercitado.",
       "fontes": [
         "listing_trends.py",
-        "listing_diagnostic_rules.py"
+        "listing_diagnostic_rules.py",
+        "listing_projection_history.py",
+        "listing_weekly_pattern.py",
+        "docs/listing-projection-history.md"
       ],
       "testes": [
         "test_listing_trends.py",
-        "test_listing_diagnostic_rules.py"
+        "test_listing_diagnostic_rules.py",
+        "test_listing_projection_history.py",
+        "test_listing_weekly_pattern_integration.py"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-11-06"
     },
     {
       "id": "anomalias",

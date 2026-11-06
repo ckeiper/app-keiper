@@ -6,6 +6,7 @@ for(const mode of ['ready','zero','partial','pending','invalid','spike','change'
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  assert.equal(await page.locator('.wp progress').getAttribute('value'),mode==='partial'?'46':'56');
  assert.equal(await page.locator('.wp form').count(),0);
+ assert.equal(await page.getByRole('link',{name:'Conferir a média no histórico'}).getAttribute('href'),'/anuncios/7/MLB1/conferencia-media');
  const ready=['ready','zero','spike','change','zero-base'].includes(mode);
  assert.equal(await page.locator('.wp-distribution tbody tr').count(),ready?7:0);
  assert.equal(await page.locator('.wp-bar-row').count(),ready?7:0);

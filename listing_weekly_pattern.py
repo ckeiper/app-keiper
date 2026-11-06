@@ -75,7 +75,7 @@ def render(cid,item,shop,data):
     number=lambda v:format(v,'.1f').replace('.',',')
     fmt=lambda d:d.strftime('%d/%m/%Y')
     path=f'/anuncios/{int(cid)}/{item}'
-    out=STYLE+'<section class="wp"><header><h2>Padrão semanal de vendas</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><p>'+fmt(data['start'])+' a '+fmt(data['end'])+' · oito semanas completas, de segunda a domingo · Brasília</p><a class="wp-back" href="/diagnostico/'+str(int(cid))+'/'+esc(item)+'">Voltar ao diagnóstico</a></header>'
+    out=STYLE+'<section class="wp"><header><h2>Padrão semanal de vendas</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><p>'+fmt(data['start'])+' a '+fmt(data['end'])+' · oito semanas completas, de segunda a domingo · Brasília</p><a class="wp-back" href="/diagnostico/'+str(int(cid))+'/'+esc(item)+'">Voltar ao diagnóstico</a> · <a class="wp-back" href="'+esc(path+'/conferencia-media')+'">Conferir a média no histórico</a></header>'
     out+='<div class="wp-coverage"><strong>Cobertura da loja: '+str(data['covered'])+' de 56 dias</strong><progress max="56" value="'+str(data['covered'])+'" aria-label="Dias com cobertura de vendas">'+str(data['covered'])+'/56</progress></div>'
     if data['available']:out+='<nav class="wp-comparison-link"><a href="#wp-comparacao">Comparar períodos de quatro semanas</a></nav>'
     if not data['available']:
@@ -125,19 +125,28 @@ def render_comparison(data):
 
 def register(app,login_required,can_view,bank,query,execute,shop_page,today=reporting_today):
     from flask import session
-    @app.route('/anuncios/<int:cid>/<item_id>/padrao-semanal',methods=['GET'])
-    @login_required
-    def listing_weekly_pattern(cid,item_id):
+    def report(cid,item_id,renderer,title):
         if session.get('tipo')!='admin' or not can_view(cid):return 'Acesso restrito',403
         if not re.fullmatch(r'MLB[0-9]{1,20}',item_id):return 'Anúncio não encontrado',404
         day=today();start,end=window(day)
         with bank() as conn:
             execute(conn,'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
-            shops=query(conn,'''SELECT c.cliente,a.titulo FROM conexoes c JOIN anuncios a ON a.conexao_id=c.id
-                WHERE c.id=%s AND a.item_id=%s''',(cid,item_id))
+            shops=query(conn,"""SELECT c.cliente,a.titulo FROM conexoes c JOIN anuncios a ON a.conexao_id=c.id
+                WHERE c.id=%s AND a.item_id=%s""",(cid,item_id))
             if not shops:return 'Anúncio não encontrado nesta loja.',404
             context=read_sales_context(conn,query,cid,start,end)
-        return shop_page('Padrão semanal de vendas',cid,shops[0]['cliente'],'anuncios',render(cid,item_id,shops[0],analyze(context,cid,item_id,day)))
+        return shop_page(title,cid,shops[0]['cliente'],'anuncios',renderer(cid,item_id,shops[0],analyze(context,cid,item_id,day)))
+
+    @app.route('/anuncios/<int:cid>/<item_id>/padrao-semanal',methods=['GET'])
+    @login_required
+    def listing_weekly_pattern(cid,item_id):
+        return report(cid,item_id,render,'Padrão semanal de vendas')
+
+    @app.route('/anuncios/<int:cid>/<item_id>/conferencia-media',methods=['GET'])
+    @login_required
+    def listing_projection_history(cid,item_id):
+        from listing_projection_history import render as render_history
+        return report(cid,item_id,render_history,'Conferência histórica da média')
 
 
 STYLE='''<style>.wp{background:#102238;color:#eaf2ff;border:1px solid #34516e;border-radius:16px;padding:22px;min-width:0;box-sizing:border-box}.wp :is(h2,h3,strong){color:inherit}.wp h2{font-size:23px}.wp h3{font-size:17px}.wp p,.wp span,.wp td,.wp th,.wp summary,.wp a{font-size:12px;line-height:1.6}.wp p{color:#bdcce1}.wp a{color:#b9e5ff}.wp header{margin-bottom:20px}.wp-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}.wp-stats article{display:grid;gap:7px;background:#182e49;border:1px solid #426184;border-radius:12px;padding:16px;overflow-wrap:anywhere}.wp-stats strong{font-size:25px}.wp-coverage{display:grid;gap:10px;font-size:13px}.wp progress{width:100%;height:9px;accent-color:#5daff0}.wp-chart{display:grid;gap:12px;margin:22px 0}.wp-bar-row{display:grid;grid-template-columns:65px 1fr 50px;gap:10px;align-items:center}.wp-bar-row strong{font-size:13px;text-align:right}.wp-track{background:#2b425c;height:12px;border-radius:6px;overflow:hidden}.wp-bar{height:100%;background:linear-gradient(90deg,#4989ed,#55c8d3);border-radius:6px}.wp-table-wrap{overflow-x:auto;max-width:100%;margin:22px 0}.wp table{border-collapse:collapse;min-width:660px;width:100%}.wp th,.wp td{text-align:right;padding:11px;border-bottom:1px solid #426184;white-space:nowrap}.wp th:first-child{text-align:left}.wp caption{text-align:left;font-size:12px;margin-bottom:10px}.wp-notice{border-left:3px solid #e6bb68;padding:12px;background:#182e49}.wp details{margin-top:24px}.wp summary{cursor:pointer;font-weight:bold}.wp-days{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.wp-days span{padding:8px;border:1px solid #426184;border-radius:7px;overflow-wrap:anywhere}.wp-missing{border-style:dashed!important}.wp :focus-visible{outline:3px solid #6bbcf4;outline-offset:3px}html:not([data-theme=light]) body .wp :is(h2,h3,td,th){color:#eaf2ff!important}html:not([data-theme=light]) body .wp th{background:#182e49!important}html:not([data-theme=light]) body .wp tbody tr:hover td{background:#1c354f!important}@layer keiper-appearance{html[data-theme=light] body .wp{background:#fff!important;color:#172d47!important;border-color:#d4dfec!important}html[data-theme=light] body .wp :is(.wp-stats article,.wp-notice){background:#f2f6fb!important;color:#172d47!important}html[data-theme=light] body .wp .wp-track{background:#e2eaf5!important}}@media(max-width:650px){.wp{padding:14px}.wp-stats{grid-template-columns:1fr}.wp-stats article{grid-template-columns:70px 1fr;align-items:center}.wp-days{grid-template-columns:repeat(2,minmax(0,1fr))}.wp-bar-row{grid-template-columns:54px 1fr 45px;gap:7px}}</style>'''
