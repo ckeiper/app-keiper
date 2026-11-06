@@ -1,0 +1,31 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const {chromium}=require('playwright');
+(async()=>{const browser=await chromium.launch({headless:true});try{const page=await browser.newPage({locale:'pt-BR'});
+for(const mode of ['question-draft','question-draft-long'])for(const theme of ['dark','light'])for(const width of [1440,390,320]){
+ await page.setViewportSize({width,height:900});await page.setContent(fs.readFileSync(`visual-qa/listing-tasks-${mode}.html`,'utf8'));
+ await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await page.evaluate(()=>document.fonts.ready);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ assert.equal(await page.locator('#lt-criar').evaluate(e=>e.open),true);
+ assert.ok(await page.evaluate(()=>{
+  const lum=rgb=>{const values=rgb.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});return values[0]*.2126+values[1]*.7152+values[2]*.0722;};
+  const contrast=(e,bg)=>{const fg=lum(getComputedStyle(e).color),back=lum(bg);return (Math.max(fg,back)+.05)/(Math.min(fg,back)+.05)>=4.5;};
+  const panel=document.querySelector('.lt-create'),background=getComputedStyle(panel).backgroundColor,notice=document.querySelector('.lt-notice');
+  return contrast(panel.querySelector('summary'),background)&&contrast(panel.querySelector('label'),background)&&contrast(notice,getComputedStyle(notice).backgroundColor);
+ }));
+ if(theme==='light')assert.equal(await page.locator('.lt-create').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(242, 246, 251)');
+ const form=page.locator('.lt-create form');assert.equal(await form.getAttribute('method'),'post');
+ assert.equal(await form.locator('input[name=_csrf]').inputValue(),'synthetic-token');
+ assert.equal(await form.locator('input[name=operation]').inputValue(),'create');
+ assert.equal(await form.locator('input[name=title]').inputValue(),'Revisar pergunta #17');
+ assert.equal(await form.locator('input[name=responsible]').inputValue(),'');assert.equal(await form.locator('input[name=due_date]').inputValue(),'');
+ assert.equal(await form.evaluate(e=>e.checkValidity()),false);
+ const description=await form.locator('textarea').inputValue();assert.ok(description.includes('Pergunta #17 do anúncio MLB123'));assert.ok(description.length<=1500);
+ if(mode==='question-draft')assert.ok(description.includes('<b>Texto salvo</b>'));else assert.ok(description.includes('trecho abreviado'));
+ assert.equal(await page.locator('.lt-create b').count(),0);assert.equal(await page.locator('.listing-tasks>div.lt-scroll tbody tr').count(),0);
+ assert.ok((await page.locator('.lt-notice').textContent()).includes('Nenhuma tarefa foi criada'));
+ assert.equal(await page.getByRole('link',{name:'Perguntas do anúncio'}).getAttribute('href'),'/anuncios/1/MLB123/perguntas');
+ await page.screenshot({path:`visual-qa/question-task-draft-${mode}-${theme}-${width}.png`,fullPage:true});
+ await form.locator('input[name=responsible]').focus();assert.equal(await form.locator('input[name=responsible]').evaluate(e=>document.activeElement===e),true);
+ await form.locator('input[name=responsible]').fill('Equipe responsável');await form.locator('input[name=due_date]').fill('2026-10-25');
+ assert.equal(await form.evaluate(e=>e.checkValidity()),true);await form.locator('input[name=title]').fill('Conferir medidas do produto');
+}console.log('12 question task draft theme/viewport cases passed.');}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});

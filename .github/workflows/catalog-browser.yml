@@ -246,6 +246,7 @@ jobs:
         timeout-minutes: 4
       - run: node scripts/catalog_browser_check.cjs
       - run: node scripts/listing_tasks_browser_check.cjs
+      - run: node scripts/listing_tasks_question_draft_browser_check.cjs
       - run: node scripts/promotion_comparison_browser_check.cjs
       - run: node scripts/listing_kits_browser_check.cjs
       - run: node scripts/listing_calendar_browser_check.cjs
