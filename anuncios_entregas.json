@@ -1339,11 +1339,37 @@
       "frentes": [
         "tarifas"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-06T17:06:09.281738-03:00",
-      "lacuna": "Falta conferência automática contra cobranças de vendas históricas e cobertura de variações com preços divergentes, User Products e outros contextos comerciais específicos. Preços promocionais ou efetivamente pagos não são certificados por essa leitura. Cotação atual é estimativa da API, não cobrança confirmada nem custo histórico. Consulta autenticada com anúncio real não exercitada nesta entrega."
+      "etapa": "publicada",
+      "pr": 391,
+      "head_sha": "4eeb8270025d4b324954b7f83f26b87b60d75d12",
+      "atualizado_em": "2026-11-06T17:31:59.578-03:00",
+      "lacuna": "Falta conferência automática contra cobranças de vendas históricas e cobertura de variações com preços divergentes, User Products e outros contextos comerciais específicos. Preços promocionais ou efetivamente pagos não são certificados por essa leitura. Cotação atual é estimativa da API, não cobrança confirmada nem custo histórico. Consulta autenticada com anúncio real não exercitada nesta entrega.",
+      "publicacao": {
+        "deploy_id": "dep-dbn3gqh42hec73ffl7m0",
+        "commit": "fd08e0573cb80873f3eec0edc3763a45f72c485a",
+        "status": "live",
+        "horario_brasilia": "2026-11-06T17:31:12.335-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42287345374,
+          "resultado": "success",
+          "head_sha": "4eeb8270025d4b324954b7f83f26b87b60d75d12"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42287345434,
+          "resultado": "success",
+          "head_sha": "4eeb8270025d4b324954b7f83f26b87b60d75d12"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42287345367,
+          "resultado": "success",
+          "head_sha": "4eeb8270025d4b324954b7f83f26b87b60d75d12"
+        }
+      ]
     }
   ]
 }
