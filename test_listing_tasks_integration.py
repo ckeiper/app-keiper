@@ -33,7 +33,7 @@ class ListingTaskIntegrationTests(unittest.TestCase):
     with self.client.session_transaction() as state:self.token=state['_csrf'];self.actor=state['usuario_id']
  def tearDown(self):
     with self.m.banco() as conn:
-        for table in ('listing_task_events','listing_tasks','anuncios'):
+        for table in ('listing_task_events','listing_tasks','perguntas','anuncios'):
             self.m.executar(conn,'DELETE FROM '+table+' WHERE conexao_id=ANY(%s)',(self.ids,))
         self.m.executar(conn,'DELETE FROM conexoes WHERE id=ANY(%s)',(self.ids,))
  def payload(self):return dict(form(),due_date=(reporting_today()+timedelta(days=1)).isoformat(),_csrf=self.token)
@@ -128,3 +128,28 @@ class ListingTaskIntegrationTests(unittest.TestCase):
     restricted=m.app.test_client()
     with database_session(restricted) as state:state.update(usuario_id=2,tipo='cliente',conexao_id=self.ids[0])
     self.assertEqual(restricted.get(path).status_code,403)
+
+ def test_question_draft_read_only_scope_then_explicit_reviewed_creation(self):
+    from listing_questions import persist
+    from html import unescape
+    import re
+    m=self.m;qid=987654321
+    def question(identifier,text):
+        return dict(id=identifier,item_id='MLB123',text=text,status='UNANSWERED',answer=None,date_created='2026-11-06T12:00:00Z')
+    with m.banco() as conn:
+        persist(conn,m.executar,self.ids[0],dict(questions=[question(qid,'Qual a medida interna?')]),1794000000)
+        persist(conn,m.executar,self.ids[1],dict(questions=[question(qid,'SEGREDO DA OUTRA LOJA'),question(qid+1,'OUTRA PERGUNTA PRIVADA')]),1794000000)
+    url=self.url+'?pergunta='+str(qid)
+    with patch.object(m.requests,'get',side_effect=AssertionError('network')):response=self.client.get(url)
+    text=response.get_data(as_text=True);self.assertEqual(response.status_code,200)
+    self.assertIn('Qual a medida interna?',text);self.assertNotIn('SEGREDO',text);self.assertEqual(self.rows(),[])
+    self.assertEqual(self.client.get(self.url+'?pergunta='+str(qid+1)).status_code,404)
+    self.assertEqual(self.client.post(url,data=dict(self.payload(),_csrf='bad')).status_code,400);self.assertEqual(self.rows(),[])
+    description=unescape(re.search(r'<textarea name="description"[^>]*>(.*?)</textarea>',text,re.S).group(1))
+    payload=dict(self.payload(),title='Revisar pergunta #'+str(qid),description=description)
+    self.assertEqual(self.client.post(url,data=payload).status_code,303)
+    self.assertEqual(self.client.post(url,data=payload).status_code,303)
+    tasks=self.rows();self.assertEqual(len(tasks),1)
+    self.assertEqual(tasks[0]['description'],description);self.assertEqual(tasks[0]['created_by'],self.actor)
+    with m.banco() as conn:events=m.consultar(conn,'SELECT * FROM listing_task_events WHERE task_id=%s',(tasks[0]['id'],))
+    self.assertEqual(len(events),1)
