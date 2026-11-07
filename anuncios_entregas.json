@@ -1408,6 +1408,16 @@
           "head_sha": "470b06e7260fac3ca52b7374ac1076008595349f"
         }
       ]
+    },
+    {
+      "id": "perguntas-detalhe-recorrencias",
+      "escopo": "Detalhar ocorrências e fila confirmada por grupo literal de perguntas.",
+      "frentes": [
+        "perguntas-avaliacoes"
+      ],
+      "etapa": "em_desenvolvimento",
+      "atualizado_em": "2026-11-07T07:19:00.271896-03:00",
+      "lacuna": "Grupos literais na amostra de 1.000 registros, sem análise semântica."
     }
   ]
 }
