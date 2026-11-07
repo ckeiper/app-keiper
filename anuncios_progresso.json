@@ -277,7 +277,8 @@
       ],
       "prs": [
         257,
-        270
+        270,
+        397
       ],
       "numero_original": null,
       "prioridade": 100,
@@ -2133,6 +2134,20 @@
       "prs": [
         395
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-07",
+      "resumo": "Comparador de estoque com cobertura do saldo atual pelo ritmo de vendas de cada período.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        397
+      ]
     }
   ],
   "publicacoes": [
@@ -2349,6 +2364,13 @@
       "commit": "97ba10125825554dc59bd2e26bbabc46bdfa7904",
       "status": "live",
       "horario_brasilia": "2026-11-07T07:30:07.510-03:00"
+    },
+    {
+      "pr": 397,
+      "deploy_id": "dep-dbnkgee8bjmc73abh8d0",
+      "commit": "3a6c9df439abc2196893369e1b756374d83deb2c",
+      "status": "live",
+      "horario_brasilia": "2026-11-07T12:53:56.212-03:00"
     }
   ]
 }
