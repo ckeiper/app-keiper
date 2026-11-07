@@ -65,6 +65,9 @@ def render(cid,item,title,readings,total,page,pages,selected,offer_index,result,
         if result and not result['available']:out+='<section class="card"><div class="aviso">'+esc(result['reason'])+'</div></section>'
         elif result:
             old,current=result['periods']
+            from promotion_overlap import analyze as analyze_overlap,render as render_overlap
+            overlap_html=render_overlap(analyze_overlap(selected['promotions'],offer_index,current['start'],current['end']),
+                before=analyze_overlap(selected['promotions'],offer_index,old['start'],old['end'],phase='before'))
             out+='<section class="card"><h3>Comparação descritiva por calendário informado</h3><p>Antes: '+old['start'].strftime('%d/%m/%Y')+' a '+old['end'].strftime('%d/%m/%Y')+' · Dentro do calendário: '+current['start'].strftime('%d/%m/%Y')+' a '+current['end'].strftime('%d/%m/%Y')+'. Dias parciais, de hoje e futuros ficam de fora.</p><div class="aviso">São todas as vendas verificadas deste anúncio nas janelas, não vendas atribuídas exclusivamente à promoção. O calendário não comprova participação contínua, condições constantes ou efeito causal. Outras ofertas podem coexistir.</div><div class="pc-scroll"><table><thead><tr><th>Indicador</th><th>Antes</th><th>Dentro do calendário</th></tr></thead><tbody>'
             for key,label,money in [('orders','Pedidos pagos',False),('units','Unidades',False),('gross_items','Bruto dos itens',True),('ticket','Ticket por pedido',True)]:
                 def value(period):
@@ -73,7 +76,7 @@ def render(cid,item,title,readings,total,page,pages,selected,offer_index,result,
             out+='<tr><th>Visitas verificadas</th><td>'+str(old['visits'] if old['visits'] is not None else 'Indisponível')+'</td><td>'+str(current['visits'] if current['visits'] is not None else 'Indisponível')+'</td></tr></tbody></table></div>'
             for period in result['periods']:
                 if period['sales'].get('reason'):out+='<p class="muted">'+esc(period['sales']['reason'])+'</p>'
-            out+='</section>'+finance_section(result['finance'],cid,item,result['periods'])
+            out+='</section>'+overlap_html+finance_section(result['finance'],cid,item,result['periods'])
     return out
 
 

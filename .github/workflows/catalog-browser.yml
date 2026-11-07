@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'listing_catalog.py'
+      - 'promotion_overlap.py'
+      - 'test_promotion_overlap.py'
       - 'promotion_observations.py'
       - 'promotion_comparison.py'
       - 'test_promotion_observations*.py'
