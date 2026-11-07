@@ -64,3 +64,23 @@ class QueueTests(unittest.TestCase):
         rows=[question(i) for i in range(1001)]
         data=model(rows,dict(status='pending'),NOW,7)
         self.assertTrue(data['limited']);self.assertEqual(data['filtered'],1000)
+
+    def test_recurrence_links_distinguish_saved_status_and_confirmed_queue(self):
+        rows=[question(1,texto='Serve em 220 V?'),question(2,texto=' SERVE  em 220 v? ',em_espera=True),
+              question(3,texto='Serve em 220 V? também',resposta='Serve em 220 V?'),
+              question(4,texto='Serve em 220 V?',status='ANSWERED'),
+              question(5,texto='Serve em 220 V?',vendedor_confirmado='8')]
+        data=model(rows,dict(grupo='4'),NOW,7)
+        self.assertEqual([r['pergunta_id'] for r in data['rows']],['1','2','4','5'])
+        self.assertEqual(data['group']['pending'],3)
+        self.assertEqual(data['group']['confirmed'],1)
+        text=render(7,'MLB1',{},data)
+        self.assertIn('grupo=1&amp;recorrencias=1&amp;status=pending#perguntas',text)
+        self.assertIn('name="grupo" value="1"',text)
+        data=model(rows,dict(grupo='1',status='pending'),NOW,7)
+        self.assertEqual([r['pergunta_id'] for r in data['rows']],['1'])
+        self.assertEqual(model(rows,dict(grupo='1',q='também'),NOW,7)['filtered'],0)
+        for qid in ['3','999']:
+            data=model(rows,dict(grupo=qid),NOW,7)
+            self.assertTrue(data['group_unavailable'])
+            self.assertEqual(data['filtered'],0)
