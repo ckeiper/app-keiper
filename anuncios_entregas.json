@@ -1377,11 +1377,37 @@
       "frentes": [
         "promocoes-resultados"
       ],
-      "etapa": "em_desenvolvimento",
-      "pr": null,
-      "head_sha": null,
-      "atualizado_em": "2026-11-06T21:08:35.223836-03:00",
-      "lacuna": "Leitura pontual e tipos suportados, sem prova de participação contínua, aplicação conjunta ou atribuição de vendas. Lista limitada a vinte interseções por janela, com total. Uso real autenticado não exercitado."
+      "etapa": "publicada",
+      "pr": 393,
+      "head_sha": "470b06e7260fac3ca52b7374ac1076008595349f",
+      "atualizado_em": "2026-11-06T21:42:28.668-03:00",
+      "lacuna": "Leitura pontual e tipos suportados, sem prova de participação contínua, aplicação conjunta ou atribuição de vendas. Lista limitada a vinte interseções por janela, com total. Uso real autenticado não exercitado.",
+      "publicacao": {
+        "deploy_id": "dep-dbn74qi9lscs73boujgg",
+        "commit": "9de48f316e7723847ca37ed3759a8384a7dbfddf",
+        "status": "live",
+        "horario_brasilia": "2026-11-06T21:41:42.122-03:00"
+      },
+      "checks": [
+        {
+          "nome": "Management browser checks",
+          "run_id": 42318177915,
+          "resultado": "success",
+          "head_sha": "470b06e7260fac3ca52b7374ac1076008595349f"
+        },
+        {
+          "nome": "Sales tests",
+          "run_id": 42318177875,
+          "resultado": "success",
+          "head_sha": "470b06e7260fac3ca52b7374ac1076008595349f"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42318177942,
+          "resultado": "success",
+          "head_sha": "470b06e7260fac3ca52b7374ac1076008595349f"
+        }
+      ]
     }
   ]
 }
