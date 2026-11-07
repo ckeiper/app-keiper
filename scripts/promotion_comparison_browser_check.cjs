@@ -10,6 +10,10 @@ const MODES=['ready','empty','unknown','naive','removed','coincident','mixed','l
  for(const mode of MODES)for(const width of [1440,390,320])for(const theme of ['dark','light']){
   await p.setViewportSize({width,height:1000});await p.goto(base+'/'+mode);await setTheme(p,theme);
   assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  for(const cell of await p.locator('.pc-meta th,.pc-meta td').all()){
+   assert.equal(await cell.evaluate(e=>getComputedStyle(e).whiteSpace),'normal');
+   assert.ok(await cell.evaluate(e=>{const r=document.createRange();r.selectNodeContents(e);return r.getBoundingClientRect().right<=e.getBoundingClientRect().right+1}));
+  }
   const comparable=['ready','coincident','mixed','limited','conflict'].includes(mode);
   assert.equal(await p.locator('.pc-overlap').count(),comparable?1:0);
   if(comparable){
