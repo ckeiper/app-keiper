@@ -1453,9 +1453,37 @@
       "frentes": [
         "estoque-ruptura"
       ],
-      "etapa": "em_desenvolvimento",
-      "atualizado_em": "2026-11-07T12:38:10.243357-03:00",
-      "lacuna": "Cobertura aritmética, sem previsão de demanda, saldo passado ou data de ruptura."
+      "etapa": "publicada",
+      "atualizado_em": "2026-11-07T12:54:19.691-03:00",
+      "lacuna": "Cobertura aritmética, sem previsão de demanda, saldo passado ou data de ruptura.",
+      "pr": 397,
+      "head_sha": "4bfe79ea83691982c0029c865de78145d498336a",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42387412688,
+          "resultado": "success",
+          "head_sha": "4bfe79ea83691982c0029c865de78145d498336a"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42387412687,
+          "resultado": "success",
+          "head_sha": "4bfe79ea83691982c0029c865de78145d498336a"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42387412743,
+          "resultado": "success",
+          "head_sha": "4bfe79ea83691982c0029c865de78145d498336a"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbnkgee8bjmc73abh8d0",
+        "commit": "3a6c9df439abc2196893369e1b756374d83deb2c",
+        "status": "live",
+        "horario_brasilia": "2026-11-07T12:53:56.212-03:00"
+      }
     }
   ]
 }
