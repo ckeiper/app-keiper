@@ -87,7 +87,8 @@ def render(data,before=None):
             out+='<p>'+label+' · coincidências verificadas: <strong>'+str(model['total'])+'</strong> · calendários comparados: '+str(model['counts']['checked'])+'.</p>'
     if not valid:return out+'</section>'
     c=valid[-1][1]['counts']
-    out+='<p>Somente registros da consulta selecionada com participação ativa observada, tipo suportado e datas com fuso. Os intervalos abaixo foram recortados à janela comparada.</p>'
+    out+='<p>Outras ofertas da mesma consulta, com as datas recortadas às janelas comparadas.</p>'
+    if c['unknown']:out+='<p role="status">Há '+str(c['unknown'])+' registro(s) com identidade ou datas não verificáveis.</p>'
     def stamp(v):
         value=v.astimezone(SAO_PAULO)
         return value.strftime('%d/%m/%Y %H:%M:%S')+('.'+str(value.microsecond).zfill(6) if value.microsecond else '')
@@ -100,8 +101,8 @@ def render(data,before=None):
     else:out+='<p>Nenhuma coincidência verificável nesta consulta. Isso não comprova ausência de outras promoções no período.</p>'
     for label,model in valid:
         if model['limited']:out+='<p role="status">'+label+' · exibidas as primeiras 20 interseções de '+str(model['total'])+'.</p>'
-    out+='<details><summary>Escopo e registros fora da comparação</summary><p>Sem confirmação de status ativo: '+str(c['not_active'])+' · por variação: '+str(c['variation'])+' · tipo sem regra validada: '+str(c['unsupported'])+' · identidade ou datas insuficientes/conflitantes: '+str(c['unknown'])+'.</p><p>Repetições idênticas agrupadas: '+str(valid[-1][1]['duplicates'])+'. Registros ambíguos não viram ausência de coincidências. Ofertas por variação e tipos condicionais ficam fora desta comparação.</p></details><p>Calendários coincidentes não comprovam aplicação conjunta, participação contínua nem quais vendas receberam cada promoção. Preços e descontos não são somados e os resultados não são atribuídos a uma oferta isolada.</p></section>'
+    out+='<details><summary>Escopo e registros fora da comparação</summary><p>Sem confirmação de status ativo: '+str(c['not_active'])+' · por variação: '+str(c['variation'])+' · tipo sem regra validada: '+str(c['unsupported'])+' · identidade ou datas insuficientes/conflitantes: '+str(c['unknown'])+'.</p><p>Repetições idênticas agrupadas: '+str(valid[-1][1]['duplicates'])+'. Registros ambíguos não viram ausência de coincidências. Ofertas por variação e tipos condicionais ficam fora desta comparação.</p><p>Calendários coincidentes não comprovam aplicação conjunta, participação contínua nem quais vendas receberam cada promoção. Preços e descontos não são somados e os resultados não são atribuídos a uma oferta isolada.</p></details><p>Leitura pontual; não confirma aplicação conjunta de descontos.</p></section>'
     return out
 
 
-STYLE='''<style>.pc-overlap{min-width:0;overflow-wrap:anywhere}.pc-overlap table{min-width:700px}.pc-overlap caption{text-align:left;font-size:12px;padding:10px 0}.pc-overlap .pc-scroll:focus-visible{outline:3px solid #55aef0;outline-offset:3px}.pc-overlap details{margin:16px 0}.pc-overlap summary{cursor:pointer;font-weight:700}html:not([data-theme=light]) body .pc-overlap :is(h3,strong){color:#eaf2ff!important}@layer keiper-appearance{html[data-theme=light] body .pc-overlap{background:#fff!important;color:#172d47!important}}.pc-overlap small{display:block}</style>'''
+STYLE='''<style>.pc-overlap{min-width:0;overflow-wrap:anywhere}.pc-overlap table{min-width:700px}.pc-overlap caption{text-align:left;font-size:12px;padding:10px 0}.pc-overlap .pc-scroll:focus-visible{outline:3px solid #55aef0;outline-offset:3px}.pc-overlap details{margin:16px 0}.pc-overlap summary{cursor:pointer;font-weight:700}html:not([data-theme=light]) body .pc-overlap tbody tr:hover :is(td,th){background:#1b344e!important}html:not([data-theme=light]) body .pc-overlap :is(h3,strong){color:#eaf2ff!important}@layer keiper-appearance{html[data-theme=light] body .pc-overlap{background:#fff!important;color:#172d47!important}}.pc-overlap small{display:block}</style>'''

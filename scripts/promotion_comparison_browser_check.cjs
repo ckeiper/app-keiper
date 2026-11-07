@@ -18,6 +18,7 @@ const MODES=['ready','empty','unknown','naive','removed','coincident','mixed','l
    assert.equal(await p.locator('.pc-overlap h3').evaluate(e=>getComputedStyle(e).color),theme==='dark'?'rgb(234, 242, 255)':'rgb(23, 45, 71)');
    if(['coincident','mixed'].includes(mode)){
     assert.equal(await p.locator('.pc-overlap tbody tr').count(),4);
+    if(theme==='dark'){await p.locator('.pc-overlap tbody tr').first().hover();assert.equal(await p.locator('.pc-overlap tbody td').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(27, 52, 78)');}
     assert.ok((await p.locator('.pc-overlap').textContent()).includes('Antes · coincidências verificadas: 2'));
     assert.ok((await p.locator('.pc-overlap').textContent()).includes('Dentro do calendário · coincidências verificadas: 2'));
     if(width<650){const wrap=p.locator('.pc-overlap .pc-scroll');assert.ok(await wrap.evaluate(e=>e.scrollWidth>e.clientWidth));await wrap.focus();assert.ok(await wrap.evaluate(e=>document.activeElement===e));}
