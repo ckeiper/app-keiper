@@ -539,7 +539,7 @@
       "area": "Rentabilidade",
       "capacidade": "Promoções: comparação de resultados e rentabilidade",
       "estado": "parcial",
-      "implementado": "Histórico de participação e antes/depois de ações de preço/promoção, inclusive contribuição com custos documentados. Preservação incremental das consultas de promoções por item, incluindo falhas, status, datas e condições selecionadas. Painel histórico com comparação descritiva de janelas equivalentes de 7/30 dias a partir de calendário com fuso explícito, sem usar a detecção como início. Exclui dias parciais/futuros, candidatos/removidos, variações e tipos condicionais sem regra validada. Contribuição depende de custos documentados das datas exatas e fingerprint de vendas válido. Identifica calendários de outras ofertas na mesma consulta que coincidem com as janelas antes e dentro do calendário selecionado. Usa limites exclusivos, fuso explícito, identidades verificáveis e status ativo observado, sem somar descontos nem atribuir vendas. Separa dados insuficientes, variações e tipos sem regra; agrupa repetições idênticas e sinaliza identidades conflitantes. Exibe até vinte interseções por janela com total e limite explícitos, sem novas consultas ou escrita.",
+      "implementado": "Histórico de participação e antes/depois de ações de preço/promoção, inclusive contribuição com custos documentados. Preservação incremental das consultas de promoções por item, incluindo falhas, status, datas e condições selecionadas. Painel histórico com comparação descritiva de janelas equivalentes de 7/30 dias a partir de calendário com fuso explícito, sem usar a detecção como início. Exclui dias parciais/futuros, candidatos/removidos, variações e tipos condicionais sem regra validada. Contribuição depende de custos documentados das datas exatas e fingerprint de vendas válido. Identifica calendários de outras ofertas na mesma consulta que coincidem com as janelas antes e dentro do calendário selecionado. Usa limites exclusivos, fuso explícito, identidades verificáveis e status ativo observado, sem somar descontos nem atribuir vendas. Separa dados insuficientes, variações e tipos sem regra; agrupa repetições idênticas e sinaliza identidades conflitantes. Exibe até vinte interseções por janela com total e limite explícitos, sem novas consultas ou escrita. Metadados da consulta com quebra de texto nas células para impedir sobreposição no celular; tabela de calendários com contraste preservado no hover e limites em bloco expansível.",
       "falta": "Calendário e leituras isoladas não comprovam participação contínua e condições constantes durante toda a janela. Persistem a lacuna de comprovação integral da vigência efetiva e a coleta automática completa dos custos; sem reconstrução retroativa. Coincidências são apenas interseções dos calendários retornados em uma consulta; não certificam aplicação conjunta ou ausência de outras ofertas. Uso autenticado dessa visualização com uma leitura real não exercitado nesta entrega.",
       "fontes": [
         "promo_history.py",
@@ -563,7 +563,8 @@
         205,
         249,
         266,
-        312
+        312,
+        393
       ],
       "numero_original": null,
       "prioridade": 4,
@@ -2102,6 +2103,20 @@
       "prs": [
         391
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-06",
+      "resumo": "Calendários coincidentes de outras ofertas nas janelas antes e dentro da comparação, com incertezas, limites e layout móvel conferidos.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        393
+      ]
     }
   ],
   "publicacoes": [
@@ -2304,6 +2319,13 @@
       "commit": "fd08e0573cb80873f3eec0edc3763a45f72c485a",
       "status": "live",
       "horario_brasilia": "2026-11-06T17:31:12.335-03:00"
+    },
+    {
+      "pr": 393,
+      "deploy_id": "dep-dbn74qi9lscs73boujgg",
+      "commit": "9de48f316e7723847ca37ed3759a8384a7dbfddf",
+      "status": "live",
+      "horario_brasilia": "2026-11-06T21:41:42.122-03:00"
     }
   ]
 }
