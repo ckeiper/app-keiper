@@ -36,15 +36,33 @@ def cells(listings, ranking, ids, days, now=None):
 
 
 def render(listings, ranking, ids, names, days, now=None):
-    values = cells(listings, ranking, ids, days, now=now)
+    selected = [row for row in listings if str(row['item_id']) in ids]
+    now = datetime.now(timezone.utc).timestamp() if now is None else now
+    current = cells(selected, ranking, ids, days, now=now)
+    previous_ranking = {
+        'available': ranking.get('available'),
+        'rows': {
+            item: {'units': row.get('previous_units')}
+            for item, row in (ranking.get('rows') or {}).items()
+            if item in ids
+        },
+    }
+    previous = cells(selected, previous_ranking, ids, days, now=now)
     esc = lambda value: escape(str(value), quote=True)
-    out = '<details class="lc-daily lc-stock"><summary>Comparar estoque e cobertura observada</summary><p>Estoque do último registro válido com até seis horas, comparado às unidades vendidas no período atual acima. O estoque é uma leitura atual, não o estoque histórico dos dois períodos.</p><div class="lc-scroll lc-stock-scroll" tabindex="0" role="region" aria-label="Estoque e cobertura observada dos anúncios"><table><thead><tr><th scope="col">Disponibilidade atual</th>'
+    out = '<details class="lc-daily lc-stock"><summary>Comparar estoque e cobertura observada</summary><p>A mesma leitura de estoque, com até seis horas, é usada com o ritmo de vendas de cada período acima. O estoque é uma leitura atual, não o estoque histórico dos dois períodos.</p><div class="lc-scroll lc-stock-scroll" tabindex="0" role="region" aria-label="Estoque e cobertura observada dos anúncios"><table><thead><tr><th scope="col">Disponibilidade atual</th>'
     for item in ids:
         out += '<th scope="col">' + esc(names.get(item, item)) + '<small>' + esc(item) + '</small></th>'
     out += '</tr></thead><tbody>'
-    for index, label in enumerate(['Estoque registrado', 'Leitura do catálogo', 'Base de vendas observada', 'Estoque ÷ média diária de unidades']):
+    for label, values, index in [
+        ('Estoque registrado', current, 0),
+        ('Leitura do catálogo', current, 1),
+        ('Vendas do período anterior', previous, 2),
+        ('Cobertura no ritmo anterior', previous, 3),
+        ('Vendas do período atual', current, 2),
+        ('Cobertura no ritmo atual', current, 3),
+    ]:
         out += '<tr><th scope="row">' + label + '</th>'
         for item in ids:
             out += '<td>' + esc(values[item][index]) + '</td>'
         out += '</tr>'
-    return out + '</tbody></table></div><p>Cobertura descritiva, sem previsão de demanda ou data garantida de ruptura. Estoque zero confirmado é zero; dado ausente, antigo, futuro ou inválido fica indisponível. Sem vendas positivas verificadas, não há divisão nem cobertura infinita. Quantidade do anúncio não comprova saldo específico do Full ou disponibilidade de cada variação.</p></details>'
+    return out + '</tbody></table></div><p>Cobertura = estoque atual ÷ média diária de unidades vendidas em cada período. Cobertura descritiva, sem previsão de demanda ou data garantida de ruptura. Estoque zero confirmado é zero; dado ausente, antigo, futuro ou inválido fica indisponível. Sem vendas positivas verificadas, não há divisão nem cobertura infinita. Quantidade do anúncio não comprova saldo específico do Full ou disponibilidade de cada variação.</p></details>'
