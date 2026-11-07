@@ -12,6 +12,8 @@ def cents(value):
         raise ValueError("Valor monetário inválido")
     if not amount.is_finite() or amount < 0:
         raise ValueError("Valor monetário deve ser positivo ou zero")
+    if amount > Decimal('1000000000000'):
+        raise ValueError('Valor monetário excede o limite permitido')
     return int((amount * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
@@ -26,9 +28,11 @@ def init_finance_schema(conn, execute):
         nome TEXT NOT NULL,
         telefone TEXT,
         email TEXT,
+        importado BOOLEAN NOT NULL DEFAULT FALSE,
         ativo BOOLEAN NOT NULL DEFAULT TRUE,
         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )""")
+    execute(conn, 'ALTER TABLE financeiro_clientes ADD COLUMN IF NOT EXISTS importado BOOLEAN NOT NULL DEFAULT FALSE')
     execute(conn, """CREATE TABLE IF NOT EXISTS financeiro_vinculos (
         conexao_id INTEGER PRIMARY KEY REFERENCES conexoes(id) ON DELETE CASCADE,
         cliente_id INTEGER NOT NULL REFERENCES financeiro_clientes(id) ON DELETE CASCADE
@@ -51,7 +55,7 @@ def init_finance_schema(conn, execute):
         valor_centavos BIGINT NOT NULL CHECK (valor_centavos >= 0),
         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE (contrato_id, competencia),
-        CHECK (EXTRACT(DAY FROM vencimento) = 5)
+        CHECK (EXTRACT(DAY FROM competencia) = 1 AND vencimento = competencia + 4)
     )""")
     execute(conn, """CREATE TABLE IF NOT EXISTS financeiro_pagamentos (
         id SERIAL PRIMARY KEY,
@@ -60,8 +64,13 @@ def init_finance_schema(conn, execute):
         data_pagamento DATE NOT NULL,
         meio TEXT NOT NULL CHECK (meio IN ('pix', 'transferencia')),
         observacao TEXT,
+        chave TEXT,
+        registrado_por INTEGER,
         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )""")
+    execute(conn, 'ALTER TABLE financeiro_pagamentos ADD COLUMN IF NOT EXISTS chave TEXT')
+    execute(conn, 'ALTER TABLE financeiro_pagamentos ADD COLUMN IF NOT EXISTS registrado_por INTEGER')
+    execute(conn, 'CREATE UNIQUE INDEX IF NOT EXISTS idx_financeiro_pagamentos_chave ON financeiro_pagamentos(chave)')
     execute(conn, """CREATE INDEX IF NOT EXISTS idx_financeiro_mensalidades_vencimento
         ON financeiro_mensalidades(vencimento)""")
     execute(conn, """CREATE INDEX IF NOT EXISTS idx_financeiro_pagamentos_mensalidade
