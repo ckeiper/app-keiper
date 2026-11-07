@@ -1446,6 +1446,16 @@
         "status": "live",
         "horario_brasilia": "2026-11-07T07:30:07.510-03:00"
       }
+    },
+    {
+      "id": "estoque-cobertura-dois-periodos",
+      "escopo": "Comparar cobertura do saldo atual pelo ritmo observado em cada período de vendas.",
+      "frentes": [
+        "estoque-ruptura"
+      ],
+      "etapa": "em_desenvolvimento",
+      "atualizado_em": "2026-11-07T12:38:10.243357-03:00",
+      "lacuna": "Cobertura aritmética, sem previsão de demanda, saldo passado ou data de ruptura."
     }
   ]
 }

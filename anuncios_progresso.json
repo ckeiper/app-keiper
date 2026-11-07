@@ -264,15 +264,16 @@
       "area": "Estoque",
       "capacidade": "Previsão de ruptura",
       "estado": "parcial",
-      "implementado": "Cobertura aritmética pelo estoque recente e unidades vendidas verificadas.",
-      "falta": "Ainda não é previsão validada de demanda ou data de ruptura; falta modelo e validação histórica apropriados.",
+      "implementado": "Cobertura aritmética pelo estoque recente e unidades vendidas verificadas. No comparador, a mesma leitura de estoque é dividida separadamente pelo ritmo de vendas de cada um dos dois períodos encerrados de 7 ou 30 dias. Cada cenário fica indisponível quando sua base não é verificável ou não há vendas positivas.",
+      "falta": "Ainda não é previsão validada de demanda ou data de ruptura; falta modelo e validação histórica apropriados. As duas referências usam o saldo atual e não reconstituem o estoque passado.",
       "fontes": [
         "listing_priority_sources.py",
         "listing_comparison_stock.py"
       ],
       "testes": [
         "test_stock_priority_details.py",
-        "test_comparison_stock.py"
+        "test_comparison_stock.py",
+        "scripts/catalog_browser_check.cjs"
       ],
       "prs": [
         257,
@@ -280,7 +281,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-11-07"
     },
     {
       "id": "estoque-variacoes",
