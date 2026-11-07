@@ -65,6 +65,9 @@ def render(cid,item,title,readings,total,page,pages,selected,offer_index,result,
         if result and not result['available']:out+='<section class="card"><div class="aviso">'+esc(result['reason'])+'</div></section>'
         elif result:
             old,current=result['periods']
+            from promotion_overlap import analyze as analyze_overlap,render as render_overlap
+            overlap_html=render_overlap(analyze_overlap(selected['promotions'],offer_index,current['start'],current['end']),
+                before=analyze_overlap(selected['promotions'],offer_index,old['start'],old['end'],phase='before'))
             out+='<section class="card"><h3>Comparação descritiva por calendário informado</h3><p>Antes: '+old['start'].strftime('%d/%m/%Y')+' a '+old['end'].strftime('%d/%m/%Y')+' · Dentro do calendário: '+current['start'].strftime('%d/%m/%Y')+' a '+current['end'].strftime('%d/%m/%Y')+'. Dias parciais, de hoje e futuros ficam de fora.</p><div class="aviso">São todas as vendas verificadas deste anúncio nas janelas, não vendas atribuídas exclusivamente à promoção. O calendário não comprova participação contínua, condições constantes ou efeito causal. Outras ofertas podem coexistir.</div><div class="pc-scroll"><table><thead><tr><th>Indicador</th><th>Antes</th><th>Dentro do calendário</th></tr></thead><tbody>'
             for key,label,money in [('orders','Pedidos pagos',False),('units','Unidades',False),('gross_items','Bruto dos itens',True),('ticket','Ticket por pedido',True)]:
                 def value(period):
@@ -73,7 +76,7 @@ def render(cid,item,title,readings,total,page,pages,selected,offer_index,result,
             out+='<tr><th>Visitas verificadas</th><td>'+str(old['visits'] if old['visits'] is not None else 'Indisponível')+'</td><td>'+str(current['visits'] if current['visits'] is not None else 'Indisponível')+'</td></tr></tbody></table></div>'
             for period in result['periods']:
                 if period['sales'].get('reason'):out+='<p class="muted">'+esc(period['sales']['reason'])+'</p>'
-            out+='</section>'+finance_section(result['finance'],cid,item,result['periods'])
+            out+='</section>'+overlap_html+finance_section(result['finance'],cid,item,result['periods'])
     return out
 
 
@@ -133,4 +136,4 @@ def register(app,login_required,can_view,bank,query,execute,page):
         body=render(cid,item_id,shops[0]['titulo'],readings,total,pg,pages,selected,offer_index,result,days,today)
         response=make_response(page('Resultados de promoções',cid,shops[0]['cliente'],'anuncios',body));response.headers['Cache-Control']='private, no-store';return response
 
-STYLE='''<style>.action-finance{background:#11243a;color:#eaf2ff;border:1px solid #2d4864;border-radius:15px;padding:20px;margin:16px 0;min-width:0}.action-finance .iv-scroll{overflow-x:auto}.action-finance table{width:100%;min-width:600px}.action-finance th,.action-finance td{padding:12px;text-align:left}.action-finance p{line-height:1.65}.pc-fields{display:flex;flex-wrap:wrap;gap:14px;align-items:end}.pc-fields label{display:grid;gap:6px;flex:1;min-width:150px}.pc-fields select{max-width:100%;min-width:0;padding:10px}.pc-fields button{padding:12px 16px;border:0;border-radius:9px;background:#2476c7;color:#fff;min-height:44px}.pc-scroll{overflow-x:auto}.pc-scroll table.pc-meta{min-width:0;table-layout:fixed}.pc-meta th{width:45%}.pc-meta td{word-break:break-word}.pc-cost-link{display:inline-block;padding:10px 12px;border:1px solid #416481;border-radius:9px;text-decoration:none}.pc-scroll table{width:100%;min-width:600px;border-collapse:collapse}.pc-scroll th,.pc-scroll td{padding:12px;text-align:left;border-bottom:1px solid #34516e;font-size:12px;overflow-wrap:anywhere}</style>'''
+STYLE='''<style>.action-finance{background:#11243a;color:#eaf2ff;border:1px solid #2d4864;border-radius:15px;padding:20px;margin:16px 0;min-width:0}.action-finance .iv-scroll{overflow-x:auto}.action-finance table{width:100%;min-width:600px}.action-finance th,.action-finance td{padding:12px;text-align:left}.action-finance p{line-height:1.65}.pc-fields{display:flex;flex-wrap:wrap;gap:14px;align-items:end}.pc-fields label{display:grid;gap:6px;flex:1;min-width:150px}.pc-fields select{max-width:100%;min-width:0;padding:10px}.pc-fields button{padding:12px 16px;border:0;border-radius:9px;background:#2476c7;color:#fff;min-height:44px}.pc-scroll{overflow-x:auto}.pc-scroll table.pc-meta{min-width:0;table-layout:fixed}.pc-meta th{width:45%}.pc-scroll .pc-meta :is(th,td){white-space:normal;overflow-wrap:anywhere}.pc-meta td{word-break:break-word}.pc-cost-link{display:inline-block;padding:10px 12px;border:1px solid #416481;border-radius:9px;text-decoration:none}.pc-scroll table{width:100%;min-width:600px;border-collapse:collapse}.pc-scroll th,.pc-scroll td{padding:12px;text-align:left;border-bottom:1px solid #34516e;font-size:12px;overflow-wrap:anywhere}</style>'''

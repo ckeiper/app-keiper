@@ -1370,6 +1370,18 @@
           "head_sha": "4eeb8270025d4b324954b7f83f26b87b60d75d12"
         }
       ]
+    },
+    {
+      "id": "promocoes-calendarios-coincidentes",
+      "escopo": "Interseções dos calendários de outras ofertas da mesma consulta nas janelas antes e dentro, com cobertura e identidade explícitas.",
+      "frentes": [
+        "promocoes-resultados"
+      ],
+      "etapa": "em_desenvolvimento",
+      "pr": null,
+      "head_sha": null,
+      "atualizado_em": "2026-11-06T21:08:35.223836-03:00",
+      "lacuna": "Leitura pontual e tipos suportados, sem prova de participação contínua, aplicação conjunta ou atribuição de vendas. Lista limitada a vinte interseções por janela, com total. Uso real autenticado não exercitado."
     }
   ]
 }

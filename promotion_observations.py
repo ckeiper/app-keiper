@@ -4,6 +4,8 @@ import json
 from datetime import datetime,time,timedelta
 from sales_metrics import SAO_PAULO
 
+CALENDAR_TYPES=('PRICE_DISCOUNT','SELLER_CAMPAIGN','DEAL','MARKETPLACE_CAMPAIGN','DOD','LIGHTNING','SMART','PRICE_MATCHING','PRE_NEGOTIATED','UNHEALTHY_STOCK')
+
 
 def init_schema(conn,execute):
     execute(conn,'SELECT pg_advisory_xact_lock(186144281)')
@@ -66,7 +68,7 @@ def timestamp(raw):
 
 def periods(promotion,today,days=7):
     if type(days) is not int or days not in (7,30):return dict(available=False,reason='Selecione 7 ou 30 dias.')
-    if promotion.get('type') not in ('PRICE_DISCOUNT','SELLER_CAMPAIGN','DEAL','MARKETPLACE_CAMPAIGN','DOD','LIGHTNING','SMART','PRICE_MATCHING','PRE_NEGOTIATED','UNHEALTHY_STOCK'):
+    if promotion.get('type') not in CALENDAR_TYPES:
         return dict(available=False,reason='Tipo de oferta sem regra de comparação por calendário validada; condições por quantidade, cupom ou pagamento não serão presumidas.')
     if promotion.get('variation_id') is not None:return dict(available=False,reason='Oferta por variação: não há vínculo de vendas por variação validado nesta comparação.')
     if promotion.get('status') not in ('active','started'):return dict(available=False,reason='A consulta selecionada não registrou participação ativa do item. Finished pode indicar remoção; candidato ou agendado não comprova participação.')

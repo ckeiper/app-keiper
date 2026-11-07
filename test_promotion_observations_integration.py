@@ -25,7 +25,7 @@ class PromotionReadingDatabaseTests(unittest.TestCase):
             for name in ['Promo A','SEGREDO OUTRA LOJA']:
                 cid=m.consultar(conn,"INSERT INTO conexoes(cliente,status) VALUES(%s,'ativa') RETURNING id",(name,))[0]['id'];ids.append(cid)
                 m.executar(conn,"INSERT INTO anuncios(conexao_id,item_id,titulo,status) VALUES(%s,'MLB123',%s,'active')",(cid,name))
-                snap=dict(checked_at=now,promotions=[p],error=None)
+                snap=dict(checked_at=now,promotions=[p,dict(p,id='OWN_OVERLAP' if cid==ids[0] else 'FOREIGN_OVERLAP')],error=None)
                 record(conn,m.executar,cid,'MLB123',snap);record(conn,m.executar,cid,'MLB123',snap);record(conn,m.executar,cid,'MLB123',dict(snap,checked_at=now+1))
             # Complete empty sales/visit history yields true zero, never guessed costs.
             for n in range(7,22):
@@ -38,7 +38,7 @@ class PromotionReadingDatabaseTests(unittest.TestCase):
         url=f'/anuncios/{ids[0]}/MLB123/promocoes-resultados'
         with patch.object(m.requests,'get',side_effect=AssertionError('network during report')):
             response=c.get(url+'?consulta='+str(reading));self.assertEqual(response.status_code,200)
-        text=response.get_data(as_text=True);self.assertIn('Comparação descritiva por calendário informado',text);self.assertIn('R$ 0,00',text);self.assertNotIn('SEGREDO OUTRA LOJA',text);self.assertIn('custos documentados',text)
+        text=response.get_data(as_text=True);self.assertIn('Comparação descritiva por calendário informado',text);self.assertIn('R$ 0,00',text);self.assertNotIn('SEGREDO OUTRA LOJA',text);self.assertIn('custos documentados',text);self.assertIn('OWN_OVERLAP',text);self.assertNotIn('FOREIGN_OVERLAP',text)
         self.assertEqual(c.get(url+'?consulta='+str(foreign)).status_code,404)
         with m.banco() as conn:
             record(conn,m.executar,ids[0],'MLB123',dict(checked_at=now,attempted_at=now+1,error='HTTP 403 private',promotions=[p]))

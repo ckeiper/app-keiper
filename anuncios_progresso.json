@@ -539,14 +539,16 @@
       "area": "Rentabilidade",
       "capacidade": "Promoções: comparação de resultados e rentabilidade",
       "estado": "parcial",
-      "implementado": "Histórico de participação e antes/depois de ações de preço/promoção, inclusive contribuição com custos documentados. Preservação incremental das consultas de promoções por item, incluindo falhas, status, datas e condições selecionadas. Painel histórico com comparação descritiva de janelas equivalentes de 7/30 dias a partir de calendário com fuso explícito, sem usar a detecção como início. Exclui dias parciais/futuros, candidatos/removidos, variações e tipos condicionais sem regra validada. Contribuição depende de custos documentados das datas exatas e fingerprint de vendas válido.",
-      "falta": "Calendário e leituras isoladas não comprovam participação contínua e condições constantes durante toda a janela. Persistem a lacuna de comprovação integral da vigência efetiva e a coleta automática completa dos custos; sem reconstrução retroativa.",
+      "implementado": "Histórico de participação e antes/depois de ações de preço/promoção, inclusive contribuição com custos documentados. Preservação incremental das consultas de promoções por item, incluindo falhas, status, datas e condições selecionadas. Painel histórico com comparação descritiva de janelas equivalentes de 7/30 dias a partir de calendário com fuso explícito, sem usar a detecção como início. Exclui dias parciais/futuros, candidatos/removidos, variações e tipos condicionais sem regra validada. Contribuição depende de custos documentados das datas exatas e fingerprint de vendas válido. Identifica calendários de outras ofertas na mesma consulta que coincidem com as janelas antes e dentro do calendário selecionado. Usa limites exclusivos, fuso explícito, identidades verificáveis e status ativo observado, sem somar descontos nem atribuir vendas. Separa dados insuficientes, variações e tipos sem regra; agrupa repetições idênticas e sinaliza identidades conflitantes. Exibe até vinte interseções por janela com total e limite explícitos, sem novas consultas ou escrita.",
+      "falta": "Calendário e leituras isoladas não comprovam participação contínua e condições constantes durante toda a janela. Persistem a lacuna de comprovação integral da vigência efetiva e a coleta automática completa dos custos; sem reconstrução retroativa. Coincidências são apenas interseções dos calendários retornados em uma consulta; não certificam aplicação conjunta ou ausência de outras ofertas. Uso autenticado dessa visualização com uma leitura real não exercitado nesta entrega.",
       "fontes": [
         "promo_history.py",
         "profitability_action.py",
         "promotion_observations.py",
         "promotion_comparison.py",
-        "docs/PROMOCOES_CALENDARIO.md"
+        "docs/PROMOCOES_CALENDARIO.md",
+        "promotion_overlap.py",
+        "docs/promotion-calendar-overlap.md"
       ],
       "testes": [
         "test_promo_history.py",
@@ -554,7 +556,8 @@
         "test_action_finance_volume.py",
         "test_promotion_observations.py",
         "test_promotion_observations_integration.py",
-        "scripts/promotion_comparison_browser_check.cjs"
+        "scripts/promotion_comparison_browser_check.cjs",
+        "test_promotion_overlap.py"
       ],
       "prs": [
         205,
@@ -564,7 +567,7 @@
       ],
       "numero_original": null,
       "prioridade": 4,
-      "atualizado_em": "2026-10-29"
+      "atualizado_em": "2026-11-06"
     },
     {
       "id": "tendencia",
