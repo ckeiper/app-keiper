@@ -1415,9 +1415,37 @@
       "frentes": [
         "perguntas-avaliacoes"
       ],
-      "etapa": "em_desenvolvimento",
-      "atualizado_em": "2026-11-07T07:19:00.271896-03:00",
-      "lacuna": "Grupos literais na amostra de 1.000 registros, sem análise semântica."
+      "etapa": "publicada",
+      "atualizado_em": "2026-11-07T07:30:56.437-03:00",
+      "lacuna": "Grupos literais na amostra de 1.000 registros, sem análise semântica.",
+      "pr": 395,
+      "head_sha": "cfbd70faa55cb40af8e658759e2a615de6bbcc69",
+      "checks": [
+        {
+          "nome": "Management browser checks",
+          "run_id": 42363458229,
+          "resultado": "success",
+          "head_sha": "cfbd70faa55cb40af8e658759e2a615de6bbcc69"
+        },
+        {
+          "nome": "Sales tests",
+          "run_id": 42363458168,
+          "resultado": "success",
+          "head_sha": "cfbd70faa55cb40af8e658759e2a615de6bbcc69"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42363458235,
+          "resultado": "success",
+          "head_sha": "cfbd70faa55cb40af8e658759e2a615de6bbcc69"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbnfq2favr4c73adlqq0",
+        "commit": "97ba10125825554dc59bd2e26bbabc46bdfa7904",
+        "status": "live",
+        "horario_brasilia": "2026-11-07T07:30:07.510-03:00"
+      }
     }
   ]
 }
