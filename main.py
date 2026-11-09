@@ -702,6 +702,8 @@ def iniciar_banco():
         init_goal_observations(conn, execute)
         from listing_onboarding import init_schema as init_listing_onboarding
         init_listing_onboarding(conn, execute)
+        from listing_search_position import init_schema as init_listing_search_position
+        init_listing_search_position(conn, execute)
         from listing_content import init_schema as init_listing_content
         init_listing_content(conn, execute)
         from automatic_history import init_schema as init_automatic_history
@@ -4060,6 +4062,7 @@ def diagnostico_saude_anuncio(cid, item_id):
     if session.get('tipo') == 'admin':
         from urllib.parse import quote
         cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/tarefas'>Planejar tarefas do anúncio</a></p>"
+        cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/posicao-busca'>Posição na busca</a></p>"
     cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/kits'>Analisar composição de kit</a></p>" if session.get('tipo')=='admin' else ''
     cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/promocoes-resultados'>Comparar períodos de promoção</a></p>" if session.get('tipo')=='admin' else ''
     corpo = cabecalho
@@ -5726,6 +5729,8 @@ from listing_questions import register_questions
 register_questions(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_weekly_pattern import register as register_weekly_pattern
 register_weekly_pattern(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
+from listing_search_position import register as register_search_position
+register_search_position(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from profitability_routes import register_profitability
 register_profitability(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from promotion_comparison import register as register_promotion_comparison

@@ -1220,6 +1220,26 @@
       "numero_original": 90,
       "prioridade": 100,
       "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "posicao-busca",
+      "area": "Visibilidade",
+      "capacidade": "Posição do anúncio na busca por palavra-chave",
+      "estado": "parcial",
+      "implementado": "Registro assistido pelo diagnóstico: abre a busca pública, salva página, posição observada, tipo, CEP e filtros, ou ausência limitada às páginas conferidas. Histórico por loja e anúncio, com busca por termo, horário de Brasília e autoria.",
+      "falta": "Coleta automática, validação independente da posição e agendamento não implementados. A leitura direta da busca pública retornou verificação de conta no teste de 07/11/2026.",
+      "fontes": [
+        "listing_search_position.py",
+        "main.py"
+      ],
+      "testes": [
+        "test_listing_search_position.py",
+        "test_listing_search_position_integration.py"
+      ],
+      "prs": [],
+      "numero_original": null,
+      "prioridade": 10,
+      "atualizado_em": "2026-11-07"
     }
   ],
   "meta_original": 90,
@@ -2117,6 +2137,18 @@
       "prs": [
         393
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-07",
+      "resumo": "Acompanhamento manual de posição na busca: registros por anúncio, palavra-chave, tipo de resultado e contexto. Coleta automática permanece pendente.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 18,
+        "pendente": 1
+      },
+      "total": 45,
+      "prs": []
     }
   ],
   "publicacoes": [
