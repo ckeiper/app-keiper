@@ -515,7 +515,7 @@ def pagina(titulo, corpo):
     sidebar = ""
     if use_sidebar:
         from home_sidebar import render_home_sidebar
-        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin", active="progress" if is_progress else ("home" if is_home else ("diagnostic" if titulo == "Diagnóstico" else "")))
+        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin", active="financeiro" if titulo == "Financeiro" else "progress" if is_progress else ("home" if is_home else ("diagnostic" if titulo == "Diagnóstico" else "")))
     return cab + sidebar + topo + marca + links + fim
 
 
@@ -818,6 +818,8 @@ def iniciar_banco():
         from kyra_reviews import init_schema as init_kyra_reviews
         init_kyra_reviews(conn, execute)
         init_crm_schema(conn, execute)
+        from financeiro_store import init_finance_schema
+        init_finance_schema(conn, execute)
         execute(conn, """CREATE TABLE IF NOT EXISTS cliente_onboarding_financeiro (
             usuario_id INTEGER PRIMARY KEY,
             conexao_id INTEGER NOT NULL,
@@ -5692,6 +5694,8 @@ def job_dados():
 
 
 register_crm(app, banco, consultar, executar, pagina)
+from financeiro_routes import register_financeiro
+register_financeiro(app, banco, consultar, pagina)
 register_mfa(app, banco, consultar, executar, pagina, auth_attempt_allowed)
 register_full(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja, session)
 register_competitors(app, login_required, pode_ver_loja, banco, consultar, executar, pagina, pagina_loja)
@@ -6067,7 +6071,21 @@ def job_goal_notifications():
         app.logger.warning('goal_notifications_unavailable')
 
 
+def job_financeiro():
+    from contextlib import closing
+    from financeiro_service import sync_finance
+    try:
+        with closing(banco()) as conn, conn:
+            imported = sync_finance(conn)
+        app.logger.info('financeiro_sync_ok imported=%s', imported)
+    except Exception:
+        app.logger.exception('financeiro_sync_failed')
+
+
 scheduler = BackgroundScheduler()
+scheduler.add_job(job_financeiro, 'interval', minutes=60,
+                  next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=45),
+                  id='financeiro_monthly', max_instances=1, coalesce=True)
 scheduler.add_job(job_goal_notifications, 'interval', minutes=1,
                   id='goal_notifications', max_instances=1, coalesce=True)
 scheduler.add_job(job_kyra_campaigns, 'interval', minutes=1,

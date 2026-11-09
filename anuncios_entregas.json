@@ -1408,6 +1408,82 @@
           "head_sha": "470b06e7260fac3ca52b7374ac1076008595349f"
         }
       ]
+    },
+    {
+      "id": "perguntas-detalhe-recorrencias",
+      "escopo": "Detalhar ocorrências e fila confirmada por grupo literal de perguntas.",
+      "frentes": [
+        "perguntas-avaliacoes"
+      ],
+      "etapa": "publicada",
+      "atualizado_em": "2026-11-07T07:30:56.437-03:00",
+      "lacuna": "Grupos literais na amostra de 1.000 registros, sem análise semântica.",
+      "pr": 395,
+      "head_sha": "cfbd70faa55cb40af8e658759e2a615de6bbcc69",
+      "checks": [
+        {
+          "nome": "Management browser checks",
+          "run_id": 42363458229,
+          "resultado": "success",
+          "head_sha": "cfbd70faa55cb40af8e658759e2a615de6bbcc69"
+        },
+        {
+          "nome": "Sales tests",
+          "run_id": 42363458168,
+          "resultado": "success",
+          "head_sha": "cfbd70faa55cb40af8e658759e2a615de6bbcc69"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42363458235,
+          "resultado": "success",
+          "head_sha": "cfbd70faa55cb40af8e658759e2a615de6bbcc69"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbnfq2favr4c73adlqq0",
+        "commit": "97ba10125825554dc59bd2e26bbabc46bdfa7904",
+        "status": "live",
+        "horario_brasilia": "2026-11-07T07:30:07.510-03:00"
+      }
+    },
+    {
+      "id": "estoque-cobertura-dois-periodos",
+      "escopo": "Comparar cobertura do saldo atual pelo ritmo observado em cada período de vendas.",
+      "frentes": [
+        "estoque-ruptura"
+      ],
+      "etapa": "publicada",
+      "atualizado_em": "2026-11-07T12:54:19.691-03:00",
+      "lacuna": "Cobertura aritmética, sem previsão de demanda, saldo passado ou data de ruptura.",
+      "pr": 397,
+      "head_sha": "4bfe79ea83691982c0029c865de78145d498336a",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42387412688,
+          "resultado": "success",
+          "head_sha": "4bfe79ea83691982c0029c865de78145d498336a"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42387412687,
+          "resultado": "success",
+          "head_sha": "4bfe79ea83691982c0029c865de78145d498336a"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42387412743,
+          "resultado": "success",
+          "head_sha": "4bfe79ea83691982c0029c865de78145d498336a"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbnkgee8bjmc73abh8d0",
+        "commit": "3a6c9df439abc2196893369e1b756374d83deb2c",
+        "status": "live",
+        "horario_brasilia": "2026-11-07T12:53:56.212-03:00"
+      }
     }
   ]
 }

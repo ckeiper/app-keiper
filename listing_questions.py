@@ -103,6 +103,11 @@ def search_text(value):
     return ' '.join(value.split())
 
 
+def recurrence_key(row):
+    text=row.get('texto')
+    return ' '.join(text.split()).casefold() if isinstance(text,str) else ''
+
+
 def model(rows,args,now=None,seller_id=None):
     import time
     now=int(time.time()) if now is None else now
@@ -131,16 +136,30 @@ def model(rows,args,now=None,seller_id=None):
         try:p=max(1,min(pages,int(args.get(key,'1'))))
         except (TypeError,ValueError):p=1
         return p,pages
-    p,pages=page('pagina',len(filtered));groups={}
+    groups={}
+    keys_by_id={}
     for row in rows:
-        text=row.get('texto')
-        if not isinstance(text,str) or not text.strip():continue
-        key=' '.join(text.split()).casefold()
-        if key not in groups:groups[key]=dict(text=text,n=0,pending=0)
-        groups[key]['n']+=1;groups[key]['pending']+=row.get('status')=='UNANSWERED'
+        key=recurrence_key(row)
+        if not key:continue
+        group=groups.setdefault(key,dict(text=row['texto'],n=0,pending=0,confirmed=0,id=''))
+        group['n']+=1
+        group['pending']+=row.get('status')=='UNANSWERED'
+        group['confirmed']+=actionable(row,now,seller_id)
+        qid=str(row.get('pergunta_id',''))
+        if re.fullmatch(r'[1-9][0-9]{0,19}',qid):
+            keys_by_id[qid]=key
+            if not group['id']:group['id']=qid
     repeated=sorted((g for g in groups.values() if g['n']>=2),key=lambda g:(-g['n'],g['text'].casefold()))
+    group_id=args.get('grupo','')
+    group=None
+    if group_id:
+        key=keys_by_id.get(group_id)
+        group=groups.get(key)
+        if group and group['n']<2:group=None
+        filtered=[row for row in filtered if group and recurrence_key(row)==key]
+    p,pages=page('pagina',len(filtered))
     gp,gpages=page('recorrencias',len(repeated))
-    return dict(search=search,search_limited=search_limited,rows=filtered[(p-1)*10:p*10],recent=recent,pending=pending,unknown=len(rows)-len(verified),now=now,seller_id=seller_id,total=len(rows),filtered=len(filtered),counts=counts,limited=limited,
+    return dict(group=group,group_unavailable=bool(group_id and not group),search=search,search_limited=search_limited,rows=filtered[(p-1)*10:p*10],recent=recent,pending=pending,unknown=len(rows)-len(verified),now=now,seller_id=seller_id,total=len(rows),filtered=len(filtered),counts=counts,limited=limited,
                 status=selected,page=p,pages=pages,groups=repeated[(gp-1)*10:gp*10],group_total=len(repeated),group_page=gp,group_pages=gpages)
 
 
@@ -178,15 +197,38 @@ def render(cid,item,shop,data):
             if 1<=target<=total:
                 params=dict(status=data['status'],pagina=data['page'],recorrencias=data['group_page']);params[key]=target
                 if data['search']:params['q']=data['search']
+                if data['group']:params['grupo']=data['group']['id']
                 text+=' <a href="'+esc(path+'?'+urlencode(params)+'#'+anchor)+'">'+label+'</a>'
         return text+'</nav>'
     out+='<section id="recorrencias"><h3>Textos repetidos</h3><p>'+str(data['group_total'])+' grupos de textos iguais na base analisada, considerando todos os status salvos.</p>'
-    for group in data['groups']:out+='<article class="lq-row"><strong>'+str(group['n'])+' ocorrências · '+str(group['pending'])+' sem resposta registrada</strong><p class="lq-text">'+esc(group['text'])+'</p></article>'
+    for group in data['groups']:
+        out+='<article class="lq-row"><strong>'+str(group['n'])+' ocorrências · '+str(group['pending'])+' sem resposta registrada</strong><p class="lq-text">'+esc(group['text'])+'</p>'
+        out+='<p>'+str(group['confirmed'])+' aguardando resposta · consulta recente</p>'
+        if group['id']:
+            href=path+'?'+urlencode(dict(grupo=group['id'],recorrencias=data['group_page']))
+            out+='<a href="'+esc(href)+'#perguntas">Ver perguntas deste grupo</a>'
+            if group['confirmed']:
+                out+=' · <a href="'+esc(href+'&status=pending')+'#perguntas">Ver fila deste grupo</a>'
+        out+='</article>'
     if not data['groups']:out+='<p>Nenhum texto repetido identificado nesta base.</p>'
-    out+=pages(data['group_page'],data['group_pages'],'recorrencias','recorrencias')+'</section><section id="perguntas"><h3>'+('Aguardando resposta' if data['status']=='pending' else 'Perguntas salvas')+'</h3><form method="get" class="lq-search-form"><label>Exibir perguntas<select name="status">'+''.join('<option value="'+s+'"'+(' selected' if data['status']==s else '')+'>'+label+'</option>' for s,label in [('all','Todos'),('pending','Aguardando resposta · consulta recente'),('UNANSWERED','Sem resposta no registro'),('ANSWERED','Respondidas no registro')])+'</select></label><label>Buscar na pergunta ou resposta<input type="search" name="q" maxlength="200" value="'+esc(data['search'])+'" placeholder="Ex.: voltagem"></label><button>Filtrar</button></form><p>'+str(data['filtered'])+' perguntas neste filtro. '+('Mais antigas primeiro pela data da pergunta; datas não verificáveis no final.' if data['status']=='pending' else 'Ordenação por coleta mais recente; datas em Brasília.')+'</p>'
+    out+=pages(data['group_page'],data['group_pages'],'recorrencias','recorrencias')+'</section><section id="perguntas"><h3>'+('Aguardando resposta' if data['status']=='pending' else 'Perguntas salvas')+'</h3>'
+    group=data['group']
+    group_input=''
+    clear_search=dict(status=data['status'],recorrencias=data['group_page'])
+    clear_group=dict(clear_search)
+    if data['search']:clear_group['q']=data['search']
+    if group:
+        out+='<p>Grupo selecionado</p><p class="lq-text">'+esc(group['text'])+'</p>'
+        clear_search['grupo']=group['id']
+        group_input='<input type="hidden" name="grupo" value="'+esc(group['id'])+'">'
+    if data['group_unavailable']:
+        out+='<p role="status">Este grupo não está disponível na amostra atual.</p>'
+    if group or data['group_unavailable']:
+        out+='<p><a href="'+esc(path+'?'+urlencode(clear_group)+'#perguntas')+'">Remover filtro de grupo</a></p>'
+    out+='<form method="get" class="lq-search-form" action="'+esc(path)+'#perguntas">'+group_input+'<input type="hidden" name="recorrencias" value="'+str(data['group_page'])+'"><label>Exibir perguntas<select name="status">'+''.join('<option value="'+s+'"'+(' selected' if data['status']==s else '')+'>'+label+'</option>' for s,label in [('all','Todos'),('pending','Aguardando resposta · consulta recente'),('UNANSWERED','Sem resposta no registro'),('ANSWERED','Respondidas no registro')])+'</select></label><label>Buscar na pergunta ou resposta<input type="search" name="q" maxlength="200" value="'+esc(data['search'])+'" placeholder="Ex.: voltagem"></label><button>Filtrar</button></form><p>'+str(data['filtered'])+' perguntas neste filtro. '+('Mais antigas primeiro pela data da pergunta; datas não verificáveis no final.' if data['status']=='pending' else 'Ordenação por coleta mais recente; datas em Brasília.')+'</p>'
     out+='<p>A busca procura um trecho, ignorando acentos, maiúsculas e espaços repetidos, somente nos textos disponíveis desta amostra. Cards e textos repetidos continuam mostrando a amostra inteira.</p>'
     if data['search']:
-        out+='<p>Busca: <strong>'+esc(data['search'])+'</strong> · <a href="'+esc(path+'?'+urlencode(dict(status=data['status']))+'#perguntas')+'">Limpar busca</a></p>'
+        out+='<p>Busca: <strong>'+esc(data['search'])+'</strong> · <a href="'+esc(path+'?'+urlencode(clear_search)+'#perguntas')+'">Limpar busca</a></p>'
     if data['search_limited']:out+='<p role="status">Busca limitada aos primeiros 200 caracteres.</p>'
     if data['status']=='pending':out+='<p>A fila usa a amostra local e status consultados nas últimas seis horas. Tempo de espera desde a criação da pergunta, até a abertura desta página.</p>'
     def stamp(value):

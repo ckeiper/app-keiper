@@ -70,3 +70,14 @@ class ComparisonStockTests(unittest.TestCase):
         self.assertNotIn('lc-stock',comparison(1,ranking,listings,{},END,now=NOW))
         text=comparison(1,ranking,listings,dict(comparar1='MLB1',comparar2='MLB2'),END,now=NOW)
         self.assertIn('12 unidades',text);self.assertIn('lc-stock',text)
+
+    def test_render_compares_one_stock_reading_with_each_sales_period(self):
+        ranking, listings = self.fixture()
+        ranking['rows']['MLB2']['previous_units'] = 0
+        text = render(listings, ranking, ['MLB1','MLB2'], {}, 7, NOW)
+        self.assertIn('Cobertura no ritmo anterior</th><td>21,00 dias</td><td>Indisponível</td>', text)
+        self.assertIn('Cobertura no ritmo atual</th><td>28,00 dias</td><td>14,00 dias</td>', text)
+        del ranking['rows']['MLB1']['previous_units']
+        text = render(listings, ranking, ['MLB1','MLB2'], {}, 30, NOW)
+        self.assertIn('Cobertura no ritmo anterior</th><td>Indisponível</td><td>Indisponível</td>', text)
+        self.assertIn('Cobertura no ritmo atual</th><td>120,00 dias</td><td>60,00 dias</td>', text)

@@ -264,23 +264,25 @@
       "area": "Estoque",
       "capacidade": "Previsão de ruptura",
       "estado": "parcial",
-      "implementado": "Cobertura aritmética pelo estoque recente e unidades vendidas verificadas.",
-      "falta": "Ainda não é previsão validada de demanda ou data de ruptura; falta modelo e validação histórica apropriados.",
+      "implementado": "Cobertura aritmética pelo estoque recente e unidades vendidas verificadas. No comparador, a mesma leitura de estoque é dividida separadamente pelo ritmo de vendas de cada um dos dois períodos encerrados de 7 ou 30 dias. Cada cenário fica indisponível quando sua base não é verificável ou não há vendas positivas.",
+      "falta": "Ainda não é previsão validada de demanda ou data de ruptura; falta modelo e validação histórica apropriados. As duas referências usam o saldo atual e não reconstituem o estoque passado.",
       "fontes": [
         "listing_priority_sources.py",
         "listing_comparison_stock.py"
       ],
       "testes": [
         "test_stock_priority_details.py",
-        "test_comparison_stock.py"
+        "test_comparison_stock.py",
+        "scripts/catalog_browser_check.cjs"
       ],
       "prs": [
         257,
-        270
+        270,
+        397
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-11-07"
     },
     {
       "id": "estoque-variacoes",
@@ -791,8 +793,8 @@
       "area": "Conteúdo",
       "capacidade": "Perguntas e avaliações",
       "estado": "parcial",
-      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder. O botão Atualizar Perguntas usa a fila de atualização por seção, com proteção e exclusão por loja existentes, sem recoletar anúncios, promoções, vendas ou Ads. Consulta administrativa sob demanda de avaliações oficiais por anúncio, com conta e propriedade verificadas, média, total, distribuição e até cinco comentários publicados por página. Distingue avaliações compartilhadas do catálogo da reputação da loja, trata falhas como não verificadas e limita a consulta às primeiras 100 posições, sem persistir dados de compradores. Fila local de perguntas aguardando resposta com a mesma confirmação de conta/status/visibilidade das últimas seis horas, ordenação pela criação (mais antigas primeiro), tempo decorrido e datas não verificáveis no final. Cards levam aos filtros; tema claro e escuro na tela de perguntas. Busca literal de trecho nos textos disponíveis das perguntas e respostas salvas, ignorando acentos, maiúsculas e espaços repetidos. Combina com status e fila de resposta, preserva busca na paginação e permite limpar sem perder o status. Não consulta APIs, não busca respostas ocultadas e não altera contagens ou agrupamentos da amostra inteira. Entrada limitada a 200 caracteres, com aviso para excedentes. Rascunho editável de tarefa a partir de pergunta salva do mesmo anúncio e loja, com referência e trecho de até 1.100 caracteres. GET somente leitura, sem APIs ou criação automática; responsável e prazo ficam vazios. Criação exige revisão e confirmação pelo fluxo existente, com CSRF, idempotência por formulário e autoria. Dados revisados não são sobrepostos pelo parâmetro de origem no POST; nenhuma resposta ou alteração do anúncio é enviada.",
-      "falta": "A busca de perguntas permanece limitada a 100 por atualização e a dois status antigos por rodada; não certifica histórico integral nem reconstrói perguntas apagadas. Avaliações são consultadas sob demanda, sem histórico persistido ou cobertura integral; comentários limitados a 100 posições e textos abreviados. Falta análise validada de objeções semânticas; opiniões não comprovam defeitos, reputação da loja ou impacto em vendas. Uso autenticado do rascunho com pergunta real não exercitado nesta entrega.",
+      "implementado": "Coleta preserva perguntas já salvas com upsert atômico e validação integral do lote. Painel administrativo por anúncio com perguntas/respostas, status registrados, datas, recorrências literais e paginação. Análise limitada a 1.000 registros com coleta mais recente, com aviso explícito; sem inferência semântica ou de sentimento. Coleta limitada a duas páginas de 50 perguntas, com evidência de páginas, IDs distintos, total, vendedor e instante, sem certificar histórico integral. Reconsulta dois registros antigos por atualização em rodízio pela tentativa mais antiga; confirma o mesmo ID, anúncio e vendedor. Falha individual preserva o último conteúdo/status e marca a consulta como desconhecida; 404 não é inferido como exclusão. Retornos 401, 403 e 429 interrompem a sequência. Bloqueio por loja evita concorrência e o lote é validado antes da escrita. Interface distingue status recente, último registro salvo e cobertura parcial; aviso da loja só conta UNANSWERED confirmado na mesma conta nas últimas seis horas, com visibilidade e ausência de espera explícitas. Não classifica bloqueadas, excluídas, antigas ou não verificáveis como perguntas a responder. O botão Atualizar Perguntas usa a fila de atualização por seção, com proteção e exclusão por loja existentes, sem recoletar anúncios, promoções, vendas ou Ads. Consulta administrativa sob demanda de avaliações oficiais por anúncio, com conta e propriedade verificadas, média, total, distribuição e até cinco comentários publicados por página. Distingue avaliações compartilhadas do catálogo da reputação da loja, trata falhas como não verificadas e limita a consulta às primeiras 100 posições, sem persistir dados de compradores. Fila local de perguntas aguardando resposta com a mesma confirmação de conta/status/visibilidade das últimas seis horas, ordenação pela criação (mais antigas primeiro), tempo decorrido e datas não verificáveis no final. Cards levam aos filtros; tema claro e escuro na tela de perguntas. Busca literal de trecho nos textos disponíveis das perguntas e respostas salvas, ignorando acentos, maiúsculas e espaços repetidos. Combina com status e fila de resposta, preserva busca na paginação e permite limpar sem perder o status. Não consulta APIs, não busca respostas ocultadas e não altera contagens ou agrupamentos da amostra inteira. Entrada limitada a 200 caracteres, com aviso para excedentes. Rascunho editável de tarefa a partir de pergunta salva do mesmo anúncio e loja, com referência e trecho de até 1.100 caracteres. GET somente leitura, sem APIs ou criação automática; responsável e prazo ficam vazios. Criação exige revisão e confirmação pelo fluxo existente, com CSRF, idempotência por formulário e autoria. Dados revisados não são sobrepostos pelo parâmetro de origem no POST; nenhuma resposta ou alteração do anúncio é enviada. Cada grupo literal mostra a fila confirmada separadamente do último status salvo e oferece acesso às ocorrências exatas ou somente às que aguardam resposta. O filtro combina com busca e status na mesma amostra local.",
+      "falta": "A busca de perguntas permanece limitada a 100 por atualização e a dois status antigos por rodada; não certifica histórico integral nem reconstrói perguntas apagadas. Avaliações são consultadas sob demanda, sem histórico persistido ou cobertura integral; comentários limitados a 100 posições e textos abreviados. Falta análise validada de objeções semânticas; opiniões não comprovam defeitos, reputação da loja ou impacto em vendas. Uso autenticado do rascunho com pergunta real não exercitado nesta entrega. O detalhamento de recorrências usa apenas grupos literais na amostra local. A verificação em produção confirmou o acesso protegido, sem exercício autenticado com anúncio real.",
       "fontes": [
         "listing_questions.py",
         "main.py",
@@ -821,11 +823,12 @@
         326,
         375,
         382,
-        385
+        385,
+        395
       ],
       "numero_original": null,
       "prioridade": 3,
-      "atualizado_em": "2026-11-06"
+      "atualizado_em": "2026-11-07"
     },
     {
       "id": "reativacao",
@@ -2141,6 +2144,34 @@
     {
       "base": "frentes_auditadas",
       "data": "2026-11-07",
+      "resumo": "Ocorrências e fila confirmada por grupo literal de perguntas, com filtro combinado com busca e status.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        395
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-07",
+      "resumo": "Comparador de estoque com cobertura do saldo atual pelo ritmo de vendas de cada período.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        397
+      ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-09",
       "resumo": "Acompanhamento manual de posição na busca: registros por anúncio, palavra-chave, tipo de resultado e contexto. Coleta automática permanece pendente.",
       "contagens": {
         "concluida": 26,
@@ -2358,6 +2389,20 @@
       "commit": "9de48f316e7723847ca37ed3759a8384a7dbfddf",
       "status": "live",
       "horario_brasilia": "2026-11-06T21:41:42.122-03:00"
+    },
+    {
+      "pr": 395,
+      "deploy_id": "dep-dbnfq2favr4c73adlqq0",
+      "commit": "97ba10125825554dc59bd2e26bbabc46bdfa7904",
+      "status": "live",
+      "horario_brasilia": "2026-11-07T07:30:07.510-03:00"
+    },
+    {
+      "pr": 397,
+      "deploy_id": "dep-dbnkgee8bjmc73abh8d0",
+      "commit": "3a6c9df439abc2196893369e1b756374d83deb2c",
+      "status": "live",
+      "horario_brasilia": "2026-11-07T12:53:56.212-03:00"
     }
   ]
 }
