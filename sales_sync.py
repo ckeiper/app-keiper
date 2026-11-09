@@ -118,13 +118,16 @@ def collect_day(token, user_id, api_get, day):
     return read(lower, upper)
 
 
-def sync_orders(cid, token, user_id, banco, query, execute, api_get, log):
+def sync_orders(cid, token, user_id, banco, query, execute, api_get, log, *, today_only=False):
     now = int(time.time())
     today = reporting_today()
-    with banco() as conn:
-        saved = query(conn, "SELECT dia, atualizado_em FROM vendas_cobertura WHERE conexao_id=%s", (cid,))
-    coverage = {r["dia"]: r["atualizado_em"] for r in saved}
-    selected = select_sync_days(today, now, coverage)
+    if today_only:
+        selected = [today]
+    else:
+        with banco() as conn:
+            saved = query(conn, "SELECT dia, atualizado_em FROM vendas_cobertura WHERE conexao_id=%s", (cid,))
+        coverage = {r["dia"]: r["atualizado_em"] for r in saved}
+        selected = select_sync_days(today, now, coverage)
     success = True
     for day in selected:
         iso = day.isoformat()

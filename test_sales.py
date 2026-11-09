@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from sales_metrics import change, created_day, order_fields, period, summarize
 from sales_sync import init_sales_schema, sync_orders
@@ -187,13 +187,13 @@ class MetricsTests(unittest.TestCase):
 
 
 class SyncTests(unittest.TestCase):
-    def run_sync(self, api):
+    def run_sync(self, api, **options):
         writes, logs = [], []
         def execute(conn, sql, params=()):
             writes.append((sql, params))
         with patch('sales_sync.reporting_today', return_value=date(2026, 10, 15)):
             result = sync_orders(4, 'token', 5, lambda: contextlib.nullcontext(None),
-                                 lambda *a: [], execute, api, lambda *a: logs.append(a))
+                                 lambda *a: [], execute, api, lambda *a: logs.append(a), **options)
         return result, writes, logs
 
     def test_empty_day_is_covered_and_scope_is_bounded(self):
@@ -206,6 +206,17 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(len(calls), 11)
         self.assertEqual(len([s for s, p in writes if 'INSERT INTO vendas_cobertura' in s]), 11)
         self.assertIn('-03:00', calls[0][2]['order.date_created.from'])
+
+    def test_frequent_sync_only_refreshes_today(self):
+        api = Mock(return_value=({'results': [], 'paging': {'total': 0}}, None))
+        success, writes, logs = self.run_sync(api, today_only=True)
+
+        self.assertTrue(success)
+        self.assertFalse(logs)
+        api.assert_called_once()
+        self.assertIn('2026-10-15T', api.call_args.args[2]['order.date_created.from'])
+        self.assertEqual([params[:2] for sql, params in writes if 'INSERT INTO vendas_cobertura' in sql],
+                         [(4, '2026-10-15')])
 
     def test_api_failure_invalidates_coverage(self):
         success, writes, logs = self.run_sync(lambda *a: (None, 'HTTP 403'))
