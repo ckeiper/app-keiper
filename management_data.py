@@ -189,8 +189,10 @@ def build_management(listings, orders, items, coverage, visits, ads, pending,
 
 
 def load_management(cid,args,bank,query):
-    bounds=selection(args)
+    today=reporting_today()
+    bounds=selection(args,today)
     start,end,previous_start,_=bounds
+    today_partial=None
     with bank() as conn:
         conn.set_session(isolation_level='REPEATABLE READ',readonly=True)
         read=bounded_query(conn,query)
@@ -221,6 +223,22 @@ def load_management(cid,args,bank,query):
             WHERE conexao_id=%s AND dia BETWEEN %s AND %s''',(cid,previous_start.isoformat(),end.isoformat()))
         pending=read(conn,'''SELECT EXISTS(SELECT 1 FROM pedidos WHERE conexao_id=%s
             AND vendas_verificado_em IS NULL) AS pending''',(cid,))[0]['pending']
+        if end == today-timedelta(days=1):
+            day=today.isoformat()
+            today_coverage=read(conn,'''SELECT dia FROM vendas_cobertura
+                WHERE conexao_id=%s AND dia=%s''',(cid,day))
+            value=None
+            if today_coverage and not pending:
+                today_orders=read(conn,'''SELECT status,total,moeda,criado_em,pagamentos_json,
+                    unidades,vendas_dia_coleta FROM pedidos WHERE conexao_id=%s
+                    AND vendas_verificado_em IS NOT NULL
+                    AND (keiper_overview_day_v1(criado_em)=%s OR keiper_overview_day_v1(criado_em) IS NULL)
+                    ORDER BY pedido_id LIMIT %s''',(cid,today,MAX_ORDERS+1))
+                if len(today_orders)<=MAX_ORDERS:
+                    partial=summarize(today_orders,today,today,{day})
+                    if reliable(partial):
+                        value=partial['daily'][0]
+            today_partial=(day,value)
         visits=read(conn,'''SELECT item_id,
             SUM(visitas) FILTER(WHERE dia >= %s) AS visits_current,
             COUNT(*) FILTER(WHERE dia >= %s) AS days_current
@@ -231,5 +249,5 @@ def load_management(cid,args,bank,query):
                   (cid,previous_start.isoformat(),end.isoformat()))
         questions=read(conn,"SELECT COUNT(*) AS n FROM perguntas WHERE conexao_id=%s AND status='UNANSWERED'",(cid,))[0]['n']
     result=build_management(listings,orders,items,coverage,visits,ads,pending,bounds,sales_limited=limited)
-    result.update(shop=shops[0],questions=questions)
+    result.update(shop=shops[0],questions=questions,today_partial=today_partial)
     return result
