@@ -5654,6 +5654,42 @@ def executar_atualizacao_bg(cid):
             ATUALIZANDO.discard(cid)
 
 
+def job_vendas_recentes():
+    with banco() as conn:
+        lojas = consultar(conn, """SELECT id FROM conexoes
+            WHERE status='ativa' AND user_id IS NOT NULL AND cliente <> %s
+            ORDER BY id""", ("CASAMIX_STORE",))
+    atualizadas = ocupadas = falhas = 0
+    for loja in lojas:
+        cid = loja["id"]
+        try:
+            with store_sync_lock(banco, cid) as acquired:
+                if not acquired:
+                    ocupadas += 1
+                    continue
+                with banco() as conn:
+                    rows = consultar(conn, """SELECT * FROM conexoes WHERE id=%s
+                        AND status='ativa' AND user_id IS NOT NULL AND cliente <> %s""",
+                        (cid, "CASAMIX_STORE"))
+                if not rows:
+                    continue
+                c = rows[0]
+                token = token_atual(c)
+                if token and sync_orders(cid, token, c["user_id"], banco, consultar,
+                                         executar, api_get, registrar_erro, today_only=True):
+                    atualizadas += 1
+                else:
+                    falhas += 1
+        except Exception:
+            falhas += 1
+            app.logger.exception("vendas_15min_falha loja=%s", cid)
+
+    # Emit a compact run summary in the production Gunicorn logs.
+    import logging
+    logging.getLogger("gunicorn.error").info(
+        "vendas_15min atualizadas=%s ocupadas=%s falhas=%s", atualizadas, ocupadas, falhas)
+
+
 def job_dados():
     # Recover expired durable leases before scheduling more work.
     # The legacy worker remains active until durable processing is enabled.
@@ -6100,6 +6136,9 @@ scheduler.add_job(job_visitas_todas_contas, "interval", minutes=1,
 scheduler.add_job(job_refresh, "interval", minutes=30)
 scheduler.add_job(job_fila_persistente, "interval", minutes=1,
                   max_instances=1, coalesce=True)
+scheduler.add_job(job_vendas_recentes, "interval", minutes=15,
+                  next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30),
+                  id="vendas_recentes", max_instances=1, coalesce=True)
 scheduler.add_job(job_dados, "interval", minutes=60,
                   next_run_time=datetime.datetime.now() + datetime.timedelta(minutes=2),
                   max_instances=1, coalesce=True)
