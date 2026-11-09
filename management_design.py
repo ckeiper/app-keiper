@@ -214,10 +214,19 @@ def tabs(cid,args,count,selected):
 
 def _daily_chart(report, key="daily", label="Faturamento", money=True):
     current,previous=report['current'],report['previous']
+    days=current['days']
     series=[current.get(key,[None]*len(current['days'])),previous.get(key,[None]*len(previous['days']))]
+    today_partial=report.get('today_partial') if key=='daily' else None
+    if today_partial:
+        today,value=today_partial
+        days=[*days,today]
+        series=[[*series[0],value],[*series[1],None]]
     valid=[float(value) for values in series for value in values if value is not None]
     out=("<section class='card mgmt-chart'><div class='mgmt-chart-header'><h2>Evolução de "+escape(label.lower())+"</h2>"
          "<div class='mgmt-chart-legend'><span>Período atual</span><span>Período anterior</span></div></div>")
+    if today_partial:
+        note='Hoje (parcial) · '+fmt(value,money) if value is not None else 'Hoje (parcial) · aguardando dados verificados'
+        out+="<p class='muted'>"+escape(note)+"</p>"
     if not valid:
         return out+"<div class='mgmt-chart-empty'>O gráfico aparece quando há dias de vendas verificados.</div></section>"
     ceiling=max(valid) or 1
@@ -244,11 +253,13 @@ def _daily_chart(report, key="daily", label="Faturamento", money=True):
         if segment:
             out+="<path d='"+" ".join(segment)+"' fill='none' stroke='"+color+"' stroke-width='2.6' stroke-linejoin='round' stroke-linecap='round' vector-effect='non-scaling-stroke'/>"
     out+="</svg><div class='mgmt-chart-x'>"
-    for day in (current['days'][0],current['days'][-1]):
+    for day in (days[0],days[-1]):
         out+="<span>"+escape(day[8:10]+'/'+day[5:7])+"</span>"
     out+="</div></div></div><details><summary>Ver valores e datas comparados</summary><div class='mgmt-scroll'><table class='mgmt-table'><thead><tr><th>Data atual</th><th>Valor atual</th><th>Data anterior</th><th>Valor anterior</th></tr></thead><tbody>"
     for index,day in enumerate(current['days']):
         out+='<tr><td>'+escape(day)+'</td><td>'+escape(fmt(series[0][index],money))+'</td><td>'+escape(previous['days'][index])+'</td><td>'+escape(fmt(series[1][index],money))+'</td></tr>'
+    if today_partial:
+        out+='<tr><td>'+escape(today)+' (parcial)</td><td>'+escape(fmt(value,money))+'</td><td>—</td><td>—</td></tr>'
     return out+'</tbody></table></div></details></section>'
 
 
