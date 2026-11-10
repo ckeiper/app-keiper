@@ -42,6 +42,13 @@ class ProjectionHistoryTests(unittest.TestCase):
                          (Decimal('4.375'),Decimal('-4.375'),Decimal('31.25')))
         self.assertEqual(sum(r['error'] for r in result['rows']),result['estimate']-result['actual'])
 
+    def test_previous_week_reference_uses_only_the_last_seven_training_days(self):
+        result = evaluate(analyze(daily_context(), 7, 'MLB1', TODAY))
+        self.assertEqual([r['previous_week_units'] for r in result['rows']], [7, 14, 14, 14])
+        self.assertEqual([r['previous_week_absolute_error'] for r in result['rows']], [7, 0, 0, 0])
+        self.assertEqual(result['previous_week_mae'], Decimal('1.75'))
+        self.assertEqual(result['mae'], Decimal('4.375'))
+
     def test_zero_realized_does_not_invent_percentage_and_error_can_exceed_100(self):
         zero=evaluate(analyze(daily_context(0,0),7,'MLB1',TODAY))
         self.assertEqual(zero['mae'],0);self.assertIsNone(zero['absolute_error_percent'])
@@ -59,6 +66,8 @@ class ProjectionHistoryTests(unittest.TestCase):
         self.assertEqual([r['estimate'] for r in changed['rows']],[r['estimate'] for r in baseline['rows']])
         self.assertEqual([r['actual'] for r in changed['rows'][:3]],[r['actual'] for r in baseline['rows'][:3]])
         self.assertNotEqual(changed['rows'][-1]['actual'],baseline['rows'][-1]['actual'])
+        self.assertEqual([r['previous_week_units'] for r in changed['rows']],
+                         [r['previous_week_units'] for r in baseline['rows']])
 
     def test_completed_target_enters_only_later_training_windows(self):
         context=fixture();baseline=evaluate(analyze(context,7,'MLB1',TODAY))
@@ -91,6 +100,8 @@ class ProjectionHistoryTests(unittest.TestCase):
         html=render(7,'MLB1',dict(titulo='<script>alert(1)</script>'),data)
         self.assertNotIn('<script>',html);self.assertIn('&lt;script&gt;',html)
         self.assertEqual(html.count('class="wp-cmp-series"'),8)
+        self.assertIn('Comparação com a semana anterior', html)
+        self.assertIn('<strong>1,8</strong> unidades por semana', html)
         self.assertNotIn('method="post"',html);self.assertIn('não reconstitui',html.lower())
         zero=render(7,'MLB1',{},analyze(daily_context(0,0),7,'MLB1',TODAY))
         self.assertIn('O percentual não é calculado',zero)
