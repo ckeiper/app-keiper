@@ -161,7 +161,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
             body+='<tr><td>'+product({'listing':row},cid,True)+"<small>"+escape(item)+(' · SKU '+escape(str(row['sku'])) if row.get('sku') else '')+'</small>'
             actions=diagnose_listing(row);signal=actions[0]
             tone={'alta':'red','media':'amber','ok':'green'}.get(signal['priority'],'purple')
-            body+=badge(signal['title'],tone)+"<div class='catalog-actions'><a href='"+escape(diag,quote=True)+"'>Ver diagnóstico →</a><a href='/full/"+str(cid)+"?"+escape(urlencode({'item_id':item}),quote=True)+"'>Full e vendas</a></div>"
+            body+=badge(signal['title'],tone)+"<div class='catalog-actions'><a href='"+escape(diag,quote=True)+"'>Ver diagnóstico →</a><a href='/anuncios/"+str(cid)+"/"+escape(item,quote=True)+"/completar-ficha'>Ficha técnica</a><a href='/full/"+str(cid)+"?"+escape(urlencode({'item_id':item}),quote=True)+"'>Full e vendas</a></div>"
             body+="<details class='catalog-details'><summary>Pesos, tags e frete</summary><dl><dt>Peso cadastrado · PACKAGE_WEIGHT</dt><dd>"+render_weight_column(row.get('pesos_json'),'PACKAGE_WEIGHT')+'</dd><dt>Peso logístico · SELLER_PACKAGE_WEIGHT</dt><dd>'+render_weight_column(row.get('pesos_json'),'SELLER_PACKAGE_WEIGHT')+'</dd><dt>Declarado pelo vendedor</dt><dd>Consulte o peso logístico acima</dd>'
             expected=freight(row.get('preco'),row.get('peso')) if freight else None
             body+='<dt>Frete esperado</dt><dd>'+escape(fmt(expected,True))+'</dd><dt>Custo cadastrado</dt><dd>'+escape(fmt(number(row.get('custo')),True))+'</dd><dt>Tags coletadas</dt><dd>'
