@@ -37,3 +37,20 @@ def initialize_with_retry(initialize, logger, sleep=time.sleep, attempts=4):
             # SQL/error messages can contain data: log only SQLSTATE/attempt.
             logger.warning('schema_startup_retry sqlstate=%s attempt=%s',exc.pgcode,attempt+1)
             sleep(min(2**attempt,4))
+
+
+def run_optional_history_backfill(conn, execute, query, seed, logger):
+    """Recover the schema transaction when the optional backfill fails."""
+    execute(conn, "SAVEPOINT automatic_history_backfill")
+    try:
+        execute(conn, "SET LOCAL lock_timeout = '3s'")
+        lock = query(conn, "SELECT pg_try_advisory_xact_lock(783420, 1) AS acquired")
+        if lock and lock[0]["acquired"]:
+            seed(conn, execute)
+        else:
+            logger.warning("automatic_history_seed_skipped concurrent_migration")
+        execute(conn, "SET LOCAL lock_timeout = DEFAULT")
+    except psycopg2.Error as exc:
+        execute(conn, "ROLLBACK TO SAVEPOINT automatic_history_backfill")
+        logger.warning("automatic_history_seed_deferred sqlstate=%s", exc.pgcode)
+    execute(conn, "RELEASE SAVEPOINT automatic_history_backfill")
