@@ -257,7 +257,8 @@
         158,
         161,
         260,
-        405
+        405,
+        407
       ],
       "numero_original": null,
       "prioridade": 100,
@@ -2181,6 +2182,20 @@
       "prs": [
         405
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-10",
+      "resumo": "Página Full e vendas simplificada, com gráfico em destaque e detalhes de cobertura e variações recolhidos.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        407
+      ]
     }
   ],
   "publicacoes": [
@@ -2418,6 +2433,13 @@
       "commit": "11cb5628e1aa89e69c63b5f87ba63506ec86bc35",
       "status": "live",
       "horario_brasilia": "2026-11-10T11:26:49.225606-03:00"
+    },
+    {
+      "pr": 407,
+      "deploy_id": "dep-dbpit8rbc2fs73bmv1kg",
+      "commit": "c6c19cf7d95715ae019f85879373e3550d818871",
+      "status": "live",
+      "horario_brasilia": "2026-11-10T11:50:33.281-03:00"
     }
   ]
 }
