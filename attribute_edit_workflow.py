@@ -34,7 +34,15 @@ def apply(plan,codes,token,seller,item_id,get,put,persist,now=None,post=None):
         if data.get('manual_inputs') and data.get('manual_actor')!=plan.get('created_by'):raise ValueError('Responsável divergente.')
         facts=gather(token,seller,item_id,get);fresh=analyze(facts,data.get('manual_inputs'),plan.get('created_by'))
         if facts['fingerprint']!=data['fingerprint'] or facts['blocked'] or fresh.get('extractor_version')!=data.get('extractor_version'):
-            persist('stale',dict(message='O anúncio, suas regras ou seus vínculos mudaram. Analise novamente antes de enviar.'));return
+            previous = data.get('fingerprint_parts', {})
+            current = facts.get('fingerprint_parts', {})
+            labels = {'item': 'dados do anúncio', 'description': 'descrição', 'rules': 'regras da categoria',
+                      'sheet': 'ficha técnica da categoria', 'scope': 'vínculo do anúncio'}
+            changed = [label for key, label in labels.items()
+                       if key in previous and key in current and previous[key] != current[key]]
+            reason = facts['blocked'] or ('Mudança detectada em: ' + ', '.join(changed) + '.' if changed
+                                          else 'A base da análise mudou.')
+            persist('stale',dict(message=reason+' Analise novamente antes de enviar.',changed_components=changed));return
         proposals=selected_proposals(fresh,codes)
         approved=selected_proposals(data,codes)
         if any(a['payload']!=b['payload'] or a['expected']!=b['expected'] or a.get('variation_id')!=b.get('variation_id') or a.get('attribute_id')!=b.get('attribute_id') for a,b in zip(approved,proposals)):
