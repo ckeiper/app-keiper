@@ -25,6 +25,7 @@ class ManualTests(unittest.TestCase):
   rows={r['code']:r for r in inventory['rows']}
   self.assertTrue(rows['WIDTH']['manual_pending'])
   self.assertFalse(rows['MATERIAL']['manual_pending'])
+  self.assertIn('Oculto na API',rows['MATERIAL']['hidden'])
   self.assertFalse(rows['MANAGED']['manual_pending'])
   self.assertIn('Aplicar selecionadas no Mercado Livre',html)
  def test_explicit_source_and_no_mutation_of_facts(self):
