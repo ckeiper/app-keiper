@@ -13,6 +13,20 @@ def entry(value='Aço',code='MATERIAL',note='Ficha do fabricante'):
 
 
 class ManualTests(unittest.TestCase):
+ def test_only_empty_editable_fields_without_suggestions_are_marked_pending(self):
+  data=analyze(facts(definitions=[definition(tags=dict(hidden=True)),definition('WIDTH',value_type='string'),definition('MANAGED',tags=dict(read_only=True))]))
+  plan=dict(id='11111111-1111-4111-8111-111111111111',state='ready',created_at=0,data=data)
+  before=deepcopy(data);html=render(7,'MLB123','Produto','csrf','k'*24,plan)
+  self.assertEqual(data,before)
+  self.assertIn('1 campo sem sugestão',html)
+  self.assertIn('Pendente · preencher manualmente',html)
+  import json,re
+  inventory=json.loads(re.search(r'class="cs-tech-data">(.*?)</script>',html).group(1))
+  rows={r['code']:r for r in inventory['rows']}
+  self.assertTrue(rows['WIDTH']['manual_pending'])
+  self.assertFalse(rows['MATERIAL']['manual_pending'])
+  self.assertFalse(rows['MANAGED']['manual_pending'])
+  self.assertIn('Aplicar selecionadas no Mercado Livre',html)
  def test_explicit_source_and_no_mutation_of_facts(self):
   f=facts(description='');before=deepcopy(f);d=analyze(f,[entry()],42)
   p=d['proposals'][0]
