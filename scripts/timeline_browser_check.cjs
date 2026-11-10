@@ -63,7 +63,7 @@ const {chromium}=require('playwright');
   assert.equal(await daily.evaluate(el=>el.open),false);
   await daily.locator('summary').click();
   await Promise.all([page.waitForURL(u=>u.searchParams.get('pagina_linha')==='2'),daily.getByRole('link',{name:'Próxima',exact:true}).click()]);await ready();
-  if(!await page.locator('.item-timeline details').getAttribute('open').then(v=>v!==null))await page.locator('.item-timeline details summary').click();
+  assert.equal(await daily.evaluate(el=>el.open),true);
   assert.equal(await page.locator('.timeline-table tbody tr').count(),7);
   await page.setViewportSize({width:390,height:844});
   await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth+1,null,{timeout:5000});
