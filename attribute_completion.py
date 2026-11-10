@@ -81,7 +81,8 @@ def gather(token,seller,item_id,get):
     components = dict(item=subset, description=description, rules=rules, sheet=sheet, scope=scope)
     return dict(item=item,rules=rules,sheet=sheet,description=description,title=title,warnings=warnings,blocked=reason,
                 fingerprint=digest(components),
-                fingerprint_parts={key: digest(value) for key, value in components.items()})
+                fingerprint_parts={**{key: digest(value) for key, value in components.items()},
+                                   **{'item.'+key: digest(value) for key, value in subset.items()}})
 
 
 def number(raw):
