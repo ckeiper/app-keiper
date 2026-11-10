@@ -593,11 +593,12 @@
         "test_listing_weekly_pattern_integration.py"
       ],
       "prs": [
-        389
+        389,
+        402
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-11-09"
+      "atualizado_em": "2026-11-10"
     },
     {
       "id": "anomalias",
@@ -2148,6 +2149,20 @@
       "prs": [
         397
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-10",
+      "resumo": "Conferência histórica da média de quatro semanas e do total da semana anterior.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        402
+      ]
     }
   ],
   "publicacoes": [
@@ -2371,6 +2386,13 @@
       "commit": "3a6c9df439abc2196893369e1b756374d83deb2c",
       "status": "live",
       "horario_brasilia": "2026-11-07T12:53:56.212-03:00"
+    },
+    {
+      "pr": 402,
+      "deploy_id": "dep-dbpa2gavcj2c73cu50q0",
+      "commit": "8a47c30e5c0162536520b8808ba0b0bc7982138a",
+      "status": "live",
+      "horario_brasilia": "2026-11-10T01:47:54.661-03:00"
     }
   ]
 }
