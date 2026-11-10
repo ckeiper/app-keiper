@@ -15,6 +15,11 @@ def reader(item=None,definitions=None,description='Material: Aço',sheet=None,ex
 def facts(**kw):return gather('private-token',123,'MLB123',reader(**kw))
 
 class CompletionTests(unittest.TestCase):
+ def test_catalog_listing_stops_before_description_rules_or_other_reads(self):
+  get=reader(item=listing(catalog_listing=True))
+  with self.assertRaisesRegex(ContentUnavailable,'Solicite a alteração ao Mercado Livre'):
+   gather('private-token',123,'MLB123',get)
+  self.assertEqual(get.call_count,2)
  def test_hidden_suggestion_source_and_inventory_union(self):
   f=facts(definitions=[definition(tags=dict(hidden=True))]);original=deepcopy(f);d=analyze(f)
   self.assertEqual(d['proposals'][0]['payload'],dict(id='MATERIAL',value_name='Aço'));self.assertTrue(d['proposals'][0]['hidden']);self.assertEqual(d['proposals'][0]['evidence'][0]['source'],'Descrição');self.assertEqual(f,original)

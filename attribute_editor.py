@@ -36,7 +36,7 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,
     @login_required
     def attribute_editor(cid,item_id):
         actor=session.get('usuario_id')
-        if session.get('tipo')!='admin' or type(actor) is not int or not can_view(cid):return 'Acesso restrito.',403
+        if session.get('tipo') not in ('admin','cliente') or type(actor) is not int or not can_view(cid):return 'Acesso restrito.',403
         if not re.fullmatch(r'MLB[0-9]{1,20}',item_id):return 'Anúncio inválido.',404
         csrf=session.setdefault('_csrf',secrets.token_urlsafe(32))
         if request.method=='POST' and (not isinstance(request.form.get('_csrf'),str) or not hmac.compare_digest(csrf,request.form.get('_csrf',''))):return 'Formulário inválido.',400
