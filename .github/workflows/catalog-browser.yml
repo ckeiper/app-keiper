@@ -135,6 +135,7 @@ on:
       - 'scripts/listing_content*'
       - 'scripts/listing_calendar*'
       - 'full_view.py'
+      - 'full_sales_view_chart.py'
       - 'full_routes.py'
       - 'full_variation_history.py'
       - 'test_full_variation_history.py'

@@ -239,16 +239,19 @@
       "area": "Estoque",
       "capacidade": "Histórico de estoque Full",
       "estado": "concluida",
-      "implementado": "Observações de disponibilidade, fontes e integração com vendas e diagnóstico. Ausência é desconhecida.",
+      "implementado": "Observações de disponibilidade, fontes e integração com vendas e diagnóstico. O relatório Full e vendas exibe barras diárias e uma faixa alinhada de disponibilidade observada, com detalhes por dia acessíveis por teclado e toque. Ausência é desconhecida e consultas divergentes têm marca própria.",
       "falta": "",
       "fontes": [
         "full_monitor.py",
         "listing_full_sales_chart.py",
+        "full_view.py",
+        "full_sales_view_chart.py",
         "investigation_evidence.py"
       ],
       "testes": [
         "test_full.py",
-        "test_listing_full_sales_chart.py"
+        "test_listing_full_sales_chart.py",
+        "scripts/full_report_browser_check.cjs"
       ],
       "prs": [
         158,
@@ -257,7 +260,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-11-10"
     },
     {
       "id": "estoque-ruptura",

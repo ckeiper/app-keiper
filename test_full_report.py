@@ -97,7 +97,7 @@ class FullReportTests(unittest.TestCase):
     def test_escape_and_malformed_evidence_remain_readable(self):
         row=observation();row['evidence']['inventories'][0]['reason']='<script>'
         text=render_full(1,ARGS,dict(LISTING,titulo='<script>'),[row],[],[],[],{})
-        self.assertNotIn('<script>',text);self.assertIn('&lt;script&gt;',text)
+        self.assertEqual(text.count('<script>'),1);self.assertIn('&lt;script&gt;',text)
         for evidence in (None,[],dict(inventories=[None,{}]),dict(inventories='bad')):
             row=observation();row['evidence']=evidence
             self.assertIn('Consultas e rastreabilidade',render_full(1,ARGS,LISTING,[row],[],[],[],{}))
