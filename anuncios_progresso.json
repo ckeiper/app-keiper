@@ -577,8 +577,8 @@
       "area": "Diagnóstico",
       "capacidade": "Tendência inteligente",
       "estado": "parcial",
-      "implementado": "Comparação entre períodos e sinais determinísticos de alta, queda e novas vendas. Conferência retrospectiva de uma média fixa de vendas: quatro rodadas de 28 dias anteriores para estimar a semana seguinte, dentro de oito semanas completas integralmente verificadas. Exibe estimado/realizado, erros por semana, erro absoluto médio, desvio e erro absoluto acumulado dividido pelo realizado, com denominador zero indefinido. Usa somente dias anteriores a cada semana testada e registros atualmente verificados, sem reconstituir disponibilidade da informação no passado. Nova leitura administrativa reutiliza as cinco consultas existentes, sem APIs ou escrita.",
-      "falta": "A conferência cobre apenas uma média fixa em quatro rodadas da janela atual, sem snapshots do que era conhecido em cada data passada. Faltam controle de sazonalidade, disponibilidade, preço e promoções, comparação com modelos e validação fora desta amostra. Não certifica demanda futura ou previsão operacional. Uso autenticado com anúncio real não exercitado.",
+      "implementado": "Comparação entre períodos e sinais determinísticos de alta, queda e novas vendas. Conferência retrospectiva de uma média fixa de vendas: quatro rodadas de 28 dias anteriores para estimar a semana seguinte, dentro de oito semanas completas integralmente verificadas. Exibe estimado/realizado, erros por semana, erro absoluto médio, desvio e erro absoluto acumulado dividido pelo realizado, com denominador zero indefinido. Usa somente dias anteriores a cada semana testada e registros atualmente verificados, sem reconstituir disponibilidade da informação no passado. Nova leitura administrativa reutiliza as cinco consultas existentes, sem APIs ou escrita. A conferência compara a média dos 28 dias com o total dos sete dias imediatamente anteriores a cada semana testada e mostra o erro absoluto médio de ambas as referências.",
+      "falta": "A conferência cobre duas referências simples em quatro rodadas da janela atual, sem snapshots do que era conhecido em cada data passada. Faltam controle de sazonalidade, disponibilidade, preço e promoções, comparação com modelos ajustados e validação fora desta amostra. Não certifica demanda futura ou previsão operacional. Uso autenticado com anúncio real não exercitado.",
       "fontes": [
         "listing_trends.py",
         "listing_diagnostic_rules.py",
@@ -597,7 +597,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-11-06"
+      "atualizado_em": "2026-11-09"
     },
     {
       "id": "anomalias",
