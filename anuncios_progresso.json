@@ -516,7 +516,9 @@
         "test_installment_comparison.py",
         "scripts/installment_comparison_browser_check.cjs"
       ],
-      "prs": [],
+      "prs": [
+        409
+      ],
       "numero_original": null,
       "prioridade": 100,
       "atualizado_em": "2026-11-10"
@@ -2198,6 +2200,20 @@
       "prs": [
         407
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-10",
+      "resumo": "Ajuda recolhida em Vendas, Mapa por estado e Comparação de tarifas e parcelamento.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        409
+      ]
     }
   ],
   "publicacoes": [
@@ -2442,6 +2458,13 @@
       "commit": "c6c19cf7d95715ae019f85879373e3550d818871",
       "status": "live",
       "horario_brasilia": "2026-11-10T11:50:33.281-03:00"
+    },
+    {
+      "pr": 409,
+      "deploy_id": "dep-dbpmadbm8hqs73a3lreg",
+      "commit": "8f2739510203cbb15386b9351cdf77629aec9696",
+      "status": "live",
+      "horario_brasilia": "2026-11-10T15:44:19.244-03:00"
     }
   ]
 }
