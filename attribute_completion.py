@@ -78,8 +78,11 @@ def gather(token,seller,item_id,get):
     subset={k:item.get(k) for k in ('id','seller_id','site_id','category_id','status','condition','title','attributes','variations','catalog_listing','catalog_product_id','user_product_id','family_id','family_name','tags')}
     if isinstance(subset['variations'],list) and all(isinstance(v,dict) for v in subset['variations']):
         subset['variations']=[{k:v.get(k) for k in ('id','attributes','attribute_combinations')} for v in subset['variations']]
+    components = dict(item=subset, description=description, rules=rules, sheet=sheet, scope=scope)
     return dict(item=item,rules=rules,sheet=sheet,description=description,title=title,warnings=warnings,blocked=reason,
-                fingerprint=digest(dict(item=subset,description=description,rules=rules,sheet=sheet,scope=scope)))
+                fingerprint=digest(components),
+                fingerprint_parts={**{key: digest(value) for key, value in components.items()},
+                                   **{'item.'+key: digest(value) for key, value in subset.items()}})
 
 
 def number(raw):
@@ -189,7 +192,7 @@ def analyze(facts,manual_inputs=None,actor=None):
     manual_fields.sort(key=lambda f:(fold(f['name']),f['id']))
     proposals.sort(key=lambda p:(not p.get('manual',False),not p['hidden'],fold(p['name']),p['id']))
     rows.sort(key=lambda r:(not r['required'],fold(r['name']),r['id']))
-    return dict(variation_snapshot=variation_snapshot,manual_inputs=list(manual.values()),manual_actor=actor if manual else None,manual_fields=manual_fields,extractor_version=EXTRACTOR_VERSION,title=facts['title'],fingerprint=facts['fingerprint'],blocked=facts['blocked'],warnings=warnings,proposals=proposals[:50],proposal_total=len(proposals),
+    return dict(fingerprint_parts=facts.get('fingerprint_parts',{}),variation_snapshot=variation_snapshot,manual_inputs=list(manual.values()),manual_actor=actor if manual else None,manual_fields=manual_fields,extractor_version=EXTRACTOR_VERSION,title=facts['title'],fingerprint=facts['fingerprint'],blocked=facts['blocked'],warnings=warnings,proposals=proposals[:50],proposal_total=len(proposals),
                 inventory=dict(state='read',rows=rows,total=len(rows),variation_ids=index.ids,variation_count=None if index.variants is None else len(index.variants),incomplete_flag=None))
 
 

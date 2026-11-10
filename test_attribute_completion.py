@@ -68,6 +68,20 @@ class WriterTests(unittest.TestCase):
   put.assert_not_called();self.assertEqual(persist.call_args.args[0],'stale')
   plan['state']='confirmed'
   with self.assertRaises(ValueError):apply(plan,['MATERIAL'],'private',123,'MLB123',reader(),put,Mock(),now=101)
+ def test_changed_description_is_identified_without_exposing_values(self):
+  plan=self.plan();put=Mock();persist=Mock()
+  apply(plan,['MATERIAL'],'private',123,'MLB123',reader(description='Material: Plástico'),put,persist,now=101)
+  put.assert_not_called()
+  result=persist.call_args.args[1]
+  self.assertEqual(result['changed_components'],['descrição'])
+  self.assertIn('descrição',result['message'])
+  self.assertNotIn('Plástico',str(result))
+  self.assertNotIn('private',str(result))
+ def test_old_analysis_without_component_hashes_remains_blocked_on_change(self):
+  plan=self.plan();plan['data'].pop('fingerprint_parts');put=Mock();persist=Mock()
+  apply(plan,['MATERIAL'],'private',123,'MLB123',reader(description='Material: Plástico'),put,persist,now=101)
+  put.assert_not_called();self.assertEqual(persist.call_args.args[0],'stale')
+  self.assertEqual(persist.call_args.args[1]['changed_components'],[])
  def test_one_put_explicit_payload_then_verified_readback(self):
   plan=self.plan();get=reader();get.side_effect=list(get.side_effect)+[response(dict(id=123)),response(listing(attributes=[dict(id='MATERIAL',value_name='Aço')]))]
   put=Mock(return_value=response({}));persist=Mock();apply(plan,['MATERIAL'],'private',123,'MLB123',get,put,persist,now=101)
