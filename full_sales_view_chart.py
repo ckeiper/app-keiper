@@ -39,9 +39,11 @@ STYLE = """<style>
 html[data-theme=light] .full-sales-chart{background:#f8fbff;color:#172d47;border-color:#c5d5e6}
 html[data-theme=light] .full-sales-chart figcaption{color:#172d47}
 html[data-theme=light] .full-chart-gridline{border-color:#d4dfec}
-html[data-theme=light] body .full-sales-chart .full-chart-day{background:transparent!important;color:#172d47!important}
-html[data-theme=light] body .full-sales-chart .full-chart-day:is(:hover,:focus-visible,[aria-pressed=true]){
-  background:#e3efff!important;outline-color:#225fbe}
+@layer keiper-appearance {
+  html[data-theme=light] body .full-sales-chart .full-chart-day{background:transparent!important;color:#172d47!important}
+  html[data-theme=light] body .full-sales-chart .full-chart-day:is(:hover,:focus-visible,[aria-pressed=true]){
+    background:#e3efff!important;outline-color:#225fbe}
+}
 html[data-theme=light] .full-chart-sale{background:#2769c0}
 html[data-theme=light] .full-chart-sale[data-sales=missing]{border-color:#52657c}
 html[data-theme=light] .full-chart-stock[data-state=available]{background:#087447;border-color:#087447}
