@@ -1484,6 +1484,44 @@
         "status": "live",
         "horario_brasilia": "2026-11-07T12:53:56.212-03:00"
       }
+    },
+    {
+      "id": "tendencia-referencia-semana-anterior",
+      "escopo": "Comparar retrospectivamente a média de quatro semanas com o total da semana anterior.",
+      "frentes": [
+        "tendencia"
+      ],
+      "etapa": "publicada",
+      "atualizado_em": "2026-11-10T01:47:54.661-03:00",
+      "lacuna": "Quatro rodadas com registros atuais. A validação com anúncio real autenticado segue em aberto.",
+      "pr": 402,
+      "head_sha": "44e47da617ff1a0763ec1d25c08512b735c62ed3",
+      "checks": [
+        {
+          "nome": "Sales tests",
+          "run_id": 42755519824,
+          "resultado": "success",
+          "head_sha": "44e47da617ff1a0763ec1d25c08512b735c62ed3"
+        },
+        {
+          "nome": "Management browser checks",
+          "run_id": 42755519558,
+          "resultado": "success",
+          "head_sha": "44e47da617ff1a0763ec1d25c08512b735c62ed3"
+        },
+        {
+          "nome": "Catalog browser checks",
+          "run_id": 42755519660,
+          "resultado": "success",
+          "head_sha": "44e47da617ff1a0763ec1d25c08512b735c62ed3"
+        }
+      ],
+      "publicacao": {
+        "deploy_id": "dep-dbpa2gavcj2c73cu50q0",
+        "commit": "8a47c30e5c0162536520b8808ba0b0bc7982138a",
+        "status": "live",
+        "horario_brasilia": "2026-11-10T01:47:54.661-03:00"
+      }
     }
   ]
 }
