@@ -19,12 +19,16 @@ def evaluate(data):
         training_units=sum(r['units'] for r in training)
         estimate=Decimal(training_units)/4;actual=sum(r['units'] for r in test)
         error=estimate-actual
+        previous_week_units = sum(r['units'] for r in training[-7:])
         rows.append(dict(training_start=training[0]['day'],training_end=training[-1]['day'],
                          test_start=test[0]['day'],test_end=test[-1]['day'],training_units=training_units,
-                         estimate=estimate,actual=actual,error=error,absolute_error=abs(error)))
+                         estimate=estimate,actual=actual,error=error,absolute_error=abs(error),
+                         previous_week_units=previous_week_units,
+                         previous_week_absolute_error=abs(previous_week_units-actual)))
     absolute=sum(r['absolute_error'] for r in rows);actual=sum(r['actual'] for r in rows)
     return dict(available=True,reason=None,rows=rows,estimate=sum(r['estimate'] for r in rows),actual=actual,
-                mae=absolute/4,bias=sum(r['error'] for r in rows)/4,
+                mae=absolute/4,previous_week_mae=Decimal(sum(r['previous_week_absolute_error'] for r in rows))/4,
+                bias=sum(r['error'] for r in rows)/4,
                 absolute_error_percent=absolute*100/actual if actual else None)
 
 
@@ -55,6 +59,13 @@ def render(cid,item,shop,data):
         out+='</div><div class="wp-table-wrap ph-table" role="region" aria-label="Erros das quatro semanas testadas" tabindex="0"><table><caption>Estimado pela média dos 28 dias anteriores × realizado na semana seguinte</caption><thead><tr><th scope="col">Base anterior</th><th scope="col">Semana testada</th><th scope="col">Estimado</th><th scope="col">Real</th><th scope="col">Erro: estimado − real</th><th scope="col">Erro absoluto</th></tr></thead><tbody>'
         for r in model['rows']:
             out+='<tr><th scope="row">'+fmt(r['training_start'])+' a '+fmt(r['training_end'])+'</th><td>'+fmt(r['test_start'])+' a '+fmt(r['test_end'])+'</td><td>'+number(r['estimate'])+'</td><td>'+str(r['actual'])+'</td><td>'+signed(r['error'])+'</td><td>'+number(r['absolute_error'])+'</td></tr>'
+        out+='</tbody></table></div>'
+        out+='<h3>Comparação com a semana anterior</h3>'
+        out+='<p>Erro absoluto médio nas mesmas quatro rodadas · média de quatro semanas: <strong>'+number(model['mae'])+'</strong> · semana anterior: <strong>'+number(model['previous_week_mae'])+'</strong> unidades por semana.</p>'
+        out+='<p>A segunda referência usa somente as unidades dos sete dias imediatamente anteriores à semana testada.</p>'
+        out+='<div class="wp-table-wrap" role="region" aria-label="Comparação dos erros por semana" tabindex="0"><table style="min-width:560px"><caption>Erros absolutos por semana testada</caption><thead><tr><th scope="col">Semana testada</th><th scope="col">Média de quatro semanas</th><th scope="col">Semana anterior</th></tr></thead><tbody>'
+        for row in model['rows']:
+            out+='<tr><th scope="row">'+fmt(row['test_start'])+' a '+fmt(row['test_end'])+'</th><td>'+number(row['absolute_error'])+'</td><td>'+number(row['previous_week_absolute_error'])+'</td></tr>'
         out+='</tbody></table></div>'
     out+='<details><summary>Método e limites</summary><p>Janelas fixas: 28 dias de base e os sete dias seguintes para conferência, avançando uma semana em cada rodada. Todas as quatro rodadas aparecem, sem escolher as mais favoráveis. Erro absoluto médio = soma dos erros absolutos ÷ 4; desvio médio = soma de estimado menos realizado ÷ 4. O percentual usa soma dos erros absolutos ÷ soma das unidades realizadas × 100 e pode superar 100%.</p><p>As estimativas podem ter frações de unidade porque são médias. Valores são exibidos com uma casa decimal; cálculos usam os valores completos. Sem unidades realizadas, não há denominador para o percentual.</p><p>Usa registros atualmente verificados. Não reconstitui quais informações estavam disponíveis nas datas passadas. Mede vendas observadas, sem estimar demanda reprimida ou descontar pausas, ruptura, preço, promoções e feriados. Quatro rodadas não certificam precisão futura, sazonalidade ou data de ruptura; nenhuma projeção futura ou alteração de estoque é produzida.</p></details></section>'
     return out
