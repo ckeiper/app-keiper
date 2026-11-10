@@ -65,34 +65,28 @@ class FullReportTests(unittest.TestCase):
         self.assertIn('não representam todas as variações',render_snapshot(1,ARGS,LISTING,[row],START,END))
 
     def test_pagination_clamps_preserves_selection_and_whitelists_parameters(self):
-        args=dict(ARGS,full_consultas='2',secret='ignored')
-        rows,nav=paginate(list(range(51)),1,args,'full_dias',20,'full-dias')
+        args=dict(ARGS,full_historico_variacao='2',secret='ignored')
+        rows,nav=paginate(list(range(51)),1,args,'full_variacoes',20,'full-variacoes')
         self.assertEqual(rows,list(range(20)))
         import re
         href=unescape(re.search(r'href="([^"]+)"',nav).group(1));params=parse_qs(urlsplit(href).query)
-        self.assertEqual(params['item_id'],['MLB1']);self.assertEqual(params['full_consultas'],['2'])
+        self.assertEqual(params['item_id'],['MLB1']);self.assertEqual(params['full_historico_variacao'],['2'])
         self.assertEqual(params['inicio'],['2026-09-01']);self.assertNotIn('secret',params)
         for page,expected in [('bad',0),('-1',0),('999',40)]:
-            selected,_=paginate(list(range(51)),1,dict(ARGS,full_dias=page),'full_dias',20,'full-dias')
+            selected,_=paginate(list(range(51)),1,dict(ARGS,full_variacoes=page),'full_variacoes',20,'full-variacoes')
             self.assertEqual(selected[0],expected)
 
-    def test_full_report_bounds_both_histories_and_summary_uses_whole_window(self):
+    def test_full_report_hides_details_and_keeps_summary_for_whole_window(self):
         rows=[observation(STAMP-i*60) for i in range(40)]
         covered=[(START+timedelta(days=i)).isoformat() for i in range(30)]
         text=render_full(1,ARGS,LISTING,rows,[],[],covered,{})
         self.assertIn('30/30',text);self.assertIn('1/30',text)
         self.assertNotIn('Ainda não há coletas Full',text)
-        self.assertIn('Página 1 de 2',text)
-        from html.parser import HTMLParser
-        class Tables(HTMLParser):
-            def __init__(self):super().__init__();self.counts=[];self.current=-1
-            def handle_starttag(self,tag,attrs):
-                if tag=='table':self.counts.append(0);self.current+=1
-                if tag=='tr':self.counts[self.current]+=1
-        parser=Tables();parser.feed(text)
-        self.assertEqual(parser.counts,[3,21,21,31])
-        text=render_full(1,dict(ARGS,full_dias='2',full_consultas='2'),LISTING,rows,[],[],covered,{})
-        parser=Tables();parser.feed(text);self.assertEqual(parser.counts,[3,21,11,11])
+        self.assertIn('<details class="card full-variations"', text)
+        self.assertIn("<details class='card full-report-details'>", text)
+        self.assertLess(text.index("class='full-sales-chart'"), text.index('Dados e consultas do período'))
+        self.assertNotIn('id="full-dias"', text)
+        self.assertNotIn('id="full-consultas"', text)
 
     def test_escape_and_malformed_evidence_remain_readable(self):
         row=observation();row['evidence']['inventories'][0]['reason']='<script>'
@@ -100,4 +94,4 @@ class FullReportTests(unittest.TestCase):
         self.assertEqual(text.count('<script>'),1);self.assertIn('&lt;script&gt;',text)
         for evidence in (None,[],dict(inventories=[None,{}]),dict(inventories='bad')):
             row=observation();row['evidence']=evidence
-            self.assertIn('Consultas e rastreabilidade',render_full(1,ARGS,LISTING,[row],[],[],[],{}))
+            self.assertIn('Inventários e variações',render_full(1,ARGS,LISTING,[row],[],[],[],{}))

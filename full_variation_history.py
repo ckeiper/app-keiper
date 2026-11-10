@@ -50,7 +50,7 @@ def render(cid,args,listing,observations,start,end):
     out=STYLE+'<details class="card full-variation-history" id="full-historico-variacao"'+(' open' if args.get('full_variacao') or args.get('full_historico_variacao') else '')+'><summary>Histórico de quantidade por variação</summary>'
     out+='<p>'+str(model['loaded'])+' observações carregadas deste anúncio no período, das mais recentes para as antigas; até '+str(MAX_READS)+' observações para esta análise. Quantidades são históricas, sem confirmação do saldo atual.</p>'
     if model['limited']:
-        out+='<p>Recorte limitado às '+str(MAX_READS)+' observações mais recentes. Reduza ou altere o período para consultar outro recorte. As demais consultas continuam em Consultas e rastreabilidade.</p>'
+        out+='<p>Recorte limitado às '+str(MAX_READS)+' observações mais recentes. Reduza ou altere o período para consultar outro recorte.</p>'
     if not model['choices']:
         return out+'<p>Sem código de variação confirmado nas consultas carregadas.</p></details>'
     out+='<form class="full-variation-form" method="get" action="/full/'+str(int(cid))+'#full-historico-variacao">'

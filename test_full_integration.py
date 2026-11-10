@@ -55,7 +55,7 @@ class FullIntegrationTests(unittest.TestCase):
         self.assertIn('Full A',body)
         self.assertNotIn('Full B',body)
         self.assertIn("name='item_id'",body)
-        self.assertIn('Indisponível',body)
+        self.assertIn('02/01/2026 · Vendas indisponíveis · Full: Desconhecido · 0 consultas',body)
         self.assertEqual(self.client.get('/full/'+str(self.ids[0])+'?periodo=personalizado&inicio=2025-01-01&fim=2026-01-01').status_code,200)
 
     def test_history_is_scoped_even_for_same_item_in_other_store(self):
@@ -65,9 +65,10 @@ class FullIntegrationTests(unittest.TestCase):
                 self.m.executar(conn,'''INSERT INTO full_observations VALUES(%s,'MLBFULL',%s,%s,%s,'fulfillment',%s::jsonb)''',
                                 (cid,stamp,state,qty,json.dumps(dict(reason=marker))))
         body = self.client.get(self.url).get_data(as_text=True)
-        self.assertIn('own_inventory',body)
+        self.assertNotIn('own_inventory',body)
         self.assertNotIn('foreign_inventory',body)
-        self.assertIn('Sem estoque Full',body)
+        self.assertIn('02/01/2026 · Vendas indisponíveis · Full: Sem estoque Full · 1 consulta',body)
+        self.assertIn('03/01/2026 · Vendas indisponíveis · Full: Desconhecido · 0 consultas',body)
         self.assertIn('Primeira confirmação',body)
 
     def test_collector_persists_official_variation_stock_and_rotation(self):

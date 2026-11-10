@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 from sales_metrics import SAO_PAULO
 from full_monitor import METADATA_MAX_AGE
 
-PAGE_KEYS = ('full_dias', 'full_consultas', 'full_variacoes', 'full_historico_variacao')
+PAGE_KEYS = ('full_variacoes', 'full_historico_variacao')
 
 
 def paginate(rows, cid, args, key, size, anchor):
@@ -115,4 +115,8 @@ def render_summary(days):
 
 STYLE='''<style>
 body .conteudo .full-report{background:#102238;color:#eaf2ff;border:1px solid #34516e;border-radius:15px;padding:20px;margin:18px 0;max-width:100%;min-width:0;box-sizing:border-box}body .conteudo .full-report :is(h2,h3,b,summary){color:#eaf2ff}.full-report p,.full-report small{font-size:12px;line-height:1.7;color:#bdcce1}.full-report .card{background:#182e49;color:#eaf2ff;border:1px solid #426184;box-shadow:none;min-width:0}.full-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}.full-summary article{background:#182e49;border:1px solid #426184;border-radius:10px;padding:14px;display:grid;gap:8px;overflow-wrap:anywhere}.full-summary strong{font-size:22px}.full-summary small{display:block}.full-report summary{cursor:pointer;padding:10px 0;font-weight:700}.full-table-scroll,.full-chart-scroll{overflow-x:auto;max-width:100%;min-width:0}.full-report table{min-width:750px;width:100%;border-collapse:collapse}.full-report th,.full-report td{padding:12px;border-bottom:1px solid #426184;text-align:left;vertical-align:top;font-size:12px;overflow-wrap:anywhere;max-width:400px}body .conteudo .full-report :is(th,td){background:#182e49;color:#eaf2ff}.full-report svg text{fill:#dcecff}.full-pages{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;margin:16px 0}body .conteudo .full-report a{color:#b9e5ff;text-decoration:none}.full-report :focus-visible{outline:3px solid #85c8ec;outline-offset:3px}@media(max-width:700px){.full-summary{grid-template-columns:repeat(2,minmax(0,1fr))}body .conteudo .full-report{padding:14px}}
+.full-report-item{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px}
+.full-report-item h3{margin:0}
+.full-report .full-report-details{margin-top:16px}
+.full-report .full-report-details>.card{margin:8px 0}
 </style>'''

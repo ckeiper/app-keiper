@@ -239,7 +239,7 @@
       "area": "Estoque",
       "capacidade": "Histórico de estoque Full",
       "estado": "concluida",
-      "implementado": "Observações de disponibilidade, fontes e integração com vendas e diagnóstico. O relatório Full e vendas exibe barras diárias e uma faixa alinhada de disponibilidade observada, com detalhes por dia acessíveis por teclado e toque. Ausência é desconhecida e consultas divergentes têm marca própria.",
+      "implementado": "Observações de disponibilidade, fontes e integração com vendas e diagnóstico. O relatório Full e vendas exibe barras diárias e uma faixa alinhada de disponibilidade observada, com detalhes por dia acessíveis por teclado e toque. Ausência é desconhecida e consultas divergentes têm marca própria. O gráfico concentra os detalhes diários. Cobertura e variações ficam recolhidas.",
       "falta": "",
       "fontes": [
         "full_monitor.py",

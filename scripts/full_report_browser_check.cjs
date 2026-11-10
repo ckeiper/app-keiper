@@ -6,7 +6,7 @@ const {chromium}=require('playwright');
  const page=await browser.newPage();
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
-  for(const mode of ['ready','partial','empty','page2','variations']){
+  for(const mode of ['ready','partial','empty','variations']){
    for(const width of [1440,390,320]){
     await page.setViewportSize({width,height:900});
     await page.setContent(fs.readFileSync(`visual-qa/full-report-${mode}.html`,'utf8'));
@@ -14,8 +14,11 @@ const {chromium}=require('playwright');
     assert.equal(await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(8, 20, 38)');
     assert.equal(await page.locator('.conteudo>h2').first().evaluate(el=>getComputedStyle(el).color),'rgb(237, 245, 255)');
     assert.equal(await page.locator('.full-report').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(16, 34, 56)');
+    const reportDetails=page.locator('.full-report-details');
+    assert.equal(await reportDetails.evaluate(el=>el.open),mode==='variations');
+    if(!await reportDetails.evaluate(el=>el.open)) await reportDetails.locator(':scope > summary').click();
+    assert.equal(await page.locator('#full-dias,#full-consultas').count(),0);
     assert.equal(await page.locator('.full-summary article').count(),4);
-    assert.equal(await page.locator('.full-days-scroll tbody tr').count(),mode==='page2'?10:20);
     assert.ok((await page.locator('.full-summary').textContent()).includes('30/30'));
     if(!await page.locator('.full-variations').evaluate(el=>el.open)){
      await page.locator('.full-variations summary').focus();await page.keyboard.press('Enter');
@@ -25,10 +28,6 @@ const {chromium}=require('playwright');
     if(mode==='ready')assert.equal(await variations.first().locator('td').nth(1).textContent(),'0');
     if(mode==='partial')assert.equal(await variations.last().locator('td').nth(1).textContent(),'Indisponível');
     if(mode==='variations')assert.ok((await page.locator('.full-variations nav').textContent()).includes('Página 2 de 3'));
-    if(!await page.locator('.full-reads').evaluate(el=>el.open)){
-     await page.locator('.full-reads summary').focus();await page.keyboard.press('Enter');
-    }
-    assert.equal(await page.locator('.full-reads tbody tr').count(),mode==='empty'?0:mode==='page2'?10:30);
     await page.locator('.full-chart-scroll').focus();assert.equal(await page.locator(':focus').getAttribute('role'),'region');
     const chart=page.locator('.full-sales-chart');
     const days=chart.locator('.full-chart-day');
@@ -39,7 +38,7 @@ const {chromium}=require('playwright');
     assert.equal(await days.nth(1).getAttribute('aria-pressed'),'true');
     assert.match(await chart.locator('.full-chart-readout').innerText(),/02\/09\/2026.*Desconhecido/);
     if(width<700){
-     for(const selector of ['.full-days-scroll','.full-chart-scroll'])assert.ok(await page.locator(selector).evaluate(el=>el.scrollWidth>el.clientWidth));
+     assert.ok(await page.locator('.full-chart-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
     }
     assert.ok((await page.locator('.full-report th,.full-report td').evaluateAll(els=>els.map(el=>getComputedStyle(el).backgroundColor))).every(color=>color==='rgb(24, 46, 73)'));
     await page.screenshot({path:`visual-qa/full-report-${mode}-${width}.png`,fullPage:true});

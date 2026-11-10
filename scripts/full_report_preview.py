@@ -12,7 +12,7 @@ prefix=next(node.value for node in ast.walk(source) if isinstance(node,ast.Const
 shell=prefix+"<option value='1'>Loja de demonstração</option></select></label><button>Abrir loja</button></form><form class='card'><label>Anúncio <select><option>Produto de teste</option></select></label><button>Aplicar</button></form>"
 
 coverage=[(START+timedelta(days=i)).isoformat() for i in range(30)]
-for mode in ('ready','partial','empty','page2','variations'):
+for mode in ('ready','partial','empty','variations'):
     rows=[observation(STAMP-i*60) for i in range(40)]
     args=dict(ARGS)
     if mode=='partial':
@@ -20,7 +20,6 @@ for mode in ('ready','partial','empty','page2','variations'):
         rows[0]['evidence']['partial']=True
         rows[0]['evidence']['inventories'][1].update(quantity=None,reason='Consulta não autorizada')
     if mode=='empty':rows=[]
-    if mode=='page2':args.update(full_dias='2',full_consultas='2')
     if mode=='variations':
         row=rows[0];mapping=[];readings=[]
         for i in range(51):
