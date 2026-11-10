@@ -14,9 +14,11 @@ Cálculos em inteiros/Decimal, sem arredondar estimativas antes de calcular os e
 
 Referência conceitual para a separação temporal de base e teste: Hyndman e Athanasopoulos, [Forecasting: Principles and Practice, seção 5.10](https://otexts.com/fpp3/toolbox.html#time-series-cross-validation), consultada em 06/11/2026. A implementação usa uma janela móvel fixa de 28 dias e avalia o total semanal, sem alegar reproduzir um protocolo mais amplo de seleção ou certificação de modelos.
 
+A referência da semana anterior usa o total dos últimos sete dias da base de cada rodada. A comparação exibe os erros absolutos por rodada e o erro absoluto médio das duas referências sobre as mesmas quatro semanas.
+
 ## Limites
 
-É simulação retrospectiva com os registros **atualmente** verificados. Não reproduz os dados ou status que estavam disponíveis nas datas históricas. Mede vendas observadas, sem corrigir demanda reprimida, lançamento, pausas, ruptura, preço, promoções ou feriados. Quatro rodadas e uma única regra não certificam precisão futura, sazonalidade, significância, previsão de estoque ou data de ruptura. A tela não produz projeção para datas futuras nem recomenda alteração no marketplace.
+É simulação retrospectiva com os registros **atualmente** verificados. Não reproduz os dados ou status que estavam disponíveis nas datas históricas. Mede vendas observadas, sem corrigir demanda reprimida, lançamento, pausas, ruptura, preço, promoções ou feriados. Quatro rodadas com duas referências simples não certificam precisão futura, sazonalidade, significância, previsão de estoque ou data de ruptura. A tela não produz projeção para datas futuras nem recomenda alteração no marketplace.
 
 ## Verificação
 
