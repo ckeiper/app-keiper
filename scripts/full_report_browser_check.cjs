@@ -30,6 +30,14 @@ const {chromium}=require('playwright');
     }
     assert.equal(await page.locator('.full-reads tbody tr').count(),mode==='empty'?0:mode==='page2'?10:30);
     await page.locator('.full-chart-scroll').focus();assert.equal(await page.locator(':focus').getAttribute('role'),'region');
+    const chart=page.locator('.full-sales-chart');
+    const days=chart.locator('.full-chart-day');
+    assert.equal(await days.count(),30);
+    assert.ok(!(await chart.innerText()).includes('?'));
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await days.nth(1).getAttribute('aria-pressed'),'true');
+    assert.match(await chart.locator('.full-chart-readout').innerText(),/02\/09\/2026.*Desconhecido/);
     if(width<700){
      for(const selector of ['.full-days-scroll','.full-chart-scroll'])assert.ok(await page.locator(selector).evaluate(el=>el.scrollWidth>el.clientWidth));
     }

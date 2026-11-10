@@ -129,23 +129,27 @@ class FullTests(unittest.TestCase):
         self.assertIn('&lt;script&gt;',view)
         self.assertIn('Ainda não há coletas Full',view)
         self.assertIn('nem preenchemos o intervalo',view)
-        self.assertIn('viewBox=',view)
-        self.assertNotIn('<script>',view)
+        self.assertIn('class=\'full-sales-chart\'',view)
+        self.assertEqual(view.count('<script>'),1)
 
-    def test_full_line_breaks_at_unknown_and_mixed_days_without_turning_them_into_zero(self):
+    def test_chart_preserves_each_daily_stock_state_and_sales_gap(self):
         import xml.etree.ElementTree as ET
-        states = ['available','available','empty','unknown','available','mixed','empty']
-        days = [dict(day=f'2026-01-{i+1:02}',state=state,observations=1,units=3)
-                for i,state in enumerate(states)]
-        root = ET.fromstring(chart(days))
-        path = next(e for e in root.iter() if e.attrib.get('data-series') == 'full-availability')
-        # Three distinct runs, not a line crossing the two missing states.
-        self.assertEqual(path.attrib['d'].count('M'),3)
-        self.assertEqual(path.attrib['d'].count('L'),2)
-        self.assertEqual(path.attrib['d'].count(',195'),2)
-        self.assertEqual(path.attrib['d'].count(',55'),3)
-        self.assertIn('Com estoque',chart(days))
-        self.assertIn('Sem estoque',chart(days))
+        states = ['available', 'empty', 'unknown', 'mixed']
+        days = [dict(day=f'2026-01-{i+1:02}', state=state, observations=count,
+                     units=units, reason='Cobertura <pendente>')
+                for i, (state, count, units) in enumerate(zip(states, [1, 1, 0, 2], [3, 0, None, 1]))]
+        html = chart(days)
+        figure = ET.fromstring(html[html.index('<figure'):html.index('</figure>') + len('</figure>')])
+        buttons = figure.findall('.//button')
+        self.assertEqual([b[1].get('data-state') for b in buttons], states)
+        self.assertEqual([b[0].get('data-sales') for b in buttons], ['positive', 'zero', 'missing', 'positive'])
+        self.assertEqual([b[2].text for b in buttons], ['01/01', '02/01', '03/01', '04/01'])
+        self.assertIn('0 unidades vendidas', buttons[1].get('aria-label'))
+        self.assertIn('Vendas indisponíveis', buttons[2].get('aria-label'))
+        self.assertIn('Cobertura <pendente>', buttons[2].get('aria-label'))
+        self.assertIn('Sem consulta Full registrada', buttons[2].get('aria-label'))
+        self.assertIn('Consultas divergentes', buttons[3].get('aria-label'))
+        self.assertNotIn('?', ''.join(figure.itertext()))
 
 
 if __name__ == '__main__':
