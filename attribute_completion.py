@@ -44,7 +44,10 @@ def owned(token,seller,item_id,get):
 
 
 def gather(token,seller,item_id,get):
-    item=owned(token,seller,item_id,get);category=item.get('category_id')
+    item=owned(token,seller,item_id,get)
+    if item.get('catalog_listing') is True:
+        raise ContentUnavailable('Anúncio de catálogo. Solicite a alteração ao Mercado Livre para análise e aprovação.')
+    category=item.get('category_id')
     if not isinstance(category,str) or not re.fullmatch(r'MLB[0-9]{1,20}',category):raise ContentUnavailable('Categoria não verificada.')
     description=None;warnings=[]
     try:
