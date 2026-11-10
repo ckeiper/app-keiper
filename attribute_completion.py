@@ -162,7 +162,7 @@ def analyze(facts,manual_inputs=None,actor=None):
         text_review=code in uncertain or len(distinct)>1
         if text_review:message+='; texto precisa de conferência antes de sugerir valor'
         name=definition.get('name');name=name if isinstance(name,str) and 1<=len(name)<=300 else code
-        rows.append(dict(id=code,name=name+(' · Oculto' if hidden else ''),state=state,message=message,required='required' in sheet_tags,
+        rows.append(dict(hidden_tags=[tag for tag in HIDDEN if (valid and tags.get(tag) is True) or tag in sheet_tags],id=code,name=name+(' · Oculto' if hidden else ''),state=state,message=message,required='required' in sheet_tags,
                          managed=any((valid and tags.get(k) is True) or k in sheet_tags for k in ('read_only','fixed','inferred')),variation_states=variants,publication=publication(code,rules,{})))
         # Only add genuinely empty common attributes. Never replace N/A, structures,
         # existing values, or variation-owned evidence; identity fields are blocked.
