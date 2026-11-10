@@ -40,6 +40,12 @@ class BatchTests(unittest.TestCase):
   for data in cases:
    with self.subTest(data=data):
     with self.assertRaises(ValueError):parse(data)
+ def test_blank_rows_remain_pending_and_do_not_block_filled_rows(self):
+  _,entries=parse(form([('MATERIAL','Aço','Fonte'),('WIDTH','  ','Medir depois'),('','','')]))
+  self.assertEqual(entries,[dict(id='MATERIAL',value='Aço',note='Fonte')])
+  _,_,_,transition=self.call(form([('MATERIAL','Aço','Fonte'),('WIDTH','','')]))
+  proposals=transition.call_args_list[0].kwargs['data']['proposals']
+  self.assertEqual([p['id'] for p in proposals],['MATERIAL'])
  def test_parse_accepts_fifty_distinct_targets_and_separate_variations(self):
   _,entries=parse(form([(str(i),'valor','') for i in range(50)]));self.assertEqual(len(entries),50)
   self.assertEqual(len(parse(form([('v:101:GTIN','789001',''),('v:102:GTIN','789002','')]))[1]),2)
