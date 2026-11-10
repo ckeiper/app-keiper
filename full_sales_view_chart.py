@@ -36,6 +36,20 @@ STYLE = """<style>
 .full-chart-readout{min-height:3.5em;margin-top:10px;padding:8px 12px;background:#142942;border-radius:6px;
   color:#dcecff;font-size:12px;line-height:1.5}
 .full-chart-readout strong,.full-chart-readout small{display:block}
+html[data-theme=light] .full-sales-chart{background:#f8fbff;color:#172d47;border-color:#c5d5e6}
+html[data-theme=light] .full-sales-chart figcaption{color:#172d47}
+html[data-theme=light] .full-chart-gridline{border-color:#d4dfec}
+html[data-theme=light] body .full-sales-chart .full-chart-day{background:transparent!important;color:#172d47!important}
+html[data-theme=light] body .full-sales-chart .full-chart-day:is(:hover,:focus-visible,[aria-pressed=true]){
+  background:#e3efff!important;outline-color:#225fbe}
+html[data-theme=light] .full-chart-sale{background:#2769c0}
+html[data-theme=light] .full-chart-sale[data-sales=missing]{border-color:#52657c}
+html[data-theme=light] .full-chart-stock[data-state=available]{background:#087447;border-color:#087447}
+html[data-theme=light] .full-chart-stock[data-state=empty]{border-color:#b22539}
+html[data-theme=light] .full-chart-stock[data-state=unknown]{border-color:#52657c}
+html[data-theme=light] .full-chart-stock[data-state=mixed]{border-color:#8b6010;
+  background:repeating-linear-gradient(135deg,#8b6010 0 2px,transparent 2px 4px)}
+html[data-theme=light] .full-chart-readout{background:#eaf1fa}
 @media(max-width:700px){.full-sales-chart{padding:12px}}
 </style>"""
 
