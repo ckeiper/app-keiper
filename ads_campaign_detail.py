@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from html import escape
 from urllib.parse import quote
+from section_help import STYLE as HELP_STYLE, section_help
 
 CSS="""<style>
 .k-camp{--ink:#1c2d4a;--muted:#71839e;--blue:#3763ed;--cyan:#00aabb;color:var(--ink)}
@@ -94,7 +95,7 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
         return "<div class='kc-kpi'><label>"+name+"</label><strong>"+value+"</strong>"+trend+("<small>"+note+"</small>" if note else "")+"</div>"
     name=escape(str(campaign.get("nome") or ("Campanha "+str(campaign["campanha_id"]))))
     status=escape(str(campaign.get("status") or "Sem status"))
-    out=CSS+"<div class='k-camp'><header class='kc-hero'><div class='kc-head'><div><div class='kc-eyebrow'>Keiper / Inteligência de Ads</div><h2>"+name+"</h2><p class='kc-sub'>Campanha "+escape(str(campaign["campanha_id"]))+" · "+status+"</p>"
+    out=CSS+HELP_STYLE+"<div class='k-camp'><header class='kc-hero'><div class='kc-head'><div><div class='kc-eyebrow'>Keiper / Inteligência de Ads</div><h2>"+name+"</h2><p class='kc-sub'>Campanha "+escape(str(campaign["campanha_id"]))+" · "+status+"</p>"
     out+="<span class='kc-badge'>Meta de ROAS: "+(num(target)+"x" if target>0 else "não cadastrada")+"</span>"
     out+="<span class='kc-badge'>Orçamento diário: "+(money(budget) if budget>0 else "não informado")+"</span>"
     out+="</div><a class='kc-back' href='/ads/"+str(cid)+"'>← Voltar à Publicidade</a></div></header>"
@@ -121,9 +122,12 @@ def render(cid, campaign, history, days, today, store_revenue=None, shop_daily=N
     spends=[float(campaign_days[day]["gasto"] or 0) if day in campaign_days else None for day in labels]
     organic=[value(campaign_days.get(day, {}), 'outras_vendas', integer=True) for day in labels]
     available=sum(a is not None and b is not None for a,b in zip(attributed,organic))
-    out+="<section class='kc-section'><h3>Vendas e investimento da campanha</h3>"
-    out+="<p class='kc-sub'>Barras empilhadas: Vendas Ads e outras vendas dos anúncios desta campanha, conforme informado pelo Mercado Livre. A linha mostra o investimento em reais.</p>"
-    out+="<p class='kc-sub'>Vendas em quantidade no eixo esquerdo; investimento no eixo direito. Cada produto diferente no carrinho conta como uma venda, independentemente das unidades.</p>"
+    out+="<section class='kc-section'>"+section_help(
+        'Vendas e investimento da campanha', 'Como ler vendas e investimento da campanha',
+        '<p>As barras empilham as vendas Ads e as outras vendas dos anúncios da campanha, conforme informado pelo Mercado Livre. '
+        'Vendas em quantidade no eixo esquerdo. A linha usa o eixo direito e mostra o investimento em reais.</p>'
+        '<p>Cada produto diferente no carrinho conta como uma venda, independentemente das unidades.</p>',
+        subheading=True)
     if available<days:
         out+="<div class='kc-stale'>Métricas oficiais de vendas disponíveis em "+str(available)+" de "+str(days)+" dias. O histórico está sendo atualizado nas sincronizações. Dados não fornecidos aparecem como indisponíveis, sem estimativa e sem substituição por zero.</div>"
     out+="<div class='kc-chart'><canvas id='kc-daily-chart' role='img' aria-label='Vendas Ads e outras vendas dos anúncios da campanha empilhadas, com investimento em reais'></canvas></div></section>"

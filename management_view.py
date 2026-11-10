@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 
 from sales_metrics import SAO_PAULO, change
 from sales_view import fmt
+from section_help import STYLE as HELP_STYLE, section_help
 
 KINDS={'':'Todas as áreas','vendas':'Vendas','estoque':'Estoque','status':'Status',
        'margem':'Rentabilidade','qualidade':'Qualidade','dados':'Dados'}
@@ -67,7 +68,7 @@ def render_management(cid,report,args):
     period_params.update({key:args[key] for key in ('inicio','fim') if args.get(key)})
     sales_url=f'/vendas/{cid}?'+urlencode({'periodo':'personalizado','inicio':start.isoformat(),'fim':end.isoformat()})
     ads_url=f'/ads/{cid}?'+urlencode({'de':start.isoformat(),'ate':end.isoformat()})
-    body=STYLE+"<div class='mgmt-dashboard'><header class='mgmt-header'><div><span class='mgmt-eyebrow'>Keiper Consultoria · Performance da loja</span><h2>"+escape(report['shop']['cliente'])+"</h2></div>"
+    body=STYLE+HELP_STYLE+"<div class='mgmt-dashboard'><header class='mgmt-header'><div><span class='mgmt-eyebrow'>Keiper Consultoria · Performance da loja</span><h2>"+escape(report['shop']['cliente'])+"</h2></div>"
     body+=f"<div class='mgmt-links'><a class='btn-acoes' href='/atualizar/resumo/{cid}'>Atualizar dados</a><a class='btn-acoes cinza' href='/painel/{cid}/operacao'>Operação do dia →</a></div></header>"
     if report.get('updating'):
         body+="<div class='aviso' role='status'>Sincronização em andamento. Os indicadores mostram a última leitura disponível; recarregue esta página após a conclusão.</div>"
@@ -143,7 +144,13 @@ def render_management(cid,report,args):
         });
     })();
     </script>"""
-    body+="<div class='mgmt-overview-bottom'><section class='card mgmt-catalog'><h2>Saúde do catálogo</h2><div class='mgmt-kpis'>"
+    catalog_help = (
+        "<p>Faturamento usa pedidos pagos e aprovados em reais. O ranking usa o valor bruto dos itens, sem rateio de frete e cupons.</p>"
+        "<p>Pedidos por 100 visitas exigem cobertura completa. A cobertura de estoque usa o ritmo passado de vendas.</p>"
+        "<p>Margem histórica requer custos, taxas, frete e Ads da época. Preço competitivo, posição no catálogo e causas de quedas exigem investigação.</p>"
+    )
+    body+="<div class='mgmt-overview-bottom'><section class='card mgmt-catalog'>"
+    body+=section_help('Saúde do catálogo','Como interpretar a saúde do catálogo',catalog_help)+"<div class='mgmt-kpis'>"
     body+=card('Anúncios com vendas',fmt(report['selling'],False),f"Entre {report['listing_count']} anúncios cadastrados")
     body+=card('Sem vendas no período',fmt(report['no_sales'],False),'Ausência de vendas não comprova falta de demanda')
     visit_value=(fmt(report['visits'],False) if any(r['visits_days'] for r in report['rows']) else 'Aguardando coleta')
@@ -153,12 +160,7 @@ def render_management(cid,report,args):
     body+=('<p>Maior anúncio: <b>'+number(report['top_share'],1,'%')+'</b> do valor dos itens cadastrados vendidos. '
            'Vendidos sem custo cadastrado: <b>'+fmt(report['missing_cost_count'],False)+'</b>. '
            'Perguntas sem resposta nos registros sincronizados: <b>'+str(report['questions'])+'</b>.</p>')
-    body+='<details><summary>Como interpretar os dados</summary><p>Faturamento usa pedidos pagos e aprovados em reais. '
-    body+='O ranking por anúncio usa valor bruto dos itens; frete e cupons do pedido não são rateados. '
-    body+='Visitas só geram pedidos por 100 visitas quando todos os dias do anúncio estão presentes. '
-    body+='Cobertura de estoque é uma estimativa pelo ritmo de unidades vendidas, sem garantir demanda futura. '
-    body+='Custos atuais não comprovam lucro histórico; taxas, frete e Ads precisam entrar na análise de margem. '
-    body+='Preço competitivo, posição no catálogo e causa das quedas exigem investigação; não são inferidos destes números.</p></details></section>'
+    body+='</section>'
     if report['champions']:
         body+="<section class='card mgmt-leaders'><h2>Campeões de vendas em valor</h2><ol>"
         for row in report['champions']:
