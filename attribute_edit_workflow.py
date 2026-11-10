@@ -38,6 +38,13 @@ def apply(plan,codes,token,seller,item_id,get,put,persist,now=None,post=None):
             current = facts.get('fingerprint_parts', {})
             labels = {'item': 'dados do anúncio', 'description': 'descrição', 'rules': 'regras da categoria',
                       'sheet': 'ficha técnica da categoria', 'scope': 'vínculo do anúncio'}
+            labels.update({'item.'+key: 'anúncio ('+label+')' for key, label in {
+                'attributes': 'atributos', 'variations': 'variações', 'tags': 'tags',
+                'status': 'status', 'title': 'título', 'condition': 'condição',
+                'category_id': 'categoria', 'catalog_listing': 'catálogo',
+                'catalog_product_id': 'produto de catálogo', 'user_product_id': 'User Product',
+                'family_id': 'família', 'family_name': 'nome da família',
+                'id': 'identidade', 'seller_id': 'conta', 'site_id': 'site'}.items()})
             changed = [label for key, label in labels.items()
                        if key in previous and key in current and previous[key] != current[key]]
             reason = facts['blocked'] or ('Mudança detectada em: ' + ', '.join(changed) + '.' if changed
