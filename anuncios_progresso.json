@@ -504,20 +504,22 @@
       "area": "Rentabilidade",
       "capacidade": "Análise específica de parcelamento",
       "estado": "parcial",
-      "implementado": "Comparador manual por anúncio de duas ou três opções identificadas por quantidade de parcelas, bruto e tarifa total com financiamento incluído, referência e data obrigatórias, custos comuns explícitos, contribuição e diferença para a primeira opção. Sem persistir ou alterar anúncio.",
+      "implementado": "Comparador manual por anúncio de duas ou três opções identificadas por quantidade de parcelas, bruto e tarifa total com financiamento incluído, referência e data obrigatórias, custos comuns explícitos, contribuição e diferença para a primeira opção. Sem persistir ou alterar anúncio. A ajuda de interpretação fica recolhida no ícone de interrogação.",
       "falta": "Falta coleta e validação oficial das opções elegíveis e dos respectivos custos. Referências são declaradas pelo administrador, não verificadas; não calcula prestações, juros, calendário de recebimento nem impacto nas vendas.",
       "fontes": [
         "profitability_scenarios.py",
-        "installment_comparison.py"
+        "installment_comparison.py",
+        "section_help.py"
       ],
       "testes": [
         "test_profitability_scenarios.py",
-        "test_installment_comparison.py"
+        "test_installment_comparison.py",
+        "scripts/installment_comparison_browser_check.cjs"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-26"
+      "atualizado_em": "2026-11-10"
     },
     {
       "id": "descontos-progressivos",

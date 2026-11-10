@@ -6,5 +6,13 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium}=requ
  assert.equal(await page.locator('.conteudo .stat .num').first().evaluate(e=>getComputedStyle(e).color),'rgb(237, 245, 255)');
  assert.equal(await page.locator('.conteudo table th').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(27, 52, 78)');
  assert.equal(await page.locator('select[name=periodo]').count(),1);
+ const help=page.locator('.sales-indicators details');
+ assert.equal(await help.evaluate(el=>el.open),false);
+ await help.locator('summary').focus();
+ await page.keyboard.press('Enter');
+ assert.equal(await help.evaluate(el=>el.open),true);
+ assert.match(await help.innerText(),/Ticket médio é faturamento ÷ pedidos/);
+ await page.keyboard.press('Enter');
+ assert.equal(await help.evaluate(el=>el.open),false);
  await page.screenshot({path:`visual-qa/sales-theme-${width}.png`,fullPage:true});
 }console.log('Sales theme: contrast and responsive layouts passed.');}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

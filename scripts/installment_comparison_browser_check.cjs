@@ -5,6 +5,11 @@ for(const mode of ['blank','ready','negative','error','three'])for(const width o
  assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  assert.equal(await p.locator('.ic-options fieldset').count(),3);
  assert.ok((await p.locator('.pf-hero').evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(16, 31, 53)'));
+ const help=p.locator('.installment-comparison .section-help details');
+ assert.equal(await help.evaluate(e=>e.open),false);
+ await help.locator('summary').click();
+ assert.ok(await help.getByText('Contribuição = bruto', {exact:false}).isVisible());
+ await help.locator('summary').click();
  if(['ready','negative','three'].includes(mode)){
   assert.equal(await p.locator('#installment-results tbody tr').count(),mode==='three'?3:2);
   await p.locator('#installment-results summary').click();

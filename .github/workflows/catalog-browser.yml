@@ -21,6 +21,7 @@ on:
       - 'test_listing_fee_quote.py'
       - 'scripts/listing_fee_quote*'
       - 'installment_comparison.py'
+      - 'section_help.py'
       - 'test_installment_comparison.py'
       - 'scripts/installment_comparison*'
       - 'price_stability.py'

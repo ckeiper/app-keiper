@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 from sales_geography import STATES, summarize
 from sales_metrics import period
 from sales_view import SALES_STYLE, fmt
+from section_help import STYLE as HELP_STYLE, section_help
 
 
 @lru_cache(maxsize=1)
@@ -31,7 +32,12 @@ def render(cid,args,start,end,data):
     key='orders' if metric=='pedidos' else 'revenue'
     title='Pedidos pagos' if key=='orders' else 'Faturamento bruto'
     money=lambda v:fmt(v,True)
-    out=SALES_STYLE+STYLE+"<section class='card'><h2>Mapa de vendas por estado</h2><p>Destino do envio · "+start.strftime('%d/%m/%Y')+' a '+end.strftime('%d/%m/%Y')+"</p><a href='/vendas/"+str(cid)+"'>Voltar às vendas</a></section>"
+    help_copy = ("<p>Dias com coleta de vendas completa: <strong>"+str(data['covered'])+' de '+str(data['days'])
+                 +"</strong>. Valores dos pedidos pagos em BRL com pagamento aprovado e data de criação válida, em Brasília. "
+                 "São registros disponíveis, sem estimar vendas ausentes nem subtrair devoluções e reembolsos.</p>"
+                 "<p>A UF indica o destino do envio. Cada pedido conta uma vez, inclusive em envios compartilhados. "
+                 "Pedidos sem UF confirmada ficam separados. O histórico de destinos é preenchido nas atualizações de Vendas.</p>")
+    out=SALES_STYLE+STYLE+HELP_STYLE+"<section class='card'>"+section_help("Mapa de vendas por estado", "Critérios e cobertura do mapa", help_copy)+"<p>Destino do envio · "+start.strftime('%d/%m/%Y')+' a '+end.strftime('%d/%m/%Y')+"</p><a href='/vendas/"+str(cid)+"'>Voltar às vendas</a></section>"
     out+="<form class='card' method='get'><label>Período<select name='periodo'>"+''.join("<option value='"+str(n)+"'"+(' selected' if args.get('periodo','30')==str(n) else '')+">"+str(n)+' dias</option>' for n in (7,15,30,60,90))+"<option value='personalizado'"+(' selected' if args.get('periodo')=='personalizado' else '')+">Personalizado</option></select></label>"
     for name,label,value in [('inicio','De',start.isoformat()),('fim','Até',end.isoformat())]:out+="<label>"+label+"<input type='date' name='"+name+"' value='"+value+"'></label>"
     out+="<label>Colorir por<select name='metrica'><option value='receita'"+(' selected' if key=='revenue' else '')+">Faturamento</option><option value='pedidos'"+(' selected' if key=='orders' else '')+">Pedidos</option></select></label><button type='submit'>Aplicar</button></form>"
@@ -39,25 +45,24 @@ def render(cid,args,start,end,data):
     out+="<div class='grid'>"
     for label,value in [('Pedidos pagos registrados',str(data['total'])),('Faturamento bruto registrado',money(data['revenue'])),('Pedidos com UF confirmada',str(data['known'])),('Cobertura de destinos',format(share,'.1f').replace('.',',')+'%' if share is not None else 'Sem pedidos')]:out+="<article class='stat'><div class='lab'>"+label+"</div><div class='num'>"+value+"</div></article>"
     out+='</div>'
-    out+="<details class='card'><summary>Critérios e cobertura</summary><p>Dias com coleta de vendas completa: <strong>"+str(data['covered'])+' de '+str(data['days'])+"</strong>. Valores dos pedidos pagos em BRL com pagamento aprovado e data de criação válida, em Brasília. São registros disponíveis, sem estimar vendas ausentes nem subtrair devoluções e reembolsos.</p>"
-    out+='<p>UF é o destino do envio, não o domicílio do comprador. Cada pedido conta uma vez, inclusive em envios compartilhados. Pedidos sem UF confirmada ficam separados do mapa.</p>'
-    out+='<p>O histórico de destinos é preenchido progressivamente nas atualizações de Vendas.</p>'
     if data['covered']<data['days'] or data['invalid'] or data['unlocated']:out+="<div class='aviso'>Base parcial: "+str(data['days']-data['covered'])+' dia(s) sem cobertura completa; '+str(data['invalid'])+' pedido(s) do período excluídos por campos inválidos; '+str(data['unlocated'])+' registro(s) sem data utilizável na base. Não representam zero vendas.</div>'
-    out+='</details>'
-    out+="<section class='card'><h3>"+title+" por UF</h3><p>Azul mais intenso indica maior valor registrado. Cinza indica nenhuma venda com destino confirmado na base selecionada.</p><svg class='sg-map' viewBox='0 0 580 590' role='img' aria-labelledby='sg-title sg-desc'><title id='sg-title'>Distribuição das vendas por estado brasileiro</title><desc id='sg-desc'>Valores completos e acessíveis na tabela abaixo. Estados sem vendas localizadas não comprovam ausência de vendas.</desc>"
+    out+="<section class='card'>"+section_help(title+" por UF","Como ler o mapa",
+        "<p>Azul mais intenso indica maior valor registrado. Cinza indica nenhuma venda com destino confirmado na base selecionada.</p>"
+        "<p>Limites geográficos simplificados. A participação usa todo o faturamento registrado, incluindo destinos não identificados.</p>",
+        subheading=True)+"<svg class='sg-map' viewBox='0 0 580 590' role='img' aria-labelledby='sg-title sg-desc'><title id='sg-title'>Distribuição das vendas por estado brasileiro</title><desc id='sg-desc'>Valores completos e acessíveis na tabela abaixo. Estados sem vendas localizadas não comprovam ausência de vendas.</desc>"
     maximum=max((r[key] for r in data['states'].values()),default=0)
     for uf,path in paths().items():
         row=data['states'][uf];value=row[key]
         color='#62758b' if not value else ['#9ed3ff','#65b4f4','#338fda','#1b66b0','#114b87'][min(4,int(float(value/maximum)*4))]
         label=STATES[uf]+': '+(str(value)+' pedidos' if key=='orders' else money(value))
         out+="<path class='sg-state' data-uf='"+uf+"' d='"+path+"' fill='"+color+"'><title>"+escape(label)+"</title></path>"
-    out+="</svg><p class='muted'>Limites geográficos simplificados.</p><div class='sg-scroll'><table><thead><tr><th>Estado</th><th>Pedidos</th><th>Faturamento bruto</th><th>Participação no total registrado</th><th>Ticket por pedido</th></tr></thead><tbody>"
+    out+="</svg><div class='sg-scroll'><table><thead><tr><th>Estado</th><th>Pedidos</th><th>Faturamento bruto</th><th>Participação no total registrado</th><th>Ticket por pedido</th></tr></thead><tbody>"
     ranking=sorted(data['states'].items(),key=lambda pair:(-pair[1][key],STATES[pair[0]]))
     for uf,row in ranking+[(None,data['missing'])]:
         label=STATES[uf]+' ('+uf+')' if uf else 'Destino não identificado'
         share=100*row['revenue']/data['revenue'] if data['revenue'] else None
         out+='<tr><th scope="row">'+label+'</th><td>'+str(row['orders'])+'</td><td>'+money(row['revenue'])+'</td><td>'+(format(share,'.1f').replace('.',',')+'%' if share is not None else '—')+'</td><td>'+(money(row['revenue']/row['orders']) if row['orders'] else '—')+'</td></tr>'
-    return out+'</tbody></table></div><p>Participação calculada sobre todo o faturamento registrado, incluindo destinos não identificados. Não é participação no mercado.</p></section>'
+    return out+'</tbody></table></div></section>'
 
 
 def register(app,login_required,can_view,bank,query,page):
