@@ -91,7 +91,7 @@ const {chromium}=require('playwright');
   await page.route('https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',r=>r.abort());
   await page.reload();
   assert.ok(await page.getByText('Gráfico indisponível. Confira os dados diários abaixo.',{exact:true}).isVisible());
-  await page.locator('.item-timeline details summary').click();
+  await daily.locator('summary').click();
   assert.ok(await page.locator('.timeline-table tbody tr').first().isVisible());
   for(const width of [1440,390,320]) {
    await page.setViewportSize({width,height:900});
