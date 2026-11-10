@@ -30,9 +30,18 @@ class EditorRouteGuards(TestCase):
   self.assertEqual(self.c.post(self.path,data=dict(action='analyze')).status_code,400)
   self.assertEqual(self.c.get(self.path.replace('/1/','/2/')).status_code,403)
   self.assertEqual(self.c.get(self.path.replace('MLB123','bad')).status_code,404)
-  with self.c.session_transaction() as s:s['tipo']='cliente'
+  with self.c.session_transaction() as s:s['tipo']='desconhecido'
   self.assertEqual(self.c.post(self.path,data=dict(_csrf='csrf',action='apply')).status_code,403)
   self.query.assert_not_called();self.resolve.assert_not_called();self.get.assert_not_called();self.put.assert_not_called()
+ def test_customer_can_open_own_store_but_cannot_open_other_store(self):
+  with self.c.session_transaction() as s:s['tipo']='cliente'
+  self.assertEqual(self.c.get(self.path.replace('/1/','/2/')).status_code,403)
+  self.query.assert_not_called()
+  self.query.side_effect=[[dict(user_id=123,titulo='Produto',cliente='Loja',status='ativa')],[]]
+  response=self.c.get(self.path)
+  self.assertEqual(response.status_code,200)
+  self.assertIn('Analisar e completar ficha',response.text)
+  self.get.assert_not_called();self.put.assert_not_called()
  def test_get_is_read_only_and_does_not_resolve_token(self):
   self.query.side_effect=[[dict(user_id=123,titulo='Produto',cliente='Loja',status='ativa')],[]]
   r=self.c.get(self.path);self.assertEqual(r.status_code,200);self.assertIn('Analisar e completar ficha',r.text)
