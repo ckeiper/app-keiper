@@ -42,8 +42,10 @@ def parse(form):
     if not 1<=len(fields)<=50 or len(fields)!=len(values) or len(fields)!=len(notes):raise ValueError('Informe de 1 a 50 campos completos no lote.')
     entries=[];seen=set()
     for code,value,note in zip(fields,values,notes):
-        if not isinstance(code,str) or not code or len(code)>250 or code in seen:raise ValueError('Selecione campos diferentes para cada linha do lote.')
-        if not isinstance(value,str) or not value.strip() or len(value)>1000 or any(ord(c)<32 or ord(c)==127 for c in value):raise ValueError('Preencha um valor válido em cada linha do lote.')
+        if not isinstance(value,str) or len(value)>1000 or any(ord(c)<32 or ord(c)==127 for c in value):raise ValueError('Preencha um valor válido em cada linha do lote.')
+        if not value.strip():continue
+        if not isinstance(code,str) or not code or len(code)>250 or code in seen:raise ValueError('Selecione campos diferentes para cada linha preenchida do lote.')
         if not isinstance(note,str) or len(note)>500 or any(ord(c)<32 or ord(c)==127 for c in note):raise ValueError('Fonte informada inválida.')
         seen.add(code);entries.append(dict(id=code,value=value,note=note))
+    if not entries:raise ValueError('Nenhum valor preenchido. Os campos continuam pendentes; selecione as sugestões que deseja enviar.')
     return keys[0],entries
