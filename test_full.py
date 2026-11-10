@@ -128,7 +128,7 @@ class FullTests(unittest.TestCase):
                            dict(item_id='A',titulo='<script>'),[],[],[],[],None)
         self.assertIn('&lt;script&gt;',view)
         self.assertIn('Ainda não há coletas Full',view)
-        self.assertIn('nem preenchemos o intervalo',view)
+        self.assertIn('não preenchemos o intervalo',view)
         self.assertIn('class=\'full-sales-chart\'',view)
         self.assertEqual(view.count('<script>'),1)
 

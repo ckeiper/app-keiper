@@ -71,11 +71,11 @@ class FullVariationHistoryTests(unittest.TestCase):
     def test_pagination_preserves_variation_and_other_pages_without_unknown_args(self):
         import re
         rows=[reading(STAMP-i*60,i) for i in range(41)]
-        args=dict(ARGS,full_variacao='2',full_consultas='2',secret='ignored')
+        args=dict(ARGS,full_variacao='2',full_variacoes='2',secret='ignored')
         text=render(1,args,LISTING,rows,START,END)
         self.assertEqual(text.count('<tr><th scope="row">'),20)
         href=unescape(re.search(r'href="([^"]+)">Próxima',text).group(1));params=parse_qs(urlsplit(href).query)
-        self.assertEqual(params['full_variacao'],['2']);self.assertEqual(params['full_consultas'],['2'])
+        self.assertEqual(params['full_variacao'],['2']);self.assertEqual(params['full_variacoes'],['2'])
         self.assertEqual(params['full_historico_variacao'],['2']);self.assertNotIn('secret',params)
         self.assertIn('item_id=MLB1',render(1,{},LISTING,rows,START,END))
         text=render(1,dict(args,full_historico_variacao='999'),LISTING,rows,START,END)
