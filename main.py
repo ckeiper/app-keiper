@@ -594,7 +594,7 @@ def executar(conn, sql, params=None):
 
 
 def iniciar_banco():
-    from startup_schema import schema_executor
+    from startup_schema import run_optional_history_backfill, schema_executor
     execute = schema_executor(executar)
     with banco() as conn:
         init_security_schema(conn, execute)
@@ -707,26 +707,7 @@ def iniciar_banco():
         from automatic_history import init_schema as init_automatic_history
         init_automatic_history(conn, execute)
         from automatic_history import seed_existing
-        # Backfilling legacy observations is optional. It must not prevent
-        # Gunicorn from booting when a live collector holds conflicting locks.
-        # Savepoints keep the rest of the schema transaction healthy after a
-        # PostgreSQL deadlock or lock timeout.
-        execute(conn, "SAVEPOINT automatic_history_backfill")
-        try:
-            execute(conn, "SET LOCAL lock_timeout = '3s'")
-            lock = consultar(conn, "SELECT pg_try_advisory_xact_lock(783420, 1) AS acquired")
-            if lock and lock[0]["acquired"]:
-                seed_existing(conn, execute)
-            else:
-                app.logger.warning("automatic_history_seed_skipped concurrent_migration")
-            execute(conn, "SET LOCAL lock_timeout = DEFAULT")
-        except (psycopg2.errors.DeadlockDetected,
-                psycopg2.errors.LockNotAvailable,
-                psycopg2.errors.QueryCanceled) as exc:
-            execute(conn, "ROLLBACK TO SAVEPOINT automatic_history_backfill")
-            app.logger.warning("automatic_history_seed_deferred error=%s", type(exc).__name__)
-        finally:
-            execute(conn, "RELEASE SAVEPOINT automatic_history_backfill")
+        run_optional_history_backfill(conn, execute, consultar, seed_existing, app.logger)
         init_freight_schema(conn, execute)
         execute(conn, """CREATE TABLE IF NOT EXISTS metricas (
             conexao_id INTEGER, item_id TEXT, vendidos INTEGER,
