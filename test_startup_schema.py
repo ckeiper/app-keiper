@@ -4,7 +4,7 @@ import uuid
 import unittest
 from unittest.mock import Mock
 import psycopg2
-from startup_schema import schema_executor,initialize_with_retry
+from startup_schema import schema_executor,initialize_with_retry,run_optional_history_backfill
 
 
 class DatabaseError(psycopg2.Error):
@@ -47,6 +47,23 @@ class StartupSchemaTests(unittest.TestCase):
             with self.assertRaises(DatabaseError):initialize_with_retry(init,Mock(),sleep)
             self.assertEqual(init.call_count,attempts)
             self.assertEqual(sleep.call_count,attempts-1)
+
+
+    def test_optional_backfill_recovers_a_failed_statement_before_release(self):
+        execute = Mock()
+        logger = Mock()
+        query = Mock(return_value=[{"acquired": True}])
+        seed = Mock(side_effect=DatabaseError("42501"))
+
+        run_optional_history_backfill(None, execute, query, seed, logger)
+
+        self.assertEqual([call.args[1] for call in execute.call_args_list], [
+            "SAVEPOINT automatic_history_backfill",
+            "SET LOCAL lock_timeout = '3s'",
+            "ROLLBACK TO SAVEPOINT automatic_history_backfill",
+            "RELEASE SAVEPOINT automatic_history_backfill",
+        ])
+        logger.warning.assert_called_once_with("automatic_history_seed_deferred sqlstate=%s", "42501")
 
 
 @unittest.skipUnless(os.getenv('KEIPER_TEST_DATABASE_URL'),'isolated PostgreSQL not configured')
