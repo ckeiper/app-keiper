@@ -256,7 +256,8 @@
       "prs": [
         158,
         161,
-        260
+        260,
+        405
       ],
       "numero_original": null,
       "prioridade": 100,
@@ -2166,6 +2167,20 @@
       "prs": [
         402
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-10",
+      "resumo": "Relatório Full: barras diárias de vendas e faixa de disponibilidade observada.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        405
+      ]
     }
   ],
   "publicacoes": [
@@ -2396,6 +2411,13 @@
       "commit": "8a47c30e5c0162536520b8808ba0b0bc7982138a",
       "status": "live",
       "horario_brasilia": "2026-11-10T01:47:54.661-03:00"
+    },
+    {
+      "pr": 405,
+      "deploy_id": "dep-dbpii27avr4c73eqhmkg",
+      "commit": "11cb5628e1aa89e69c63b5f87ba63506ec86bc35",
+      "status": "live",
+      "horario_brasilia": "2026-11-10T11:26:49.225606-03:00"
     }
   ]
 }
