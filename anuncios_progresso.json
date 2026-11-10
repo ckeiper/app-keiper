@@ -216,7 +216,7 @@
       "area": "Visitas",
       "capacidade": "Histórico completo de visitas",
       "estado": "parcial",
-      "implementado": "Histórico persistido desde as coletas e inspeção diária com lacunas explícitas.",
+      "implementado": "Histórico persistido desde as coletas e inspeção diária com lacunas explícitas. A linha do tempo concentra a ajuda de leitura no ícone de interrogação e recolhe a paginação com os dados diários.",
       "falta": "Não há reconstrução de todo o período anterior à coleta; cobertura real varia por anúncio. Não certificar histórico integral de todas as contas.",
       "fontes": [
         "copas_visits_store.py",
@@ -232,7 +232,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-11-10"
     },
     {
       "id": "estoque-full-historico",
@@ -550,7 +550,7 @@
       "area": "Rentabilidade",
       "capacidade": "Promoções: comparação de resultados e rentabilidade",
       "estado": "parcial",
-      "implementado": "Histórico de participação e antes/depois de ações de preço/promoção, inclusive contribuição com custos documentados. Preservação incremental das consultas de promoções por item, incluindo falhas, status, datas e condições selecionadas. Painel histórico com comparação descritiva de janelas equivalentes de 7/30 dias a partir de calendário com fuso explícito, sem usar a detecção como início. Exclui dias parciais/futuros, candidatos/removidos, variações e tipos condicionais sem regra validada. Contribuição depende de custos documentados das datas exatas e fingerprint de vendas válido. Identifica calendários de outras ofertas na mesma consulta que coincidem com as janelas antes e dentro do calendário selecionado. Usa limites exclusivos, fuso explícito, identidades verificáveis e status ativo observado, sem somar descontos nem atribuir vendas. Separa dados insuficientes, variações e tipos sem regra; agrupa repetições idênticas e sinaliza identidades conflitantes. Exibe até vinte interseções por janela com total e limite explícitos, sem novas consultas ou escrita. Metadados da consulta com quebra de texto nas células para impedir sobreposição no celular; tabela de calendários com contraste preservado no hover e limites em bloco expansível.",
+      "implementado": "Histórico de participação e antes/depois de ações de preço/promoção, inclusive contribuição com custos documentados. Preservação incremental das consultas de promoções por item, incluindo falhas, status, datas e condições selecionadas. Painel histórico com comparação descritiva de janelas equivalentes de 7/30 dias a partir de calendário com fuso explícito, sem usar a detecção como início. Exclui dias parciais/futuros, candidatos/removidos, variações e tipos condicionais sem regra validada. Contribuição depende de custos documentados das datas exatas e fingerprint de vendas válido. Identifica calendários de outras ofertas na mesma consulta que coincidem com as janelas antes e dentro do calendário selecionado. Usa limites exclusivos, fuso explícito, identidades verificáveis e status ativo observado, sem somar descontos nem atribuir vendas. Separa dados insuficientes, variações e tipos sem regra; agrupa repetições idênticas e sinaliza identidades conflitantes. Exibe até vinte interseções por janela com total e limite explícitos, sem novas consultas ou escrita. Metadados da consulta com quebra de texto nas células para impedir sobreposição no celular; tabela de calendários com contraste preservado no hover e limites em bloco expansível. A interpretação da margem estimada do histórico de participações fica sob o ícone de ajuda.",
       "falta": "Calendário e leituras isoladas não comprovam participação contínua e condições constantes durante toda a janela. Persistem a lacuna de comprovação integral da vigência efetiva e a coleta automática completa dos custos; sem reconstrução retroativa. Coincidências são apenas interseções dos calendários retornados em uma consulta; não certificam aplicação conjunta ou ausência de outras ofertas. Uso autenticado dessa visualização com uma leitura real não exercitado nesta entrega.",
       "fontes": [
         "promo_history.py",
@@ -579,7 +579,7 @@
       ],
       "numero_original": null,
       "prioridade": 4,
-      "atualizado_em": "2026-11-06"
+      "atualizado_em": "2026-11-10"
     },
     {
       "id": "tendencia",

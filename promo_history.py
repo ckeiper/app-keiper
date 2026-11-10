@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
+from section_help import STYLE as HELP_STYLE, section_help
 
 LABELS={'confirmed':('Confirmada','ok'),'rejected':('Recusada','urgente'),
         'uncertain':('Aguardando confirmação','atencao'),
@@ -13,9 +14,12 @@ def render_history(rows,cid):
     cid=int(cid)
     rows=(rows or [])[:100]
     counts={key:sum(1 for r in rows if r.get('status')==key) for key in LABELS}
-    html='<section class="card" id="historico-adesoes" style="margin-bottom:20px">'
-    html+='<h2>Histórico de participações</h2>'
-    html+='<p class="sub">Últimas 100 solicitações enviadas pela Keiper. Estados pendentes podem ser conferidos novamente sem reenviar a adesão. MC é a estimativa registrada no envio: exclui frete, tarifa fixa, publicidade e outros custos; não representa lucro líquido nem margem atual.</p>'
+    html=HELP_STYLE+'<section class="card" id="historico-adesoes" style="margin-bottom:20px">'
+    html+=section_help('Histórico de participações', 'Como ler o histórico de participações',
+        '<p>Use Verificar status para consultar uma pendência sem reenviar a adesão.</p>'
+        '<p>A MC é a estimativa registrada no envio. Exclui frete, tarifa fixa, publicidade e outros custos. '
+        'A estimativa não representa lucro líquido nem margem atual.</p>')
+    html+='<p class="sub">Últimas 100 solicitações</p>'
     html+='<div class="grid" style="margin:14px 0">'
     for key in ('confirmed','uncertain','rejected','sending'):
         title,_=LABELS[key]

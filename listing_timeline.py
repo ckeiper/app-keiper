@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from listing_full_sales_chart import daily_sales,daily_full_status
 from investigation_evidence import window
 from offer_history import price_events, confirmed_price, daily_readings, period_readings
+from section_help import STYLE as HELP_STYLE, section_help
 
 BR=ZoneInfo('America/Sao_Paulo')
 
@@ -53,8 +54,14 @@ body .conteudo .item-timeline a{color:#b9e5ff}
 body .conteudo .item-timeline .timeline-pages a.filtro{background:#1c3552;color:#b9e5ff!important;border-color:#426184}
 body .conteudo .item-timeline label,body .conteudo .item-timeline .timeline-chart p{color:#bdcce1}
 body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline:3px solid #85c8ec;outline-offset:3px}
-</style><section class='item-timeline'><h3>Linha do tempo do anúncio</h3>"""
-    out+='<p class="timeline-meta">Vendas verificadas e sinais observados nas mesmas datas · %s dias encerrados até %s. Os pontos de Full mostram a última leitura de cada dia, não a duração do estoque.</p>' % (days,end.strftime('%d/%m/%Y'))
+</style><section class='item-timeline'>"""
+    out=HELP_STYLE+out+section_help(
+        'Linha do tempo do anúncio', 'Como ler a linha do tempo',
+        '<p>Vendas verificadas e sinais observados nas mesmas datas. Os pontos de Full mostram a última leitura de cada dia.</p>'
+        '<p>A marca de preço mostra a última mudança detectada no dia. O preço diário usa a última leitura única e confirmada. '
+        'Duplicidades e falhas ficam como lacunas.</p>',
+        subheading=True)
+    out+='<p class="timeline-meta">%s dias encerrados até %s</p>' % (days,end.strftime('%d/%m/%Y'))
     out+="<form class='timeline-filter' method='get'>"
     for key,value in args.items():
         if key not in ('janela_linha','comparar_linha','pagina_linha'):
@@ -87,7 +94,6 @@ body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline
     payload=json.dumps(dict(labels=data['dates'],datasets=datasets),ensure_ascii=False).replace('<','\\u003c').replace('>','\\u003e').replace('&','\\u0026')
     out+="<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
     out+="<script>(function(){var el=document.getElementById("+json.dumps(identifier)+");if(!el)return;if(typeof Chart==='undefined'){document.getElementById(el.id+'-notice').hidden=false;el.hidden=true;return;}new Chart(el,{data:"+payload+",options:{locale:'pt-BR',animation:false,responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom',labels:{color:'#bdcce1'}},tooltip:{callbacks:{label:function(c){if(c.dataset.isFull)return c.dataset.label;if(c.dataset.isEvent)return c.dataset.eventNotes[c.dataIndex]||'Mudança detectada';return c.dataset.label+': '+c.formattedValue;}}}},scales:{x:{grid:{color:'#34516e'},ticks:{color:'#bdcce1',callback:function(v){var s=this.getLabelForValue(v);return s.slice(8)+'/'+s.slice(5,7);}}},sales:{beginAtZero:true,position:'left',ticks:{color:'#bdcce1'},grid:{color:'#34516e'},title:{display:true,color:'#bdcce1',text:'Vendas (R$)'}},extra:{display:"+('false' if mode=='nenhum' else 'true')+",beginAtZero:true,position:'right',ticks:{color:'#bdcce1'},grid:{drawOnChartArea:false},title:{display:true,color:'#bdcce1',text:"+json.dumps('Preço observado (R$)' if mode=='preco' else 'Visitas')+"}},markers:{display:false,min:0,max:1.3}}}})})();</script>"
-    out+='<p class="timeline-meta">Posição dos marcadores Full serve apenas para visualizar o estado. A marca de preço mostra a última mudança detectada no dia, não o horário exato da alteração. Preço diário usa a última leitura única e explicitamente confirmada; duplicidades e falhas permanecem como lacunas, sem recuperar preço anterior.</p>'
     try:
         page=max(1,int(args.get('pagina_linha',1)))
     except (TypeError,ValueError):
@@ -101,9 +107,9 @@ body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline
             cells.append('Sem dado válido' if value is None else (str(value) if key=='visits' else 'R$ %.2f' % value))
         cells.append({1:'Com estoque',0:'Zerado',None:'Desconhecido'}[data['full'][i]])
         out+='<tr>'+''.join('<td>'+escape(c)+'</td>' for c in cells)+'</tr>'
-    out+='</tbody></table></div></details><nav class="timeline-pages" aria-label="Paginação dos dados da linha do tempo">Dados diários · Página %s de %s' % (page,pages)
+    out+='</tbody></table></div><nav class="timeline-pages" aria-label="Paginação dos dados da linha do tempo">Página %s de %s' % (page,pages)
     for label,n in [('Anterior',page-1),('Próxima',page+1)]:
         if 1<=n<=pages:
             params=dict(args);params['pagina_linha']=n
             out+=" <a class='filtro' href='?%s'>%s</a>" % (escape(urlencode(params),quote=True),label)
-    return out+'</nav></section>'
+    return out+'</nav></details></section>'
