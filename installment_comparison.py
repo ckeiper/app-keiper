@@ -9,6 +9,7 @@ from flask import request, session
 from profitability_scenarios import number
 from profitability_view import CSS
 from freight_comparison import format_brl
+from section_help import STYLE as HELP_STYLE, section_help
 
 COMMON = {'product': 'Custo dos produtos no pedido (R$)', 'taxes': 'Impostos no pedido (R$)',
           'shipping': 'Frete do vendedor no pedido (R$)', 'ads': 'Publicidade no pedido (R$)',
@@ -59,7 +60,13 @@ def simulate(form, today=None):
 def render(cid, item_id, title, csrf, values=None, result=None, error=''):
     values = values or {}
     esc = lambda v: escape(str(v), quote=True)
-    out = CSS + '<div class="pf installment-comparison"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Premissas manuais</span><h2>Comparar tarifas e parcelamento</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="/anuncios/'+str(cid)+'/'+esc(item_id)+'/rentabilidade">← Rentabilidade do anúncio</a><p>Compare dois ou três pedidos hipotéticos com a mesma composição de produtos. Os valores são informados pelo administrador; a referência declarada não é verificada automaticamente.</p></header>'
+    help_copy = ("<p>Contribuição = bruto − custos comuns − tarifa total. O financiamento já integra a tarifa. "
+                 "Os valores são informados a centavos e a margem tem duas casas decimais.</p>"
+                 "<p>A quantidade de parcelas identifica a opção informada. A simulação exclui juros, valor presente, "
+                 "prestação do comprador, calendário de recebimentos e despesas fixas.</p>"
+                 "<p>Confira disponibilidade, elegibilidade e valores reais na cobrança oficial. "
+                 "Contribuição não é lucro líquido nem repasse bancário. Os cenários ficam nesta consulta.</p>")
+    out = CSS + HELP_STYLE + '<div class="pf installment-comparison"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Premissas manuais</span>'+section_help('Comparar tarifas e parcelamento','Como interpretar a simulação',help_copy)+'<p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="/anuncios/'+str(cid)+'/'+esc(item_id)+'/rentabilidade">← Rentabilidade do anúncio</a><p>Compare dois ou três pedidos hipotéticos com a mesma composição de produtos. Os valores são informados pelo administrador; a referência declarada não é verificada automaticamente.</p></header>'
     if error:
         out += '<p class="pf-alert" role="alert">'+esc(error)+'</p>'
     out += '<section class="pf-card"><h3>Custos comuns ao mesmo pedido</h3><p>Preencha todos os custos totais do pedido, inclusive zero. Use a mesma quantidade, composição de produtos e base tributária nas opções. Se impostos ou outros custos mudarem, compare em simulações separadas. A primeira opção será a referência aritmética.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'">'
@@ -92,7 +99,7 @@ def render(cid, item_id, title, csrf, values=None, result=None, error=''):
         for row in result['rows']:
             out += '<p>'+esc(row['label'])+' · '+row['source_date'].strftime('%d/%m/%Y')+' · '+esc(row['source'])+'</p>'
         out += '</details></section>'
-    out += '<section class="pf-card"><h3>Como interpretar</h3><p>Contribuição = bruto − custos comuns − tarifa total. Financiamento é uma parte informativa da tarifa total. Valores monetários são informados a centavos; a margem exibida é arredondada a duas casas.</p><p>Não calcula a prestação do comprador, juros, valor presente ou calendário de recebimentos. A quantidade de parcelas identifica a opção, sem certificar disponibilidade ou elegibilidade. Não estima aumento de vendas nem recomenda automaticamente uma opção.</p><p>Esta simulação não consulta a API, não salva custos históricos e não altera o anúncio. Não substitui a cobrança oficial; contribuição não é lucro líquido nem repasse bancário. Despesas fixas não incluídas.</p></section></div>'
+    out += '</div>'
     return out + '<style>.ic-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.ic-options fieldset{min-width:0;border:1px solid #34516e;border-radius:12px;padding:16px}.ic-options legend{color:#eff5ff}.installment-comparison label{display:block;margin:12px 0}.installment-comparison input{max-width:100%;box-sizing:border-box}.installment-comparison fieldset label,.installment-comparison td{overflow-wrap:anywhere}@media(max-width:900px){.ic-options{grid-template-columns:1fr}}</style>'
 
 

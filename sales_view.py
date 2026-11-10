@@ -3,7 +3,8 @@ import html
 import json
 from datetime import datetime
 from sales_metrics import SAO_PAULO
-from sales_metrics import PRESETS, change, period, summarize
+from sales_metrics import PRESETS, change, period, reporting_today, summarize
+from section_help import STYLE as HELP_STYLE, section_help
 
 SALES_STYLE = """<style>
 body:has(.sales-theme),body:has(.sales-theme) .layout,body:has(.sales-theme) .layout>.conteudo{background:#081426;color:#eaf2ff}
@@ -38,20 +39,24 @@ def render_sales(cid, args, banco, query):
     covered = {r["dia"] for r in coverage}
     current = summarize(rows, start, end, covered)
     previous = summarize(rows, prev_start, prev_end, covered)
-    out = SALES_STYLE + filters(cid, args)
+    out = SALES_STYLE + HELP_STYLE + filters(cid, args)
     timestamps = [r['atualizado_em'] for r in coverage
                   if prev_start.isoformat() <= r['dia'] <= end.isoformat()]
+    help_copy = (
+        "<p>Usamos a data de criação do pedido em Brasília e pedidos pagos em BRL com pagamento aprovado. "
+        "O faturamento bruto é a soma dos pedidos, antes de cancelamentos, devoluções e reembolsos.</p>"
+        "<p>Ticket médio é faturamento ÷ pedidos. Preço médio é faturamento ÷ unidades.</p>"
+    )
     if timestamps:
         stamp = datetime.fromtimestamp(min(timestamps), SAO_PAULO).strftime('%d/%m/%Y %H:%M')
-        out += "<p class='muted'>Sincronização mais antiga dos dias cobertos nesta seleção: " + stamp + " (Brasília).</p>"
-    out += ("<div class='card'><h2>Indicadores de vendas pagas</h2><p>"
+        help_copy += "<p>Sincronização mais antiga dos dias cobertos nesta seleção: " + stamp + " (Brasília).</p>"
+    out += ("<section class='sales-indicators'>"
+            + section_help("Indicadores de vendas pagas", "Como calculamos os indicadores de vendas", help_copy)
+            + "<p class='muted'>"
             + start.strftime('%d/%m/%Y') + " a " + end.strftime('%d/%m/%Y')
             + " · Comparação: " + prev_start.strftime('%d/%m/%Y') + " a " + prev_end.strftime('%d/%m/%Y')
-            + "</p><div class='sub'>Data de criação do pedido, horário de Brasília (UTC−3). "
-            "Somente pedidos pagos com pagamento aprovado, em BRL. Faturamento = total dos pedidos; "
-            "ticket = faturamento ÷ pedidos; preço médio = faturamento ÷ unidades. "
-            "O dia de hoje está em andamento e depende da última sincronização. "
-            "Valores brutos, sem subtrair cancelamentos, devoluções ou reembolsos.</div></div>")
+            + (" · Hoje parcial" if start <= reporting_today() <= end else "")
+            + "</p></section>")
     if not current["complete"] or not previous["complete"]:
         out += ("<div class='aviso'>Histórico incompleto: indicadores do período sem cobertura "
                 "completa aparecem como indisponíveis; lacunas no gráfico não representam zero. "
@@ -112,15 +117,15 @@ def render_sales(cid, args, banco, query):
             "{label:'Anterior',data:d.previous,borderColor:'#64748b',borderDash:[5,5],spanGaps:false}]},"
             "options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#bdd0e4'},grid:{color:'#304860'}},y:{beginAtZero:true,ticks:{color:'#bdd0e4'},grid:{color:'#304860'},title:{display:true,text:'R$',color:'#bdd0e4'}}},"
             "plugins:{legend:{labels:{color:'#bdd0e4'}},tooltip:{callbacks:{title:function(items){const i=items[0].dataIndex;return d.dates[i]+' / '+d.previousDates[i];}}}}}});})();</script>")
-    out += ("<div class='card'><h2>Ocorrências separadas</h2><p>Cancelamentos (status cancelled): "
+    out += ("<div class='card'>"
+            + section_help("Ocorrências separadas", "Como tratamos cancelamentos, devoluções e reembolsos",
+                           "<p>A coleta atual carece de eventos confiáveis de devolução e valores de reembolso. "
+                           "Cancelamentos têm status cancelled. O faturamento acima já considera apenas pedidos pagos.</p>")
+            + "<p>Cancelamentos: "
             + fmt(current['cancellations'], False) + " · Anterior: " + fmt(previous['cancellations'], False)
-            + "</p><p>Devoluções: indisponível · Reembolsos: indisponível.</p>"
-            "<div class='sub'>O banco e a coleta atual não possuem eventos confiáveis de devolução "
-            "ou valores de reembolso. Cancelamento não é tratado como devolução ou reembolso. "
-            "Nenhuma ocorrência é subtraída novamente do faturamento.</div></div>"
+            + "</p><p>Devoluções: indisponível · Reembolsos: indisponível.</p></div>"
             "<div class='card'><h2>Análise de margem existente</h2>"
-            "<p>A seção abaixo e o CSV mantêm a análise dos últimos 100 pedidos fechados, "
-            "sem os filtros acima. São independentes dos indicadores de vendas pagas.</p></div>")
+            "<p>Últimos 100 pedidos fechados no relatório e no CSV, independentemente do período acima.</p></div>")
     return out
 
 

@@ -41,6 +41,7 @@ on:
       - 'test_freight_audit_view.py'
       - 'scripts/freight_audit*'
       - 'sales_view.py'
+      - 'section_help.py'
       - 'sales_geography*.py'
       - 'test_sales_geography*.py'
       - 'assets/brazil_states_paths.json'
