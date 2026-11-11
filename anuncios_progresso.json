@@ -228,7 +228,8 @@
       ],
       "prs": [
         168,
-        269
+        269,
+        411
       ],
       "numero_original": null,
       "prioridade": 100,
@@ -575,7 +576,8 @@
         249,
         266,
         312,
-        393
+        393,
+        411
       ],
       "numero_original": null,
       "prioridade": 4,
@@ -2214,6 +2216,20 @@
       "prs": [
         409
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-10",
+      "resumo": "Ajuda recolhida na Saúde do catálogo, Linha do tempo, campanhas de Ads e histórico de participações.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        411
+      ]
     }
   ],
   "publicacoes": [
@@ -2465,6 +2481,13 @@
       "commit": "8f2739510203cbb15386b9351cdf77629aec9696",
       "status": "live",
       "horario_brasilia": "2026-11-10T15:44:19.244-03:00"
+    },
+    {
+      "pr": 411,
+      "deploy_id": "dep-dbpnhte417fc73d3okig",
+      "commit": "321fe193531e4300ccd90ca4feea8cca0d5c7680",
+      "status": "live",
+      "horario_brasilia": "2026-11-10T17:09:02.923-03:00"
     }
   ]
 }
