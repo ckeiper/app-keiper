@@ -38,12 +38,13 @@ def compact(fields,csrf,plan,key):
     esc=lambda value:escape(str(value),quote=True)
     out='<form method="post" class="ae-compact"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan)+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'"><div class="ae-compact-grid">'
     for field in fields[:50]:
-        out+='<label>'+esc(field['name'])+'<input type="hidden" name="manual_field" value="'+esc(field['id'])+'"><input name="manual_value" maxlength="1000" placeholder="Preencher" value=""><input type="hidden" name="manual_note" value="">'
-        if field.get('examples'):out+='<small>'+esc('Ex.: '+', '.join(field['examples'][:3]))+'</small>'
+        out+='<label><span>'+esc(field['name'])+'</span><input type="hidden" name="manual_field" value="'+esc(field['id'])+'"><input name="manual_value" maxlength="1000" placeholder="Preencher" value="" title="'+esc('Ex.: '+', '.join(field['examples'][:3]) if field.get('examples') else field['name'])+'"><input type="hidden" name="manual_note" value="">'
+
         out+='</label>'
     out+='</div>'
-    if len(fields)>50:out+='<p>Exibidos 50 campos. Use mais campos e opções para escolher outros.</p>'
-    return out+'<button type="submit">Revisar preenchidos</button></form>'
+    out+='<button type="submit" aria-label="Revisar preenchidos">Revisar</button>'
+    if len(fields)>50:out+='<p class="ae-compact-limit">Exibidos 50 campos. Use mais campos e opções para escolher outros.</p>'
+    return out+'</form>'
 
 
 SCRIPT=r'''<script>document.querySelectorAll('.ae-manual').forEach(function(panel){

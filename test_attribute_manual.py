@@ -18,7 +18,7 @@ class ManualTests(unittest.TestCase):
   plan=dict(id='11111111-1111-4111-8111-111111111111',state='ready',created_at=0,data=data)
   before=deepcopy(data);html=render(7,'MLB123','Produto','csrf','k'*24,plan)
   self.assertEqual(data,before)
-  self.assertIn('1 campo sem sugestão',html)
+  self.assertIn('class="ae-compact"',html)
   self.assertIn('Pendente · preencher manualmente',html)
   import json,re
   inventory=json.loads(re.search(r'class="cs-tech-data">(.*?)</script>',html).group(1))
