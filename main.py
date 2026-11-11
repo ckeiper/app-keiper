@@ -4045,13 +4045,11 @@ def diagnostico_saude_anuncio(cid, item_id):
         cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/tarefas'>Planejar tarefas do anúncio</a></p>"
     cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/kits'>Analisar composição de kit</a></p>" if session.get('tipo')=='admin' else ''
     cabecalho += "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/"+quote(item_id,safe='')+"/promocoes-resultados'>Comparar períodos de promoção</a></p>" if session.get('tipo')=='admin' else ''
-    corpo = cabecalho
-    corpo += ("<div class='card'><h3>Indicadores de vendas por anúncio</h3>"
-              "<p class='muted'>Somente pedidos pagos e aprovados, com cobertura "
-              "diária e vínculo completo dos itens. Valor bruto dos itens = "
-              "preço unitário registrado na venda × quantidade. "
-              "Não equivale ao valor líquido recebido, nem inclui rateio de "
-              "frete, cupons ou taxas.</p>"
+    corpo = ""
+    from contextual_help import tip
+    corpo += ("<div class='card'><h3>Indicadores de vendas por anúncio"
+              + tip("Indicadores de vendas", "Pedidos pagos e aprovados com cobertura completa. O valor bruto soma preço unitário vezes quantidade. O ticket divide esse valor pelos pedidos com o anúncio.")
+              + "</h3>"
               "<div style='overflow-x:auto'><table><thead><tr>"
               "<th>Período</th><th>Pedidos</th><th>Unidades</th>"
               "<th>Valor dos itens</th><th>Ticket médio por pedido</th>"
@@ -4070,17 +4068,14 @@ def diagnostico_saude_anuncio(cid, item_id):
                       + str(vendas["orders"]) + "</td><td>"
                       + str(vendas["units"]) + "</td><td>"
                       + valor + "</td><td>" + ticket + "</td></tr>")
-    corpo += ("</tbody></table></div><p class='muted'>"
-              "Ticket médio = valor bruto dos itens deste anúncio ÷ "
-              "pedidos que contêm este anúncio. Quando não há pedidos, "
-              "o ticket não é calculado. A cobertura de visitas e a relação "
-              "pedidos/visitas são detalhadas na investigação acima.</p></div>")
+    corpo += "</tbody></table></div></div>"
+    bloco_indicadores = corpo
+    corpo = ""
     # Compare complete, non-overlapping periods using the same paid-order
     # verification gates as the headline indicators.
-    corpo += ("<div class='card'><h3>Evolução das vendas por anúncio</h3>"
-              "<p class='muted'>Comparação com o período imediatamente anterior, "
-              "sem sobreposição de dias. Valores em reais são brutos dos itens "
-              "vendidos, não repasses líquidos.</p>"
+    corpo += ("<div class='card'><h3>Evolução das vendas por anúncio"
+              + tip("Comparação de vendas", "Compara períodos consecutivos com cobertura verificada. Uma base anterior zero aparece como novas vendas, sem percentual.")
+              + "</h3>"
               "<div style='overflow-x:auto'><table><thead><tr>"
               "<th>Comparação</th><th>Pedidos</th><th>Unidades</th>"
               "<th>Valor dos itens</th></tr></thead><tbody>")
@@ -4119,10 +4114,7 @@ def diagnostico_saude_anuncio(cid, item_id):
                            + " · " + rotulo + "</small></td>")
         corpo += ("<tr><td>" + str(dias) + " dias vs. anteriores</td>"
                   + "".join(celulas) + "</tr>")
-    corpo += ("</tbody></table></div><p class='muted'>"
-              "Sem cobertura verificada em qualquer período, a comparação "
-              "fica indisponível. Quando a base anterior é zero, não exibimos "
-              "crescimento percentual artificial.</p></div>")
+    corpo += "</tbody></table></div></div>"
     # Observations are snapshots: unknown dates never inherit a guessed state.
     with banco() as conn:
         full_rows = consultar(conn, """SELECT observed_at,state,quantity,logistics
@@ -4179,8 +4171,8 @@ def diagnostico_saude_anuncio(cid, item_id):
     linha_tempo = render_timeline(item_id,pedidos_verificados,itens_pedidos,
         [r["dia"] for r in cobertura],full_rows,visitas_evidencia,ofertas['own'],
         fim_investigacao,pending=bool(pendentes and pendentes[0]["n"]),args=request.args)
-    corpo = cabecalho + painel_evidencias + linha_tempo + painel_ofertas + corpo[len(cabecalho):]
-    corpo += priorities(resultados)
+    corpo = (cabecalho + priorities(resultados) + bloco_indicadores + linha_tempo
+             + painel_evidencias + corpo + painel_ofertas)
     return pagina_loja("Diagnóstico do anúncio", cid, lojas[0]["cliente"], "anuncios", corpo)
 
 
