@@ -55,6 +55,14 @@ class TimelineTests(unittest.TestCase):
         priced_payload=json.loads(re.search(r'new Chart\(el,\{data:(.*?),options:',priced).group(1))
         self.assertEqual(priced_payload['datasets'][-1]['data'][-1],100)
 
+    def test_compact_chart_keeps_verified_data_and_collapses_coverage(self):
+        output=render('MLB1',[],[],self.covered,[],[],[],END)
+        self.assertIn("<details class='timeline-coverage-details'>",output)
+        self.assertIn('Cobertura dos dados',output)
+        self.assertIn('Vendas: 14/14 dias',output)
+        self.assertIn('pointHoverRadius',output)
+        self.assertIn('grid:{display:false}',output)
+
     def test_daily_table_pagination_and_filters_are_preserved(self):
         output=render('MLB1',[],[],self.covered,[],[],[],END,args={'comparar_linha':'preco','pagina_linha':'2','busca_queda':'"><script>'})
         self.assertIn('Página 2 de 2',output)
