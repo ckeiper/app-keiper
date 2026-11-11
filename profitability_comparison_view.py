@@ -27,7 +27,7 @@ def render_comparison(comparison,start,end,previous_start,previous_end,current_r
     esc=lambda value:escape(str(value),quote=True)
     prior_query=urlencode(dict(inicio=previous_start.isoformat(),fim=previous_end.isoformat()))
     help_copy = (
-        '<p>A comparação usa períodos consecutivos de mesma duração. A diferença em reais inclui mudanças no volume vendido. '
+        '<p>A comparação usa períodos consecutivos de mesma duração, sem sobreposição. A diferença em reais inclui mudanças no volume vendido. '
         'A participação divide cada custo pelo valor bruto e permite comparar períodos de volumes diferentes.</p>'
         '<p>Sem valor bruto, margem e participações ficam indisponíveis. A soma dos efeitos corresponde à diferença de contribuição. '
         'O efeito de cada custo tem sinal inverso ao da sua variação em reais.</p>'

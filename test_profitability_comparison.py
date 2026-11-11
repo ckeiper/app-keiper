@@ -117,7 +117,7 @@ class ProfitabilityComparisonTests(unittest.TestCase):
         self.assertNotIn('<script>',output)
         self.assertNotIn('<form',output)
         self.assertIn('sem sobreposição',output)
-        self.assertIn('não é uma projeção de recuperação',output)
+        self.assertIn('A análise descreve os registros',output)
         self.assertIn('inicio=2026-10-10',output)
         self.assertIn('fim=2026-10-16',output)
         self.assertIn('registro atual #1',output)
