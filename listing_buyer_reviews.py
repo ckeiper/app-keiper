@@ -5,6 +5,7 @@ import re
 import secrets
 from datetime import datetime, timezone
 from html import escape
+from contextual_help import STYLE as HELP_STYLE, tip
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 from flask import request, session
@@ -101,7 +102,7 @@ def inspect(token, seller_id, item_id, request_get, offset=0, now=None):
 def render(cid, item_id, title, csrf, result=None):
     esc = lambda v: escape(str(v), quote=True)
     path = '/anuncios/'+str(int(cid))+'/'+esc(item_id)
-    out = CSS+'''<div class="pf buyer-reviews"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Voz do comprador</span><h2>Avaliações do produto</h2><p>'''+esc(title or item_id)+' · '+esc(item_id)+'''</p></header><section class="pf-card"><h3>Consultar avaliações</h3><p>Leitura sob demanda, sem armazenar comentários. Avaliações do produto não medem atendimento ou reputação desta loja.</p>'''
+    out = CSS+HELP_STYLE+'''<div class="pf buyer-reviews"><header class="pf-hero"><h2>Avaliações do produto</h2><p>'''+esc(title or item_id)+' · '+esc(item_id)+'''</p></header><section class="pf-card"><h3>Consultar avaliações'''+tip('Sobre a consulta', 'Leitura sob demanda, sem armazenar comentários. Avaliações do produto não medem atendimento ou reputação desta loja.')+'''</h3>'''
     def button(offset, label):
         return '<form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="offset" value="'+str(offset)+'"><button>'+label+'</button></form>'
     out += button(0, 'Consultar avaliações no Mercado Livre')+'</section>'
@@ -117,7 +118,7 @@ def render(cid, item_id, title, csrf, result=None):
             average = None if result['average'] is None else f"{result['average']:.1f}".replace('.', ',')+' / 5'
             out += '<div class="pf-grid">'+''.join('<article class="pf-metric"><span>'+k+'</span><strong>'+value(v)+'</strong></article>' for k,v in [('Média informada',average),('Avaliações informadas',result['total']),('Acessíveis por paginação',result['pageable'])])+'</div>'
             out += '<details><summary>Distribuição por estrelas</summary><dl class="br-levels">'+''.join('<dt>'+str(i)+' estrela'+('s' if i!=1 else '')+'</dt><dd>'+value(v)+'</dd>' for i,v in reversed(list(enumerate(result['levels'],1))))+'</dl></details>'
-            out += '<h4>Comentários desta página</h4><p>Posição '+str(result['offset']+1)+' · até cinco registros por consulta. Textos são opiniões de compradores, sem confirmação das alegações.</p>'
+            out += '<h4>Comentários desta página'+tip('Comentários', 'Até cinco registros por consulta. Textos são opiniões de compradores, sem confirmação das alegações.')+'</h4><p>Posição '+str(result['offset']+1)+'</p>'
             if not result['rows']:out += '<p>Nenhum comentário publicado verificável nesta página. Isso não comprova ausência de avaliações.</p>'
             for row in result['rows']:
                 content = row['content'] or 'Sem texto retornado.'
