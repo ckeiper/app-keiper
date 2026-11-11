@@ -12,7 +12,7 @@ def render(fields,csrf,plan,key,values=None):
         return [value] if value is not None else []
     codes,raw,notes=(values_for(k) for k in ('manual_field','manual_value','manual_note'))
     count=min(50,max(len(codes),len(raw),len(notes),1))
-    out='<details class="ae-manual"'+(' open' if codes else '')+'><summary>Informar dado faltante</summary><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan)+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'"><div class="ae-manual-rows">'
+    out='<details class="ae-manual"'+(' open' if codes else '')+'><summary>Mais campos e opções</summary><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan)+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'"><div class="ae-manual-rows">'
     scopes={}
     for field in fields:
         if field.get('variation_id'):scopes.setdefault(field['variation_id'],'Variação '+field['variation_id'])
@@ -31,6 +31,19 @@ def render(fields,csrf,plan,key,values=None):
         choice=options.replace('value="'+esc(selected)+'">','value="'+esc(selected)+'" selected>',1) if selected else options
         out+='<fieldset class="ae-manual-row"><legend>Campo '+str(i+1)+'</legend>'+filters+'<label>Campo ou variação<select name="manual_field">'+choice+'</select></label><p class="ae-value-help" aria-live="polite"></p><label>Valor'+tip('Valor informado','Use o valor correto do produto. Números com unidade precisam de espaço, por exemplo 10 cm. Campos em branco ficam pendentes. Os valores preenchidos serão validados antes de criar a revisão; adicionar ainda não altera o anúncio.')+'<input name="manual_value" maxlength="1000" placeholder="Pendente · preencher manualmente" value="'+esc(raw[i] if i<len(raw) else '')+'"></label><label>Fonte ou observação (opcional)<input name="manual_note" maxlength="500" value="'+esc(notes[i] if i<len(notes) else '')+'"></label><button type="button" class="ae-remove-row"'+(' hidden' if count==1 else '')+'>Remover campo '+str(i+1)+'</button></fieldset>'
     return out+'</div><p class="ae-batch-count" aria-live="polite">'+str(count)+' de 50 campos neste lote</p><button type="button" class="ae-add-row"'+(' disabled' if count==50 else '')+'>Adicionar outro campo</button><button type="submit">Adicionar à revisão</button></form></details>'
+
+
+def compact(fields,csrf,plan,key):
+    """Direct blank inputs for eligible pending fields; same validated manual action."""
+    esc=lambda value:escape(str(value),quote=True)
+    out='<form method="post" class="ae-compact"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan)+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'"><div class="ae-compact-grid">'
+    for field in fields[:50]:
+        out+='<label>'+esc(field['name'])+'<input type="hidden" name="manual_field" value="'+esc(field['id'])+'"><input name="manual_value" maxlength="1000" placeholder="Preencher" value=""><input type="hidden" name="manual_note" value="">'
+        if field.get('examples'):out+='<small>'+esc('Ex.: '+', '.join(field['examples'][:3]))+'</small>'
+        out+='</label>'
+    out+='</div>'
+    if len(fields)>50:out+='<p>Exibidos 50 campos. Use mais campos e opções para escolher outros.</p>'
+    return out+'<button type="submit">Revisar preenchidos</button></form>'
 
 
 SCRIPT=r'''<script>document.querySelectorAll('.ae-manual').forEach(function(panel){

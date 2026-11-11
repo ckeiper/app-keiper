@@ -40,11 +40,11 @@ class EditorRouteGuards(TestCase):
   self.query.side_effect=[[dict(user_id=123,titulo='Produto',cliente='Loja',status='ativa')],[]]
   response=self.c.get(self.path)
   self.assertEqual(response.status_code,200)
-  self.assertIn('Analisar e completar ficha',response.text)
+  self.assertIn('Ler e preencher ficha',response.text)
   self.get.assert_not_called();self.put.assert_not_called()
  def test_get_is_read_only_and_does_not_resolve_token(self):
   self.query.side_effect=[[dict(user_id=123,titulo='Produto',cliente='Loja',status='ativa')],[]]
-  r=self.c.get(self.path);self.assertEqual(r.status_code,200);self.assertIn('Analisar e completar ficha',r.text)
+  r=self.c.get(self.path);self.assertEqual(r.status_code,200);self.assertIn('Ler e preencher ficha',r.text)
   self.get.assert_not_called();self.put.assert_not_called();self.post.assert_not_called();self.resolve.assert_not_called()
   for c in self.query.call_args_list:self.assertTrue(c.args[1].lstrip().startswith('SELECT'))
  def test_uuid_validation(self):
@@ -53,7 +53,7 @@ class EditorRouteGuards(TestCase):
 class EditorViewTests(TestCase):
  def test_explicit_review_no_default_selection_and_no_secret(self):
   p=plan();text=render(1,'MLB123','Produto','csrf','k'*24,p)
-  self.assertIn('Aplicar selecionadas no Mercado Livre',text);self.assertNotIn(' checked',text);self.assertIn('Antes: sem valor',text);self.assertIn('Material: Aço',text);self.assertNotIn('private-token',text)
+  self.assertIn('Aplicar selecionadas no Mercado Livre',text);self.assertNotIn(' checked',text);self.assertIn('Ver fonte',text);self.assertIn('Material: Aço',text);self.assertNotIn('private-token',text)
  def test_blocked_and_uncertain_do_not_offer_send(self):
   p=plan();p['data']['blocked']='Vínculo compartilhado';text=render(1,'MLB123','P','csrf','k'*24,p)
   self.assertNotIn('Aplicar selecionadas',text);self.assertIn(' disabled',text)
