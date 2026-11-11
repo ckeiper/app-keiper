@@ -421,7 +421,8 @@
         236,
         263,
         264,
-        265
+        265,
+        428
       ],
       "numero_original": null,
       "prioridade": 6,
@@ -539,7 +540,8 @@
       ],
       "prs": [
         247,
-        251
+        251,
+        428
       ],
       "numero_original": null,
       "prioridade": 100,
@@ -2281,6 +2283,20 @@
       "prs": [
         426
       ]
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-11",
+      "resumo": "Ajuda de cálculo recolhida na comparação de rentabilidade e na simulação de descontos.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        428
+      ]
     }
   ],
   "publicacoes": [
@@ -2588,6 +2604,13 @@
       "commit": "348be6343e6be5066fdb729f89147778eea412c5",
       "status": "live",
       "horario_brasilia": "2026-11-11T08:46:04.890-03:00"
+    },
+    {
+      "pr": 428,
+      "deploy_id": "dep-dbqapsrm8hqs73cnsjtg",
+      "commit": "2948d16057c3bcffa3c08e8339c2b3eff8280b85",
+      "status": "live",
+      "horario_brasilia": "2026-11-11T15:01:43.272-03:00"
     }
   ]
 }
