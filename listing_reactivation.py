@@ -26,7 +26,7 @@ def load(conn,query,cid,item,args):
     return dict(shop=shops[0],tasks=tasks,total=n,page=p,pages=pages,events=events[:10],events_limited=len(events)>10)
 
 
-def render(cid,item,data,today,now,token,values=None,message='',official=None):
+def render(cid,item,data,today,now,token,values=None,message='',official=None, *, can_reactivate=False):
     values=values or {};esc=lambda v:escape(str(v),quote=True);shop=data['shop'];path=f'/anuncios/{int(cid)}/{item}'
     def stamp(v):
         try:return datetime.fromtimestamp(int(v),SAO_PAULO).strftime('%d/%m/%Y %H:%M')
@@ -37,12 +37,22 @@ def render(cid,item,data,today,now,token,values=None,message='',official=None):
     stock=str(int(signal['stock'])) if signal['stock_verified'] else 'não verificado'
     out=STYLE+'''<style>.reactivation article{background:#182e49;border:1px solid #426184;border-radius:10px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.reactivation textarea{background:#0b192c;color:#eaf2ff;border:1px solid #426184;border-radius:8px;padding:10px;max-width:100%;width:100%;box-sizing:border-box}.reactivation label{max-width:100%;flex:1}.reactivation .rr-note{white-space:pre-wrap}.reactivation form{align-items:end}.rr-wide{flex-basis:100%!important}@media(max-width:700px){.reactivation form{flex-direction:column;align-items:stretch}}</style>'''
     out+='<section class="lc reactivation"><h2>Revisão de reativação</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><nav><a href="/diagnostico/'+str(int(cid))+'/'+item+'">Diagnóstico</a><a href="'+path+'/conteudo">Checklist de conteúdo</a><a href="'+path+'/tarefas">Tarefas e histórico</a></nav><article class="rr-source"><strong>Status observado: '+status+'</strong><p>Estoque geral observado: '+stock+' · coleta: '+stamp(raw)+'. A leitura não comprova disponibilidade atual, inventário Full ou estoque por variação.</p></article>'
-    out+='<p>Conferência interna antes de decidir no marketplace. O status pausado não informa o motivo, nem prova que a oferta está elegível para reativação. Esta tela não ativa, pausa ou altera anúncios.</p>'
+    out+='<p>Conferência interna antes de decidir no marketplace. O status pausado não informa o motivo, nem prova que a oferta está elegível para reativação. A reativação é solicitada ao Mercado Livre após sua confirmação.</p>'
     if fresh and shop.get('status')!='paused':out+='<p role="status">A leitura recente não indica anúncio pausado. A tarefa, se criada, será apenas uma conferência; não registra uma reativação.</p>'
     out+='<h3>Antes de decidir</h3><article><strong>1. Motivo e restrições</strong><p>Confira o motivo exibido no marketplace e eventuais restrições da conta ou da oferta. Use a consulta abaixo para conferir os substatus atuais retornados pela API.</p></article><article><strong>2. Oferta e disponibilidade</strong><p>Confira preço final, custos documentados, disponibilidade real e condições logísticas. Estoque positivo isolado não garante elegibilidade.</p></article><article><strong>3. Conteúdo e acompanhamento</strong><p>Revise o checklist e registre o que foi conferido. Se houver uma ação executada no marketplace, documente-a no histórico de ações; concluir a tarefa não substitui esse registro.</p></article>'
     from listing_pause_reasons import render as render_reasons
     out+=render_reasons(token,official)
     if message:out+='<p role="status">'+esc(message)+'</p>'
+    if (can_reactivate and official and official['state'] == 'read'
+            and official['status'] == 'paused'
+            and official['account_permission']['allow'] is not False
+            and 'out_of_stock' not in (official['codes'] or [])):
+        out += ('<article class="rr-reactivate"><h3>Reativar anúncio</h3><form method="post">'
+                '<input type="hidden" name="_csrf" value="' + esc(token) + '">'
+                '<label><input type="checkbox" name="confirmar_reativacao" value="sim" required> '
+                'Confirmo a reativação de ' + esc(item) + ' no Mercado Livre.</label>'
+                '<button name="action" value="reativar_anuncio">Reativar anúncio</button></form></article>')
+
     out+='<details'+(' open' if values else '')+'><summary>Planejar conferência</summary><form method="post">'
     for k,v in dict(_csrf=token,submission_key=values.get('submission_key') or secrets.token_urlsafe(24)).items():out+='<input type="hidden" name="'+k+'" value="'+esc(v)+'">'
     out+='<label>Responsável informado<input name="responsible" maxlength="80" required value="'+esc(values.get('responsible',''))+'"></label><label>Prazo · Brasília<input type="date" name="due_date" required value="'+esc(values.get('due_date',''))+'"></label><label class="rr-wide">O que precisa ser conferido<textarea name="description" minlength="10" maxlength="1500" required rows="3">'+esc(values.get('description',''))+'</textarea></label><button>Criar tarefa de conferência</button></form><p>A tarefa terá o título “'+TITLE+'” e ficará disponível no calendário. O responsável e o prazo não são presumidos.</p></details><h3>Conferências planejadas</h3><p>'+str(data['total'])+' tarefas com esse título neste anúncio. Status das tarefas é independente do status da oferta.</p>'
