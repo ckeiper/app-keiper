@@ -31,7 +31,12 @@ for(const mode of ['ready','zero','partial','pending','invalid','spike','change'
    assert.equal(await page.locator('.wp td').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(28, 53, 79)');
   }
  }
- await page.locator('.wp summary').click();
+ const help=page.locator('summary[aria-label="Critérios do padrão semanal"]');
+ assert.ok(!await page.getByText('Mediana = centro',{exact:false}).isVisible());
+ await help.focus();await page.keyboard.press('Enter');
+ assert.ok(await page.getByText('Mediana = centro',{exact:false}).isVisible());
+ await page.keyboard.press('Enter');
+ await page.getByText('Cobertura diária da coleta',{exact:true}).click();
  assert.equal(await page.locator('.wp-days span').count(),56);
  if(ready && width<650){
   for(const wrap of await page.locator('.wp-table-wrap').all()){assert.ok(await wrap.evaluate(e=>e.scrollWidth>e.clientWidth));await wrap.focus();assert.ok(await wrap.evaluate(e=>document.activeElement===e));}
