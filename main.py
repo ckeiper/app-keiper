@@ -5716,7 +5716,7 @@ register_export(app, login_required, pode_ver_loja, banco, consultar, executar)
 from listing_sku_overlap import register_overlap
 register_overlap(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_reactivation_routes import register_reactivation
-register_reactivation(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja, resolve_token=token_atual, request_get=requests.get)
+register_reactivation(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja, resolve_token=token_atual, request_get=requests.get, request_put=requests.put)
 from sales_geography_view import register as register_sales_geography
 register_sales_geography(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
 from listing_review_report import register_report
