@@ -6,6 +6,7 @@ from sales_metrics import SAO_PAULO
 from listing_priority_sources import listing_signals
 from listing_tasks import STATES
 from listing_calendar import STYLE
+from section_help import STYLE as HELP_STYLE, section_help
 
 TITLE='Conferir elegibilidade de reativação'
 STATUS={'paused':'Pausado','active':'Ativo','closed':'Encerrado','under_review':'Em revisão','inactive':'Inativo'}
@@ -35,11 +36,20 @@ def render(cid,item,data,today,now,token,values=None,message='',official=None):
     status=STATUS.get(shop.get('status'),'Não identificado') if fresh else 'Não verificado · leitura ausente ou antiga'
     signal=listing_signals([shop],{},1,now=now)[item]
     stock=str(int(signal['stock'])) if signal['stock_verified'] else 'não verificado'
-    out=STYLE+'''<style>.reactivation article{background:#182e49;border:1px solid #426184;border-radius:10px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.reactivation textarea{background:#0b192c;color:#eaf2ff;border:1px solid #426184;border-radius:8px;padding:10px;max-width:100%;width:100%;box-sizing:border-box}.reactivation label{max-width:100%;flex:1}.reactivation .rr-note{white-space:pre-wrap}.reactivation form{align-items:end}.rr-wide{flex-basis:100%!important}@media(max-width:700px){.reactivation form{flex-direction:column;align-items:stretch}}</style>'''
+    out=STYLE+HELP_STYLE+'''<style>.reactivation article{background:#182e49;border:1px solid #426184;border-radius:10px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.reactivation textarea{background:#0b192c;color:#eaf2ff;border:1px solid #426184;border-radius:8px;padding:10px;max-width:100%;width:100%;box-sizing:border-box}.reactivation label{max-width:100%;flex:1}.reactivation .rr-note{white-space:pre-wrap}.reactivation form{align-items:end}.rr-wide{flex-basis:100%!important}@media(max-width:700px){.reactivation form{flex-direction:column;align-items:stretch}}</style>'''
     out+='<section class="lc reactivation"><h2>Revisão de reativação</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><nav><a href="/diagnostico/'+str(int(cid))+'/'+item+'">Diagnóstico</a><a href="'+path+'/conteudo">Checklist de conteúdo</a><a href="'+path+'/tarefas">Tarefas e histórico</a></nav><article class="rr-source"><strong>Status observado: '+status+'</strong><p>Estoque geral observado: '+stock+' · coleta: '+stamp(raw)+'. A leitura não comprova disponibilidade atual, inventário Full ou estoque por variação.</p></article>'
-    out+='<p>Conferência interna antes de decidir no marketplace. O status pausado não informa o motivo, nem prova que a oferta está elegível para reativação. Esta tela não ativa, pausa ou altera anúncios.</p>'
     if fresh and shop.get('status')!='paused':out+='<p role="status">A leitura recente não indica anúncio pausado. A tarefa, se criada, será apenas uma conferência; não registra uma reativação.</p>'
-    out+='<h3>Antes de decidir</h3><article><strong>1. Motivo e restrições</strong><p>Confira o motivo exibido no marketplace e eventuais restrições da conta ou da oferta. Use a consulta abaixo para conferir os substatus atuais retornados pela API.</p></article><article><strong>2. Oferta e disponibilidade</strong><p>Confira preço final, custos documentados, disponibilidade real e condições logísticas. Estoque positivo isolado não garante elegibilidade.</p></article><article><strong>3. Conteúdo e acompanhamento</strong><p>Revise o checklist e registre o que foi conferido. Se houver uma ação executada no marketplace, documente-a no histórico de ações; concluir a tarefa não substitui esse registro.</p></article>'
+    out += section_help(
+        'Antes de decidir', 'Critérios para revisar a reativação',
+        '<p>O status pausado não informa o motivo nem prova que a oferta está elegível para reativação. '
+        'A decisão e a ação são feitas no marketplace.</p>'
+        '<ol><li><strong>Motivo e restrições.</strong> Confira os substatus e as restrições da conta ou da oferta.</li>'
+        '<li><strong>Oferta e disponibilidade.</strong> Confira preço final, custos documentados, estoque real e logística. '
+        'Estoque positivo isolado não garante elegibilidade.</li>'
+        '<li><strong>Conteúdo e acompanhamento.</strong> Revise o checklist e registre a ação executada '
+        'no marketplace no histórico de ações.</li></ol>',
+        subheading=True,
+    )
     from listing_pause_reasons import render as render_reasons
     out+=render_reasons(token,official)
     if message:out+='<p role="status">'+esc(message)+'</p>'
@@ -52,7 +62,13 @@ def render(cid,item,data,today,now,token,values=None,message='',official=None):
     out+='<nav aria-label="Paginação de conferências">Página '+str(data['page'])+' de '+str(data['pages'])
     for label,p in [('Anterior',data['page']-1),('Próxima',data['page']+1)]:
         if 1<=p<=data['pages']:out+=' <a href="'+path+'/reativacao?pagina='+str(p)+'">'+label+'</a>'
-    out+='</nav><h3>Mudanças de status observadas</h3><p>Fonte: histórico das coletas. Datas em Brasília indicam detecção; não identificam autor, motivo ou horário exato da ação. Sem eventos não significa ausência de mudanças.</p>'
+    out += '</nav>' + section_help(
+        'Mudanças de status observadas', 'Como interpretar as mudanças observadas',
+        '<p>As datas em Brasília mostram quando a coleta detectou a mudança. '
+        'As datas não identificam autor, motivo ou horário exato da ação. '
+        'Sem eventos não significa ausência de mudanças.</p>',
+        subheading=True,
+    )
     if data['events_limited']:out+='<p>Exibidas somente as dez mudanças mais recentes. Histórico completo disponível na tela de ações.</p>'
     def status_label(value):return STATUS.get(value,value) if isinstance(value,str) else 'Não identificado'
     for row in data['events']:
