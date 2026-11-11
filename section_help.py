@@ -24,6 +24,6 @@ STYLE = """<style>
 def section_help(title, label, body, *, subheading=False):
     """Render a heading and an explanation supplied as trusted HTML."""
     heading = 'h3' if subheading else 'h2'
-    return (f"<header class='section-help'><{heading} class='section-help-title'>{escape(title)}</{heading}>"
+    return (f"<div class='section-help'><{heading} class='section-help-title'>{escape(title)}</{heading}>"
             f"<details><summary aria-label='{escape(label)}' title='{escape(label)}'>?</summary>"
-            f"<div class='section-help-copy'>{body}</div></details></header>")
+            f"<div class='section-help-copy'>{body}</div></details></div>")

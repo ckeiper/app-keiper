@@ -2,6 +2,7 @@
 from datetime import date,timedelta
 from decimal import Decimal
 from html import escape
+from section_help import STYLE as HELP_STYLE, section_help
 from listing_weekly_pattern import STYLE
 
 
@@ -38,9 +39,14 @@ def render(cid,item,shop,data):
     signed=lambda v:('+' if v>0 else '')+number(v)
     fmt=lambda d:d.strftime('%d/%m/%Y')
     path='/anuncios/'+str(int(cid))+'/'+item
-    out=STYLE+LOCAL_STYLE+'<section class="wp ph"><header><h2>Conferência histórica da média de vendas</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><p>'+fmt(data['start'])+' a '+fmt(data['end'])+' · oito semanas completas · Brasília</p><nav class="ph-links"><a href="'+esc(path+'/padrao-semanal')+'">Padrão semanal e cobertura</a><a href="/diagnostico/'+str(int(cid))+'/'+esc(item)+'">Diagnóstico</a></nav></header>'
+    help_copy = (
+        '<p>Simulação retrospectiva. Em cada rodada, a estimativa semanal usa as unidades dos 28 dias anteriores divididas por quatro. A segunda referência usa os sete dias imediatamente anteriores. A semana em curso fica fora.</p>'
+        '<p>Janelas fixas: 28 dias de base e os sete dias seguintes para conferência, avançando uma semana em cada rodada. Todas as quatro rodadas aparecem, sem escolher as mais favoráveis. Erro absoluto médio = soma dos erros absolutos ÷ 4; desvio médio = soma de estimado menos realizado ÷ 4. O percentual usa soma dos erros absolutos ÷ soma das unidades realizadas × 100 e pode superar 100%.</p>'
+        '<p>As estimativas podem ter frações de unidade porque são médias. Valores são exibidos com uma casa decimal; cálculos usam os valores completos. Sem unidades realizadas, não há denominador para o percentual.</p>'
+        '<p>Usa registros atualmente verificados. Não reconstitui quais informações estavam disponíveis nas datas passadas. Mede vendas observadas, sem estimar demanda reprimida ou descontar pausas, ruptura, preço, promoções e feriados. Quatro rodadas não certificam precisão futura, sazonalidade ou data de ruptura; nenhuma projeção futura ou alteração de estoque é produzida.</p>'
+    )
+    out=STYLE+LOCAL_STYLE+HELP_STYLE+'<section class="wp ph"><header>'+section_help('Conferência histórica da média de vendas','Método e limites da conferência histórica',help_copy)+'<p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><p>'+fmt(data['start'])+' a '+fmt(data['end'])+' · oito semanas completas · Brasília</p><nav class="ph-links"><a href="'+esc(path+'/padrao-semanal')+'">Padrão semanal e cobertura</a><a href="/diagnostico/'+str(int(cid))+'/'+esc(item)+'">Diagnóstico</a></nav></header>'
     out+='<div class="wp-coverage"><strong>Cobertura da loja: '+str(data['covered'])+' de 56 dias</strong><progress max="56" value="'+str(data['covered'])+'" aria-label="Dias com cobertura de vendas">'+str(data['covered'])+'/56</progress></div>'
-    out+='<p>Simulação retrospectiva: em cada uma das quatro semanas testadas, estimamos as unidades usando somente os 28 dias anteriores. Estimativa semanal = unidades desses 28 dias ÷ 4. A semana em curso fica fora.</p>'
     if not model['available']:
         out+='<p class="wp-notice" role="status">Conferência indisponível · '+esc(model['reason'])+'</p><p>As quatro comparações serão exibidas somente com a janela diária inteira verificada.</p>'
     else:
@@ -62,12 +68,11 @@ def render(cid,item,shop,data):
         out+='</tbody></table></div>'
         out+='<h3>Comparação com a semana anterior</h3>'
         out+='<p>Erro absoluto médio nas mesmas quatro rodadas · média de quatro semanas: <strong>'+number(model['mae'])+'</strong> · semana anterior: <strong>'+number(model['previous_week_mae'])+'</strong> unidades por semana.</p>'
-        out+='<p>A segunda referência usa somente as unidades dos sete dias imediatamente anteriores à semana testada.</p>'
         out+='<div class="wp-table-wrap" role="region" aria-label="Comparação dos erros por semana" tabindex="0"><table style="min-width:560px"><caption>Erros absolutos por semana testada</caption><thead><tr><th scope="col">Semana testada</th><th scope="col">Média de quatro semanas</th><th scope="col">Semana anterior</th></tr></thead><tbody>'
         for row in model['rows']:
             out+='<tr><th scope="row">'+fmt(row['test_start'])+' a '+fmt(row['test_end'])+'</th><td>'+number(row['absolute_error'])+'</td><td>'+number(row['previous_week_absolute_error'])+'</td></tr>'
         out+='</tbody></table></div>'
-    out+='<details><summary>Método e limites</summary><p>Janelas fixas: 28 dias de base e os sete dias seguintes para conferência, avançando uma semana em cada rodada. Todas as quatro rodadas aparecem, sem escolher as mais favoráveis. Erro absoluto médio = soma dos erros absolutos ÷ 4; desvio médio = soma de estimado menos realizado ÷ 4. O percentual usa soma dos erros absolutos ÷ soma das unidades realizadas × 100 e pode superar 100%.</p><p>As estimativas podem ter frações de unidade porque são médias. Valores são exibidos com uma casa decimal; cálculos usam os valores completos. Sem unidades realizadas, não há denominador para o percentual.</p><p>Usa registros atualmente verificados. Não reconstitui quais informações estavam disponíveis nas datas passadas. Mede vendas observadas, sem estimar demanda reprimida ou descontar pausas, ruptura, preço, promoções e feriados. Quatro rodadas não certificam precisão futura, sazonalidade ou data de ruptura; nenhuma projeção futura ou alteração de estoque é produzida.</p></details></section>'
+    out+='</section>'
     return out
 
 

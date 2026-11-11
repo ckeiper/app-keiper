@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from html import escape
+from section_help import STYLE as HELP_STYLE, section_help
 from statistics import median
 import re
 
@@ -75,7 +76,12 @@ def render(cid,item,shop,data):
     number=lambda v:format(v,'.1f').replace('.',',')
     fmt=lambda d:d.strftime('%d/%m/%Y')
     path=f'/anuncios/{int(cid)}/{item}'
-    out=STYLE+'<section class="wp"><header><h2>Padrão semanal de vendas</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><p>'+fmt(data['start'])+' a '+fmt(data['end'])+' · oito semanas completas, de segunda a domingo · Brasília</p><a class="wp-back" href="/diagnostico/'+str(int(cid))+'/'+esc(item)+'">Voltar ao diagnóstico</a> · <a class="wp-back" href="'+esc(path+'/conferencia-media')+'">Conferir a média no histórico</a></header>'
+    help_copy = (
+        '<p>Fonte: pedidos pagos em BRL, com pagamento aprovado e itens mapeados. Data de criação do pedido em Brasília; cancelados e pagamentos não aprovados ficam fora. A cobertura é da coleta de vendas da loja, sem medir disponibilidade do anúncio. A semana em curso fica fora.</p>'
+        '<p>Média = unidades totais do dia ÷ 8. Mediana = centro das oito observações. Participação = unidades do dia ÷ unidades da janela. Dias sem venda entram como zero somente com a base integral verificada.</p>'
+        '<p>Histórico descritivo da janela, sem previsão ou sazonalidade anual validada. Não desconta períodos antes da criação, pausas ou ruptura; não controla promoções, preço, feriados ou campanhas e não identifica causas.</p>'
+    )
+    out=STYLE+HELP_STYLE+'<section class="wp"><header>'+section_help('Padrão semanal de vendas','Critérios do padrão semanal',help_copy)+'<p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><p>'+fmt(data['start'])+' a '+fmt(data['end'])+' · oito semanas completas, de segunda a domingo · Brasília</p><a class="wp-back" href="/diagnostico/'+str(int(cid))+'/'+esc(item)+'">Voltar ao diagnóstico</a> · <a class="wp-back" href="'+esc(path+'/conferencia-media')+'">Conferir a média no histórico</a></header>'
     out+='<div class="wp-coverage"><strong>Cobertura da loja: '+str(data['covered'])+' de 56 dias</strong><progress max="56" value="'+str(data['covered'])+'" aria-label="Dias com cobertura de vendas">'+str(data['covered'])+'/56</progress></div>'
     if data['available']:out+='<nav class="wp-comparison-link"><a href="#wp-comparacao">Comparar períodos de quatro semanas</a></nav>'
     if not data['available']:
@@ -83,7 +89,7 @@ def render(cid,item,shop,data):
     else:
         s=data['summary']
         out+='<div class="wp-stats"><article><strong>'+str(s['units'])+'</strong><span>Unidades vendidas</span></article><article><strong>'+str(s['orders'])+'</strong><span>Pedidos com este anúncio</span></article><article><strong>8</strong><span>Ocorrências de cada dia da semana</span></article></div>'
-        out+='<h3>Unidades por dia da semana</h3><p>Média por ocorrência do dia, incluindo os dias sem venda. As barras usam a mesma escala.</p><div class="wp-chart" role="img" aria-label="Média de unidades vendidas por dia da semana; valores detalhados na tabela abaixo">'
+        out+='<h3>Média de unidades por dia da semana</h3><div class="wp-chart" role="img" aria-label="Média de unidades vendidas por dia da semana; valores detalhados na tabela abaixo">'
         maximum=max([r['mean'] for r in data['rows']]+[Decimal(1)])
         for row in data['rows']:
             width=number(row['mean']*100/maximum).replace(',','.')
@@ -94,7 +100,7 @@ def render(cid,item,shop,data):
         out+='</tbody></table></div>'
         out+=render_comparison(data)
         if not s['units']:out+='<p class="wp-notice">Nenhuma unidade vendida na base verificada desta janela. Participação não calculada.</p>'
-    out+='<details><summary>Cobertura diária e critérios</summary><p>Fonte: pedidos pagos em BRL, com pagamento aprovado e itens mapeados. Data de criação do pedido em Brasília; cancelados e pagamentos não aprovados ficam fora. A cobertura é da coleta de vendas da loja, sem medir disponibilidade do anúncio. A semana em curso fica fora.</p><p>Média = unidades totais do dia ÷ 8. Mediana = centro das oito observações. Participação = unidades do dia ÷ unidades da janela. Dias sem venda entram como zero somente com a base integral verificada.</p><p>Histórico descritivo da janela, sem previsão ou sazonalidade anual validada. Não desconta períodos antes da criação, pausas ou ruptura; não controla promoções, preço, feriados ou campanhas e não identifica causas.</p><div class="wp-days">'
+    out+='<details><summary>Cobertura diária da coleta</summary><div class="wp-days">'
     for row in data['coverage']:
         out+='<span class="'+('wp-covered' if row['covered'] else 'wp-missing')+'" title="'+fmt(row['day'])+'">'+fmt(row['day'])+' · '+('coleta coberta' if row['covered'] else 'sem cobertura')+'</span>'
     return out+'</div></details></section>'
@@ -106,9 +112,14 @@ def render_comparison(data):
     number=lambda v:format(v,'.1f').replace('.',',')
     signed=lambda v:('+' if v>0 else '')+str(v)
     percentage=lambda v:('+' if v>0 else '')+number(v)+'%' if v is not None else '— · base zero'
-    out='<section class="wp-comparison" id="wp-comparacao"><h3>Quatro semanas recentes × quatro anteriores</h3><p>Anterior: '+fmt(c['previous_start'])+' a '+fmt(c['previous_end'])+' · Recente: '+fmt(c['recent_start'])+' a '+fmt(c['recent_end'])+'. Cada período tem 28 dias e quatro ocorrências de cada dia da semana.</p>'
+    help_copy = (
+        '<p>Cada período tem 28 dias e quatro ocorrências de cada dia da semana. O gráfico usa a mesma escala para os dois períodos.</p>'
+        '<p>Percentual = (recente − anterior) ÷ anterior × 100. Quando o anterior é zero, o percentual não é calculado, mesmo se o recente também for zero. A variação em unidades continua disponível.</p>'
+        '<p>Comparação descritiva dos períodos verificados. Não identifica causa, tendência futura ou significância estatística e não desconta preço, promoções, feriados, pausas ou ruptura.</p>'
+    )
+    out='<section class="wp-comparison" id="wp-comparacao">'+section_help('Quatro semanas recentes × quatro anteriores','Como ler a comparação de quatro semanas',help_copy,subheading=True)+'<p>Anterior: '+fmt(c['previous_start'])+' a '+fmt(c['previous_end'])+' · Recente: '+fmt(c['recent_start'])+' a '+fmt(c['recent_end'])+'</p>'
     out+='<div class="wp-stats wp-cmp-stats"><article><strong>'+str(c['previous'])+'</strong><span>Unidades · quatro semanas anteriores</span></article><article><strong>'+str(c['recent'])+'</strong><span>Unidades · quatro semanas recentes</span></article><article><strong>'+signed(c['change'])+'</strong><span>Variação em unidades · '+percentage(c['percent'])+'</span></article></div>'
-    out+='<p>Média de unidades por ocorrência do dia. Barras com a mesma escala nos dois períodos; valores detalhados na tabela.</p><div class="wp-cmp-chart" role="img" aria-label="Médias por dia da semana nas quatro semanas anteriores e recentes; valores na tabela comparativa">'
+    out+='<div class="wp-cmp-chart" role="img" aria-label="Médias por dia da semana nas quatro semanas anteriores e recentes; valores na tabela comparativa">'
     maximum=max([r[key] for r in rows for key in ('previous_mean','recent_mean')]+[Decimal(1)])
     for row in rows:
         out+='<div class="wp-cmp-day"><strong>'+row['label']+'</strong>'
@@ -119,7 +130,7 @@ def render_comparison(data):
     out+='</div><div class="wp-table-wrap wp-comparison-table" role="region" aria-label="Comparação de quatro semanas por dia da semana" tabindex="0"><table><caption>Totais de unidades por dia da semana · recente menos anterior</caption><thead><tr><th scope="col">Dia</th><th scope="col">Anterior</th><th scope="col">Recente</th><th scope="col">Variação em unidades</th><th scope="col">Variação percentual</th></tr></thead><tbody>'
     for row in rows:
         out+='<tr><th scope="row">'+row['label']+'</th><td>'+str(row['previous'])+'</td><td>'+str(row['recent'])+'</td><td>'+signed(row['change'])+'</td><td>'+percentage(row['percent'])+'</td></tr>'
-    out+='</tbody></table></div><p>Percentual = (recente − anterior) ÷ anterior × 100. Quando o anterior é zero, o percentual não é calculado, mesmo se o recente também for zero. A variação em unidades continua disponível.</p><p>Comparação descritiva dos períodos verificados. Não identifica causa, tendência futura ou significância estatística e não desconta preço, promoções, feriados, pausas ou ruptura.</p></section>'
+    out+='</tbody></table></div></section>'
     return out
 
 

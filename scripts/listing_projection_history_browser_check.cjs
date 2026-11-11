@@ -17,6 +17,9 @@ for(const mode of ['ready','shift','zero','zero-real','partial','pending','inval
  if(mode==='ready')assert.equal(await page.locator('.ph .wp-stats strong').first().textContent(),'0,0');
  const expected=theme==='light'?'rgb(255, 255, 255)':'rgb(16, 34, 56)';assert.equal(await page.locator('.ph').evaluate(e=>getComputedStyle(e).backgroundColor),expected);
  if(ready){const wrap=page.locator('.ph-table');await wrap.focus();assert.ok(await wrap.evaluate(e=>document.activeElement===e));if(width<650)assert.ok(await wrap.evaluate(e=>e.scrollWidth>e.clientWidth));}
- await page.locator('.ph summary').click();assert.ok((await page.locator('.ph details').textContent()).includes('Não reconstitui'));
+ const method=page.locator('.ph .section-help details');
+ assert.equal(await method.evaluate(el=>el.open),false);
+ await method.locator('summary').click();
+ assert.ok(await method.getByText('Não reconstitui',{exact:false}).isVisible());
  if(width===390)await page.screenshot({path:`visual-qa/listing-projection-history-${mode}-${theme}-${width}.png`,fullPage:true});
 }console.log('48 retrospective mean scope/theme/viewport cases passed.');}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});
