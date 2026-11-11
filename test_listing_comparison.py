@@ -38,6 +38,15 @@ class ListingComparisonTests(unittest.TestCase):
     self.assertIn('R$ 0,00 → R$ 0,00',text);self.assertIn('Sem base percentual anterior',text)
     self.assertIn('Sem pedidos → Sem pedidos',text)
     self.assertIn('não some os pedidos',text)
+ def test_explanations_are_collapsed_into_accessible_help(self):
+    r,l=sample()
+    text=render(42,r,l,dict(comparar1='MLB1',comparar2='MLB2'),END)
+    self.assertIn('class="lc-help"',text)
+    self.assertIn('aria-label="Como funciona a comparação?"',text)
+    self.assertIn('aria-label="Entenda os indicadores"',text)
+    self.assertIn('<details class="lc-help lc-help-bottom">',text)
+    self.assertNotIn('Deslize a tabela no celular',text)
+    self.assertIn('não conversão oficial do Mercado Livre',text)
  def test_untrusted_content_escaped_and_suggestions_bounded(self):
     r,l=sample();l[0]['titulo']='<script>'
     l += [dict(item_id='MLB'+str(i),titulo='Outro '+str(i)) for i in range(10,220)]
