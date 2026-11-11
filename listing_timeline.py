@@ -5,6 +5,7 @@ from html import escape
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 from listing_full_sales_chart import daily_sales,daily_full_status
+from full_sales_view_chart import LABELS, STYLE as FULL_CHART_STYLE
 from investigation_evidence import window
 from offer_history import price_events, confirmed_price, daily_readings, period_readings
 from section_help import STYLE as HELP_STYLE, section_help
@@ -53,11 +54,16 @@ body .conteudo .item-timeline select{background:#0b192c;color:#eaf2ff;border-col
 body .conteudo .item-timeline a{color:#b9e5ff}
 body .conteudo .item-timeline .timeline-pages a.filtro{background:#1c3552;color:#b9e5ff!important;border-color:#426184}
 body .conteudo .item-timeline label,body .conteudo .item-timeline .timeline-chart p{color:#bdcce1}
+.timeline-stock-strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);box-sizing:border-box}
+.timeline-stock-strip[hidden]{display:none}
+.item-timeline .timeline-stock-day{display:grid;place-items:center;min-width:0;min-height:26px;padding:0;border:0;background:transparent;cursor:pointer}
+.timeline-stock-day .full-chart-stock{max-width:90%}
+.timeline-stock-detail{display:block;min-height:1.4em;font-size:12px;margin-top:8px}
 body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline:3px solid #85c8ec;outline-offset:3px}
 </style><section class='item-timeline'>"""
-    out=HELP_STYLE+out+section_help(
+    out=HELP_STYLE+FULL_CHART_STYLE+out+section_help(
         'Linha do tempo do anúncio', 'Como ler a linha do tempo',
-        '<p>Vendas verificadas e sinais observados nas mesmas datas. Os pontos de Full mostram a última leitura de cada dia. O X cinza indica situação desconhecida.</p>'
+        '<p>Vendas verificadas e sinais observados nas mesmas datas. A faixa de Full mostra a última leitura de cada dia. O traço cinza indica situação desconhecida.</p>'
         '<p>A marca de preço mostra a última mudança detectada no dia. O preço diário usa a última leitura única e confirmada. '
         'Duplicidades e falhas ficam como lacunas.</p>',
         subheading=True)
@@ -81,8 +87,17 @@ body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline
         datasets.append(dict(type='line',label='Visitas registradas',data=data['visits'],borderColor='#297b9a',backgroundColor='#297b9a',pointRadius=3,tension=0,spanGaps=False,yAxisID='extra',order=2))
     elif mode=='preco':
         datasets.append(dict(type='line',label='Último preço observado do dia (R$)',data=data['prices'],borderColor='#8766be',backgroundColor='#8766be',pointRadius=4,tension=0,spanGaps=False,showLine=False,yAxisID='extra',order=2))
-    for value,label,color in [(1,'Full com estoque','#43bc98'),(0,'Full sem estoque','#f0847e'),(None,'Full desconhecido','#a6b2c3')]:
-        datasets.append(dict(type='line',label=label,data=[1.1 if v==value else None for v in data['full']],showLine=False,pointRadius=5,pointStyle='crossRot' if value is None else 'rectRot',borderWidth=2,borderColor=color,backgroundColor=color,yAxisID='markers',isFull=True,order=1))
+    out += "<div class='timeline-stock-strip' role='group' aria-label='Estoque Full por dia' hidden>"
+    for day, value in zip(data['dates'], data['full']):
+        state = {1: 'available', 0: 'empty', None: 'unknown'}[value]
+        date_label = datetime.fromisoformat(day).strftime('%d/%m/%Y')
+        label = escape(f'{date_label} · Full: {LABELS[state]}', quote=True)
+        out += (f"<button type='button' class='timeline-stock-day' aria-label='{label}' title='{label}'>"
+                f"<i class='full-chart-stock' data-state='{state}' aria-hidden='true'></i></button>")
+    out += "</div><div class='full-chart-key'><strong>Estoque Full observado</strong>"
+    for state in ('available', 'empty', 'unknown'):
+        out += f"<span><i class='full-chart-stock' data-state='{state}' aria-hidden='true'></i>{LABELS[state]}</span>"
+    out += "</div><output class='timeline-stock-detail'></output>"
     event_by_day={event['day']:event for event in data['events']}
     event_points=[]
     event_notes=[]
@@ -93,7 +108,16 @@ body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline
     datasets.append(dict(type='line',label='Mudança de preço detectada',data=event_points,eventNotes=event_notes,showLine=False,pointRadius=6,pointStyle='triangle',backgroundColor='#db9a39',borderColor='#db9a39',yAxisID='extra' if mode=='preco' else 'markers',isEvent=True,order=0))
     payload=json.dumps(dict(labels=data['dates'],datasets=datasets),ensure_ascii=False).replace('<','\\u003c').replace('>','\\u003e').replace('&','\\u0026')
     out+="<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
-    out+="<script>(function(){var el=document.getElementById("+json.dumps(identifier)+");if(!el)return;if(typeof Chart==='undefined'){document.getElementById(el.id+'-notice').hidden=false;el.hidden=true;return;}var light=document.documentElement.dataset.theme==='light';var ink=light?'#405972':'#bdcce1';var grid=light?'#d3dfeb':'#34516e';new Chart(el,{data:"+payload+",options:{locale:'pt-BR',animation:false,responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom',labels:{color:ink,usePointStyle:true,padding:14}},tooltip:{callbacks:{label:function(c){if(c.dataset.isFull)return c.dataset.label;if(c.dataset.isEvent)return c.dataset.eventNotes[c.dataIndex]||'Mudança detectada';return c.dataset.label+': '+c.formattedValue;}}}},scales:{x:{grid:{color:grid},ticks:{color:ink,callback:function(v){var s=this.getLabelForValue(v);return s.slice(8)+'/'+s.slice(5,7);}}},sales:{beginAtZero:true,position:'left',ticks:{color:ink},grid:{color:grid},title:{display:true,color:ink,text:'Vendas (R$)'}},extra:{display:"+('false' if mode=='nenhum' else 'true')+",beginAtZero:true,position:'right',ticks:{color:ink},grid:{drawOnChartArea:false},title:{display:true,color:ink,text:"+json.dumps('Preço observado (R$)' if mode=='preco' else 'Visitas')+"}},markers:{display:false,min:0,max:1.3}}}})})();</script>"
+    out+=("<script>(function(){var el=document.getElementById("+json.dumps(identifier)+");if(!el)return;if(typeof Chart==='undefined'){document.getElementById(el.id+'-notice').hidden=false;el.hidden=true;return;}var light=document.documentElement.dataset.theme==='light';var ink=light?'#405972':'#bdcce1';var grid=light?'#d3dfeb':'#34516e';"
+         "var section=el.closest('.item-timeline');var strip=section.querySelector('.timeline-stock-strip');"
+         "var detail=section.querySelector('.timeline-stock-detail');"
+         "strip.querySelectorAll('button').forEach(function(day){"
+         "function show(){detail.textContent=day.getAttribute('aria-label');}"
+         "['focus','pointerenter','click'].forEach(function(event){day.addEventListener(event,show);});});"
+         "var stockLayout={id:'timelineStockLayout',afterLayout:function(chart){"
+         "strip.style.paddingLeft=chart.chartArea.left+'px';"
+         "strip.style.paddingRight=(chart.width-chart.chartArea.right)+'px';strip.hidden=false;}};"
+         "new Chart(el,{data:"+payload+",options:{locale:'pt-BR',animation:false,responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom',labels:{color:ink,usePointStyle:true,padding:14}},tooltip:{callbacks:{label:function(c){if(c.dataset.isEvent)return c.dataset.eventNotes[c.dataIndex]||'Mudança detectada';return c.dataset.label+': '+c.formattedValue;}}}},scales:{x:{offset:true,grid:{color:grid},ticks:{color:ink,callback:function(v){var s=this.getLabelForValue(v);return s.slice(8)+'/'+s.slice(5,7);}}},sales:{beginAtZero:true,position:'left',ticks:{color:ink},grid:{color:grid},title:{display:true,color:ink,text:'Vendas (R$)'}},extra:{display:"+('false' if mode=='nenhum' else 'true')+",beginAtZero:true,position:'right',ticks:{color:ink},grid:{drawOnChartArea:false},title:{display:true,color:ink,text:"+json.dumps('Preço observado (R$)' if mode=='preco' else 'Visitas')+"}},markers:{display:false,min:0,max:1.3}}},plugins:[stockLayout]})})();</script>")
     try:
         page=max(1,int(args.get('pagina_linha',1)))
     except (TypeError,ValueError):

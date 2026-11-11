@@ -239,7 +239,7 @@
       "area": "Estoque",
       "capacidade": "Histórico de estoque Full",
       "estado": "concluida",
-      "implementado": "Observações de disponibilidade, fontes e integração com vendas e diagnóstico. O relatório Full e vendas exibe barras diárias e uma faixa alinhada de disponibilidade observada, com detalhes por dia acessíveis por teclado e toque. Ausência é desconhecida e consultas divergentes têm marca própria. O gráfico concentra os detalhes diários. Cobertura e variações ficam recolhidas. Na linha do tempo do diagnóstico, Full desconhecido aparece como um X cinza, separado de Full sem estoque.",
+      "implementado": "Observações de disponibilidade, fontes e integração com vendas e diagnóstico. O relatório Full e vendas exibe barras diárias e uma faixa alinhada de disponibilidade observada, com detalhes por dia acessíveis por teclado e toque. Ausência é desconhecida e consultas divergentes têm marca própria. O gráfico concentra os detalhes diários. Cobertura e variações ficam recolhidas. Na linha do tempo do diagnóstico, Full desconhecido aparece como um X cinza, separado de Full sem estoque. A linha do tempo do anúncio usa uma faixa separada de estoque Full, alinhada às barras diárias, com detalhes por dia e os mesmos estados visuais do relatório Full e vendas.",
       "falta": "",
       "fontes": [
         "full_monitor.py",
@@ -262,7 +262,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-11-10"
+      "atualizado_em": "2026-11-11"
     },
     {
       "id": "estoque-ruptura",
@@ -2249,6 +2249,17 @@
       "base": "frentes_auditadas",
       "data": "2026-11-10",
       "resumo": "Revisão das telas de anúncios, com prioridade e indicadores no topo do diagnóstico, leitura de Full no gráfico, ajuda contextual e composição de rentabilidade.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-11",
+      "resumo": "Faixa de estoque Full alinhada às vendas na linha do tempo do anúncio.",
       "contagens": {
         "concluida": 26,
         "parcial": 17,
