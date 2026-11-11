@@ -603,7 +603,8 @@
       ],
       "prs": [
         389,
-        402
+        402,
+        426
       ],
       "numero_original": null,
       "prioridade": 100,
@@ -2266,6 +2267,20 @@
         "pendente": 1
       },
       "total": 44
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-11",
+      "resumo": "Critérios e limites das análises semanais de vendas recolhidos no ícone de ajuda.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44,
+      "prs": [
+        426
+      ]
     }
   ],
   "publicacoes": [
@@ -2566,6 +2581,13 @@
       "commit": "fda76029504195ee712df252bb1d1c811df8327e",
       "status": "live",
       "horario_brasilia": "2026-11-10T23:08:45.842-03:00"
+    },
+    {
+      "pr": 426,
+      "deploy_id": "dep-dbq596m7bikc738jrjq0",
+      "commit": "348be6343e6be5066fdb729f89147778eea412c5",
+      "status": "live",
+      "horario_brasilia": "2026-11-11T08:46:04.890-03:00"
     }
   ]
 }
