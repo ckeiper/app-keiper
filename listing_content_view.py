@@ -12,7 +12,7 @@ def render(cid,item,shop,model,token,values=None,message=''):
     values=values or {};esc=lambda v:escape(str(v),quote=True)
     path=f'/anuncios/{int(cid)}/{item}/conteudo'
     def when(row):return datetime.fromtimestamp(row['created_at'],SAO_PAULO).strftime('%d/%m/%Y %H:%M')
-    out=STYLE+EXTRA+HELP_STYLE+'<section class="lc content-review"><h2>Revisão de conteúdo'+tip("Revisão de conteúdo","Avaliação manual com evidências, válida para a data da conferência.")+'</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><nav><a href="/diagnostico/'+str(int(cid))+'/'+item+'">Diagnóstico</a><a href="/anuncios/'+str(int(cid))+'/'+item+'/tarefas">Planejar ajustes</a></nav>'
+    out=STYLE+EXTRA+HELP_STYLE+'<section class="lc content-review"><h2>Revisão de conteúdo'+tip("Revisão de conteúdo","Avaliação manual com evidências, válida para a data da conferência. Nenhum critério é aprovado automaticamente.")+'</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><nav><a href="/diagnostico/'+str(int(cid))+'/'+item+'">Diagnóstico</a><a href="/anuncios/'+str(int(cid))+'/'+item+'/tarefas">Planejar ajustes</a></nav>'
     photos=shop.get('fotos');clips=shop.get('clips')
     base='/anuncios/'+str(int(cid))+'/'+item
     tools=[('conteudo-atual','Conteúdo atual','Consultar atributos e ficha técnica'),('imagem-principal','Imagens do anúncio','Diagnóstico oficial do Mercado Livre'),('perguntas','Perguntas','Consultar dúvidas registradas'),('avaliacoes','Avaliações do produto','Consultar notas e comentários')]
