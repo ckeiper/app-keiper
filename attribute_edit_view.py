@@ -88,4 +88,4 @@ STYLE+='''<style>.attribute-editor .ae-compact{display:grid;grid-template-column
 
 STYLE+='''<style>.attribute-editor .ae-apply:not(:has(.ae-proposal)){display:none}</style>'''
 
-STYLE+='''<style>.attribute-editor .ae-field-name{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.attribute-editor .ae-field-hidden{display:inline-flex;font-size:10px;font-weight:600;line-height:1.3;padding:2px 6px;border-radius:4px;background:rgba(95,164,220,.12);color:#9cd9ff}@layer keiper-appearance{html[data-theme=light] body .attribute-editor .ae-field-hidden{background:#e7f1fc!important;color:#225d92!important}}</style>'''
+STYLE+='''<style>.attribute-editor .ae-compact{display:block}.attribute-editor .ae-field-group{margin:0 0 18px}.attribute-editor .ae-field-group:last-child{margin-bottom:0}.attribute-editor .ae-field-group h3{font-size:15px;margin:0 0 12px}.attribute-editor .ae-compact-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:10px;min-width:0}.attribute-editor .ae-compact .ae-compact-row button{margin:0}@media(max-width:600px){.attribute-editor .ae-compact .ae-compact-row button{align-self:end;margin:0}}</style>'''
