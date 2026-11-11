@@ -62,7 +62,7 @@ const {chromium}=require('playwright');
   await page.locator('select[name=comparar_linha]').selectOption('preco');
   await Promise.all([page.waitForURL(u=>u.searchParams.get('comparar_linha')==='preco'),page.getByRole('button',{name:'Aplicar',exact:true}).click()]);await ready();
   assert.ok(await page.evaluate(()=>Object.values(Chart.instances)[0].data.datasets.some(d=>d.label.includes('Último preço'))));
-  const daily=page.locator('.item-timeline > details');
+  const daily=page.locator('.item-timeline > details:not(.timeline-coverage-details)');
   assert.equal(await daily.evaluate(el=>el.open),false);
   await daily.locator('summary').click();
   await Promise.all([page.waitForURL(u=>u.searchParams.get('pagina_linha')==='2'),daily.getByRole('link',{name:'Próxima',exact:true}).click()]);await ready();
