@@ -3,6 +3,7 @@ import re
 import secrets
 from decimal import Decimal,InvalidOperation,ROUND_HALF_UP,ROUND_CEILING
 from html import escape
+from section_help import STYLE as HELP_STYLE, section_help
 from flask import request,session
 from profitability_view import CSS
 from freight_comparison import format_brl
@@ -71,7 +72,13 @@ def simulate(form):
 
 def render(cid,item_id,title,csrf,values=None,result=None,error=''):
     values=values or {};esc=lambda v:escape(str(v),quote=True)
-    out=CSS+'<style>.conteudo .pf .scenario-tiers tbody tr,.conteudo .pf .scenario-tiers tbody td{background:#102238}.scenario-tiers input{margin:0}.pf form>label{margin:12px 0}</style><div class="pf"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Cenários manuais</span><h2>Simular descontos progressivos</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="/anuncios/'+str(cid)+'/'+item_id+'/rentabilidade">Voltar à rentabilidade ↗</a><p>Premissas preenchidas pelo administrador. Esta simulação não lê custos históricos, não publica faixas e não altera o anúncio.</p></header>'
+    help_copy = (
+        '<p>A contribuição simulada usa os custos preenchidos. Despesas fixas e regras específicas de tarifas mínimas, '
+        'faixas logísticas, cupons cumulativos e financiamento ficam fora do cálculo.</p>'
+        '<p>O preço unitário é arredondado antes da multiplicação pela quantidade. Tarifas percentuais e impostos são arredondados por pedido.</p>'
+        '<p>Use os resultados para comparar premissas. A simulação termina nesta consulta, com as faixas e o anúncio como estão.</p>'
+    )
+    out=CSS+HELP_STYLE+'<style>.conteudo .pf .scenario-tiers tbody tr,.conteudo .pf .scenario-tiers tbody td{background:#102238}.scenario-tiers input{margin:0}.pf form>label{margin:12px 0}</style><div class="pf"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Cenários manuais</span>'+section_help('Simular descontos progressivos','Como interpretar a simulação de descontos',help_copy)+'<p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="/anuncios/'+str(cid)+'/'+item_id+'/rentabilidade">Voltar à rentabilidade ↗</a><p>Simulação com custos informados manualmente.</p></header>'
     if error:out+='<p class="pf-alert" role="alert">'+esc(error)+'</p>'
     out+='<section class="pf-card"><h3>Premissas do pedido simulado</h3><p>Preencha todos os custos, inclusive zero. Percentuais incidem sobre o valor bruto simulado. Tarifas fixas, frete, publicidade e ajustes são totais por pedido; custo do produto é por unidade.</p><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'">'
     for key,label in FIELDS.items():
@@ -97,7 +104,7 @@ def render(cid,item_id,title,csrf,values=None,result=None,error=''):
                 out+='<li>'+str(row['quantity'])+' unidades: '+('atinge a meta nas premissas' if row['target_met'] else 'abaixo da meta nas premissas')+'. Contribuição necessária: '+format_brl(row['target_contribution'])+'; distância para a meta: '+format_brl(row['target_gap'])+'.</li>'
             out+='</ul><p>A distância não é economia disponível, preço recomendado ou promessa de recuperação. Contribuição necessária arredondada para cima a centavos para não aprovar margem abaixo da meta.</p>'
         out+='</section>'
-    return out+'<section class="pf-card"><p>Contribuição simulada não é lucro líquido nem previsão de vendas. Despesas fixas não incluídas. Preço unitário arredondado a centavos antes de multiplicar pela quantidade; tarifas percentuais e impostos arredondados por pedido. O modelo não reproduz regras específicas de tarifas mínimas, faixas logísticas, cupons cumulativos ou financiamento do marketplace. Ajuste as premissas para cada contexto. Não há recomendação automática de melhor faixa ou garantia de demanda.</p></section></div>'
+    return out+'</div>'
 
 
 def register(app,login_required,can_view,bank,query,shop_page):
