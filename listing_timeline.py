@@ -112,5 +112,5 @@ body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline
     for label,n in [('Anterior',page-1),('Próxima',page+1)]:
         if 1<=n<=pages:
             params=dict(args);params['pagina_linha']=n
-            out+=" <a class='filtro' href='?%s'>%s</a>" % (escape(urlencode(params),quote=True),label)
+            out+=" <a class='filtro' style='background-color:#1c3552!important;color:#b9e5ff!important' href='?%s'>%s</a>" % (escape(urlencode(params),quote=True),label)
     return out+'</nav></details></section>'
