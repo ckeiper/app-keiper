@@ -30,6 +30,15 @@ class FullSalesChartTests(unittest.TestCase):
         self.assertEqual(len(dates),7)
         self.assertEqual(values,[None]*7)
 
+    def test_chart_uses_compact_help_and_dark_theme_without_hiding_gaps(self):
+        html=render("MLB123",[],[],[],[],today=date(2026,10,21),has_pending=True)
+        self.assertIn("class='full-help'",html)
+        self.assertIn("aria-label='Como interpretar vendas e Full?'",html)
+        self.assertIn("body .conteudo .full-sales",html)
+        self.assertIn("maxBarThickness",html)
+        self.assertIn("não comprova causalidade",html)
+        self.assertIn("Datas não verificadas",html)
+
     def test_chart_discloses_limited_full_coverage(self):
         html=render("MLB123",[],[],[],[],today=date(2026,10,21),has_pending=True)
         self.assertIn("Vendas do anúncio × Estoque Full",html)
