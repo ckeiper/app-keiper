@@ -41,7 +41,7 @@ def render(cid,item,data,today,now,token,values=None,message='',official=None):
     if fresh and shop.get('status')!='paused':out+='<p role="status">A leitura recente não indica anúncio pausado. A tarefa, se criada, será apenas uma conferência; não registra uma reativação.</p>'
     out += section_help(
         'Antes de decidir', 'Critérios para revisar a reativação',
-        '<p>O status pausado não informa o motivo nem confirma elegibilidade. '
+        '<p>O status pausado não informa o motivo nem prova que a oferta está elegível para reativação. '
         'A decisão e a ação são feitas no marketplace.</p>'
         '<ol><li><strong>Motivo e restrições.</strong> Confira os substatus e as restrições da conta ou da oferta.</li>'
         '<li><strong>Oferta e disponibilidade.</strong> Confira preço final, custos documentados, estoque real e logística. '
@@ -65,7 +65,7 @@ def render(cid,item,data,today,now,token,values=None,message='',official=None):
     out += '</nav>' + section_help(
         'Mudanças de status observadas', 'Como interpretar as mudanças observadas',
         '<p>As datas em Brasília mostram quando a coleta detectou a mudança. '
-        'O histórico das coletas não identifica autor, motivo ou horário exato da ação. '
+        'As datas não identificam autor, motivo ou horário exato da ação. '
         'Sem eventos não significa ausência de mudanças.</p>',
         subheading=True,
     )
