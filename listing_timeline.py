@@ -51,7 +51,7 @@ body .conteudo .item-timeline .timeline-meta,body .conteudo .item-timeline .time
 body .conteudo .item-timeline .timeline-coverage span,body .conteudo .item-timeline table th,body .conteudo .item-timeline table td{background:#182e49;color:#eaf2ff;border-color:#426184}
 body .conteudo .item-timeline select{background:#0b192c;color:#eaf2ff;border-color:#426184}
 body .conteudo .item-timeline a{color:#b9e5ff}
-body .conteudo .item-timeline .timeline-pages a.filtro{background:#1c3552;color:#b9e5ff!important;border-color:#426184}
+body .conteudo .item-timeline .timeline-pages a.filtro,body .conteudo .item-timeline .timeline-pages a{background:#1c3552!important;color:#b9e5ff!important;border-color:#426184}
 body .conteudo .item-timeline label,body .conteudo .item-timeline .timeline-chart p{color:#bdcce1}
 body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline:3px solid #85c8ec;outline-offset:3px}
 </style><section class='item-timeline'>"""
