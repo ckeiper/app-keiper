@@ -1,5 +1,6 @@
 """Financial evidence view; values are escaped and unknowns never become zero."""
 from html import escape
+from contextual_help import STYLE as HELP_STYLE, tip
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import urlencode
@@ -8,6 +9,13 @@ from margin_recovery import render_recovery
 from freight_comparison import format_brl
 
 CSS = '''<style>
+.pf-composition{margin:20px 0 0}.pf-composition figcaption{font-weight:700;margin-bottom:12px}
+.pf-composition-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;margin:8px 0;font-size:13px}
+.pf-composition-track{grid-column:1/-1;height:7px;border-radius:5px;background:#8197ae44}
+.pf-composition-track i{display:block;height:100%;border-radius:inherit;background:#5b9df0}
+.pf-composition-track i[data-kind=cost]{background:#829ab6}
+.pf-composition-track i[data-kind=gain]{background:#38ae85}
+.pf-composition-track i[data-kind=loss]{background:#e47170}
 .pf{--pf-line:#29425f;--pf-muted:#b6c7dc;color:#eff5ff;max-width:1200px;margin:auto}
 .pf .pf-hero,.pf .pf-card{background:#101f35;border:1px solid var(--pf-line);border-radius:16px;padding:24px;margin-bottom:18px}
 .pf .pf-hero{background:linear-gradient(120deg,#101f35,#193b60)}
@@ -72,10 +80,28 @@ def render_inspection(record):
     return out+'</tbody></table></div><p>Documentos não são auditados automaticamente. O registro pode ter uma base de vendas diferente da atual.</p><a href="?'+esc(query)+'#pf-historico">Voltar ao histórico do período</a></section>'
 
 
+def composition_chart(result):
+    components = [(label, result['costs'][field]) for field, label in COMPONENTS.items()]
+    values = [('Valor bruto dos itens', result['revenue'], 'revenue')]
+    values += [(label, value, 'cost') for label, value in components]
+    contribution = result['contribution']
+    values.append(('Contribuição documentada', contribution, 'loss' if contribution < 0 else 'gain'))
+    peak = max(abs(value) for _, value, _ in values)
+    out = ['<figure class="pf-composition"><figcaption>Composição do resultado'
+           + tip('Composição do resultado', 'As barras comparam os valores absolutos no mesmo período. O sinal no valor indica contribuição negativa.')
+           + '</figcaption>']
+    for label, value, kind in values:
+        width = float(abs(value) / peak) * 100 if peak else 0
+        out.append(f'<div class="pf-composition-row"><span>{escape(label)}</span>'
+                   f'<strong>{escape(format_brl(value))}</strong>'
+                   f'<div class="pf-composition-track" aria-hidden="true"><i data-kind="{kind}" style="width:{width:.4f}%"></i></div></div>')
+    return ''.join(out) + '</figure>'
+
+
 def render(cid, item_id, title, start, end, summary, result, record, history, csrf, key, values=None, message='', comparison_html='', inspected_record=None):
     values = values or {}
     esc = lambda value: escape(str(value), quote=True)
-    out = CSS + '<div class="pf"><header class="pf-hero"><span class="pf-eyebrow">Anúncios 2.0 · Evidências financeiras</span><h2>Rentabilidade por anúncio</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="/diagnostico/'+str(cid)+'/'+esc(item_id)+'">← Diagnóstico do anúncio</a><p>Contribuição sobre o valor bruto dos itens vendidos, após os custos documentados abaixo. Não representa lucro líquido nem repasse bancário.</p>'
+    out = CSS + HELP_STYLE + '<div class="pf"><header class="pf-hero"><h2>Rentabilidade por anúncio'+tip("Rentabilidade", "Contribuição sobre o valor bruto dos itens após os custos documentados. Não representa lucro líquido nem repasse bancário. Despesas fixas e operacionais ficam fora do cálculo.")+'</h2><p>'+esc(title or item_id)+' · '+esc(item_id)+'</p><a href="/diagnostico/'+str(cid)+'/'+esc(item_id)+'">← Diagnóstico do anúncio</a>'
     out += '<form method="get" class="pf-filter"><label>Início<input type="date" name="inicio" value="'+start.isoformat()+'" required></label><label>Fim<input type="date" name="fim" value="'+end.isoformat()+'" required></label><button>Aplicar período</button></form></header>'
     out += '<p><a class="pf-button" href="/anuncios/'+str(cid)+'/'+esc(item_id)+'/simulacao-descontos">Simular descontos progressivos ↗</a></p>'
     out += '<p><a class="pf-button" href="/anuncios/'+str(cid)+'/'+esc(item_id)+'/parcelamento">Comparar tarifas e parcelamento ↗</a></p>'
@@ -94,7 +120,9 @@ def render(cid, item_id, title, start, end, summary, result, record, history, cs
     out += '</div>'
     if not result['available']:
         out += '<p class="pf-alert">'+esc(result['reason'])+'</p>'
-    out += '<p>Pedidos pagos e aprovados, cobertura diária completa e vínculo dos itens. Períodos encerrados em horário de Brasília. Despesas fixas e operacionais não estão incluídas. Não há rateio automático de frete, publicidade ou valores da conta.</p></section>'
+    if result['available'] and record:
+        out += composition_chart(result)
+    out += '</section>'
     out += render_source_status(summary,result,record)
     out += comparison_html
     out += render_recovery(summary, record)

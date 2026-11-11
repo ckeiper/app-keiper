@@ -1,5 +1,6 @@
 """Presentation-only diagnostic layout; all evidence comes from existing checks."""
 from html import escape
+from contextual_help import STYLE as HELP_STYLE, tip
 
 CSS = """<style>
 .listing-diag{--dink:#eaf2ff;--dmuted:#bdcce1;--dline:#34516e;color:var(--dink)}
@@ -43,8 +44,8 @@ def hero(item, cid, item_id, results):
     high=sum(str(a.get("priority") or "").lower()=="alta" for a in results)
     review=sum(str(a.get("priority") or "").lower() in ("media","revisar") for a in results)
     total=len(results)
-    out=CSS+"<div class='listing-diag'><header class='diag-hero'><div class='diag-eyebrow'>Saúde e desempenho do anúncio</div><h2>"+title+"</h2>"
-    out+="<div class='diag-code'>"+code+"</div><p>Indicadores de vendas verificados, situação do anúncio e próximos pontos de atenção. Não atribuímos causas de queda sem evidências.</p>"
+    out=CSS+HELP_STYLE+"<div class='listing-diag'><header class='diag-hero'><h2>"+title+"</h2>"
+    out+="<div class='diag-code'>"+code+"</div>"
     out+="<nav class='diag-nav' aria-label='Navegação do diagnóstico'><a href='/desempenho/"+str(cid)+"'>← Desempenho</a>"
     out+="<a href='/anuncios/"+str(cid)+"'>Catálogo</a><a href='/anuncios/"+str(int(cid))+"/"+escape(str(item_id),quote=True)+"/rentabilidade'>Rentabilidade</a><a href='/anuncios/"+str(int(cid))+"/"+escape(str(item_id),quote=True)+"/conteudo'>Revisar conteúdo</a><a href='/anuncios/"+str(int(cid))+"/"+escape(str(item_id),quote=True)+"/reativacao'>Revisar reativação</a><a href='/anuncios/"+str(int(cid))+"/"+escape(str(item_id),quote=True)+"/relatorio-revisao'>Relatório de revisão</a><a href='/anuncios/"+str(int(cid))+"/"+escape(str(item_id),quote=True)+"/metas'>Metas de estoque</a><a href='/anuncios/"+str(int(cid))+"/"+escape(str(item_id),quote=True)+"/primeiros-30-dias'>Primeiros 30 dias</a><a href='/anuncios/"+str(int(cid))+"/"+escape(str(item_id),quote=True)+"/padrao-semanal'>Padrão semanal de vendas</a><a href='/anuncios/"+str(int(cid))+"/"+escape(str(item_id),quote=True)+"/perguntas'>Perguntas</a><a href='#diag-acoes'>Ver prioridades ↓</a></nav></header>"
     out+="<p class='diag-hint'><a href='/anuncios/"+str(cid)+"/"+escape(str(item_id),quote=True)+"/acoes' style='display:inline-block;padding:10px 14px;background:#eef3ff;border:1px solid #cbd9ef;border-radius:9px;text-decoration:none;color:#31598b;font-weight:650'>Histórico automático de alterações</a></p>"
@@ -57,7 +58,7 @@ def hero(item, cid, item_id, results):
 def priorities(results):
     rank={"alta":0,"media":1,"revisar":2,"baixa":3}
     ordered=sorted(results,key=lambda a:rank.get(str(a.get("priority") or "").lower(),4))
-    out="<section id='diag-acoes'><h2>Prioridades para otimizar</h2><p class='diag-hint'>Recomendações baseadas nos registros disponíveis; confirme as condições atuais antes de alterar um anúncio.</p>"
+    out="<section id='diag-acoes'><h2>Prioridades para otimizar"+tip("Prioridades","A lista usa os registros disponíveis. Confirme as condições atuais antes de alterar um anúncio.")+"</h2>"
     out+="<div class='diag-actions'>"
     for a in ordered:
         level=str(a.get("priority") or "revisar").lower()

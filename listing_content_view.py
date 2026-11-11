@@ -5,24 +5,25 @@ import secrets
 from sales_metrics import SAO_PAULO
 from listing_content import CRITERIA,STATES
 from listing_calendar import STYLE
+from contextual_help import STYLE as HELP_STYLE, tip
 
 
 def render(cid,item,shop,model,token,values=None,message=''):
     values=values or {};esc=lambda v:escape(str(v),quote=True)
     path=f'/anuncios/{int(cid)}/{item}/conteudo'
     def when(row):return datetime.fromtimestamp(row['created_at'],SAO_PAULO).strftime('%d/%m/%Y %H:%M')
-    out=STYLE+EXTRA+'<section class="lc content-review"><h2>Revisão de conteúdo</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><p>Avaliação manual com evidências. Nenhum critério é aprovado automaticamente. A revisão descreve o que foi conferido naquela data; não comprova o conteúdo atual nem garante conversão.</p><nav><a href="/diagnostico/'+str(int(cid))+'/'+item+'">Diagnóstico</a><a href="/anuncios/'+str(int(cid))+'/'+item+'/tarefas">Planejar ajustes</a></nav>'
+    out=STYLE+EXTRA+HELP_STYLE+'<section class="lc content-review"><h2>Revisão de conteúdo'+tip("Revisão de conteúdo","Avaliação manual com evidências, válida para a data da conferência. Nenhum critério é aprovado automaticamente.")+'</h2><p>'+esc(shop.get('titulo') or item)+' · '+esc(item)+'</p><nav><a href="/diagnostico/'+str(int(cid))+'/'+item+'">Diagnóstico</a><a href="/anuncios/'+str(int(cid))+'/'+item+'/tarefas">Planejar ajustes</a></nav>'
     photos=shop.get('fotos');clips=shop.get('clips')
     base='/anuncios/'+str(int(cid))+'/'+item
     tools=[('conteudo-atual','Conteúdo atual','Consultar atributos e ficha técnica'),('imagem-principal','Imagens do anúncio','Diagnóstico oficial do Mercado Livre'),('perguntas','Perguntas','Consultar dúvidas registradas'),('avaliacoes','Avaliações do produto','Consultar notas e comentários')]
     out+='<nav class="cr-tools" aria-label="Fontes para revisão">'+''.join('<a href="'+base+'/'+suffix+'"><strong>'+label+'</strong><small>'+hint+'</small></a>' for suffix,label,hint in tools)+'</nav>'
-    out+='<p>Última contagem coletada: fotos '+esc(photos if photos is not None else 'não verificadas')+' · clips '+esc(clips if clips is not None else 'não verificados')+'. Contagem não mede qualidade. Confira o anúncio antes de registrar.</p>'
+    out+='<p>Última contagem coletada: fotos '+esc(photos if photos is not None else 'não verificadas')+' · clips '+esc(clips if clips is not None else 'não verificados')+tip('Fotos e clips','Contagem da última coleta. Confira o anúncio para avaliar a qualidade.')+'</p>'
     if message:out+='<p role="status">'+esc(message)+'</p>'
     counts={s:sum(r['verdict']==s for r in model['latest'].values()) for s in STATES}
     out+='<div class="cr-counts">'+''.join('<article><strong>'+str(n)+'</strong><span>'+label+'</span></article>' for label,n in [('Sem revisão',len(CRITERIA)-len(model['latest'])),('Conferidos',counts['approved']),('Para ajustar',counts['revise']),('Não se aplicam',counts['na'])])+'</div>'
     for code,(label,prompt) in CRITERIA.items():
         row=model['latest'].get(code);failed=values.get('criterion')==code
-        out+='<article class="cr-criterion"><h3>'+label+'</h3><p>'+prompt+'</p>'
+        out+='<article class="cr-criterion"><h3>'+label+tip(label,prompt)+'</h3>'
         if row:out+='<p><strong>'+STATES[row['verdict']]+'</strong> · '+when(row)+' · Usuário #'+str(row['created_by'])+'</p><p class="cr-note">'+esc(row['note'])+'</p>'
         else:out+='<p>Sem revisão registrada.</p>'
         out+='<details'+(' open' if failed else '')+'><summary>Registrar nova revisão</summary><form method="post">'

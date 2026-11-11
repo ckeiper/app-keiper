@@ -57,7 +57,7 @@ body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline
 </style><section class='item-timeline'>"""
     out=HELP_STYLE+out+section_help(
         'Linha do tempo do anúncio', 'Como ler a linha do tempo',
-        '<p>Vendas verificadas e sinais observados nas mesmas datas. Os pontos de Full mostram a última leitura de cada dia.</p>'
+        '<p>Vendas verificadas e sinais observados nas mesmas datas. Os pontos de Full mostram a última leitura de cada dia. O X cinza indica situação desconhecida.</p>'
         '<p>A marca de preço mostra a última mudança detectada no dia. O preço diário usa a última leitura única e confirmada. '
         'Duplicidades e falhas ficam como lacunas.</p>',
         subheading=True)
@@ -76,13 +76,13 @@ body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline
     out+='</div>'
     identifier='item-timeline-'+''.join(c for c in str(item_id) if c.isalnum())[:60]
     out+="<div class='timeline-chart'><p id='%s-notice' role='status' hidden>Gráfico indisponível. Confira os dados diários abaixo.</p><canvas id='%s' role='img' aria-label='Linha do tempo de vendas, observações de Full e sinal selecionado'></canvas></div>" % (escape(identifier,quote=True),escape(identifier,quote=True))
-    datasets=[dict(type='bar',label='Vendas brutas dos itens (R$)',data=data['sales'],backgroundColor='#4778cbaa',borderRadius=4,yAxisID='sales',order=3)]
+    datasets=[dict(type='bar',label='Vendas brutas dos itens (R$)',data=data['sales'],backgroundColor='#4e91ec',hoverBackgroundColor='#83bbff',borderRadius=6,maxBarThickness=28,yAxisID='sales',order=3)]
     if mode=='visitas':
         datasets.append(dict(type='line',label='Visitas registradas',data=data['visits'],borderColor='#297b9a',backgroundColor='#297b9a',pointRadius=3,tension=0,spanGaps=False,yAxisID='extra',order=2))
     elif mode=='preco':
         datasets.append(dict(type='line',label='Último preço observado do dia (R$)',data=data['prices'],borderColor='#8766be',backgroundColor='#8766be',pointRadius=4,tension=0,spanGaps=False,showLine=False,yAxisID='extra',order=2))
-    for value,label,color in [(1,'Full com estoque observado','#159674'),(0,'Full zerado observado','#d86560')]:
-        datasets.append(dict(type='line',label=label,data=[1.1 if v==value else None for v in data['full']],showLine=False,pointRadius=5,pointStyle='rectRot',borderColor=color,backgroundColor=color,yAxisID='markers',isFull=True,order=1))
+    for value,label,color in [(1,'Full com estoque','#43bc98'),(0,'Full sem estoque','#f0847e'),(None,'Full desconhecido','#a6b2c3')]:
+        datasets.append(dict(type='line',label=label,data=[1.1 if v==value else None for v in data['full']],showLine=False,pointRadius=5,pointStyle='crossRot' if value is None else 'rectRot',borderWidth=2,borderColor=color,backgroundColor=color,yAxisID='markers',isFull=True,order=1))
     event_by_day={event['day']:event for event in data['events']}
     event_points=[]
     event_notes=[]
@@ -93,7 +93,7 @@ body .conteudo .item-timeline :is(a,button,select,summary):focus-visible{outline
     datasets.append(dict(type='line',label='Mudança de preço detectada',data=event_points,eventNotes=event_notes,showLine=False,pointRadius=6,pointStyle='triangle',backgroundColor='#db9a39',borderColor='#db9a39',yAxisID='extra' if mode=='preco' else 'markers',isEvent=True,order=0))
     payload=json.dumps(dict(labels=data['dates'],datasets=datasets),ensure_ascii=False).replace('<','\\u003c').replace('>','\\u003e').replace('&','\\u0026')
     out+="<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>"
-    out+="<script>(function(){var el=document.getElementById("+json.dumps(identifier)+");if(!el)return;if(typeof Chart==='undefined'){document.getElementById(el.id+'-notice').hidden=false;el.hidden=true;return;}new Chart(el,{data:"+payload+",options:{locale:'pt-BR',animation:false,responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom',labels:{color:'#bdcce1'}},tooltip:{callbacks:{label:function(c){if(c.dataset.isFull)return c.dataset.label;if(c.dataset.isEvent)return c.dataset.eventNotes[c.dataIndex]||'Mudança detectada';return c.dataset.label+': '+c.formattedValue;}}}},scales:{x:{grid:{color:'#34516e'},ticks:{color:'#bdcce1',callback:function(v){var s=this.getLabelForValue(v);return s.slice(8)+'/'+s.slice(5,7);}}},sales:{beginAtZero:true,position:'left',ticks:{color:'#bdcce1'},grid:{color:'#34516e'},title:{display:true,color:'#bdcce1',text:'Vendas (R$)'}},extra:{display:"+('false' if mode=='nenhum' else 'true')+",beginAtZero:true,position:'right',ticks:{color:'#bdcce1'},grid:{drawOnChartArea:false},title:{display:true,color:'#bdcce1',text:"+json.dumps('Preço observado (R$)' if mode=='preco' else 'Visitas')+"}},markers:{display:false,min:0,max:1.3}}}})})();</script>"
+    out+="<script>(function(){var el=document.getElementById("+json.dumps(identifier)+");if(!el)return;if(typeof Chart==='undefined'){document.getElementById(el.id+'-notice').hidden=false;el.hidden=true;return;}var light=document.documentElement.dataset.theme==='light';var ink=light?'#405972':'#bdcce1';var grid=light?'#d3dfeb':'#34516e';new Chart(el,{data:"+payload+",options:{locale:'pt-BR',animation:false,responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom',labels:{color:ink,usePointStyle:true,padding:14}},tooltip:{callbacks:{label:function(c){if(c.dataset.isFull)return c.dataset.label;if(c.dataset.isEvent)return c.dataset.eventNotes[c.dataIndex]||'Mudança detectada';return c.dataset.label+': '+c.formattedValue;}}}},scales:{x:{grid:{color:grid},ticks:{color:ink,callback:function(v){var s=this.getLabelForValue(v);return s.slice(8)+'/'+s.slice(5,7);}}},sales:{beginAtZero:true,position:'left',ticks:{color:ink},grid:{color:grid},title:{display:true,color:ink,text:'Vendas (R$)'}},extra:{display:"+('false' if mode=='nenhum' else 'true')+",beginAtZero:true,position:'right',ticks:{color:ink},grid:{drawOnChartArea:false},title:{display:true,color:ink,text:"+json.dumps('Preço observado (R$)' if mode=='preco' else 'Visitas')+"}},markers:{display:false,min:0,max:1.3}}}})})();</script>"
     try:
         page=max(1,int(args.get('pagina_linha',1)))
     except (TypeError,ValueError):

@@ -9,6 +9,7 @@ from competitor_routes import tabs
 from listing_details import active_promotions, effective_promotion, read_json, render_promotions, render_weight_column, valid_promotion_record
 from listing_health import diagnose_listing
 from management_design import STYLE, metric_card, product
+from contextual_help import STYLE as HELP_STYLE, tip
 from sales_metrics import SAO_PAULO
 from sales_view import fmt
 
@@ -142,8 +143,8 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
     except (TypeError,ValueError): page=1
     visible=filtered[(page-1)*size:page*size]
     path='/anuncios/'+str(cid)
-    body=STYLE.replace('.mgmt-dashboard','.catalog-dashboard')+CSS+"<div class='catalog-dashboard'>"+tabs(cid,'anuncios')
-    body+="<header class='catalog-header'><div><span class='mgmt-eyebrow'>Gestão do catálogo</span><h2>Anúncios</h2><p>Encontre o produto. Identifique o ponto de atenção. Aja.</p></div><a class='btn-acoes' href='/ranking-anuncios/"+str(cid)+"'>Analisar vendas por anúncio →</a></header><div class='catalog-refresh'>"+refresh+'</div>'
+    body=STYLE.replace('.mgmt-dashboard','.catalog-dashboard')+CSS+HELP_STYLE+"<div class='catalog-dashboard'>"+tabs(cid,'anuncios')
+    body+="<header class='catalog-header'><div><h2>Anúncios</h2></div><a class='btn-acoes' href='/ranking-anuncios/"+str(cid)+"'>Analisar vendas por anúncio →</a></header><div class='catalog-refresh'>"+refresh+'</div>'
     counts=[('Anúncios cadastrados',len(rows),'Visão de todo o catálogo'),('Anúncios ativos',sum(str(a.get('status') or '').lower()=='active' for a in rows),'Status na última sincronização'),('Estoque zerado',sum(quantity(a.get('quantidade'))==0 for a in rows),'Estoque desconhecido não entra na contagem'),('Em promoção',sum(promotion(a) for a in rows),'Promoções identificadas na última coleta')]
     body+="<div class='catalog-summary'>"+''.join(metric_card(k,str(v),note) for k,v,note in counts)+'</div>'
     stale=sum(freshness(a,now)!='recente' for a in rows)
@@ -155,7 +156,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
     if not visible:
         body+="<div class='catalog-empty'><h2>"+('Nenhum anúncio para estes filtros' if rows else 'Seu catálogo ainda não foi sincronizado')+"</h2><p>"+('Ajuste os filtros ou limpe a busca para ver outros produtos.' if rows else 'Use Atualizar agora para carregar os anúncios da loja.')+'</p></div>'
     else:
-        body+="<div class='catalog-scroll'><table class='catalog-table'><thead><tr><th>Produto</th><th>Preço e promoção</th><th>Status e estoque</th><th>Conteúdo</th><th>Histórico</th></tr></thead><tbody>"
+        body+="<div class='catalog-scroll'><table class='catalog-table'><thead><tr><th>Produto</th><th>Preço e promoção"+tip("Preço e promoção","Consulta válida de campanhas não garante promoção ativa ou preço vencedor. O preço vencedor pode estar confirmado mesmo com campanhas pendentes.")+"</th><th>Status e estoque"+tip("Status e estoque","Promoções e Full têm fontes e datas próprias. Full indica a modalidade logística. Confira a disponibilidade no relatório Full e vendas.")+"</th><th>Conteúdo"+tip("Conteúdo","Menos de cinco fotos é um ponto de atenção editorial.")+"</th><th>Histórico</th></tr></thead><tbody>"
         for row in visible:
             item=str(row['item_id']);diag='/diagnostico/'+str(cid)+'/'+item
             body+='<tr><td>'+product({'listing':row},cid,True)+"<small>"+escape(item)+(' · SKU '+escape(str(row['sku'])) if row.get('sku') else '')+'</small>'
@@ -164,7 +165,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
             body+=badge(signal['title'],tone)+"<div class='catalog-actions'><a href='"+escape(diag,quote=True)+"'>Ver diagnóstico →</a><a href='/anuncios/"+str(cid)+"/"+escape(item,quote=True)+"/completar-ficha'>Ficha técnica</a><a href='/full/"+str(cid)+"?"+escape(urlencode({'item_id':item}),quote=True)+"'>Full e vendas</a></div>"
             body+="<details class='catalog-details'><summary>Pesos, tags e frete</summary><dl><dt>Peso cadastrado · PACKAGE_WEIGHT</dt><dd>"+render_weight_column(row.get('pesos_json'),'PACKAGE_WEIGHT')+'</dd><dt>Peso logístico · SELLER_PACKAGE_WEIGHT</dt><dd>'+render_weight_column(row.get('pesos_json'),'SELLER_PACKAGE_WEIGHT')+'</dd><dt>Declarado pelo vendedor</dt><dd>Consulte o peso logístico acima</dd>'
             expected=freight(row.get('preco'),row.get('peso')) if freight else None
-            body+='<dt>Frete esperado</dt><dd>'+escape(fmt(expected,True))+'</dd><dt>Custo cadastrado</dt><dd>'+escape(fmt(number(row.get('custo')),True))+'</dd><dt>Tags coletadas</dt><dd>'
+            body+='<dt>Frete esperado'+tip('Frete esperado','Estimativa pela tabela cadastrada.')+'</dt><dd>'+escape(fmt(expected,True))+'</dd><dt>Custo cadastrado</dt><dd>'+escape(fmt(number(row.get('custo')),True))+'</dd><dt>Tags coletadas</dt><dd>'
             tags=read_json(row.get('tags'),[])
             body+=escape(', '.join(str(t) for t in tags) if isinstance(tags,list) and tags else 'Sem tags registradas')+'</dd></dl></details></td>'
             offer=effective_promotion(read_json(row.get('promocoes_json'),{}))
@@ -192,7 +193,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
             params={k:str(args[k]) for k in ('busca','status','estoque','promocao','logistica','foco','ordem','leitura','campanhas') if args.get(k)}
             params.update(por_pagina=str(size),pagina=str(target))
             body+="<a href='"+escape(path+'?'+urlencode(params),quote=True)+"'>"+label+'</a>'
-    body+='</nav></section><p class="muted">Consulta válida de campanhas não garante promoção ativa ou preço vencedor. O preço vencedor pode estar confirmado mesmo com pendência na consulta de campanhas. Leitura recente do catálogo não confirma a atualização de promoções ou Full, que têm fontes e datas próprias. Fotos abaixo de 5 são uma sugestão editorial, não uma regra do Mercado Livre. Full identifica a modalidade logística coletada; não comprova estoque no centro de distribuição. Frete esperado é uma estimativa pela tabela existente, não uma cotação.</p>'
+    body+='</nav></section>'
     warnings=[e for e in errors if e.get('categoria')!='financeiro']
     if warnings: body+="<details class='catalog-warning'><summary>Avisos da sincronização · "+str(len(warnings))+'</summary>'+''.join('<p>'+escape(str(e.get('categoria') or ''))+': '+escape(str(e.get('mensagem') or ''))+'</p>' for e in warnings)+'</details>'
     return body+'''<div id='catalog-loading' hidden role='status'>Carregando anúncios…</div><script>

@@ -120,7 +120,7 @@ class EvidenceRouteTests(unittest.TestCase):
             output=route(42,'MLB1')
         self.assertIn('/anuncios/42/MLB1/tarefas',output)
         self.assertIn('Onde investigar primeiro',output)
-        self.assertLess(output.index('Onde investigar primeiro'),output.index('Indicadores de vendas por anúncio'))
+        self.assertLess(output.index('Indicadores de vendas por anúncio'),output.index('Onde investigar primeiro'))
         self.assertIn('Vendas sem cobertura verificada',output)
         self.assertEqual(query.call_count,14)
 
