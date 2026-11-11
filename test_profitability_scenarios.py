@@ -49,7 +49,7 @@ class DiscountScenarioTests(unittest.TestCase):
   html=render(1,'MLB100','<script>','token',f,None,'bad <script>')
   self.assertNotIn('<script>',html);self.assertIn('&lt;script&gt;',html)
   self.assertNotIn('id="discount-results"',html)
-  self.assertIn('não lê custos históricos',html)
+  self.assertIn('A contribuição simulada usa os custos preenchidos',html)
 
 class DiscountScenarioRouteTests(unittest.TestCase):
  def setUp(self):

@@ -405,7 +405,7 @@
       "area": "Rentabilidade",
       "capacidade": "Rentabilidade por anúncio",
       "estado": "parcial",
-      "implementado": "Contribuição documentada, componentes, versões, fontes, fingerprint e comparação histórica. Gráfico de composição com valores do período verificado, custos documentados e contribuição, com destaque para contribuição negativa.",
+      "implementado": "Contribuição documentada, componentes, versões, fontes, fingerprint e comparação histórica. Gráfico de composição com valores do período verificado, custos documentados e contribuição, com destaque para contribuição negativa. A comparação de contribuição e margem recolhe o método de leitura no ícone de ajuda.",
       "falta": "Custos exigem registro documental do administrador; coleta automática completa e reconciliação dos componentes não estão implementadas. Não é lucro líquido.",
       "fontes": [
         "profitability_routes.py",
@@ -425,7 +425,7 @@
       ],
       "numero_original": null,
       "prioridade": 6,
-      "atualizado_em": "2026-11-10"
+      "atualizado_em": "2026-11-11"
     },
     {
       "id": "simulador",
@@ -528,7 +528,7 @@
       "area": "Rentabilidade",
       "capacidade": "Descontos progressivos e simulação de novas faixas",
       "estado": "concluida",
-      "implementado": "Quantidades e descontos progressivos, rentabilidade sob premissas explícitas e distância da meta opcional.",
+      "implementado": "Quantidades e descontos progressivos, rentabilidade sob premissas explícitas e distância da meta opcional. Os limites do cálculo e as regras de arredondamento ficam recolhidos no ícone de ajuda.",
       "falta": "",
       "fontes": [
         "profitability_scenarios.py"
@@ -543,7 +543,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-11-11"
     },
     {
       "id": "promocoes-resultados",

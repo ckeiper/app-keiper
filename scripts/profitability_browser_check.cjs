@@ -77,6 +77,11 @@ const {chromium}=require('playwright');
         assert.equal(await page.locator('#pf-comparacao').getByText('Margem documentada menor',{exact:true}).count(),available?1:0);
         if(available)assert.equal(await page.locator('.pf-comparison-table tbody tr').count(),8);
         if(state==='ready') {
+          const help=page.locator('#pf-comparacao .section-help details');
+          assert.equal(await help.evaluate(el=>el.open),false);
+          await help.locator('summary').focus();await page.keyboard.press('Enter');
+          assert.ok(await help.getByText('A comparação usa períodos consecutivos',{exact:false}).isVisible());
+          await page.keyboard.press('Enter');
           assert.ok((await page.locator('.pf-deltas').textContent()).includes('+ R$ 10,00'));
           assert.ok((await page.locator('.pf-deltas').textContent()).includes('-20,00 p.p.'));
           if(width===390)assert.ok(await page.locator('.pf-table').first().evaluate(el=>el.scrollWidth>el.clientWidth));
@@ -95,6 +100,11 @@ const {chromium}=require('playwright');
         assert.equal(await page.locator('input[name=assumptions]').isChecked(),state!=='blank');
         assert.equal(await page.locator('#discount-results').count(),state==='ready'?1:0);
         if(state==='ready') {
+          const help=page.locator('.pf-hero .section-help details');
+          assert.equal(await help.evaluate(el=>el.open),false);
+          await help.locator('summary').click();
+          assert.ok(await help.getByText('O preço unitário é arredondado',{exact:false}).isVisible());
+          await help.locator('summary').click();
           assert.ok((await page.locator('#discount-results').textContent()).includes('R$ 89,50'));
           assert.ok((await page.locator('.scenario-target').textContent()).includes('R$ 18,50'));
           assert.ok((await page.locator('.scenario-target').textContent()).includes('abaixo da meta'));
