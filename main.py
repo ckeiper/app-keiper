@@ -4648,6 +4648,12 @@ def painel_ia_keiper(cid):
             (cid, result['previous_start'], result['end'])) if result else []
     run = runs[0] if runs else {}
     corpo = render(run.get('result'), run.get('day'), run.get('status'), run.get('api_status'), budget, cid=cid, daily=daily, campaign_run=campaign_runs[0] if campaign_runs else None,admin_financial=session.get('tipo')=='admin')
+    if session.get('tipo') == 'admin':
+        from kevia_agent import plan as plan_mission, render as render_mission
+        from sales_metrics import SAO_PAULO
+        mission = plan_mission(run, campaign_runs[0] if campaign_runs else None,
+                               datetime.datetime.now(SAO_PAULO).date(), request.args.get('missao', 'prioridades'))
+        corpo = render_mission(mission, cid) + corpo
     if run.get('status') in ('running', 'rules_ready'):
         corpo += "<p>Execução em andamento ou interrompida. A próxima análise ocorrerá no próximo dia de serviço ativo.</p>"
     from kyra_history import render_history
