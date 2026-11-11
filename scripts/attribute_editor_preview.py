@@ -4,7 +4,7 @@ from attribute_edit_view import render
 from test_attribute_completion import facts,analyze,definition,listing
 from copy import deepcopy
 base=analyze(facts(definitions=[definition(tags=dict(hidden=True))]))
-for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline','conditional-read','conditional-review','conditional-unknown','conditional-xss','recovery','readback','readback-xss'):
+for mode in ('hidden-list','initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline','conditional-read','conditional-review','conditional-unknown','conditional-xss','recovery','readback','readback-xss'):
     plan=None;manual_form=None
     if mode!='initial':
         plan=dict(id='11111111-1111-4111-8111-111111111111',data=deepcopy(base),state=mode if mode in ('uncertain','confirmed') else 'ready',selected=[],result={})
@@ -33,6 +33,7 @@ for mode in ('initial','ready','empty','blocked','uncertain','confirmed','xss','
             if mode=='common-inline':text='Ficha técnica\nO material é aço na opção azul.'
             if mode=='common-unclear':text='Ficha técnica\nOferta especial\nO material é aço.'
             plan['data']=analyze(facts(item=item(),definitions=definitions(),description=text))
+        if mode=='hidden-list':plan['data']=analyze(facts(description='',definitions=[definition(tags=dict(hidden=True)),definition('WIDTH',name='Largura',tags=dict(hidden=True)),definition('HEIGHT',name='Altura')]))
         if mode=='empty':plan['data']['proposals']=[];plan['data']['proposal_total']=0
         if mode=='blocked':plan['data']['blocked']='User Product compartilhado: envio bloqueado para não alterar outros anúncios.'
         if mode=='confirmed':plan['result']=dict(message='Atualização confirmada por nova leitura.',fields=[dict(id='MATERIAL',name='Material',confirmed=True)])

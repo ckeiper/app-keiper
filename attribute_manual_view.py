@@ -34,15 +34,19 @@ def render(fields,csrf,plan,key,values=None):
 
 
 def compact(fields,csrf,plan,key):
-    """Direct blank inputs for eligible pending fields; same validated manual action."""
+    """Eligible pending fields, grouped by official hidden status; one shared batch."""
     esc=lambda value:escape(str(value),quote=True)
-    out='<form method="post" class="ae-compact"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan)+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'"><div class="ae-compact-grid">'
-    for field in fields[:50]:
-        out+='<label><span>'+esc(field['name'])+'</span><input type="hidden" name="manual_field" value="'+esc(field['id'])+'"><input name="manual_value" maxlength="1000" placeholder="Preencher" value="" title="'+esc('Ex.: '+', '.join(field['examples'][:3]) if field.get('examples') else field['name'])+'"><input type="hidden" name="manual_note" value="">'
-
-        out+='</label>'
-    out+='</div>'
-    out+='<button type="submit" aria-label="Revisar preenchidos">Revisar</button>'
+    # Show hidden fields first while keeping the existing fifty-row request limit.
+    ordered=[f for f in fields if f.get('hidden')]+[f for f in fields if not f.get('hidden')]
+    shown=ordered[:50]
+    out='<form method="post" class="ae-compact"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan)+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'">'
+    for hidden,title in ((True,'Campos Ocultos'),(False,'Ficha técnica')):
+        group=[f for f in shown if bool(f.get('hidden'))==hidden]
+        if not group:continue
+        out+='<section class="ae-field-group"><h3>'+title+'</h3><div class="ae-compact-grid">'
+        for field in group:
+            out+='<div class="ae-compact-row"><label><span>'+esc(field['name'])+'</span><input type="hidden" name="manual_field" value="'+esc(field['id'])+'"><input name="manual_value" maxlength="1000" placeholder="Preencher" value="" title="'+esc('Ex.: '+', '.join(field['examples'][:3]) if field.get('examples') else field['name'])+'"><input type="hidden" name="manual_note" value=""></label><button type="submit" aria-label="Revisar preenchidos">Revisar</button></div>'
+        out+='</div></section>'
     if len(fields)>50:out+='<p class="ae-compact-limit">Exibidos 50 campos. Use mais campos e opções para escolher outros.</p>'
     return out+'</form>'
 
