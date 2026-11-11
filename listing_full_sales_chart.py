@@ -15,9 +15,9 @@ STYLES = """<style>
 .full-sales p{color:#6b7e99;font-size:12px;line-height:1.6}
 .full-sales .full-legend{display:flex;flex-wrap:wrap;gap:13px;margin:12px 0 17px;font-size:11px;color:#52647e}
 .full-sales .full-legend strong{width:10px;height:10px;display:inline-block;border-radius:3px;margin-right:5px}
-.full-sales .full-plot{position:relative;height:310px}
-.full-sales .full-note{background:#f2f6fd;padding:12px;border-radius:9px;margin-top:13px}
-@media(max-width:620px){.full-sales{padding:15px}.full-sales .full-plot{height:270px}}
+.full-sales .full-plot{position:relative;height:275px;min-width:0}
+.full-sales .full-note{background:#f2f6fd;padding:9px 11px;border-radius:9px;margin-top:9px}.full-sales .full-help{display:inline-block;margin:0 0 8px}.full-sales .full-help summary{display:inline-flex;align-items:center;justify-content:center;width:23px;height:23px;border:1px solid #a8bcd0;border-radius:50%;cursor:pointer;font-size:12px;font-weight:700;list-style:none}.full-sales .full-help summary::-webkit-details-marker{display:none}.full-sales .full-help[open]{display:block}.full-sales .full-help p{margin:7px 0 10px}.full-sales :is(summary,select):focus-visible{outline:2px solid #70b5ed;outline-offset:3px}body .conteudo .full-sales{background:#102238;color:#eaf2ff;border-color:#34516e}body .conteudo .full-sales h3{color:#eaf2ff}body .conteudo .full-sales p,body .conteudo .full-sales .full-legend{color:#bdcce1}body .conteudo .full-sales .full-note{background:#182e49;color:#eaf2ff}body .conteudo .full-sales .full-help summary{color:#eaf2ff;border-color:#56708e}
+@media(max-width:620px){.full-sales{padding:15px}.full-sales .full-plot{height:240px}}
 </style>"""
 
 def daily_full_status(observations, days):
@@ -74,7 +74,7 @@ def render(item_id, orders, items, coverage, observations, *, today=None,
     if not identifier.endswith(tuple("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")):
         identifier="full-sales-item"
     out=STYLES+"<section class='full-sales'><h3>Vendas do anúncio × Estoque Full</h3>"
-    out+="<p>Compare vendas verificadas com observações reais de disponibilidade no Full. A linha verde mostra Full com estoque, e a vermelha mostra Full sem estoque. Sem coleta confiável = situação desconhecida.</p>"
+    out+="<details class='full-help'><summary aria-label='Como interpretar vendas e Full?' title='Como interpretar vendas e Full?'>?</summary><p>Compare vendas verificadas com observações reais de disponibilidade no Full. Verde indica Full com estoque, vermelho indica Full sem estoque. Sem coleta confiável, a situação permanece desconhecida. Uma coincidência entre falta de estoque e queda nas vendas não comprova causalidade; considere preço, variações e publicidade.</p></details>"
     out+="<div class='full-legend'><span><strong style='background:#4377df'></strong>Vendas brutas dos itens</span>"
     out+="<span><strong style='background:#149772'></strong>Full com estoque</span>"
     out+="<span><strong style='background:#e46a63'></strong>Full sem estoque</span></div>"
@@ -83,10 +83,9 @@ def render(item_id, orders, items, coverage, observations, *, today=None,
     if sales_valid<30:
         out+="<p class='full-note'>Vendas verificadas em "+str(sales_valid)+" de 30 dias. Datas não verificadas não são representadas como zero.</p>"
     out+="<div class='full-plot'><canvas id='"+escape(identifier,quote=True)+"' role='img' aria-label='Vendas do anúncio por dia e estado observado de estoque Full'></canvas></div>"
-    out+="<p class='full-note'>Uma mudança de estoque Full pode coincidir com uma queda nas vendas, mas não comprova a causa. Observe também preço, disponibilidade de outras variações e investimento em publicidade.</p>"
     data = {"labels":[d[5:] for d in dates],"datasets":[
         {"type":"bar","label":"Vendas do anúncio (R$)","data":sales,
-         "backgroundColor":"#4377dfaa","borderRadius":4,"yAxisID":"y"},
+         "backgroundColor":"#4377dfaa","borderRadius":5,"maxBarThickness":22,"yAxisID":"y"},
         {"type":"line","label":"Full com estoque","data":[v if v==1 else None for v in stock],
          "borderColor":"#149772","backgroundColor":"#149772","showLine":False,"pointRadius":5,"spanGaps":False,"yAxisID":"stock"},
         {"type":"line","label":"Full sem estoque","data":[v if v==0 else None for v in stock],
