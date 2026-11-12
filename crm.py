@@ -228,32 +228,66 @@ def extract(text, key=None, meeting_date=''):
 
 STYLE = """<style>
 .crm{max-width:1200px;margin:auto}.crm header{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:20px 0}
-.crm h2{margin:0}.crm .muted{color:#697586}.crm .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.crm h2{margin:0}.crm .muted{color:#afc0d8}.crm .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .crm .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.crm label{display:block;font-weight:600;margin-bottom:5px}
-.crm input,.crm textarea,.crm select{width:100%;box-sizing:border-box;max-width:100%;padding:10px;border:1px solid #ccd4de;border-radius:8px;background:white;color:#172b4d;font:inherit}
+.crm input,.crm textarea,.crm select{width:100%;box-sizing:border-box;max-width:100%;padding:10px;border:1px solid #ccd4de;border-radius:8px;background:#111e34;color:#edf4ff;font:inherit}
 .crm textarea{min-height:90px}.crm .wide{grid-column:1/-1}.crm .card{padding:22px;margin-bottom:18px}.crm .stats{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
-.crm .stat{padding:12px 16px;border:1px solid #dce3eb;border-radius:10px;background:#fff;color:#24364d;text-decoration:none}.crm .stat b{display:block;font-size:22px}
-.crm .notice{padding:14px;background:#edf4ff;border:1px solid #cadcff;border-radius:10px;margin-bottom:16px}.crm .error{background:#fff0ef;color:#8f2424}
-.crm .leadrow{display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;padding:16px 0;border-bottom:1px solid #e5eaf0}.crm .overdue{color:#b42318;font-weight:bold}
-.crm pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.crm summary{cursor:pointer}.crm button{cursor:pointer}.crm .badge{background:#eef2f6;border-radius:20px;padding:4px 10px;font-size:12px}
-@media(max-width:650px){.crm .grid{grid-template-columns:1fr}.crm .card{padding:15px}.crm .actions>*{max-width:100%}}
+.crm .stat{padding:12px 16px;border:1px solid #dce3eb;border-radius:10px;background:#14243e;color:#edf4ff;text-decoration:none}.crm .stat b{display:block;font-size:22px}
+.crm .notice{padding:14px;background:#182c4b;border:1px solid #5278ab;border-radius:10px;margin-bottom:16px}.crm .error{background:#4a2231;color:#ffdce2}
+.crm .leadrow{display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;padding:16px 0;border-bottom:1px solid #e5eaf0}.crm .overdue{color:#ff9b9b;font-weight:bold}
+.crm pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.crm summary{cursor:pointer}.crm button{cursor:pointer}.crm .badge{background:#263d5e;border-radius:20px;padding:4px 10px;font-size:12px}
+.crm .followups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0 20px}
+.crm .followups a{display:block;padding:14px;border:1px solid #527095;border-radius:10px;text-decoration:none}
+.crm .followups a[aria-current=true]{outline:2px solid #80b5ff;outline-offset:1px}
+.crm .followups b{display:block;font-size:24px}
+.crm .lead-facts{display:flex;gap:12px 24px;flex-wrap:wrap;margin:12px 0}
+.crm .lead-facts dt{color:var(--kp-subtle,#afc0d8);font-size:.85rem}.crm .lead-facts dd{margin:2px 0 0;font-weight:650}
+.crm .leadrow :where(p,strong,a){overflow-wrap:anywhere}.crm .leadrow>div:first-child{min-width:0}
+.crm .crm-config{margin:0}.crm .crm-config nav{display:flex;gap:12px;flex-wrap:wrap;padding:8px 0}
+.crm .crm-section{margin:0 0 16px}.crm .crm-section>summary{font-weight:650;padding:8px 0}
+.crm .crm-edit>summary{font-size:1.05rem;font-weight:700;padding:4px 0}
+.crm .crm-group{margin:0 0 18px;border:0;padding:0;min-width:0}.crm .crm-group legend{font-size:1rem;font-weight:700;margin-bottom:10px}
+.crm :is(a,button,summary):focus-visible{outline:2px solid #8abbff;outline-offset:3px}
+html[data-theme=light] body .crm .overdue{color:#a32424!important}
+html[data-theme=light] body .crm .notice{background:#edf4ff;color:#193a60}
+html[data-theme=light] body .crm .error{background:#fff0ef;color:#8f2424}
+@media(max-width:650px){.crm .followups{gap:6px}.crm .followups a{padding:8px}.crm .grid{grid-template-columns:1fr}.crm .card{padding:15px}.crm .actions>*{max-width:100%}}
 </style>"""
-BASE = STYLE + """<main class="crm"><header><div><a href="/painel">← Página principal</a><h2>CRM · Leads e reuniões</h2><p class="muted">O próximo contato começa aqui.</p></div><div class="actions"><a class="btn-acoes" href="/crm/novo">+ Novo lead</a><a class="btn-acoes cinza" href="/crm/importar">Importar transcrição</a><a href="/crm/configuracao">Configurar IA</a><a href="/crm/integracao">Integração Google Meet</a></div></header>
+BASE = STYLE + """<main class="crm"><header><div><a href="{{ '/crm' if screen else '/painel' }}">{{ '← CRM' if screen else '← Página principal' }}</a><h2>{{ screen or 'CRM · Leads e reuniões' }}</h2></div>
+{% if not screen %}<div class="actions"><a class="btn-acoes" href="/crm/novo">+ Novo lead</a><a class="btn-acoes cinza" href="/crm/importar">Importar reunião</a><details class="crm-config"><summary>Configurações</summary><nav aria-label="Configurações do CRM"><a href="/crm/configuracao">Preenchimento com IA</a><a href="/crm/integracao">Integração Google Meet</a></nav></details></div>{% endif %}</header>
 {% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
 """
-FORM = """<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="versao" value="{{ version }}">
-<div class="card grid">{% for key,label in fields.items() %}<div class="{{ 'wide' if key in long else '' }}"><label for="{{ key }}">{{ label }}{{ ' *' if key=='nome' else '' }}</label>
-{% if key in long %}<textarea id="{{ key }}" name="{{ key }}" maxlength="5000">{{ data.get(key,'') }}</textarea>{% else %}<input id="{{ key }}" name="{{ key }}" type="{{ 'date' if key in dates else 'email' if key=='email' else 'tel' if key=='celular' else 'text' }}" value="{{ data.get(key,'') }}" maxlength="300" {{ 'required' if key=='nome' else '' }}>{% endif %}</div>{% endfor %}
+FORM = """{% macro field(key) %}<div class="{{ 'wide' if key in long else '' }}"><label for="{{ key }}">{{ fields[key] }}{{ ' *' if key=='nome' else '' }}</label>
+{% if key in long %}<textarea id="{{ key }}" name="{{ key }}" maxlength="5000">{{ data.get(key,'') }}</textarea>{% else %}<input id="{{ key }}" name="{{ key }}" type="{{ 'date' if key in dates else 'email' if key=='email' else 'tel' if key=='celular' else 'text' }}" value="{{ data.get(key,'') }}" maxlength="300" {{ 'required' if key=='nome' else '' }}>{% endif %}</div>{% endmacro %}
+<form method="post" id="crm-review-form"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="versao" value="{{ version }}">
+{% if reviewing %}<div class="card"><label for="resumo">Síntese da reunião</label><textarea id="resumo" name="resumo" maxlength="8000">{{ summary }}</textarea></div>{% endif %}
+<div class="card">
+<fieldset class="crm-group"><legend>Contato e etapa</legend><div class="grid">
+{% for key in ('nome','empresa','celular','email') %}{{ field(key) }}{% endfor %}
 <div><label for="etapa">Etapa</label><select name="etapa" id="etapa">{% for stage in stages %}<option {{ 'selected' if stage==data.get('etapa','Novo') else '' }}>{{ stage }}</option>{% endfor %}</select></div>
-<div class="wide actions"><button class="btn-acoes" type="submit">{{ save_label or 'Salvar lead' }}</button><a href="/crm">Cancelar</a></div></div></form>"""
-LIST = """<div class="stats">{% for stage in stages %}<a class="stat" href="/crm?etapa={{ stage|urlencode }}">{{ stage }}<b>{{ counts.get(stage,0) }}</b></a>{% endfor %}</div>
-<div class="card"><form method="get" class="grid"><div><label for="q">Buscar nome, empresa, WhatsApp ou e-mail</label><input name="q" id="q" value="{{ q }}" maxlength="200"></div><div><label for="etapa">Etapa</label><select name="etapa" id="etapa"><option value="">Todas</option>{% for s in stages %}<option {{ 'selected' if s==stage else '' }}>{{ s }}</option>{% endfor %}</select></div><div><label for="prazo">Acompanhamento</label><select name="prazo" id="prazo">{% for value,label in [('', 'Todos'),('hoje','Para hoje'),('atrasados','Atrasados'),('sem_data','Sem próxima data')] %}<option value="{{ value }}" {{ 'selected' if value==due else '' }}>{{ label }}</option>{% endfor %}</select></div><div class="actions"><button class="btn-acoes">Filtrar</button><a href="/crm">Limpar</a></div></form></div>
-<div class="card"><h3>Seus leads</h3>{% for lead in leads %}<article class="leadrow"><div><a href="/crm/{{ lead.id }}"><strong>{{ lead.nome }}</strong></a> <span class="badge">{{ lead.etapa }}</span><div class="muted">{{ lead.empresa }}</div><p>{{ lead.dados.get('proxima_acao','') or 'Defina a próxima ação' }}</p><span class="{{ 'overdue' if lead.data_followup and lead.data_followup < today and lead.etapa not in closed else '' }}">{{ lead.data_followup.strftime('%d/%m/%Y') if lead.data_followup else 'Sem próxima data' }}</span></div><div class="actions">{% if lead.whatsapp %}<a class="btn-acoes cinza" target="_blank" rel="noopener noreferrer" href="{{ lead.whatsapp }}">WhatsApp ↗</a>{% endif %}<a href="/crm/{{ lead.id }}">Abrir lead</a></div></article>{% else %}<p>Nenhum lead encontrado. Cadastre um lead ou importe a primeira reunião.</p>{% endfor %}</div>
-<div class="actions">{% if page>1 %}<a href="{{ prev }}">← Anterior</a>{% endif %}<span>Página {{ page }}</span>{% if more %}<a href="{{ next }}">Próxima →</a>{% endif %}</div></main>"""
-IMPORT = """<div class="card"><h3>{{ 'Adicionar reunião ao lead' if lead else 'Importar reunião' }}</h3><p>Envie TXT, VTT, SRT, DOCX ou PDF com texto (até 2 MB), ou cole a transcrição.</p><p class="muted">{{ 'A IA está ativa. Ao extrair, o texto será enviado à OpenAI para preencher os campos.' if ai else 'Pré-preenchimento básico ativo. Configure a IA para interpretar a conversa e gerar a síntese.' }} Você revisa tudo antes de salvar.</p>
-<form method="post" enctype="multipart/form-data" class="grid"><input type="hidden" name="csrf_token" value="{{ csrf }}"><div><label for="arquivo">Arquivo de transcrição</label><input id="arquivo" type="file" name="arquivo" accept=".txt,.vtt,.srt,.docx,.pdf"></div><div><label for="reuniao">Data da reunião (opcional)</label><input type="date" id="reuniao" name="data_reuniao" value="{{ meeting_date }}"></div><div class="wide"><label for="texto">Ou cole o texto</label><textarea id="texto" name="texto" maxlength="120000" rows="12">{{ text }}</textarea></div><button class="btn-acoes" type="submit">Extrair e revisar</button></form></div></main>"""
-DETAIL = """<div class="card"><h3>Registrar contato</h3><form method="post" action="/crm/{{ lead.id }}/contato" class="grid"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="versao" value="{{ version }}"><div class="wide"><label for="resultado">Resultado da conversa</label><textarea id="resultado" name="resultado" required maxlength="5000"></textarea></div><div><label for="acao_contato">Próxima ação</label><input id="acao_contato" name="proxima_acao" maxlength="300"></div><div><label for="data_contato">Próximo follow-up</label><input id="data_contato" name="data_followup" type="date"></div><div class="wide"><button class="btn-acoes">Registrar contato e atualizar acompanhamento</button><p class="muted">Sem nova data, o retorno anterior será concluído e o lead ficará sem data.</p></div></form></div>
-<div class="card"><div class="actions"><h3>Histórico</h3><a href="/crm/importar?lead={{ lead.id }}">+ Importar outra reunião</a></div>{% for item in history %}<article class="leadrow"><div><strong>{{ item.tipo }}</strong> · {{ item.criado_em.astimezone(tz).strftime('%d/%m/%Y %H:%M') }}{% if item.data_reuniao %} · Reunião {{ item.data_reuniao.strftime('%d/%m/%Y') }}{% endif %}<pre>{{ item.texto }}</pre>{% if item.transcricao %}<details><summary>Transcrição original</summary><pre>{{ item.transcricao }}</pre></details><form method="post" action="/crm/{{ lead.id }}/historico/{{ item.id }}/reprocessar"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn-acoes cinza">Reprocessar transcrição</button></form>{% endif %}</div></article>{% else %}<p>Sem contatos registrados.</p>{% endfor %}</div></main>"""
+</div></fieldset>
+<fieldset class="crm-group"><legend>Acompanhamento</legend><div class="grid">
+{% for key in ('data_reuniao','data_followup','proxima_acao') %}{{ field(key) }}{% endfor %}
+</div></fieldset>
+<details class="crm-section" {{ 'open' if reviewing or error else '' }}><summary>Dados comerciais e observações</summary><div class="grid">
+{% for key in ('marketplaces','faturamento','estrutura','dificuldades','objetivos','interesse','objecoes','valor_proposto','origem','motivo_perda','observacoes') %}{{ field(key) }}{% endfor %}
+</div></details>
+<div class="actions"><button class="btn-acoes" type="submit">{{ save_label or 'Salvar lead' }}</button><a href="{{ '/crm/' ~ lead.id if lead else '/crm' }}">Cancelar</a></div></div></form>"""
+LIST = """<h3>Quem precisa de retorno?</h3><nav class="followups" aria-label="Prazos de retorno">
+{% for code,label,n in [('atrasados','Atrasados',followup.overdue),('hoje','Hoje',followup.due),('sem_data','Sem data',followup.undated)] %}<a href="/crm?prazo={{ code }}" {{ 'aria-current=true' if code==due else '' }}><b>{{ n }}</b>{{ label }}</a>{% endfor %}</nav>
+<div class="card"><form method="get" class="grid"><div><label for="q">Buscar lead</label><input name="q" id="q" type="search" placeholder="Nome, empresa, WhatsApp ou e-mail" value="{{ q }}" maxlength="200"></div><div><label for="etapa">Etapa</label><select name="etapa" id="etapa"><option value="">Todas</option>{% for s in stages %}<option value="{{ s }}" {{ 'selected' if s==stage else '' }}>{{ s }} ({{ counts.get(s,0) }})</option>{% endfor %}</select></div><div><label for="prazo">Retorno</label><select name="prazo" id="prazo">{% for value,label in [('', 'Todos'),('hoje','Hoje'),('atrasados','Atrasados'),('sem_data','Sem data')] %}<option value="{{ value }}" {{ 'selected' if value==due else '' }}>{{ label }}</option>{% endfor %}</select></div><div class="actions"><button class="btn-acoes">Filtrar</button><a href="/crm">Limpar filtros</a></div></form></div>
+<div class="card"><h3>Leads</h3>{% for lead in leads %}<article class="leadrow"><div><a href="/crm/{{ lead.id }}"><strong>{{ lead.nome }}</strong></a> <span class="badge">{{ lead.etapa }}</span>{% if lead.empresa %}<div class="muted">{{ lead.empresa }}</div>{% endif %}
+{% if lead.etapa not in closed %}<p>{{ lead.dados.get('proxima_acao','') or 'Próxima ação não definida' }}</p>
+{% if lead.data_followup and lead.data_followup < today %}<span class="overdue">Atrasado · {{ lead.data_followup.strftime('%d/%m/%Y') }}</span>{% elif lead.data_followup == today %}<strong>Retorno hoje</strong>{% elif lead.data_followup %}<span>Retorno em {{ lead.data_followup.strftime('%d/%m/%Y') }}</span>{% else %}<span class="muted">Sem data de retorno</span>{% endif %}{% endif %}</div>
+<div class="actions">{% if lead.whatsapp %}<a class="btn-acoes cinza" target="_blank" rel="noopener noreferrer" href="{{ lead.whatsapp }}">WhatsApp ↗</a>{% endif %}<a href="/crm/{{ lead.id }}">Ver lead →</a></div></article>{% else %}<p>{{ 'Nenhum lead para esses filtros.' if q or stage or due else 'Nenhum lead cadastrado.' }}</p>{% endfor %}</div>
+{% if page>1 or more %}<div class="actions">{% if page>1 %}<a href="{{ prev }}">← Anterior</a>{% endif %}<span>Página {{ page }}</span>{% if more %}<a href="{{ next }}">Próxima →</a>{% endif %}</div>{% endif %}</main>"""
+LEAD_HEADER = """<div class="card"><span class="badge">{{ lead.etapa }}</span>{% if lead.empresa %} <span>{{ lead.empresa }}</span>{% endif %}
+<dl class="lead-facts"><div><dt>Próxima ação</dt><dd>{{ lead.dados.get('proxima_acao') or 'Não definida' }}</dd></div><div><dt>Retorno</dt><dd>{{ lead.data_followup.strftime('%d/%m/%Y') if lead.data_followup else 'Sem data' }}</dd></div><div><dt>Último contato registrado</dt><dd>{{ lead.ultima_interacao.astimezone(tz).strftime('%d/%m/%Y') if lead.ultima_interacao else '—' }}</dd></div></dl>
+<div class="actions"><a class="btn-acoes" href="#registrar-contato">Registrar contato</a><a class="btn-acoes cinza" href="/crm/importar?lead={{ lead.id }}">Importar reunião</a>{% if wa %}<a target="_blank" rel="noopener noreferrer" href="{{ wa }}">WhatsApp ↗</a>{% endif %}<a href="#historico">Ver histórico</a><a href="#editar-lead" onclick="document.getElementById('editar-lead').open=true">Editar dados</a></div></div>"""
+IMPORT = """<div class="card"><h3>{{ ('Reunião de ' ~ lead.nome) if lead else '1. Adicionar transcrição' }}</h3><p>Envie TXT, VTT, SRT, DOCX ou PDF com texto (até 2 MB), ou cole a transcrição.</p><p class="muted">{{ 'A IA está ativa. Ao extrair, o texto será enviado à OpenAI para preencher os campos.' if ai else 'Pré-preenchimento básico ativo. Configure a IA para interpretar a conversa e gerar a síntese.' }} Você revisa tudo antes de salvar.</p>
+<form method="post" enctype="multipart/form-data" class="grid"><input type="hidden" name="csrf_token" value="{{ csrf }}"><div><label for="arquivo">Arquivo de transcrição</label><input id="arquivo" type="file" name="arquivo" accept=".txt,.vtt,.srt,.docx,.pdf"></div><div><label for="reuniao">Data da reunião (opcional)</label><input type="date" id="reuniao" name="data_reuniao" value="{{ meeting_date }}"></div><div class="wide"><label for="texto">Ou cole o texto</label><textarea id="texto" name="texto" maxlength="120000" rows="12">{{ text }}</textarea></div><button class="btn-acoes" type="submit">Continuar para revisão →</button></form></div></main>"""
+DETAIL = """<div class="card" id="registrar-contato"><h3>Registrar contato</h3><form method="post" action="/crm/{{ lead.id }}/contato" class="grid"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="versao" value="{{ version }}"><div class="wide"><label for="resultado">Resultado da conversa</label><textarea id="resultado" name="resultado" required maxlength="5000"></textarea></div><div><label for="acao_contato">Próxima ação</label><input id="acao_contato" name="proxima_acao" maxlength="300"></div><div><label for="data_contato">Próximo follow-up</label><input id="data_contato" name="data_followup" type="date"></div><div class="wide"><button class="btn-acoes">Salvar contato</button><p class="muted">Deixe a data em branco se este contato encerrou o retorno anterior e ainda não há uma nova data.</p></div></form></div>
+<div class="card" id="historico"><h3>Histórico</h3>{% for item in history %}<article class="leadrow"><div><strong>{{ item.tipo }}</strong> · {{ item.criado_em.astimezone(tz).strftime('%d/%m/%Y %H:%M') }}{% if item.data_reuniao %} · Reunião {{ item.data_reuniao.strftime('%d/%m/%Y') }}{% endif %}<pre>{{ item.texto }}</pre>{% if item.transcricao %}<details><summary>Transcrição original</summary><pre>{{ item.transcricao }}</pre></details><form method="post" action="/crm/{{ lead.id }}/historico/{{ item.id }}/reprocessar"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn-acoes cinza">Reprocessar transcrição</button></form>{% endif %}</div></article>{% else %}<p>Sem contatos registrados.</p>{% endfor %}</div>"""
 from crm_home import SUMMARY, HOME_WIDGET
 
 
@@ -360,7 +394,12 @@ def register_crm(app, bank, query, execute, page):
                 where.append('data_followup IS NULL')
             else:
                 where.append('data_followup ' + ('=' if due == 'hoje' else '<') + ' %s'); params.append(today())
+        day = today()
         with bank() as conn:
+            followup = query(conn, """SELECT COUNT(*) FILTER(WHERE data_followup < %s) overdue,
+                COUNT(*) FILTER(WHERE data_followup = %s) due,
+                COUNT(*) FILTER(WHERE data_followup IS NULL) undated
+                FROM crm_leads WHERE etapa NOT IN (%s,%s)""", (day, day, *CLOSED))[0]
             counts = {r['etapa']: r['n'] for r in query(conn, 'SELECT etapa, COUNT(*) n FROM crm_leads GROUP BY etapa')}
             rows = query(conn, 'SELECT * FROM crm_leads WHERE ' + ' AND '.join(where)
                          + ' ORDER BY data_followup ASC NULLS LAST, id DESC LIMIT 51 OFFSET %s', tuple(params + [(number-1)*50]))
@@ -368,7 +407,7 @@ def register_crm(app, bank, query, execute, page):
             row['whatsapp'] = whatsapp(row['dados'].get('celular'))
         from urllib.parse import urlencode
         link = lambda n: '/crm?' + urlencode(dict(q=q, etapa=stage, prazo=due, pagina=n))
-        return render(LIST, leads=rows[:50], counts=counts, stage=stage, due=due, q=q,
+        return render(LIST, leads=rows[:50], counts=counts, followup=followup, today=day, stage=stage, due=due, q=q,
                       page=number, more=len(rows)>50, prev=link(number-1), next=link(number+1))
 
     @app.route('/crm/resumo')
@@ -410,8 +449,14 @@ def register_crm(app, bank, query, execute, page):
                 error = str(exc)
         with bank() as conn:
             items = query(conn, 'SELECT * FROM crm_historico WHERE lead_id=%s ORDER BY id DESC LIMIT 100', (lead_id,)) if lead else []
-        return render(FORM + (DETAIL if lead else '</main>'), data=data, error=error, lead=lead,
-                      version=lead['versao'] if lead else 0, history=items)
+        body = FORM
+        if lead:
+            body = (LEAD_HEADER + DETAIL + '<details class="card crm-edit" id="editar-lead" ' + ('open' if error else '')
+                    + '><summary>Editar dados do lead</summary>' + FORM + '</details>')
+        return render(body + '</main>', data=data, error=error, lead=lead,
+                      version=lead['versao'] if lead else 0, history=items,
+                      screen=lead['nome'] if lead else 'Novo lead',
+                      wa=whatsapp(lead['dados'].get('celular')) if lead else '')
 
     @app.route('/crm/<int:lead_id>/contato', methods=['POST'])
     @admin
@@ -485,7 +530,7 @@ def register_crm(app, bank, query, execute, page):
                 return redirect('/crm/revisar/' + draft_id)
             except ValueError as exc:
                 error = str(exc)
-        return render(IMPORT, lead=lead, ai=bool(key), error=error, text=text, meeting_date=meeting_date)
+        return render(IMPORT, lead=lead, ai=bool(key), error=error, text=text, meeting_date=meeting_date, screen='Importar reunião')
 
     @app.route('/crm/revisar/<draft_id>', methods=['GET','POST'])
     @admin
@@ -532,14 +577,11 @@ def register_crm(app, bank, query, execute, page):
                             REGEXP_REPLACE(dados->>'celular','[^0-9]','','g'),
                             %s,%s)=%s) ORDER BY id LIMIT 5""",
                         (email,email,phone,r'^55([0-9]{10,11})$',r'\1',phone))
-        intro = """<div class="notice">{{ draft.aviso }}{% if draft.sugestao %}<p><strong>Sugestão da IA (não agendada):</strong> {{ draft.sugestao }}</p>{% endif %}<p>Campos sem informação permanecem em branco. Para um lead existente, os dados anteriores são preservados.</p></div>{% if lead %}<div class="notice">Esta reunião será adicionada ao histórico de <a href="/crm/{{ lead.id }}">{{ lead.nome }}</a>. Confira os campos antes de confirmar.</div>{% endif %}{% if duplicates %}<div class="notice"><strong>Possível lead já cadastrado</strong><p>Vincule a este cadastro para manter as reuniões no mesmo histórico. Você poderá revisar os dados em seguida, sem reenviar o arquivo.</p>{% for d in duplicates %}<div class="leadrow"><a href="/crm/{{ d.id }}">{{ d.nome }}</a><button type="submit" class="btn-acoes cinza" form="crm-review-form" formaction="/crm/revisar/{{ draft.id }}/vincular" name="lead_id" value="{{ d.id }}" formnovalidate>Usar este cadastro</button></div>{% endfor %}</div>{% endif %}<details class="card"><summary>Conferir transcrição original</summary><pre>{{ draft.transcricao }}</pre></details>"""
-        # Put the summary inside the same review form, so edits submit atomically.
-        form = FORM.replace('<div class="card grid">', '<div class="card"><label for="resumo">Síntese da reunião (revise ou complete)</label><textarea id="resumo" name="resumo" maxlength="8000">{{ summary }}</textarea></div><div class="card grid">',1)
-        form = form.replace('<form method="post">', '<form id="crm-review-form" method="post">', 1)
-        return render(intro+form+'</main>',draft=draft,data=data,error=error,duplicates=duplicates,
-                      lead=lead,
+        intro = """<div class="notice">{{ draft.aviso }}{% if draft.sugestao %}<p><strong>Sugestão da IA (não agendada):</strong> {{ draft.sugestao }}</p>{% endif %}<p>Revise os dados extraídos. Campos sem informação mantêm o valor existente no cadastro.</p></div>{% if lead %}<div class="notice">Esta reunião será adicionada ao histórico de <a href="/crm/{{ lead.id }}">{{ lead.nome }}</a>. Confira os campos antes de confirmar.</div>{% elif not duplicates %}<div class="notice">Ao salvar, você cria um lead com esta reunião. Para anexar a um cadastro existente, abra o lead no CRM e use <strong>Importar reunião</strong>.</div>{% endif %}{% if duplicates %}<div class="notice"><strong>Possível lead já cadastrado</strong><p>Vincule a este cadastro para manter as reuniões no mesmo histórico. Você poderá revisar os dados em seguida, sem reenviar o arquivo.</p>{% for d in duplicates %}<div class="leadrow"><a href="/crm/{{ d.id }}">{{ d.nome }}</a><button type="submit" class="btn-acoes cinza" form="crm-review-form" formaction="/crm/revisar/{{ draft.id }}/vincular" name="lead_id" value="{{ d.id }}" formnovalidate>Usar este cadastro</button></div>{% endfor %}</div>{% endif %}<details class="card"><summary>Conferir transcrição original</summary><pre>{{ draft.transcricao }}</pre></details>"""
+        return render(intro+FORM+'</main>',draft=draft,data=data,error=error,duplicates=duplicates,
+                      lead=lead, reviewing=True, screen='Revisar reunião',
                       summary=request.form.get('resumo',draft['resumo']),version=draft['versao'] or 0,
-                      save_label='Confirmar cadastro e salvar reunião')
+                      save_label='Salvar reunião no histórico' if lead else 'Salvar lead e reunião')
 
     @app.route('/crm/revisar/<draft_id>/vincular', methods=['POST'])
     @admin
@@ -595,7 +637,7 @@ def register_crm(app, bank, query, execute, page):
             <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf }}">
             <button class="btn-acoes" name="acao" value="gerar">{{ 'Substituir chave' if active else 'Gerar chave' }}</button>
             {% if active %}<button class="btn-acoes cinza" name="acao" value="revogar">Revogar chave</button>{% endif %}</form></div></main>""",
-            token=token, active=active, last=last)
+            token=token, active=active, last=last, screen='Integração Google Meet')
 
     @app.route('/crm/configuracao', methods=['GET','POST'])
     @admin
@@ -618,6 +660,6 @@ def register_crm(app, bank, query, execute, page):
             except ValueError as exc:
                 error = str(exc)
         body = """<div class="card"><h3>Preenchimento com IA</h3><p>{{ 'Chave configurada.' if active else 'IA ainda não configurada. A importação básica e o CRM já funcionam.' }}</p><p>Para interpretar a conversa, use uma chave da API OpenAI. O uso da API é cobrado separadamente da assinatura do ChatGPT. A transcrição só é enviada quando você solicita a extração.</p><p>A chave é salva criptografada e nunca reaparece nesta tela.</p>{% if message %}<div class="notice">{{ message }}</div>{% endif %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf }}"><label for="api_key">Chave da API OpenAI</label><input id="api_key" type="password" autocomplete="new-password" name="api_key" maxlength="500"><p><button class="btn-acoes">Salvar chave</button></p></form><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="remove" value="1"><button class="btn-acoes cinza">Remover chave salva</button></form><p><a href="/crm/importar">Importar transcrição →</a></p></div></main>"""
-        return render(body,active=bool(api_key()),error=error,message=message)
+        return render(body,active=bool(api_key()),error=error,message=message,screen='Preenchimento com IA')
 
     return crm_index
