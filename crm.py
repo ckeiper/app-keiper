@@ -227,7 +227,7 @@ def extract(text, key=None, meeting_date=''):
 
 
 STYLE = """<style>
-.crm{max-width:1200px;margin:auto}.crm header{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:20px 0}
+.crm{max-width:1080px;margin:auto;min-width:0}.crm header{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:20px 0}
 .crm h2{margin:0}.crm .muted{color:#afc0d8}.crm .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .crm .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.crm label{display:block;font-weight:600;margin-bottom:5px}
 .crm input,.crm textarea,.crm select{width:100%;box-sizing:border-box;max-width:100%;padding:10px;border:1px solid #ccd4de;border-radius:8px;background:#111e34;color:#edf4ff;font:inherit}
@@ -251,9 +251,31 @@ STYLE = """<style>
 html[data-theme=light] body .crm .overdue{color:#a32424!important}
 html[data-theme=light] body .crm .notice{background:#edf4ff;color:#193a60}
 html[data-theme=light] body .crm .error{background:#fff0ef;color:#8f2424}
+/* Keep links, form fields and badges legible independently of legacy page styles. */
+.crm{--crm-panel:#fff;--crm-soft:#edf3fc;--crm-line:#ccd9ea;--crm-ink:#172b45;--crm-link:#2056a0;--crm-muted:#4d617b;--crm-alert:#a62234;color:var(--crm-ink)}
+html[data-theme=dark] .crm{--crm-panel:#17253d;--crm-soft:#223653;--crm-line:#395578;--crm-ink:#eef5ff;--crm-link:#add2ff;--crm-muted:#b8cbe4;--crm-alert:#ffb0b7}
+.crm a:not(.btn-acoes){color:var(--crm-link)}
+.crm a.btn-acoes{color:#fff;text-decoration:none}
+.crm a.btn-acoes.cinza{color:var(--crm-ink);background:var(--crm-soft)}
+.crm .muted,.crm .lead-facts dt{color:var(--crm-muted)}
+.crm .badge{color:var(--crm-ink);background:var(--crm-soft);display:inline-block;margin:3px 0}
+.crm .overdue{color:var(--crm-alert)}
+.crm input,.crm textarea,.crm select{background:var(--crm-panel);color:var(--crm-ink);border-color:var(--crm-line)}
+.crm input::placeholder,.crm textarea::placeholder{color:var(--crm-muted)}
+.crm .followups a{background:var(--crm-panel);border-color:var(--crm-line);color:var(--crm-ink);min-height:72px}
+.crm .followups a:first-child b{color:var(--crm-alert)}
+.crm .followups a:hover,.crm .history-link:hover{background:var(--crm-soft)}
+.crm .history-link{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;margin:8px 0 20px;background:var(--crm-panel);border:1px solid var(--crm-line);border-radius:12px;text-decoration:none;font-weight:700;min-height:48px;box-sizing:border-box}
+.crm .crm-config>summary{font-size:.9rem;color:var(--crm-muted)}
+.crm .crm-history{scroll-margin-top:86px}
+@layer keiper-appearance {
+html[data-theme=light] body .crm .badge{background:var(--crm-soft)!important;color:var(--crm-ink)!important}
+html[data-theme=light] body .crm .followups a:first-child b{color:var(--crm-alert)!important}
+html[data-theme=light] body .crm a.btn-acoes.cinza{background:var(--crm-soft)!important;color:var(--crm-ink)!important;border-color:var(--crm-line)!important}
+}
 @media(max-width:650px){.crm .followups{gap:6px}.crm .followups a{padding:8px}.crm .grid{grid-template-columns:1fr}.crm .card{padding:15px}.crm .actions>*{max-width:100%}}
 </style>"""
-BASE = STYLE + """<main class="crm"><header><div><a href="{{ '/crm' if screen else '/painel' }}">{{ '← CRM' if screen else '← Página principal' }}</a><h2>{{ screen or 'CRM · Leads e reuniões' }}</h2></div>
+BASE = STYLE + """<main class="crm"><header><div>{% if screen %}<a href="/crm">← CRM</a>{% endif %}<h2>{{ screen or 'CRM' }}</h2></div>
 {% if not screen %}<div class="actions"><a class="btn-acoes" href="/crm/novo">+ Novo lead</a><a class="btn-acoes cinza" href="/crm/importar">Importar reunião</a><details class="crm-config"><summary>Configurações</summary><nav aria-label="Configurações do CRM"><a href="/crm/configuracao">Preenchimento com IA</a><a href="/crm/integracao">Integração Google Meet</a></nav></details></div>{% endif %}</header>
 {% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
 """
@@ -274,13 +296,15 @@ FORM = """{% macro field(key) %}<div class="{{ 'wide' if key in long else '' }}"
 </div></details>
 <div class="actions"><button class="btn-acoes" type="submit">{{ save_label or 'Salvar lead' }}</button><a href="{{ '/crm/' ~ lead.id if lead else '/crm' }}">Cancelar</a></div></div></form>"""
 LIST = """<h3>Quem precisa de retorno?</h3><nav class="followups" aria-label="Prazos de retorno">
-{% for code,label,n in [('atrasados','Atrasados',followup.overdue),('hoje','Hoje',followup.due),('sem_data','Sem data',followup.undated)] %}<a href="/crm?prazo={{ code }}" {{ 'aria-current=true' if code==due else '' }}><b>{{ n }}</b>{{ label }}</a>{% endfor %}</nav>
-<div class="card"><form method="get" class="grid"><div><label for="q">Buscar lead</label><input name="q" id="q" type="search" placeholder="Nome, empresa, WhatsApp ou e-mail" value="{{ q }}" maxlength="200"></div><div><label for="etapa">Etapa</label><select name="etapa" id="etapa"><option value="">Todas</option>{% for s in stages %}<option value="{{ s }}" {{ 'selected' if s==stage else '' }}>{{ s }} ({{ counts.get(s,0) }})</option>{% endfor %}</select></div><div><label for="prazo">Retorno</label><select name="prazo" id="prazo">{% for value,label in [('', 'Todos'),('hoje','Hoje'),('atrasados','Atrasados'),('sem_data','Sem data')] %}<option value="{{ value }}" {{ 'selected' if value==due else '' }}>{{ label }}</option>{% endfor %}</select></div><div class="actions"><button class="btn-acoes">Filtrar</button><a href="/crm">Limpar filtros</a></div></form></div>
+{% for code,label,n in [('atrasados','Atrasados',followup.overdue),('hoje','Hoje',followup.due),('sem_data','Sem data',followup.undated)] %}<a href="/crm?historico=1&amp;prazo={{ code }}#historico-leads" {{ 'aria-current=true' if code==due else '' }}><b>{{ n }}</b>{{ label }}</a>{% endfor %}</nav>
+{% if not history_open %}<a class="history-link" href="/crm?historico=1#historico-leads"><span>Histórico de Leads</span><span aria-hidden="true">→</span></a>
+{% else %}<div id="historico-leads" class="crm-history"><div class="actions"><h3>Histórico de Leads</h3><a href="/crm">Ocultar lista</a></div>
+<div class="card"><form method="get" action="/crm#historico-leads" class="grid"><input type="hidden" name="historico" value="1"><div><label for="q">Buscar lead</label><input name="q" id="q" type="search" placeholder="Nome, empresa, WhatsApp ou e-mail" value="{{ q }}" maxlength="200"></div><div><label for="etapa">Etapa</label><select name="etapa" id="etapa"><option value="">Todas</option>{% for s in stages %}<option value="{{ s }}" {{ 'selected' if s==stage else '' }}>{{ s }} ({{ counts.get(s,0) }})</option>{% endfor %}</select></div><div><label for="prazo">Retorno</label><select name="prazo" id="prazo">{% for value,label in [('', 'Todos'),('hoje','Hoje'),('atrasados','Atrasados'),('sem_data','Sem data')] %}<option value="{{ value }}" {{ 'selected' if value==due else '' }}>{{ label }}</option>{% endfor %}</select></div><div class="actions"><button class="btn-acoes">Filtrar</button><a href="/crm?historico=1#historico-leads">Limpar filtros</a></div></form></div>
 <div class="card"><h3>Leads</h3>{% for lead in leads %}<article class="leadrow"><div><a href="/crm/{{ lead.id }}"><strong>{{ lead.nome }}</strong></a> <span class="badge">{{ lead.etapa }}</span>{% if lead.empresa %}<div class="muted">{{ lead.empresa }}</div>{% endif %}
 {% if lead.etapa not in closed %}<p>{{ lead.dados.get('proxima_acao','') or 'Próxima ação não definida' }}</p>
 {% if lead.data_followup and lead.data_followup < today %}<span class="overdue">Atrasado · {{ lead.data_followup.strftime('%d/%m/%Y') }}</span>{% elif lead.data_followup == today %}<strong>Retorno hoje</strong>{% elif lead.data_followup %}<span>Retorno em {{ lead.data_followup.strftime('%d/%m/%Y') }}</span>{% else %}<span class="muted">Sem data de retorno</span>{% endif %}{% endif %}</div>
-<div class="actions">{% if lead.whatsapp %}<a class="btn-acoes cinza" target="_blank" rel="noopener noreferrer" href="{{ lead.whatsapp }}">WhatsApp ↗</a>{% endif %}<a href="/crm/{{ lead.id }}">Ver lead →</a></div></article>{% else %}<p>{{ 'Nenhum lead para esses filtros.' if q or stage or due else 'Nenhum lead cadastrado.' }}</p>{% endfor %}</div>
-{% if page>1 or more %}<div class="actions">{% if page>1 %}<a href="{{ prev }}">← Anterior</a>{% endif %}<span>Página {{ page }}</span>{% if more %}<a href="{{ next }}">Próxima →</a>{% endif %}</div>{% endif %}</main>"""
+<div class="actions">{% if lead.whatsapp %}<a class="btn-acoes cinza" target="_blank" rel="noopener noreferrer" href="{{ lead.whatsapp }}">WhatsApp ↗</a>{% endif %}<a href="/crm/{{ lead.id }}">Abrir →</a></div></article>{% else %}<p>{{ 'Nenhum lead para esses filtros.' if q or stage or due else 'Nenhum lead cadastrado.' }}</p>{% endfor %}</div>
+{% if page>1 or more %}<div class="actions">{% if page>1 %}<a href="{{ prev }}">← Anterior</a>{% endif %}<span>Página {{ page }}</span>{% if more %}<a href="{{ next }}">Próxima →</a>{% endif %}</div>{% endif %}</div>{% endif %}</main>"""
 LEAD_HEADER = """<div class="card"><span class="badge">{{ lead.etapa }}</span>{% if lead.empresa %} <span>{{ lead.empresa }}</span>{% endif %}
 <dl class="lead-facts"><div><dt>Próxima ação</dt><dd>{{ lead.dados.get('proxima_acao') or 'Não definida' }}</dd></div><div><dt>Retorno</dt><dd>{{ lead.data_followup.strftime('%d/%m/%Y') if lead.data_followup else 'Sem data' }}</dd></div><div><dt>Último contato registrado</dt><dd>{{ lead.ultima_interacao.astimezone(tz).strftime('%d/%m/%Y') if lead.ultima_interacao else '—' }}</dd></div></dl>
 <div class="actions"><a class="btn-acoes" href="#registrar-contato">Registrar contato</a><a class="btn-acoes cinza" href="/crm/importar?lead={{ lead.id }}">Importar reunião</a>{% if wa %}<a target="_blank" rel="noopener noreferrer" href="{{ wa }}">WhatsApp ↗</a>{% endif %}<a href="#historico">Ver histórico</a><a href="#editar-lead" onclick="document.getElementById('editar-lead').open=true">Editar dados</a></div></div>"""
@@ -382,6 +406,7 @@ def register_crm(app, bank, query, execute, page):
             number = max(1, min(100000, int(request.args.get('pagina', '1'))))
         except ValueError:
             number = 1
+        history_open = request.args.get('historico') == '1' or bool(stage or due or q or number > 1)
         where, params = ['TRUE'], []
         if stage in STAGES:
             where.append('etapa=%s'); params.append(stage)
@@ -400,14 +425,16 @@ def register_crm(app, bank, query, execute, page):
                 COUNT(*) FILTER(WHERE data_followup = %s) due,
                 COUNT(*) FILTER(WHERE data_followup IS NULL) undated
                 FROM crm_leads WHERE etapa NOT IN (%s,%s)""", (day, day, *CLOSED))[0]
-            counts = {r['etapa']: r['n'] for r in query(conn, 'SELECT etapa, COUNT(*) n FROM crm_leads GROUP BY etapa')}
-            rows = query(conn, 'SELECT * FROM crm_leads WHERE ' + ' AND '.join(where)
-                         + ' ORDER BY data_followup ASC NULLS LAST, id DESC LIMIT 51 OFFSET %s', tuple(params + [(number-1)*50]))
+            counts, rows = {}, []
+            if history_open:
+                counts = {r['etapa']: r['n'] for r in query(conn, 'SELECT etapa, COUNT(*) n FROM crm_leads GROUP BY etapa')}
+                rows = query(conn, 'SELECT * FROM crm_leads WHERE ' + ' AND '.join(where)
+                             + ' ORDER BY data_followup ASC NULLS LAST, id DESC LIMIT 51 OFFSET %s', tuple(params + [(number-1)*50]))
         for row in rows:
             row['whatsapp'] = whatsapp(row['dados'].get('celular'))
         from urllib.parse import urlencode
-        link = lambda n: '/crm?' + urlencode(dict(q=q, etapa=stage, prazo=due, pagina=n))
-        return render(LIST, leads=rows[:50], counts=counts, followup=followup, today=day, stage=stage, due=due, q=q,
+        link = lambda n: '/crm?' + urlencode(dict(historico=1, q=q, etapa=stage, prazo=due, pagina=n)) + '#historico-leads'
+        return render(LIST, history_open=history_open, leads=rows[:50], counts=counts, followup=followup, today=day, stage=stage, due=due, q=q,
                       page=number, more=len(rows)>50, prev=link(number-1), next=link(number+1))
 
     @app.route('/crm/resumo')
