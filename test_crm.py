@@ -319,6 +319,21 @@ class CRMIntegrationTests(unittest.TestCase):
         self.assertNotIn(f'/crm/{b}\"',view)
         self.assertEqual(self.client.get('/crm/999999999').status_code,404)
 
+    def test_scheduled_meeting_is_an_agenda_date_but_completed_meeting_is_not(self):
+        from datetime import timedelta
+        tomorrow = crm.today() + timedelta(days=1)
+        scheduled = self.create(empresa='Agenda amanhã', etapa='Reunião agendada',
+                                data_reuniao=tomorrow.isoformat())
+        completed = self.create(empresa='Reunião passada', etapa='Reunião realizada',
+                                data_reuniao='2020-01-01')
+        undated = self.client.get('/crm?prazo=sem_data').text
+        self.assertNotIn(f'/crm/{scheduled}"', undated)
+        self.assertIn(f'/crm/{completed}"', undated)
+        upcoming = self.client.get('/crm?prazo=proximos').text
+        self.assertIn(f'/crm/{scheduled}"', upcoming)
+        self.assertIn('Reunião · ' + tomorrow.strftime('%d/%m'), upcoming)
+        self.assertNotIn(f'/crm/{completed}"', upcoming)
+
     def test_history_and_filters_are_loaded_only_when_opened(self):
         lead_id = self.create(empresa='Empresa no histórico', data_followup='2020-01-01')
         initial = self.client.get('/crm').text
@@ -329,7 +344,7 @@ class CRMIntegrationTests(unittest.TestCase):
         opened = self.client.get('/crm?historico=1').text
         self.assertIn('Empresa no histórico', opened)
         self.assertIn('id="q"', opened)
-        self.assertIn('Ocultar lista', opened)
+        self.assertIn('Voltar à agenda', opened)
         overdue = self.client.get('/crm?historico=1&prazo=atrasados').text
         self.assertIn(f'/crm/{lead_id}', overdue)
         self.assertIn('aria-current=true', overdue)

@@ -38,6 +38,21 @@ MAX_BYTES = 2 * 1024 * 1024
 MAX_TEXT = 120000
 
 
+# A completed meeting date is historical. Only the scheduled stage adds a pending event.
+AGENDA = """WITH scheduled AS (
+    SELECT crm_leads.*, CASE WHEN etapa='Reunião agendada'
+        AND (dados->>'data_reuniao') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+        AND pg_input_is_valid(dados->>'data_reuniao', 'date')
+        THEN (dados->>'data_reuniao')::date END AS meeting_day
+    FROM crm_leads
+), agenda AS (
+    SELECT scheduled.*, LEAST(data_followup, meeting_day) AS next_day FROM scheduled
+)"""
+AGENDA_COUNTS = AGENDA + """ SELECT COUNT(*) FILTER(WHERE next_day < %s) overdue,
+    COUNT(*) FILTER(WHERE next_day = %s) due, COUNT(*) FILTER(WHERE next_day > %s) upcoming,
+    COUNT(*) FILTER(WHERE next_day IS NULL) undated FROM agenda WHERE etapa NOT IN (%s,%s)"""
+
+
 def today():
     return dt.datetime.now(ZoneInfo('America/Sao_Paulo')).date()
 
@@ -268,6 +283,19 @@ html[data-theme=dark] .crm{--crm-panel:#17253d;--crm-soft:#223653;--crm-line:#39
 .crm .history-link{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;margin:8px 0 20px;background:var(--crm-panel);border:1px solid var(--crm-line);border-radius:12px;text-decoration:none;font-weight:700;min-height:48px;box-sizing:border-box}
 .crm .crm-config>summary{font-size:.9rem;color:var(--crm-muted)}
 .crm .crm-history{scroll-margin-top:86px}
+.crm .card,.crm .crm-history .leadrow{background:var(--crm-panel);color:var(--crm-ink);border-color:var(--crm-line)}
+.crm .crm-history>header{margin:8px 0 12px}.crm .crm-history>header h3{margin:0}
+.crm .crm-history .crm-filters{margin-bottom:10px}.crm .crm-filters summary{font-weight:650;padding:2px 0}
+.crm .crm-filters[open] summary{margin-bottom:12px}
+.crm .crm-history .leadrow{padding:12px 0;gap:8px 14px}
+.crm .crm-history .leadrow p{margin:6px 0;line-height:1.45}
+.crm .crm-history .leadrow:last-child{border-bottom:0}
+.crm .crm-history .lead-title{font-weight:700;text-decoration:none}
+.crm .crm-history .lead-title:hover{text-decoration:underline}
+.crm .lead-schedule{display:flex;gap:6px 16px;flex-wrap:wrap;font-size:.88rem}
+.crm .followups{grid-template-columns:repeat(4,minmax(0,1fr))}
+html[data-theme=dark] body:has(.crm){background:#0b1426;color:#eef5ff}
+@media(max-width:440px){.crm .followups{grid-template-columns:repeat(2,minmax(0,1fr))}.crm .followups a{min-height:54px}}
 @layer keiper-appearance {
 html[data-theme=light] body .crm .badge{background:var(--crm-soft)!important;color:var(--crm-ink)!important}
 html[data-theme=light] body .crm .followups a:first-child b{color:var(--crm-alert)!important}
@@ -295,18 +323,21 @@ FORM = """{% macro field(key) %}<div class="{{ 'wide' if key in long else '' }}"
 {% for key in ('marketplaces','faturamento','estrutura','dificuldades','objetivos','interesse','objecoes','valor_proposto','origem','motivo_perda','observacoes') %}{{ field(key) }}{% endfor %}
 </div></details>
 <div class="actions"><button class="btn-acoes" type="submit">{{ save_label or 'Salvar lead' }}</button><a href="{{ '/crm/' ~ lead.id if lead else '/crm' }}">Cancelar</a></div></div></form>"""
-LIST = """<h3>Quem precisa de retorno?</h3><nav class="followups" aria-label="Prazos de retorno">
-{% for code,label,n in [('atrasados','Atrasados',followup.overdue),('hoje','Hoje',followup.due),('sem_data','Sem data',followup.undated)] %}<a href="/crm?historico=1&amp;prazo={{ code }}#historico-leads" {{ 'aria-current=true' if code==due else '' }}><b>{{ n }}</b>{{ label }}</a>{% endfor %}</nav>
+LIST = """<h3>Agenda de leads</h3><nav class="followups" aria-label="Agenda de leads">
+{% for code,label,n in [('atrasados','Atrasados',followup.overdue),('hoje','Hoje',followup.due),('proximos','Próximos',followup.upcoming),('sem_data','Sem data',followup.undated)] %}<a href="/crm?historico=1&amp;prazo={{ code }}#historico-leads" {{ 'aria-current=true' if code==due else '' }}><b>{{ n }}</b>{{ label }}</a>{% endfor %}</nav>
 {% if not history_open %}<a class="history-link" href="/crm?historico=1#historico-leads"><span>Histórico de Leads</span><span aria-hidden="true">→</span></a>
-{% else %}<div id="historico-leads" class="crm-history"><div class="actions"><h3>Histórico de Leads</h3><a href="/crm">Ocultar lista</a></div>
-<div class="card"><form method="get" action="/crm#historico-leads" class="grid"><input type="hidden" name="historico" value="1"><div><label for="q">Buscar lead</label><input name="q" id="q" type="search" placeholder="Nome, empresa, WhatsApp ou e-mail" value="{{ q }}" maxlength="200"></div><div><label for="etapa">Etapa</label><select name="etapa" id="etapa"><option value="">Todas</option>{% for s in stages %}<option value="{{ s }}" {{ 'selected' if s==stage else '' }}>{{ s }} ({{ counts.get(s,0) }})</option>{% endfor %}</select></div><div><label for="prazo">Retorno</label><select name="prazo" id="prazo">{% for value,label in [('', 'Todos'),('hoje','Hoje'),('atrasados','Atrasados'),('sem_data','Sem data')] %}<option value="{{ value }}" {{ 'selected' if value==due else '' }}>{{ label }}</option>{% endfor %}</select></div><div class="actions"><button class="btn-acoes">Filtrar</button><a href="/crm?historico=1#historico-leads">Limpar filtros</a></div></form></div>
-<div class="card"><h3>Leads</h3>{% for lead in leads %}<article class="leadrow"><div><a href="/crm/{{ lead.id }}"><strong>{{ lead.nome }}</strong></a> <span class="badge">{{ lead.etapa }}</span>{% if lead.empresa %}<div class="muted">{{ lead.empresa }}</div>{% endif %}
-{% if lead.etapa not in closed %}<p>{{ lead.dados.get('proxima_acao','') or 'Próxima ação não definida' }}</p>
-{% if lead.data_followup and lead.data_followup < today %}<span class="overdue">Atrasado · {{ lead.data_followup.strftime('%d/%m/%Y') }}</span>{% elif lead.data_followup == today %}<strong>Retorno hoje</strong>{% elif lead.data_followup %}<span>Retorno em {{ lead.data_followup.strftime('%d/%m/%Y') }}</span>{% else %}<span class="muted">Sem data de retorno</span>{% endif %}{% endif %}</div>
+{% else %}<div id="historico-leads" class="crm-history"><header><h3>{{ {'sem_data':'Leads sem data','hoje':'Agenda de hoje','atrasados':'Agenda em atraso','proximos':'Próximos agendamentos'}.get(due,'Histórico de Leads') }}</h3><a href="/crm">← Voltar à agenda</a></header>
+<details class="card crm-filters" {{ 'open' if q or stage else '' }}><summary>Buscar e filtrar</summary><form method="get" action="/crm#historico-leads" class="grid"><input type="hidden" name="historico" value="1"><div><label for="q">Buscar lead</label><input name="q" id="q" type="search" placeholder="Nome, empresa, WhatsApp ou e-mail" value="{{ q }}" maxlength="200"></div><div><label for="etapa">Etapa</label><select name="etapa" id="etapa"><option value="">Todas</option>{% for s in stages %}<option value="{{ s }}" {{ 'selected' if s==stage else '' }}>{{ s }} ({{ counts.get(s,0) }})</option>{% endfor %}</select></div><div><label for="prazo">Agenda</label><select name="prazo" id="prazo">{% for value,label in [('', 'Todos'),('hoje','Hoje'),('atrasados','Atrasados'),('proximos','Próximos'),('sem_data','Sem data')] %}<option value="{{ value }}" {{ 'selected' if value==due else '' }}>{{ label }}</option>{% endfor %}</select></div><div class="actions"><button class="btn-acoes">Filtrar</button><a href="/crm?historico=1#historico-leads">Limpar filtros</a></div></form></details>
+<div class="card">{% for lead in leads %}<article class="leadrow"><div><a class="lead-title" href="/crm/{{ lead.id }}"><strong>{{ lead.nome }}</strong></a> <span class="badge">{{ lead.etapa }}</span>{% if lead.empresa %}<div class="muted">{{ lead.empresa }}</div>{% endif %}
+{% if lead.etapa not in closed %}<div class="lead-schedule">
+{% if lead.meeting_day %}<span class="{{ 'overdue' if lead.meeting_day < today else '' }}">Reunião · {{ lead.meeting_day.strftime('%d/%m') }}</span>{% endif %}
+{% if lead.data_followup %}<span class="{{ 'overdue' if lead.data_followup < today else '' }}">Retorno · {{ lead.data_followup.strftime('%d/%m') }}</span>{% endif %}
+{% if not lead.next_day %}<span class="muted">Sem reunião ou retorno marcado</span>{% endif %}</div>
+{% if lead.dados.get('proxima_acao') %}<p>{{ lead.dados.proxima_acao }}</p>{% endif %}{% endif %}</div>
 <div class="actions">{% if lead.whatsapp %}<a class="btn-acoes cinza" target="_blank" rel="noopener noreferrer" href="{{ lead.whatsapp }}">WhatsApp ↗</a>{% endif %}<a href="/crm/{{ lead.id }}">Abrir →</a></div></article>{% else %}<p>{{ 'Nenhum lead para esses filtros.' if q or stage or due else 'Nenhum lead cadastrado.' }}</p>{% endfor %}</div>
 {% if page>1 or more %}<div class="actions">{% if page>1 %}<a href="{{ prev }}">← Anterior</a>{% endif %}<span>Página {{ page }}</span>{% if more %}<a href="{{ next }}">Próxima →</a>{% endif %}</div>{% endif %}</div>{% endif %}</main>"""
 LEAD_HEADER = """<div class="card"><span class="badge">{{ lead.etapa }}</span>{% if lead.empresa %} <span>{{ lead.empresa }}</span>{% endif %}
-<dl class="lead-facts"><div><dt>Próxima ação</dt><dd>{{ lead.dados.get('proxima_acao') or 'Não definida' }}</dd></div><div><dt>Retorno</dt><dd>{{ lead.data_followup.strftime('%d/%m/%Y') if lead.data_followup else 'Sem data' }}</dd></div><div><dt>Último contato registrado</dt><dd>{{ lead.ultima_interacao.astimezone(tz).strftime('%d/%m/%Y') if lead.ultima_interacao else '—' }}</dd></div></dl>
+<dl class="lead-facts"><div><dt>Próxima ação</dt><dd>{{ lead.dados.get('proxima_acao') or 'Não definida' }}</dd></div>{% if lead.etapa=='Reunião agendada' and data.get('data_reuniao') %}<div><dt>Reunião agendada</dt><dd>{{ data.data_reuniao.split('-')|reverse|join('/') }}</dd></div>{% endif %}<div><dt>Retorno</dt><dd>{{ lead.data_followup.strftime('%d/%m/%Y') if lead.data_followup else 'Sem data' }}</dd></div><div><dt>Último contato registrado</dt><dd>{{ lead.ultima_interacao.astimezone(tz).strftime('%d/%m/%Y') if lead.ultima_interacao else '—' }}</dd></div></dl>
 <div class="actions"><a class="btn-acoes" href="#registrar-contato">Registrar contato</a><a class="btn-acoes cinza" href="/crm/importar?lead={{ lead.id }}">Importar reunião</a>{% if wa %}<a target="_blank" rel="noopener noreferrer" href="{{ wa }}">WhatsApp ↗</a>{% endif %}<a href="#historico">Ver histórico</a><a href="#editar-lead" onclick="document.getElementById('editar-lead').open=true">Editar dados</a></div></div>"""
 IMPORT = """<div class="card"><h3>{{ ('Reunião de ' ~ lead.nome) if lead else '1. Adicionar transcrição' }}</h3><p>Envie TXT, VTT, SRT, DOCX ou PDF com texto (até 2 MB), ou cole a transcrição.</p><p class="muted">{{ 'A IA está ativa. Ao extrair, o texto será enviado à OpenAI para preencher os campos.' if ai else 'Pré-preenchimento básico ativo. Configure a IA para interpretar a conversa e gerar a síntese.' }} Você revisa tudo antes de salvar.</p>
 <form method="post" enctype="multipart/form-data" class="grid"><input type="hidden" name="csrf_token" value="{{ csrf }}"><div><label for="arquivo">Arquivo de transcrição</label><input id="arquivo" type="file" name="arquivo" accept=".txt,.vtt,.srt,.docx,.pdf"></div><div><label for="reuniao">Data da reunião (opcional)</label><input type="date" id="reuniao" name="data_reuniao" value="{{ meeting_date }}"></div><div class="wide"><label for="texto">Ou cole o texto</label><textarea id="texto" name="texto" maxlength="120000" rows="12">{{ text }}</textarea></div><button class="btn-acoes" type="submit">Continuar para revisão →</button></form></div></main>"""
@@ -413,23 +444,21 @@ def register_crm(app, bank, query, execute, page):
         if q:
             where.append("(nome ILIKE %s OR empresa ILIKE %s OR dados->>'email' ILIKE %s OR dados->>'celular' ILIKE %s)")
             params.extend(['%' + q + '%'] * 4)
-        if due in ('hoje', 'atrasados', 'sem_data'):
+        day = today()
+        if due in ('hoje', 'atrasados', 'proximos', 'sem_data'):
             where.append('etapa NOT IN (%s,%s)'); params.extend(CLOSED)
             if due == 'sem_data':
-                where.append('data_followup IS NULL')
+                where.append('next_day IS NULL')
             else:
-                where.append('data_followup ' + ('=' if due == 'hoje' else '<') + ' %s'); params.append(today())
-        day = today()
+                where.append('next_day ' + {'hoje':'=', 'atrasados':'<', 'proximos':'>'}[due] + ' %s')
+                params.append(day)
         with bank() as conn:
-            followup = query(conn, """SELECT COUNT(*) FILTER(WHERE data_followup < %s) overdue,
-                COUNT(*) FILTER(WHERE data_followup = %s) due,
-                COUNT(*) FILTER(WHERE data_followup IS NULL) undated
-                FROM crm_leads WHERE etapa NOT IN (%s,%s)""", (day, day, *CLOSED))[0]
+            followup = query(conn, AGENDA_COUNTS, (day, day, day, *CLOSED))[0]
             counts, rows = {}, []
             if history_open:
                 counts = {r['etapa']: r['n'] for r in query(conn, 'SELECT etapa, COUNT(*) n FROM crm_leads GROUP BY etapa')}
-                rows = query(conn, 'SELECT * FROM crm_leads WHERE ' + ' AND '.join(where)
-                             + ' ORDER BY data_followup ASC NULLS LAST, id DESC LIMIT 51 OFFSET %s', tuple(params + [(number-1)*50]))
+                rows = query(conn, AGENDA + ' SELECT * FROM agenda WHERE ' + ' AND '.join(where)
+                             + ' ORDER BY next_day ASC NULLS LAST, id DESC LIMIT 51 OFFSET %s', tuple(params + [(number-1)*50]))
         for row in rows:
             row['whatsapp'] = whatsapp(row['dados'].get('celular'))
         from urllib.parse import urlencode
@@ -442,13 +471,11 @@ def register_crm(app, bank, query, execute, page):
     def crm_summary():
         day = today()
         with bank() as conn:
-            counts = query(conn, """SELECT COUNT(*) FILTER(WHERE data_followup < %s) overdue,
-                COUNT(*) FILTER(WHERE data_followup = %s) due,
-                COUNT(*) FILTER(WHERE data_followup IS NULL) undated
-                FROM crm_leads WHERE etapa NOT IN (%s,%s)""", (day, day, *CLOSED))[0]
-            rows = query(conn, """SELECT id,nome,dados,data_followup FROM crm_leads
-                WHERE etapa NOT IN (%s,%s) AND data_followup <= %s
-                ORDER BY data_followup,id LIMIT 6""", (*CLOSED, day))
+            counts = query(conn, AGENDA_COUNTS, (day, day, day, *CLOSED))[0]
+            rows = query(conn, AGENDA + """ SELECT id,nome,dados,next_day AS data_followup,
+                       (meeting_day = next_day) AS is_meeting FROM agenda
+                WHERE etapa NOT IN (%s,%s) AND next_day <= %s
+                ORDER BY next_day,id LIMIT 6""", (*CLOSED, day))
         return render_template_string(SUMMARY, leads=rows, today=day, **counts)
 
     @app.route('/crm/novo', methods=['GET','POST'])
