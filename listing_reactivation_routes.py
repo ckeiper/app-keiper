@@ -2,8 +2,10 @@ import hmac
 import re
 import secrets
 import time
+import psycopg2
 from flask import request,session,redirect
 from sales_metrics import reporting_today
+from listing_interventions import record_reactivation
 from listing_tasks import validate,create
 from listing_reactivation import TITLE,load,render
 
@@ -28,17 +30,27 @@ def register_reactivation(app,login_required,can_view,bank,query,execute,shop_pa
             if not (resolve_token and request_get and request_put):
                 return 'Reativação indisponível nesta conexão.', 409
             from listing_reactivation_write import reactivate
-            with bank() as conn:
-                execute(conn, 'SELECT pg_advisory_xact_lock(hashtextextended(%s,0))',
-                        (f'reactivation:{cid}:{item_id}',))
-                shops = query(conn, 'SELECT * FROM conexoes WHERE id=%s AND status=%s',
-                              (cid, 'ativa'))
-                if not shops:
-                    return 'Conexão ativa indisponível para reativação.', 409
-                message, status = reactivate(
-                    resolve_token(shops[0]), shops[0].get('user_id'), item_id,
-                    request_get, request_put,
-                )
+            status = None
+            try:
+                with bank() as conn:
+                    execute(conn, 'SELECT pg_advisory_xact_lock(hashtextextended(%s,0))',
+                            (f'reactivation:{cid}:{item_id}',))
+                    shops = query(conn, 'SELECT * FROM conexoes WHERE id=%s AND status=%s',
+                                  (cid, 'ativa'))
+                    if not shops:
+                        return 'Conexão ativa indisponível para reativação.', 409
+                    message, status = reactivate(
+                        resolve_token(shops[0]), shops[0].get('user_id'), item_id,
+                        request_get, request_put,
+                    )
+                    if status == 200:
+                        record_reactivation(conn, execute, cid, item_id, session['usuario_id'],
+                                            int(time.time()), secrets.token_urlsafe(24))
+            except psycopg2.Error:
+                if status != 200:
+                    raise
+                app.logger.exception('Falha ao registrar reativação confirmada: loja=%s anúncio=%s', cid, item_id)
+                message += ' Falha ao salvar o registro no histórico.'
         elif request.method=='POST' and action in ('consultar_motivos','consultar_moderacao'):
             from listing_pause_reasons import inspect
             with bank() as conn:

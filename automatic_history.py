@@ -119,7 +119,7 @@ def detail_html(row):
 
 # Same history and comparison UI, with automatic entries always read-only.
 HISTORY = """(SELECT id,conexao_id,item_id,event_date,kind,note,created_at,void_at,
-    'manual'::text AS source,NULL::text AS field,NULL::bigint AS previous_at,
+    CASE WHEN dashboard_reactivation THEN 'reactivation' ELSE 'manual' END AS source,NULL::text AS field,NULL::bigint AS previous_at,
     NULL::jsonb AS before_value,NULL::jsonb AS after_value FROM listing_interventions
     UNION ALL SELECT id,conexao_id,item_id,event_date,kind,note,observed_at AS created_at,
     NULL::bigint AS void_at,'automatic'::text AS source,field,previous_at,before_value,after_value
