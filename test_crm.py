@@ -149,6 +149,48 @@ class CRMIntegrationTests(unittest.TestCase):
         with self.bank() as conn:
             return self.query(conn,'SELECT * FROM crm_leads WHERE id=%s',(lead_id,))[0]
 
+    def test_meet_ingests_once_without_browser_session_and_preserves_sales_stage(self):
+        from crm_meet import TOKEN_KEY
+        from web_security import install_security
+        import hashlib
+        lead_id=self.create(email='crm-meet@example.com',etapa='Em negociação',
+                            data_followup='2026-11-18',proxima_acao='Retomar')
+        token='A'*43
+        doc='documento_teste_meet_12345678'
+        data={'document_id':doc,'title':'Reuniao CRM - 2026/11/11 15:32 GMT-03:00 - Anotações do Gemini',
+              'text':'11 nov 2026\nReuniao CRM\nconvidado crm-meet@example.com\nTranscrição original preservada.'}
+        url='/crm/integracao/meet'
+        # Use a separate app to verify the full middleware plus the production handler.
+        app=Flask('meet_test');app.secret_key='isolated-meet-test-key'
+        install_security(app)
+        crm.register_crm(app,self.bank,self.query,self.execute,lambda title,body:body)
+        client=app.test_client()
+        self.assertEqual(client.post(url,json=data).status_code,401)
+        with self.bank() as conn:
+            self.execute(conn,'INSERT INTO crm_config(chave,valor) VALUES(%s,%s)',
+                         (TOKEN_KEY,hashlib.sha256(token.encode()).hexdigest()))
+        try:
+            headers={'Authorization':'Bearer '+token}
+            bad=dict(data,title=data['title'].replace('Reuniao','Consultoria'))
+            self.assertEqual(client.post(url,json=bad,headers=headers).status_code,422)
+            bad=dict(data,text=data['text'].replace('crm-meet@example.com','outro@example.com'))
+            self.assertEqual(client.post(url,json=bad,headers=headers).status_code,409)
+            self.assertEqual(client.post(url,json=data,headers=headers).json['status'],'imported')
+            self.assertEqual(client.post(url,json=data,headers=headers).json['status'],'already_imported')
+            lead=self.get_lead(lead_id)
+            self.assertEqual(lead['etapa'],'Em negociação')
+            self.assertEqual(lead['dados']['data_followup'],'2026-11-18')
+            self.assertEqual(lead['dados']['data_reuniao'],'2026-11-11')
+            with self.bank() as conn:
+                rows=self.query(conn,"SELECT transcricao,texto FROM crm_historico WHERE lead_id=%s AND tipo='Reunião importada'",(lead_id,))
+            self.assertEqual(len(rows),1)
+            self.assertEqual(rows[0]['transcricao'],data['text'])
+            self.assertIn(doc,rows[0]['texto'])
+        finally:
+            with self.bank() as conn:
+                self.execute(conn,'DELETE FROM crm_meet_imports WHERE document_id=%s',(doc,))
+                self.execute(conn,'DELETE FROM crm_config WHERE chave=%s',(TOKEN_KEY,))
+
     def test_access_control_csrf_and_escaping(self):
         anon=self.app.test_client()
         for url in ['/crm','/crm/resumo','/crm/novo','/crm/importar','/crm/configuracao','/crm/revisar/nope']:

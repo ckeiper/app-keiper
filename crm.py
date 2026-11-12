@@ -16,6 +16,7 @@ from xml.etree import ElementTree
 import requests
 from flask import abort, redirect, render_template_string, request, session
 from cryptography.fernet import Fernet, InvalidToken
+from crm_meet import TOKEN_KEY, register_meet_ingest
 
 STAGES = ('Novo', 'Reunião agendada', 'Reunião realizada', 'Proposta enviada',
           'Em negociação', 'Cliente fechado', 'Perdido')
@@ -48,6 +49,9 @@ def init_crm_schema(conn, execute):
         data_followup DATE, ultima_interacao TIMESTAMPTZ,
         versao INTEGER NOT NULL DEFAULT 1, criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+    execute(conn, """CREATE TABLE IF NOT EXISTS crm_meet_imports (
+        document_id TEXT PRIMARY KEY, lead_id BIGINT NOT NULL REFERENCES crm_leads(id),
+        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
     execute(conn, 'CREATE INDEX IF NOT EXISTS crm_leads_followup ON crm_leads(data_followup)')
     execute(conn, """CREATE TABLE IF NOT EXISTS crm_historico (
         id BIGSERIAL PRIMARY KEY, lead_id BIGINT NOT NULL REFERENCES crm_leads(id),
@@ -234,7 +238,7 @@ STYLE = """<style>
 .crm pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.crm summary{cursor:pointer}.crm button{cursor:pointer}.crm .badge{background:#eef2f6;border-radius:20px;padding:4px 10px;font-size:12px}
 @media(max-width:650px){.crm .grid{grid-template-columns:1fr}.crm .card{padding:15px}.crm .actions>*{max-width:100%}}
 </style>"""
-BASE = STYLE + """<main class="crm"><header><div><a href="/painel">← Página principal</a><h2>CRM · Leads e reuniões</h2><p class="muted">O próximo contato começa aqui.</p></div><div class="actions"><a class="btn-acoes" href="/crm/novo">+ Novo lead</a><a class="btn-acoes cinza" href="/crm/importar">Importar transcrição</a><a href="/crm/configuracao">Configurar IA</a></div></header>
+BASE = STYLE + """<main class="crm"><header><div><a href="/painel">← Página principal</a><h2>CRM · Leads e reuniões</h2><p class="muted">O próximo contato começa aqui.</p></div><div class="actions"><a class="btn-acoes" href="/crm/novo">+ Novo lead</a><a class="btn-acoes cinza" href="/crm/importar">Importar transcrição</a><a href="/crm/configuracao">Configurar IA</a><a href="/crm/integracao">Integração Google Meet</a></div></header>
 {% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
 """
 FORM = """<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="versao" value="{{ version }}">
@@ -314,6 +318,8 @@ def register_crm(app, bank, query, execute, page):
     def history(conn, lead_id, kind, text, transcript='', meeting_date=None):
         execute(conn, """INSERT INTO crm_historico(lead_id,tipo,texto,transcricao,data_reuniao)
             VALUES(%s,%s,%s,%s,%s)""", (lead_id, kind, text, transcript, meeting_date or None))
+
+    register_meet_ingest(app, bank, query, execute, history, today)
 
     def fernet():
         if not app.secret_key or app.secret_key == 'troque-esta-chave':
@@ -562,6 +568,34 @@ def register_crm(app, bank, query, execute, page):
                 (lead_id,lead['versao'],json.dumps(data,ensure_ascii=False),
                  request.form.get('resumo',draft['resumo'])[:8000],draft_id))
         return redirect('/crm/revisar/' + draft_id)
+
+    @app.route('/crm/integracao', methods=['GET', 'POST'])
+    @admin
+    def crm_meet_settings():
+        token = ''
+        with bank() as conn:
+            if request.method == 'POST':
+                if request.form.get('acao') == 'revogar':
+                    execute(conn, 'DELETE FROM crm_config WHERE chave=%s', (TOKEN_KEY,))
+                elif request.form.get('acao') == 'gerar':
+                    token = secrets.token_urlsafe(32)
+                    execute(conn, """INSERT INTO crm_config(chave,valor) VALUES (%s,%s)
+                        ON CONFLICT (chave) DO UPDATE SET valor=EXCLUDED.valor""",
+                        (TOKEN_KEY, hashlib.sha256(token.encode()).hexdigest()))
+                else:
+                    abort(400)
+            active = bool(query(conn, 'SELECT 1 FROM crm_config WHERE chave=%s', (TOKEN_KEY,)))
+            last = query(conn, 'SELECT MAX(criado_em) AS ts FROM crm_meet_imports')[0]['ts']
+        return render("""<div class="card"><h3>Importação automática do Google Meet</h3>
+            <p>{{ 'Chave gerada' if active else 'Sem chave' }} · {{ ('Última importação: ' + last.astimezone(tz).strftime('%d/%m/%Y %H:%M')) if last else 'Nenhuma importação automática registrada' }}</p>
+            <p>Autorize o script na sua conta Google profissional. Só são importadas reuniões de leads identificados pelo e-mail do convite.</p>
+            <p><a href="https://github.com/ckeiper/app-keiper/blob/main/scripts/crm-meet/README.md" target="_blank" rel="noopener">Configurar a coleta no Google</a></p>
+            {% if token %}<p>Copie a chave para a propriedade <code>KEIPER_CRM_TOKEN</code> do script. Ela só aparece agora.</p>
+            <input aria-label="Chave da integração" type="text" readonly value="{{ token }}" autocomplete="off">{% endif %}
+            <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+            <button class="btn-acoes" name="acao" value="gerar">{{ 'Substituir chave' if active else 'Gerar chave' }}</button>
+            {% if active %}<button class="btn-acoes cinza" name="acao" value="revogar">Revogar chave</button>{% endif %}</form></div></main>""",
+            token=token, active=active, last=last)
 
     @app.route('/crm/configuracao', methods=['GET','POST'])
     @admin

@@ -16,7 +16,9 @@ SAFE_METHODS = {'GET', 'HEAD', 'OPTIONS'}
 # These handlers already enforce a session-bound token before every write.
 SCOPED_CSRF = {'competitor_list', 'competitor_state', 'listing_interventions',
                'auditoria_frete', 'crm_edit', 'crm_contact', 'crm_import',
-               'crm_review', 'crm_link_draft', 'crm_settings', 'crm_reprocess'}
+               'crm_review', 'crm_link_draft', 'crm_settings', 'crm_reprocess', 'crm_meet_settings'}
+# Bearer-only machine endpoint: never authenticated by the browser session.
+MACHINE_ENDPOINTS = {'crm_meet_ingest'}
 
 
 def session_key():
@@ -95,6 +97,8 @@ def install_security(app):
 
     @app.before_request
     def browser_request_security():
+        if request.endpoint in MACHINE_ENDPOINTS:
+            return
         # Existing individually protected modules retain their own scoped tokens.
         scoped = request.endpoint in SCOPED_CSRF
         if request.method not in SAFE_METHODS:
