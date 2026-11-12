@@ -1,9 +1,14 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');const {chromium}=require('playwright');
 (async()=>{const b=await chromium.launch({headless:true});try{const p=await b.newPage();
-for(const mode of ['paused','active','stale','tasks','history','official','unknown','empty','error','moderation','moderation-empty','moderation-error','moderation-partial','account-allowed','account-blocked','account-unknown'])for(const width of [1440,390,320])for(const theme of ['dark','light']){
+for(const mode of ['paused','active','confirmed','stale','tasks','history','official','unknown','empty','error','moderation','moderation-empty','moderation-error','moderation-partial','account-allowed','account-blocked','account-unknown'])for(const width of [1440,390,320])for(const theme of ['dark','light']){
  await p.setViewportSize({width,height:900});await p.setContent(fs.readFileSync(`visual-qa/listing-reactivation-${mode}.html`,'utf8'));
  await p.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
  assert.equal(await p.locator('.rr-official button[value=consultar_motivos]').textContent(),'Consultar motivos atuais');
+ if(mode==='confirmed'){
+   assert.equal(await p.locator('.rr-source').count(),0);
+   assert.ok((await p.locator('.rr-result [role=status]').textContent()).includes('Status confirmado'));
+   assert.equal(await p.getByRole('link',{name:'Comparar antes e depois'}).getAttribute('href'),'/anuncios/1/MLB1/acoes?acao=91&origem=reactivation');
+ }
  if(mode==='official'){assert.ok((await p.locator('.rr-official').textContent()).includes('Falta de estoque'));assert.equal(await p.locator('.rr-official script').count(),0);}
  assert.equal(await p.locator('.rr-official button[value=consultar_moderacao]').textContent(),'Consultar motivos e moderação');
  if(mode==='moderation'){assert.ok((await p.locator('.rr-moderation').textContent()).includes('Confira o preço.'));assert.equal(await p.locator('.rr-moderation script').count(),0);}
