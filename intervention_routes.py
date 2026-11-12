@@ -12,6 +12,24 @@ from automatic_history import HISTORY, detail_html
 from listing_interventions import KINDS, BR, CSS, validate, load_comparison, comparison_html
 
 
+SOURCE_LABELS = {
+    'manual': 'Observação manual',
+    'automatic': 'Alteração detectada',
+    'reactivation': 'Reativação pelo Dashboard',
+}
+SOURCE_DETAILS = {
+    'manual': 'Data da ação informada pelo administrador.',
+    'automatic': 'Detecção automática nas coletas.',
+    'reactivation': 'Confirmação do status ativo pelo Mercado Livre.',
+}
+
+
+def action_label(row):
+    if row.get('source') == 'reactivation':
+        return 'Reativação'
+    return KINDS[row['kind']]
+
+
 def register_interventions(app, login_required, can_view, bank, query, execute, shop_page, today=reporting_today):
     @app.route('/anuncios/<int:cid>/<item_id>/acoes',methods=['GET','POST'])
     @login_required
@@ -46,7 +64,8 @@ def register_interventions(app, login_required, can_view, bank, query, execute, 
                         raise ValueError('Registro inválido.')
                     with bank() as conn:
                         changed=query(conn,'''UPDATE listing_interventions SET void_at=%s,void_by=%s
-                            WHERE id=%s AND conexao_id=%s AND item_id=%s AND void_at IS NULL RETURNING id''',
+                            WHERE id=%s AND conexao_id=%s AND item_id=%s AND void_at IS NULL
+                            AND NOT dashboard_reactivation RETURNING id''',
                             (int(time.time()),session['usuario_id'],action_id,cid,item_id))
                     if not changed:
                         return 'Registro não encontrado ou já desconsiderado.',404
@@ -84,7 +103,7 @@ def register_interventions(app, login_required, can_view, bank, query, execute, 
                 except ValueError:
                     return 'Registro inválido',400
                 origin=request.args.get('origem','manual')
-                if origin not in ('manual','automatic'):
+                if origin not in SOURCE_LABELS:
                     return 'Origem inválida',400
                 found=query(conn,'SELECT * FROM '+HISTORY+' WHERE id=%s AND conexao_id=%s AND item_id=%s AND source=%s',(selected_id,cid,item_id,origin))
                 if not found:
@@ -93,7 +112,7 @@ def register_interventions(app, login_required, can_view, bank, query, execute, 
             result=load_comparison(conn,query,cid,item_id,selected['event_date'],day,financial=admin and selected.get('kind')=='preco' and request.method=='GET') if selected and selected['void_at'] is None else None
         def hidden():
             return "<input type='hidden' name='csrf_token' value='"+escape(token,quote=True)+"'>"
-        body=CSS+"<div class='interventions'><header class='iv-head'><h2>Histórico automático do anúncio</h2><p>"+escape(stores[0]['titulo'] or item_id)+' · '+escape(item_id)+"</p><p>Alterações detectadas nas coletas, sem preencher formulários. A primeira leitura cria a referência; falhas e campos ausentes não geram alterações.</p><a class='iv-btn' href='/diagnostico/"+str(cid)+'/'+item_id+"'>Voltar ao diagnóstico</a></header>"
+        body=CSS+"<div class='interventions'><header class='iv-head'><h2>Histórico automático do anúncio</h2><p>"+escape(stores[0]['titulo'] or item_id)+' · '+escape(item_id)+"</p><p>Alterações detectadas nas coletas e ações realizadas pelo Dashboard.</p><a class='iv-btn' href='/diagnostico/"+str(cid)+'/'+item_id+"'>Voltar ao diagnóstico</a></header>"
         if message:
             body+="<p class='iv-status' role='status'>"+escape(message)+'</p>'
         if admin:
@@ -104,9 +123,9 @@ def register_interventions(app, login_required, can_view, bank, query, execute, 
             body+="<label>Data em que a ação foi feita<input name='event_date' type='date' required min='"+(day-timedelta(days=365)).isoformat()+"' max='"+day.isoformat()+"' value='"+escape(values.get('event_date') or day.isoformat(),quote=True)+"'></label>"
             body+="<label class='iv-wide'>O que foi alterado<textarea name='note' required minlength='10' maxlength='1500' placeholder='Ex.: foto principal substituída; descreva o que mudou e em qual variação.'>"+escape(values.get('note','')[:1500])+"</textarea></label><div class='iv-wide'><button class='iv-primary'>Registrar ação</button></div></form><p class='iv-meta'>Registro manual de uma ação já executada; este formulário não altera o anúncio no Mercado Livre. Horário de Brasília. Para corrigir, desconsidere o registro e crie outro.</p></details>"
         if selected:
-            body+="<section class='iv-card'><h3>"+('Alteração detectada · ' if selected.get('source')=='automatic' else 'Observação manual · ')+selected['event_date'].strftime('%d/%m/%Y')+'</h3><b>'+escape(KINDS[selected['kind']])+"</b><p class='iv-note'>"+escape(selected['note'])+'</p>'
+            body+="<section class='iv-card'><h3>"+SOURCE_LABELS[selected['source']]+' · '+selected['event_date'].strftime('%d/%m/%Y')+'</h3><b>'+escape(action_label(selected))+"</b><p class='iv-note'>"+escape(selected['note'])+'</p>'
             body+=detail_html(selected)
-            body+='<p class="iv-meta">Registrado em '+datetime.fromtimestamp(selected['created_at'],BR).strftime('%d/%m/%Y %H:%M')+('. Detecção automática nas coletas.' if selected.get('source')=='automatic' else '. Data da ação informada pelo administrador.')+'</p></section>'
+            body+='<p class="iv-meta">Registrado em '+datetime.fromtimestamp(selected['created_at'],BR).strftime('%d/%m/%Y %H:%M')+('. '+SOURCE_DETAILS[selected['source']])+'</p></section>'
             body+=comparison_html(result,selected) if result else "<p class='iv-status warn'>Registro desconsiderado. Ele permanece no histórico e não entra na comparação.</p>"
             if admin and result and 'financial' in result:
                 from profitability_action import render as render_financial
@@ -114,7 +133,7 @@ def register_interventions(app, login_required, can_view, bank, query, execute, 
 
         body+="<section aria-label='Histórico de ações'><h3>Histórico · %s registros</h3>" % total
         for row in rows:
-            body+="<article class='iv-card%s'><span class='iv-meta'>" % (' iv-void' if row['void_at'] is not None else '')+('Automático' if row.get('source')=='automatic' else 'Observação manual')+'</span><br><b>'+row['event_date'].strftime('%d/%m/%Y')+' · '+escape(KINDS[row['kind']])+"</b><p class='iv-note'>"+escape(row['note'])+'</p>'
+            body+="<article class='iv-card%s'><span class='iv-meta'>" % (' iv-void' if row['void_at'] is not None else '')+('Automático' if row['source']=='automatic' else SOURCE_LABELS[row['source']])+'</span><br><b>'+row['event_date'].strftime('%d/%m/%Y')+' · '+escape(action_label(row))+"</b><p class='iv-note'>"+escape(row['note'])+'</p>'
             body+=detail_html(row)
             if row['void_at'] is not None:
                 body+='<p class="iv-meta">Desconsiderado em '+datetime.fromtimestamp(row['void_at'],BR).strftime('%d/%m/%Y %H:%M')+'</p>'

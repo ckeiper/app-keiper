@@ -217,6 +217,27 @@ class InterventionDatabaseTests(unittest.TestCase):
         self.assertEqual(len(rows),1);self.assertIsNotNone(rows[0]['void_at'])
         self.assertIn('Registro desconsiderado',self.client.get(self.path+'?acao='+str(aid)).text)
 
+    def test_confirmed_reactivation_can_be_compared_and_cannot_be_voided(self):
+        import time
+        from listing_interventions import record_reactivation
+
+        with self.m.banco() as conn:
+            record_reactivation(conn, self.m.executar, self.cid, ITEM, 1,
+                                int(time.time()), 'confirmed-reactivation-key')
+            row = self.m.consultar(
+                conn, 'SELECT id FROM listing_interventions WHERE conexao_id=%s', (self.cid,),
+            )[0]
+
+        response = self.client.get(self.path + f"?acao={row['id']}&origem=reactivation")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Reativação pelo Dashboard', response.text)
+        self.assertIn('Pausado → Ativo', response.text)
+        self.assertIn('Aguardando os 7 dias seguintes', response.text)
+        void = self.client.post(self.path, data=dict(
+            operation='void', action_id=row['id'], csrf_token='test-csrf',
+        ))
+        self.assertEqual(void.status_code, 404)
+
     def test_bounded_reads_preserve_timezone_invalid_dates_and_pending_gates(self):
         day=DAY
         start,end=day-timedelta(days=7),day+timedelta(days=14)

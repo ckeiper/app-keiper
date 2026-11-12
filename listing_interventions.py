@@ -24,8 +24,19 @@ def init_schema(conn, execute):
         submission_key VARCHAR(64) NOT NULL,
         void_at BIGINT, void_by INTEGER,
         UNIQUE(conexao_id,submission_key))''')
+    execute(conn, '''ALTER TABLE listing_interventions
+        ADD COLUMN IF NOT EXISTS dashboard_reactivation BOOLEAN NOT NULL DEFAULT FALSE''')
     execute(conn, '''CREATE INDEX IF NOT EXISTS listing_interventions_item_date
         ON listing_interventions(conexao_id,item_id,event_date DESC,id DESC)''')
+
+
+def record_reactivation(conn, execute, cid, item_id, actor, confirmed_at, key):
+    execute(conn, """INSERT INTO listing_interventions
+        (conexao_id,item_id,event_date,kind,note,created_at,created_by,submission_key,dashboard_reactivation)
+        VALUES(%s,%s,%s,'outro',%s,%s,%s,%s,TRUE)""",
+        (cid, item_id, datetime.fromtimestamp(confirmed_at, BR).date(),
+         'Pausado → Ativo. Status confirmado no Mercado Livre.',
+         confirmed_at, actor, key))
 
 
 def validate(form, today):
