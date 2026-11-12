@@ -60,7 +60,7 @@ class ReactivationWriteTests(unittest.TestCase):
         get = Mock(side_effect=[response({'id': 7}), item(), item('active')])
         put = Mock(return_value=response({}))
         data = [[fixture()['shop']], [{'n': 0}], [], []]
-        query = Mock(side_effect=data + data + [[{'user_id': 7}]])
+        query = Mock(side_effect=data + data + [[{'user_id': 7}], [{'id': 91}]])
         execute = Mock()
         register_reactivation(
             app, lambda f: f, lambda cid: cid == 7, lambda: contextlib.nullcontext(None),
@@ -78,7 +78,9 @@ class ReactivationWriteTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertIn('Status confirmado', result.get_data(as_text=True))
         put.assert_called_once()
-        sql, params = execute.call_args.args[1:]
+        self.assertIn('/acoes?acao=91&amp;origem=reactivation', result.text)
+        self.assertNotIn('Status observado: Pausado', result.text)
+        sql, params = query.call_args.args[1:]
         self.assertIn('INSERT INTO listing_interventions', sql)
         self.assertEqual(params[:2], (7, 'MLB1'))
         self.assertEqual(params[-2], 1)
@@ -101,4 +103,5 @@ class ReactivationWriteTests(unittest.TestCase):
             '_csrf': 'csrf', 'action': 'reativar_anuncio', 'confirmar_reativacao': 'sim',
         })
         self.assertEqual(result.status_code, 409)
-        self.assertFalse(any('INSERT' in call.args[1] for call in execute.call_args_list))
+        self.assertFalse(any('INSERT' in call.args[1] for call in query.call_args_list))
+        self.assertNotIn('Comparar antes e depois', result.text)

@@ -23,6 +23,8 @@ def register_reactivation(app,login_required,can_view,bank,query,execute,shop_pa
             data=load(conn,query,cid,item_id,request.args)
         if data is None:return 'Anúncio não encontrado nesta loja.',404
         values={};message='';status=200;official=None
+        confirmed = False
+        history_id = None
         action = request.form.get('action')
         if request.method == 'POST' and action == 'reativar_anuncio':
             if request.form.get('confirmar_reativacao') != 'sim':
@@ -44,12 +46,16 @@ def register_reactivation(app,login_required,can_view,bank,query,execute,shop_pa
                         request_get, request_put,
                     )
                     if status == 200:
-                        record_reactivation(conn, execute, cid, item_id, session['usuario_id'],
-                                            int(time.time()), secrets.token_urlsafe(24))
+                        confirmed = True
+                        history_id = record_reactivation(
+                            conn, query, cid, item_id, session['usuario_id'],
+                            int(time.time()), secrets.token_urlsafe(24),
+                        )
             except psycopg2.Error:
                 if status != 200:
                     raise
                 app.logger.exception('Falha ao registrar reativação confirmada: loja=%s anúncio=%s', cid, item_id)
+                history_id = None
                 message += ' Falha ao salvar o registro no histórico.'
         elif request.method=='POST' and action in ('consultar_motivos','consultar_moderacao'):
             from listing_pause_reasons import inspect
@@ -66,4 +72,9 @@ def register_reactivation(app,login_required,can_view,bank,query,execute,shop_pa
                 with bank() as conn:tid=create(conn,query,execute,cid,item_id,task,session['usuario_id'])
                 return redirect(f'/anuncios/{cid}/{item_id}/tarefas?status=all&tarefa={tid}#lt-historico',code=303)
             except ValueError as exc:message,status=str(exc),400
-        return shop_page('Revisão de reativação',cid,data['shop']['cliente'],'anuncios',render(cid,item_id,data,today(),int(time.time()),token,values,message,official,can_reactivate=bool(request_put and request_get and resolve_token))),status
+        body = render(
+            cid, item_id, data, today(), int(time.time()), token, values, message, official,
+            can_reactivate=bool(request_put and request_get and resolve_token),
+            confirmed=confirmed, history_id=history_id,
+        )
+        return shop_page('Revisão de reativação', cid, data['shop']['cliente'], 'anuncios', body), status

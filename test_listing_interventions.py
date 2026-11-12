@@ -222,19 +222,16 @@ class InterventionDatabaseTests(unittest.TestCase):
         from listing_interventions import record_reactivation
 
         with self.m.banco() as conn:
-            record_reactivation(conn, self.m.executar, self.cid, ITEM, 1,
-                                int(time.time()), 'confirmed-reactivation-key')
-            row = self.m.consultar(
-                conn, 'SELECT id FROM listing_interventions WHERE conexao_id=%s', (self.cid,),
-            )[0]
+            action_id = record_reactivation(conn, self.m.consultar, self.cid, ITEM, 1,
+                                            int(time.time()), 'confirmed-reactivation-key')
 
-        response = self.client.get(self.path + f"?acao={row['id']}&origem=reactivation")
+        response = self.client.get(self.path + f"?acao={action_id}&origem=reactivation")
         self.assertEqual(response.status_code, 200)
         self.assertIn('Reativação pelo Dashboard', response.text)
         self.assertIn('Pausado → Ativo', response.text)
         self.assertIn('Aguardando os 7 dias seguintes', response.text)
         void = self.client.post(self.path, data=dict(
-            operation='void', action_id=row['id'], csrf_token='test-csrf',
+            operation='void', action_id=action_id, csrf_token='test-csrf',
         ))
         self.assertEqual(void.status_code, 404)
 

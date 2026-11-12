@@ -17,7 +17,7 @@ class ReactivationTests(unittest.TestCase):
  def test_status_stale_zero_and_no_eligibility_claim(self):
     d=fixture();text=render(7,'MLB1',d,DAY,NOW,'token')
     self.assertIn('Status observado: Pausado',text);self.assertIn('Estoque geral observado: 0',text)
-    self.assertIn('nem prova que a oferta está elegível',text);self.assertNotIn('checked',text)
+    self.assertIn('Entenda os dados da coleta',text);self.assertNotIn('checked',text)
     d['shop']['atualizado_em']=1;text=render(7,'MLB1',d,DAY,NOW,'token')
     self.assertIn('Status observado: Não verificado',text);self.assertIn('Estoque geral observado: não verificado',text)
  def test_escape_and_observed_history_and_task_independence(self):

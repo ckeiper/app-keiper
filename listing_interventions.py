@@ -30,13 +30,14 @@ def init_schema(conn, execute):
         ON listing_interventions(conexao_id,item_id,event_date DESC,id DESC)''')
 
 
-def record_reactivation(conn, execute, cid, item_id, actor, confirmed_at, key):
-    execute(conn, """INSERT INTO listing_interventions
+def record_reactivation(conn, query, cid, item_id, actor, confirmed_at, key):
+    rows = query(conn, """INSERT INTO listing_interventions
         (conexao_id,item_id,event_date,kind,note,created_at,created_by,submission_key,dashboard_reactivation)
-        VALUES(%s,%s,%s,'outro',%s,%s,%s,%s,TRUE)""",
+        VALUES(%s,%s,%s,'outro',%s,%s,%s,%s,TRUE) RETURNING id""",
         (cid, item_id, datetime.fromtimestamp(confirmed_at, BR).date(),
          'Pausado → Ativo. Status confirmado no Mercado Livre.',
          confirmed_at, actor, key))
+    return rows[0]['id']
 
 
 def validate(form, today):
