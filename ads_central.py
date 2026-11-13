@@ -12,6 +12,14 @@ def metric(v, suffix=""):
     return "—" if v is None else f"{v:.2f}".replace(".", ",") + suffix
 
 STYLE = """<style>
+/* Central Ads is a dark-only dashboard surface; scope the page shell as well. */
+html body:has(.ka-central){background:#09192d!important;color:#edf5ff!important;color-scheme:dark!important}
+html body:has(.ka-central) > .wrap{background:#09192d!important;color:#edf5ff!important;max-width:1600px}
+html body:has(.ka-central) .ka-central{color:#edf5ff!important}
+html body:has(.ka-central) .ka-head h2{color:#edf5ff!important}
+html body:has(.ka-central) .ka-head .ka-muted{color:#91a7c5!important}
+html[data-theme=light] body:has(.ka-central){background:#09192d!important;color:#edf5ff!important}
+
 .ka-central{--ink:#edf5ff;--muted:#91a7c5;--line:#284366;--surface:#10243e;--surface2:#152d4b;max-width:1510px;margin:0 auto;color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
 .ka-central *{box-sizing:border-box}.ka-central .ka-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;padding:14px 0 20px}
 .ka-head h2{font-size:clamp(25px,2.5vw,34px);font-weight:850;letter-spacing:-1.2px;margin:0;color:var(--ink)}
