@@ -638,7 +638,7 @@
       "area": "Diagnóstico",
       "capacidade": "Comparação antes e depois de ações",
       "estado": "concluida",
-      "implementado": "Janelas encerradas equivalentes, vendas, visitas e contribuição quando documentada; sem atribuição causal.",
+      "implementado": "Janelas encerradas equivalentes, vendas, visitas e contribuição quando documentada; sem atribuição causal. Comparação sem rolagem lateral no celular, variação de valor bruto com sinal e cor, ajuda contextual e identificação da reativação confirmada pelo Mercado Livre.",
       "falta": "",
       "fontes": [
         "listing_interventions.py",
@@ -647,7 +647,8 @@
       ],
       "testes": [
         "test_listing_interventions.py",
-        "test_profitability_action.py"
+        "test_profitability_action.py",
+        "scripts/interventions_browser_check.cjs"
       ],
       "prs": [
         173,
@@ -656,7 +657,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-11-13"
     },
     {
       "id": "indice-estabilidade",
@@ -2316,6 +2317,17 @@
       "base": "frentes_auditadas",
       "data": "2026-11-12",
       "resumo": "Confirmação de reativação com atalho para comparar períodos no evento correspondente.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1
+      },
+      "total": 44
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-13",
+      "resumo": "Comparação antes e depois legível sem rolagem lateral no celular, com variações destacadas e identificação da reativação confirmada.",
       "contagens": {
         "concluida": 26,
         "parcial": 17,

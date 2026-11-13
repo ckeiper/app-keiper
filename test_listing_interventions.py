@@ -111,6 +111,16 @@ class InterventionMetricsTests(unittest.TestCase):
         self.assertIn('sem atribuir causalidade',output)
         self.assertIn('12/10/2026',output)
 
+    def test_comparison_labels_marketplace_confirmed_reactivation(self):
+        result = compare(ITEM, DAY, *sample(), TODAY)
+        result['other_actions'] = 0
+        output = comparison_html(result, dict(event_date=DAY, source='reactivation'))
+        self.assertIn('Antes e depois da reativação', output)
+        self.assertIn('Status ativo confirmado pelo Mercado Livre', output)
+        self.assertIn('iv-change-up', output)
+        self.assertIn('Como funciona a comparação', output)
+        self.assertNotIn('Registro manual', output)
+
 
 class InterventionRouteTests(unittest.TestCase):
     def setUp(self):

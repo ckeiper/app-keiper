@@ -29,12 +29,15 @@ const {chromium}=require('playwright');
 
   await Promise.all([page.waitForURL(u=>u.searchParams.get('pagina')==='2'),page.getByRole('link',{name:'Próxima',exact:true}).click()]);
   assert.equal(await page.locator('[aria-label="Histórico de ações"] article').count(),2);
-  await page.setViewportSize({width:390,height:844});
-  await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth+1);
-  assert.ok(await page.locator('.iv-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
-  await page.locator('.iv-scroll').evaluate(el=>{el.scrollLeft=el.scrollWidth;});
-  assert.ok(await page.locator('.iv-scroll').evaluate(el=>el.scrollLeft>0));
-  await page.locator('.iv-scroll').evaluate(el=>{el.scrollLeft=0;});
+  for(const width of [390,320]) {
+   await page.setViewportSize({width,height:844});
+   await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth+1);
+   assert.ok(await page.locator('.iv-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+   const headings=await page.locator('.iv-scroll thead th').evaluateAll(cells=>
+    cells.map(cell=>({text:cell.textContent,width:cell.getBoundingClientRect().width})));
+   assert.deepEqual(headings.slice(1).map(cell=>cell.text),['7 dias anteriores','7 dias seguintes']);
+   assert.ok(headings.every(cell=>cell.width>0));
+  }
   await page.screenshot({path:'visual-qa/interventions-mobile.png',fullPage:true});
   await page.goto('http://127.0.0.1:'+server.address().port+'/anuncios/1/MLB100/acoes?vazio=1');
   assert.ok(await page.getByText('Ainda não há alterações detectadas. O histórico será preenchido automaticamente pelas próximas coletas; a primeira leitura é a referência.',{exact:true}).isVisible());
