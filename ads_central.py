@@ -101,7 +101,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             issue = ""
             if r["dias_observados"] and gasto>0 and fat==0:
                 issue="Gasto sem vendas atribuídas"
-            elif r["dias_observados"] and target>0 and fat>0 and fat/gasto<target:
+            elif r["dias_observados"] and target>0 and gasto>0 and fat>0 and fat/gasto<target:
                 issue="ROAS abaixo do objetivo"
             elif days==1 and budget>0 and gasto>=budget:
                 issue="Gasto atingiu o orçamento cadastrado"
