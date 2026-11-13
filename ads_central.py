@@ -116,11 +116,8 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                     "</td><td>"+(money(gasto) if observed else "—")+"</td><td>"+(money(fat) if observed else "—")+"</td><td>"+metric(a,"%")+
                     "</td><td>"+e(issue or r["status"] or "—")+"</td></tr>")
         table_head="<thead><tr><th>Cliente</th><th>Campanha</th><th>Investimento</th><th>Vendas Ads</th><th>ACOS</th><th>Situação</th></tr></thead>"
-        if admin:
-            table = ("<section class='ka-panel'><h3>Todas as campanhas</h3><div class='ka-scroll'><table class='ka-table'>"+
+        table = ("<section class='ka-panel'><h3>Todas as campanhas</h3><div class='ka-scroll'><table class='ka-table'>"+
                      table_head+"<tbody>"+ "".join(row(r) for r in campaigns)+"</tbody></table></div></section>")
-        else:
-            table=""
         alert_rows="".join(row(r,issue) for r,issue in alerts)
         alert_section=("<section class='ka-panel'><h3>Campanhas que precisam de atenção ("+str(len(alerts))+
                        ")</h3>"+("<div class='ka-scroll'><table class='ka-table'>"+table_head+
