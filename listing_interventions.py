@@ -119,20 +119,30 @@ def load_comparison(conn, query, cid, item_id, action_day, today, financial=Fals
 
 
 CSS = """<style>
-.interventions{color:#253a56;min-width:0;max-width:100%}.interventions .iv-head{padding:24px;background:linear-gradient(115deg,#1b304f,#306779);border-radius:16px;color:#fff;margin-bottom:18px}.iv-head h2{color:#fff;margin:0 0 10px}.iv-head p{font-size:12px;line-height:1.6;color:#d8e7f0}.interventions a.iv-btn,.interventions button{display:inline-block;text-decoration:none;border:1px solid #d4dfed;border-radius:8px;background:#fff;color:#2d5180;padding:9px 12px;font-size:12px;cursor:pointer}.interventions button.iv-primary{background:#3458c8;color:#fff;border-color:#3458c8}.iv-form{display:grid;grid-template-columns:1fr 1fr;gap:13px}.iv-form label{display:grid;gap:6px;font-size:12px;min-width:0}.iv-form .iv-wide{grid-column:1/-1}.iv-form input,.iv-form select,.iv-form textarea{box-sizing:border-box;width:100%;padding:10px;border:1px solid #d6e0ec;border-radius:8px;font:inherit;min-width:0}.iv-form textarea{min-height:95px;resize:vertical}.iv-card{border:1px solid #dde6f0;background:#fff;border-radius:13px;padding:19px;margin:13px 0;min-width:0;overflow-wrap:anywhere}.iv-note{white-space:pre-wrap;font-size:13px;line-height:1.6}.iv-meta{font-size:11px;color:#6b7e95;line-height:1.65}.iv-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.iv-scroll{overflow-x:auto;max-width:100%}.iv-table{width:100%;min-width:440px;border-collapse:collapse;font-size:12px}.iv-table th,.iv-table td{padding:10px;text-align:left;border-bottom:1px solid #e6edf5}.iv-status{padding:12px;border-radius:9px;background:#edf4ff;font-size:12px;line-height:1.6}.iv-status.warn{background:#fff3df;color:#865c25}.iv-card h3{margin:0 0 12px;font-size:16px}.iv-void{opacity:.7}.iv-scroll-hint{font-size:11px;color:#6b7e95}@media(max-width:600px){.iv-form{grid-template-columns:1fr}.iv-head,.iv-card{padding:15px}}
+.interventions{color:#253a56;min-width:0;max-width:100%}.interventions .iv-head{padding:24px;background:linear-gradient(115deg,#1b304f,#306779);border-radius:16px;color:#fff;margin-bottom:18px}.iv-head h2{color:#fff;margin:0 0 10px}.iv-head p{font-size:12px;line-height:1.6;color:#d8e7f0}.interventions a.iv-btn,.interventions button{display:inline-block;text-decoration:none;border:1px solid #d4dfed;border-radius:8px;background:#fff;color:#2d5180;padding:9px 12px;font-size:12px;cursor:pointer}.interventions button.iv-primary{background:#3458c8;color:#fff;border-color:#3458c8}.iv-form{display:grid;grid-template-columns:1fr 1fr;gap:13px}.iv-form label{display:grid;gap:6px;font-size:12px;min-width:0}.iv-form .iv-wide{grid-column:1/-1}.iv-form input,.iv-form select,.iv-form textarea{box-sizing:border-box;width:100%;padding:10px;border:1px solid #d6e0ec;border-radius:8px;font:inherit;min-width:0}.iv-form textarea{min-height:95px;resize:vertical}.iv-card{border:1px solid #dde6f0;background:#fff;border-radius:13px;padding:19px;margin:13px 0;min-width:0;overflow-wrap:anywhere}.iv-note{white-space:pre-wrap;font-size:13px;line-height:1.6}.iv-meta{font-size:11px;color:#6b7e95;line-height:1.65}.iv-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.iv-scroll{overflow-x:auto;max-width:100%}.iv-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px}.iv-table th,.iv-table td{padding:10px;overflow-wrap:anywhere;text-align:left;border-bottom:1px solid #e6edf5}.iv-status{padding:12px;border-radius:9px;background:#edf4ff;font-size:12px;line-height:1.6}.iv-status.warn{background:#fff3df;color:#865c25}.iv-card h3{margin:0 0 12px;font-size:16px}.iv-void{opacity:.7}.iv-table th:first-child{width:34%}.iv-change-up{color:#166534}.iv-change-down{color:#b91c1c}.iv-help summary{cursor:pointer;width:fit-content;font-weight:700}@media(max-width:600px){.iv-form{grid-template-columns:1fr}.iv-head,.iv-card{padding:12px}.iv-table th,.iv-table td{padding:7px 4px}}
 </style>"""
 
 
 def comparison_html(result, record):
-    out="<section class='iv-card' aria-label='Comparação da ação'><h3>"+('Antes e depois da detecção' if record.get('source')=='automatic' else 'Antes e depois da ação informada')+'</h3>'
+    source = record.get('source')
+    title, source_note = {
+        'reactivation': ('Antes e depois da reativação', 'Status ativo confirmado pelo Mercado Livre.'),
+        'automatic': ('Antes e depois da detecção', 'A data indica quando a coleta detectou a alteração.'),
+    }.get(source, ('Antes e depois da ação informada', 'Registro manual; não confirma execução no Mercado Livre.'))
+    out = "<section class='iv-card' aria-label='Comparação da ação'><h3>" + title + '</h3>'
     if not result['ready']:
         out+="<p class='iv-status warn'>Aguardando os 7 dias seguintes encerrados: %s/7 completos.</p>" % result['closed_after']
     if result['delta'] is not None:
-        out+="<p class='iv-status'>Variação do valor bruto dos itens: <b>"+money(result['delta'],True)+'</b>'
-        out+=' · '+(('%+.1f%%' % result['percent']).replace('.',',') if result['percent'] is not None else 'sem base percentual anterior')+'</p>'
+        delta = result['delta']
+        color = 'iv-change-up' if delta > 0 else 'iv-change-down' if delta < 0 else ''
+        percent = result['percent']
+        formatted_percent = 'sem base percentual anterior' if percent is None else (
+            ('%+.1f%%' if percent else '%.1f%%') % percent).replace('.', ',')
+        out += ("<p class='iv-status'>Variação do valor bruto dos itens: <b class='" + color + "'>"
+                + '<span>' + money(delta, True) + '</span> · ' + formatted_percent + '</b></p>')
     else:
         out+="<p class='iv-meta'>Variação de vendas indisponível até que ambos os períodos tenham dias encerrados e vendas verificadas.</p>"
-    out+="<p class='iv-scroll-hint'>Deslize a tabela no celular para conferir os dois períodos.</p><div class='iv-scroll'><table class='iv-table'><thead><tr><th>Indicador</th><th>7 dias anteriores</th><th>7 dias seguintes</th></tr></thead><tbody>"
+    out+="<div class='iv-scroll'><table class='iv-table'><thead><tr><th>Indicador</th><th>7 dias anteriores</th><th>7 dias seguintes</th></tr></thead><tbody>"
     before,after=result['periods']
     out+='<tr><th>Datas</th>'+''.join('<td>'+p['start'].strftime('%d/%m')+' a '+p['end'].strftime('%d/%m/%Y')+'</td>' for p in (before,after))+'</tr>'
     for label,key,kind in [('Pedidos pagos','orders','count'),('Unidades','units','count'),('Valor bruto dos itens','gross_items','money'),('Visitas','visits','count'),('Pedidos ÷ visitas','ratio','percent')]:
@@ -148,11 +158,10 @@ def comparison_html(result, record):
         if p['sales']['reason']:
             out+=' Vendas: '+escape(p['sales']['reason'])
         out+='</p>'
-    source_note=('Data da detecção automática, não horário exato da alteração.' if record.get('source')=='automatic' else 'Registro manual; não confirma execução no Mercado Livre.')
-    out+='<p class="iv-meta">O dia '+record['event_date'].strftime('%d/%m/%Y')+' fica fora da comparação. '+source_note+' Valor bruto dos itens deste anúncio, sem rateio de frete, taxas ou cupons. Pedidos/visitas não é a conversão oficial.</p>'
     if result['other_actions']:
         out+="<p class='iv-status warn'>%s outro(s) registro(s) de ações ou alterações neste intervalo. Os resultados se sobrepõem.</p>" % result['other_actions']
-    out+='<p class="iv-meta">Comparação observacional, sem atribuir causalidade à ação. Demanda, sazonalidade, concorrência e alterações não registradas também podem explicar a variação.</p></section>'
+    out+='<details class="iv-help"><summary aria-label="Como funciona a comparação">?</summary><p class="iv-meta">O dia '+record['event_date'].strftime('%d/%m/%Y')+' fica fora da comparação. '+source_note+' Valor bruto dos itens deste anúncio, sem rateio de frete, taxas ou cupons. Pedidos/visitas não é a conversão oficial.</p>'
+    out+='<p class="iv-meta">Comparação observacional, sem atribuir causalidade à ação. Demanda, sazonalidade, concorrência e alterações não registradas também podem explicar a variação.</p></details></section>'
     if result.get('followup'):
         from intervention_followup import render as render_followup
         out += render_followup(result['followup'])
