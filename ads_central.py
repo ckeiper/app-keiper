@@ -144,7 +144,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             observed=bool(r["dias_observados"])
             a=100*gasto/fat if observed and fat>0 else None
             budget=float(r["orcamento"] or 0)
-            used=100*float(r["gasto_hoje"] or 0)/budget if budget>0 else None
+            used=100*float(r.get("gasto_hoje") or 0)/budget if budget>0 else None
             budget_cell=("<strong style="+chr(34)+("color:#fb7185" if used>75 else "color:inherit")+chr(34)+">"+metric(used,"%")+"</strong>" if used is not None else "—")
             return ("<tr><td>"+hidden_name(r["cliente"])+"</td><td>"+hidden_name(r["nome"] or r["campanha_id"])+
                     "</td><td>"+(money(gasto) if observed else "—")+"</td><td>"+(money(fat) if observed else "—")+"</td><td>"+metric(a,"%")+"</td><td>"+budget_cell+
