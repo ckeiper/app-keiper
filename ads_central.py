@@ -51,6 +51,24 @@ STYLE = """<style>
 .ka-alert-details{margin-top:16px}.ka-alert-details summary{cursor:pointer;color:#93c5fd}
 @media(max-width:950px){.ka-overview{grid-template-columns:1fr}.ka-alert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .ka-central{max-width:1540px}.ka-kpi{background:linear-gradient(145deg,#1b3557,#101e34);border-radius:17px;padding:22px;box-shadow:0 8px 25px #0b142b25}.ka-kpi strong{font-size:clamp(22px,2.5vw,34px);font-weight:800}.ka-kpi .ka-muted{font-size:13px;font-weight:600}.ka-panel{background:linear-gradient(155deg,#192f4e,#101f36);border-radius:17px;padding:22px}.ka-panel h3{font-size:18px;font-weight:750}.ka-table th{text-transform:uppercase;letter-spacing:.05em}.ka-table tbody tr:hover{background:#ffffff10}.ka-table td{padding:13px 11px}.ka-alert-tile{min-height:80px;display:flex;flex-direction:column;justify-content:space-between;transition:transform .15s}.ka-alert-tile:hover{transform:translateY(-2px)}.ka-donut{width:190px;height:190px}.ka-donut-center{width:137px;height:137px}.ka-head h2{font-size:29px;font-weight:800}@media(max-width:760px){.ka-panel{padding:14px}.ka-kpi{padding:14px}.ka-kpi strong{font-size:21px}}.ka-campaign-filters{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:16px}.ka-campaign-filters select{background:#142b48;border:1px solid #3a5476;color:#e2e8f0;border-radius:9px;padding:10px;min-width:130px}.ka-campaign-filters input{background:#142b48;color:#e2e8f0;flex:1;min-width:190px}.ka-campaign-filters .ka-muted{margin-left:auto;color:#b5c6dc}.ka-table-footer{text-align:center;margin-top:14px}.ka-table-footer button{background:#1d4ed8;color:white;border:0;border-radius:9px;padding:10px 18px;cursor:pointer}.ka-table-footer button[hidden]{display:none}
+.ka-kpi{position:relative;border:1px solid #38577d;background:linear-gradient(145deg,#203e64,#10223b);padding:22px 20px;min-height:106px}
+.ka-kpi:after{content:"";position:absolute;right:20px;top:20px;width:8px;height:8px;border-radius:50%;background:#60a5fa;box-shadow:0 0 18px #60a5fa80}
+.ka-kpi:nth-child(2):after{background:#22d3ee}.ka-kpi:nth-child(3):after{background:#34d399}.ka-kpi:nth-child(4):after{background:#fbbf24}
+.ka-panel{border:1px solid #365274;background:linear-gradient(150deg,#1b3555,#101f36)}
+.ka-alert-tile{background:linear-gradient(135deg,#203d5f,#152943)}
+.ka-story-button{background:linear-gradient(120deg,#2563eb,#1d4ed8)!important;color:#fff!important;border-color:#60a5fa!important;font-weight:700}
+.ka-story{width:min(100%,520px);max-width:520px;margin:0 auto;background:radial-gradient(circle at 90% 0%,#1e4780 0%,transparent 37%),linear-gradient(170deg,#0d1b31,#091426);padding:26px 20px 34px;border:1px solid #2e4e78;border-radius:24px;box-shadow:0 20px 70px #0005;min-height:900px;color:#fff}
+.ka-story .ka-head{display:block;text-align:center;padding:20px 0 18px;margin:0}.ka-story .ka-head h2{color:#fff;font-size:30px}.ka-story .ka-head .ka-muted{color:#9fb9df}
+.ka-story .ka-head .ka-action{display:inline-block;margin:14px 4px 0;font-size:11px}.ka-story .ka-tabs{justify-content:center;margin-bottom:18px}
+.ka-story .ka-tabs a{background:#203856;color:#cbd5e1;border-color:#365577;padding:7px 12px}.ka-story .ka-tabs a[aria-current=page]{background:#2563eb;color:#fff}
+.ka-story .ka-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}.ka-story .ka-kpi{padding:16px 13px;min-height:100px;border-radius:14px}
+.ka-story .ka-kpi strong{font-size:clamp(18px,4vw,26px);overflow-wrap:anywhere}.ka-story .ka-overview{display:block}
+.ka-story .ka-panel{padding:18px 14px;margin-top:12px;border-radius:16px}.ka-story .ka-overview .ka-panel{margin-top:12px}
+.ka-story .ka-chart{min-width:0;width:100%;height:auto}.ka-story .ka-chart-scroll{overflow:hidden}
+.ka-story .ka-donut{width:150px;height:150px;margin:8px auto}.ka-story .ka-donut-center{width:108px;height:108px}
+.ka-story .ka-alert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ka-story .ka-alert-tile{min-height:64px;padding:10px}.ka-story .ka-alert-tile strong{font-size:19px}
+.ka-story .ka-alert-details,.ka-story #ka-campaign-table,.ka-story .ka-campaign-filters,.ka-story .ka-table-footer{display:none}.ka-story .ka-panel:has(#ka-campaign-table){display:none}
+@media(max-width:600px){.ka-story{padding:18px 12px;border-radius:14px;min-height:0}.ka-story .ka-kpi strong{font-size:19px}}
 </style>"""
 
 FILTER_SCRIPT = "<script>\n(function(){\nconst table=document.getElementById('ka-campaign-table');if(!table)return;\nconst body=table.tBodies[0],rows=Array.from(body.rows),search=document.getElementById('ka-campaign-search'),store=document.getElementById('ka-store-filter'),status=document.getElementById('ka-status-filter'),order=document.getElementById('ka-order-filter'),count=document.getElementById('ka-campaign-count'),more=document.getElementById('ka-more-campaigns');\nlet limit=30;\nfunction num(t){return Number((t||'').replace(/[^0-9,.-]/g,'').replace(/\\./g,'').replace(',','.'))||0}\nfunction classify(t){t=(t||'').toLowerCase();if(['active','ativa','ativo'].includes(t))return'active';if(['paused','pausada','pausado'].includes(t))return'paused';return'other'}\nfunction update(){\nconst q=search.value.trim().toLocaleLowerCase('pt-BR'),v=store?store.value:'',st=status.value,sort=order.value;\nconst filtered=rows.filter(r=>(!q||r.cells[1].textContent.toLocaleLowerCase('pt-BR').includes(q))&&(!v||r.cells[0].textContent===v)&&(!st||classify(r.cells[5].textContent)===st));\nfiltered.sort((a,b)=>sort==='name'?a.cells[1].textContent.localeCompare(b.cells[1].textContent,'pt-BR'):num(b.cells[sort==='spend'?2:sort==='acos'?4:3].textContent)-num(a.cells[sort==='spend'?2:sort==='acos'?4:3].textContent));\nrows.forEach(r=>r.remove());filtered.slice(0,limit).forEach(r=>body.appendChild(r));\ncount.textContent=filtered.length+' campanhas';more.hidden=filtered.length<=limit;\n}\n[search,store,status,order].filter(Boolean).forEach(el=>el.addEventListener(el===search?'input':'change',()=>{limit=30;update()}));\nmore.addEventListener('click',()=>{limit+=30;update()});update();\n})();\n</script>"
@@ -79,7 +97,8 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         admin = session.get("tipo") == "admin"
         days = request.args.get("periodo", "7")
         days = int(days) if days in ("1", "7", "15", "30") else 7
-        presenting = admin and request.args.get("apresentacao") == "1"
+        story = admin and request.args.get("stories") == "1"
+        presenting = admin and (request.args.get("apresentacao") == "1" or story)
         cid = session.get("conexao_id")
         if not admin and not isinstance(cid, int):
             return pagina("Central de Ads", "<p>Conta não vinculada.</p>"), 403
@@ -162,12 +181,15 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         paused = sum(str(r["status"] or "").lower() in ("paused","pausada","pausado") for r in campaigns)
         total = len(campaigns)
         donut = ("<section class='ka-panel'><h3>Situação das campanhas</h3><div class='ka-donut' style='--active:"+str(round(100*active/total,2) if total else 0)+"%;--paused:"+str(round(100*(active+paused)/total,2) if total else 0)+"%'><div class='ka-donut-center'>"+str(total)+"</div></div><div class='ka-donut-key'><span>Ativas</span><strong>"+str(active)+"</strong></div><div class='ka-donut-key'><span>Pausadas</span><strong>"+str(paused)+"</strong></div><div class='ka-donut-key'><span>Outras</span><strong>"+str(total-active-paused)+"</strong></div></section>")
+        story_link = ("<a class='ka-action ka-story-button' href='/central-ads?periodo="+str(days)+
+                      ("" if story else "&amp;stories=1")+"'>"+
+                      ("Voltar ao painel" if story else "✦ Visual para Stories")+"</a>") if admin else ""
         present_link=("<a class='ka-action' href='/central-ads?periodo="+str(days)+
                       ("" if presenting else "&amp;apresentacao=1")+"'>"+
                       ("Desativar apresentação" if presenting else "Modo apresentação")+"</a>") if admin else ""
         dates=set(str(r["data"]) for r in daily)
         coverage=f"{len(dates)} de {days} dias com dados consolidados"
-        body=(STYLE+"<main class='ka-central"+(" ka-present" if presenting else "")+"'>"+
+        body=(STYLE+"<main class='ka-central"+(" ka-present" if presenting else "")+(" ka-story" if story else "")+"'>"+
               "<div class='ka-head'><div><h2>Central de Ads</h2><span class='ka-muted'>"+
               ("Visão da carteira" if admin else "Sua performance de publicidade")+
               "</span></div>"+present_link+"</div><nav class='ka-tabs'>"+periods+"</nav>"+
