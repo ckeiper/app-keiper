@@ -1245,6 +1245,20 @@
       "numero_original": 90,
       "prioridade": 100,
       "atualizado_em": "2026-10-25"
+    },
+    {
+      "id": "central-ads-consumo-diario",
+      "area": "Monitoramento",
+      "capacidade": "Consumo diário e evolução das campanhas na Central de Ads",
+      "estado": "em_andamento",
+      "implementado": "Barra de consumo diário com destaque acima de 75%, ordenação pelo percentual e gráfico com datas dia/mês e leitura de vendas e investimento por dia via mouse e teclado.",
+      "falta": "Confirmar os checks da revisão final e a publicação no Render.",
+      "fontes": ["ads_central.py"],
+      "testes": ["test_ads_central.py"],
+      "prs": [442],
+      "numero_original": null,
+      "prioridade": 9,
+      "atualizado_em": "2026-11-13"
     }
   ],
   "meta_original": 90,
@@ -2334,6 +2348,18 @@
         "pendente": 1
       },
       "total": 44
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-13",
+      "resumo": "Central de Ads: leitura do consumo do orçamento diário, ordenação pelo consumo e valores diários no gráfico.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1,
+        "em_andamento": 1
+      },
+      "total": 45
     }
   ],
   "publicacoes": [
