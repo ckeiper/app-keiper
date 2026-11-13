@@ -103,11 +103,13 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                 issue="Gasto sem vendas atribuídas"
             elif r["dias_observados"] and target>0 and gasto>0 and fat>0 and fat/gasto<target:
                 issue="ROAS abaixo do objetivo"
-            elif days==1 and budget>0 and gasto>=budget:
+            elif days==1 and r["dias_observados"] and budget>0 and gasto>=budget:
                 issue="Gasto atingiu o orçamento cadastrado"
             if issue: alerts.append((r,issue))
         def hidden_name(name):
-            return f"<span class='ka-private-name'>{e(name)}</span><span class='ka-private' aria-label='Nome oculto'></span>"
+            if presenting:
+                return "<span class='ka-private' aria-label='Nome oculto'></span>"
+            return f"<span class='ka-private-name'>{e(name)}</span>"
         def row(r,issue=""):
             gasto=float(r["gasto"] or 0); fat=float(r["faturamento"] or 0)
             observed=bool(r["dias_observados"])
