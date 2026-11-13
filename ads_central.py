@@ -31,20 +31,43 @@ STYLE = """<style>
 .ka-present .ka-private-name{display:none}.ka-present .ka-private{display:inline-block}
 .ka-private{display:none}.ka-alert{padding:12px 0;border-bottom:1px solid #64748b25}
 @media(max-width:760px){.ka-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ka-kpi{padding:12px}.ka-head h2{font-size:21px}}
+
+.ka-central{color:#eaf2ff}.ka-head h2{color:#14243c}.ka-head .ka-muted{color:#52647a}
+.ka-tabs a,.ka-action{color:#253b58;background:#fff}.ka-tabs a[aria-current=page]{color:#fff}
+.ka-kpi,.ka-panel{background:#12243d;color:#f1f5f9;border:1px solid #2c4668;box-shadow:0 8px 20px #0f172a12}
+.ka-kpi .ka-muted,.ka-panel .ka-muted{color:#b5c6dc;opacity:1}
+.ka-table td{color:#e2e8f0}.ka-table th{background:#253c59;color:#cbd5e1;opacity:1}
+.ka-chart{width:100%;height:auto;min-width:540px}.ka-chart-scroll{overflow-x:auto}
+.ka-legend{display:flex;gap:16px;color:#93c5fd;font-size:12px;margin-bottom:8px}.ka-legend span+span{color:#22d3ee}
+.ka-overview{display:grid;grid-template-columns:minmax(0,2fr) minmax(240px,1fr);gap:14px}
+.ka-overview .ka-panel{margin-top:14px}
+.ka-donut{width:165px;height:165px;border-radius:50%;margin:18px auto;display:grid;place-items:center;background:conic-gradient(#34d399 0 var(--active),#fbbf24 var(--active) var(--paused),#64748b var(--paused) 100%)}
+.ka-donut-center{width:115px;height:115px;border-radius:50%;background:#12243d;display:grid;place-items:center;text-align:center;font-size:24px;font-weight:bold}
+.ka-donut-key{display:flex;justify-content:space-between;border-bottom:1px solid #ffffff1b;padding:9px 0;font-size:13px}
+.ka-alert-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.ka-alert-tile{padding:13px;background:#1d324f;border-radius:10px;border-left:3px solid #fb7185;color:white;text-decoration:none}
+.ka-alert-tile:nth-child(2){border-color:#fbbf24}.ka-alert-tile:nth-child(3){border-color:#60a5fa}.ka-alert-tile:nth-child(4){border-color:#c084fc}
+.ka-alert-tile strong{display:block;font-size:23px}.ka-alert-tile span{font-size:12px}
+.ka-alert-details{margin-top:16px}.ka-alert-details summary{cursor:pointer;color:#93c5fd}
+@media(max-width:950px){.ka-overview{grid-template-columns:1fr}.ka-alert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 </style>"""
 
 def chart(rows):
     if not rows:
-        return "<p class='ka-muted'>Sem histórico disponível no período.</p>"
-    values = [float(r["faturamento"] or 0) for r in rows]
-    maximum = max(values) or 1
-    count = len(values)
-    points = " ".join(f"{20+i*760/max(1,count-1):.1f},{170-145*v/maximum:.1f}" for i,v in enumerate(values))
-    return ("<svg class='ka-chart' viewBox='0 0 800 190' role='img' aria-label='Evolução diária de vendas atribuídas aos Ads'>"
-            "<path d='M20 170 H780' stroke='#64748b' opacity='.35'/>"
-            f"<polyline points='{points}' fill='none' stroke='#38bdf8' stroke-width='3' stroke-linejoin='round' stroke-linecap='round'/>"
-            f"<text x='20' y='185' fill='currentColor' font-size='12'>{e(rows[0]['data'])}</text>"
-            f"<text x='700' y='185' fill='currentColor' font-size='12'>{e(rows[-1]['data'])}</text></svg>")
+        return "<p class='ka-muted'>Sem histórico disponível.</p>"
+    sales=[float(r["faturamento"] or 0) for r in rows]
+    spent=[float(r["gasto"] or 0) for r in rows]
+    top=max(sales+spent) or 1
+    def x(i): return 78+740*i/max(1,len(rows)-1)
+    def y(v): return 212-180*v/top
+    def coords(vals): return " ".join(f"{x(i):.1f},{y(v):.1f}" for i,v in enumerate(vals))
+    grid="".join(f"<line x1='78' x2='818' y1='{y(top*i/4):.1f}' y2='{y(top*i/4):.1f}' stroke='#66809f' opacity='.25'/><text x='70' y='{y(top*i/4)+4:.1f}' text-anchor='end' fill='#a8bdd6' font-size='12'>{e(money(top*i/4))}</text>" for i in range(5))
+    labels="".join(f"<text x='{x(i):.1f}' y='240' text-anchor='middle' fill='#a8bdd6' font-size='12'>{e(str(r['data'])[5:])}</text>" for i,r in enumerate(rows) if len(rows)<=12 or i in (0,len(rows)-1) or i%max(1,len(rows)//6)==0)
+    dots="".join(f"<circle cx='{x(i):.1f}' cy='{y(v):.1f}' r='4' fill='#3b82f6'><title>{e(rows[i]['data'])}: Vendas {e(money(v))}; Investimento {e(money(spent[i]))}</title></circle>" for i,v in enumerate(sales))
+    return ("<div class='ka-legend'><span>● Vendas Ads</span><span>● Investimento</span></div><div class='ka-chart-scroll'><svg class='ka-chart' viewBox='0 0 850 255' role='img' aria-label='Vendas e investimento por dia'><defs><linearGradient id='ads-fill' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#3b82f6' stop-opacity='.34'/><stop offset='100%' stop-color='#3b82f6' stop-opacity='0'/></linearGradient></defs>"+grid+labels+
+            f"<polygon points='78,212 {coords(sales)} {x(len(rows)-1):.1f},212' fill='url(#ads-fill)'/>"+
+            f"<polyline points='{coords(sales)}' fill='none' stroke='#3b82f6' stroke-width='3.5'/>"+
+            f"<polyline points='{coords(spent)}' fill='none' stroke='#22d3ee' stroke-width='2.8'/>"+dots+"</svg></div>")
 
 def register_ads_central(app, login_required, banco, consultar, pagina):
     @app.route("/central-ads")
@@ -121,10 +144,15 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         table = ("<section class='ka-panel'><h3>Campanhas</h3><div class='ka-scroll'><table class='ka-table'>"+
                  table_head+"<tbody>"+ "".join(row(r) for r in campaigns)+"</tbody></table></div></section>")
         alert_rows="".join(row(r,issue) for r,issue in alerts)
-        alert_section=("<section class='ka-panel'><h3>Campanhas que precisam de atenção ("+str(len(alerts))+
-                       ")</h3>"+("<div class='ka-scroll'><table class='ka-table'>"+table_head+
-                       "<tbody>"+alert_rows+"</tbody></table></div>" if alerts else
-                       "<p class='ka-muted'>Nenhum alerta identificado nos dados disponíveis.</p>")+"</section>")
+        counts = [sum(1 for r,issue in alerts if issue == label) for label in ("Gasto atingiu o orçamento cadastrado","ROAS abaixo do objetivo","Gasto sem vendas atribuídas")]
+        labels = ("Orçamento atingido","Consumo ≥95%","ROAS abaixo da meta","Gasto sem vendas")
+        nums = (str(counts[0]),"—",str(counts[1]),str(counts[2]))
+        tiles = "".join("<a class='ka-alert-tile' href='#alert-details'><span>"+label+"</span><strong>"+value+"</strong></a>" for label,value in zip(labels,nums))
+        alert_section = ("<section class='ka-panel'><h3>Alertas prioritários</h3><div class='ka-alert-grid'>"+tiles+"</div><details class='ka-alert-details' id='alert-details'><summary>Ver campanhas que precisam de atenção ("+str(len(alerts))+")</summary>"+("<div class='ka-scroll'><table class='ka-table'>"+table_head+"<tbody>"+alert_rows+"</tbody></table></div>" if alerts else "<p>Sem alertas.</p>")+"</details></section>")
+        active = sum(str(r["status"] or "").lower() in ("active","ativa","ativo") for r in campaigns)
+        paused = sum(str(r["status"] or "").lower() in ("paused","pausada","pausado") for r in campaigns)
+        total = len(campaigns)
+        donut = ("<section class='ka-panel'><h3>Situação das campanhas</h3><div class='ka-donut' style='--active:"+str(round(100*active/total,2) if total else 0)+"%;--paused:"+str(round(100*(active+paused)/total,2) if total else 0)+"%'><div class='ka-donut-center'>"+str(total)+"</div></div><div class='ka-donut-key'><span>Ativas</span><strong>"+str(active)+"</strong></div><div class='ka-donut-key'><span>Pausadas</span><strong>"+str(paused)+"</strong></div><div class='ka-donut-key'><span>Outras</span><strong>"+str(total-active-paused)+"</strong></div></section>")
         present_link=("<a class='ka-action' href='/central-ads?periodo="+str(days)+
                       ("" if presenting else "&amp;apresentacao=1")+"'>"+
                       ("Desativar apresentação" if presenting else "Modo apresentação")+"</a>") if admin else ""
@@ -135,7 +163,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
               ("Visão da carteira" if admin else "Sua performance de publicidade")+
               "</span></div>"+present_link+"</div><nav class='ka-tabs'>"+periods+"</nav>"+
               "<div class='ka-kpis'>"+cards+"</div>"+
-              "<section class='ka-panel'><h3>Evolução das vendas Ads</h3>"+chart(daily)+
+              "<div class='ka-overview'><section class='ka-panel'><h3>Evolução de vendas e investimento</h3>"+chart(daily)+
               "<p class='ka-muted'>"+coverage+" · Dados históricos armazenados; podem ter defasagem.</p></section>"+
-              alert_section+table+"</main>")
+              donut+"</div>"+alert_section+table+"</main>")
         return pagina("Central de Ads",body)
