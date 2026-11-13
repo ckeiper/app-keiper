@@ -5760,6 +5760,9 @@ register_image_diagnostic(app, login_required, pode_ver_loja, banco, consultar, 
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
                     is_updating=lambda cid: cid in ATUALIZANDO)
 
+from ads_central import register_ads_central
+register_ads_central(app, login_required, banco, consultar, pagina)
+
 from section_refresh import register as register_section_refresh
 register_section_refresh(app, login_required, pode_ver_loja, banco, consultar, executar, coletar_secao)
 

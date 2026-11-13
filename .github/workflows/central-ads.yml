@@ -1,0 +1,26 @@
+name: Central Ads checks
+on:
+  pull_request:
+    paths:
+      - 'ads_central.py'
+      - 'test_ads_central.py'
+      - 'main.py'
+      - 'home_sidebar.py'
+      - '.github/workflows/central-ads.yml'
+  push:
+    branches:
+      - feature/central-ads-black-friday
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Flask for isolated route tests
+        run: python -m pip install Flask
+      - name: Compile changed Python modules
+        run: python -m py_compile ads_central.py main.py home_sidebar.py test_ads_central.py
+      - name: Test access and presentation privacy
+        run: python -m unittest -v test_ads_central.py
