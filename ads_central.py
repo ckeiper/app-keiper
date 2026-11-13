@@ -43,7 +43,17 @@ STYLE = """<style>
 .ka-search,.ka-campaign-filters select{background:#0e2037;border:1px solid #385375;border-radius:10px;color:#e8f3ff;padding:11px 12px;min-height:40px;font-size:12px}
 .ka-search{min-width:210px;flex:1}.ka-campaign-filters select{min-width:125px}.ka-campaign-filters .ka-muted{margin-left:auto}
 .ka-table-footer{text-align:center;padding-top:14px}.ka-table-footer button{border:1px solid #3972cd;border-radius:9px;background:#2055b8;color:#fff;padding:10px 20px;cursor:pointer;font-weight:700}.ka-table-footer button[hidden]{display:none}
-.ka-budget-danger{color:#ff667b!important;font-weight:850}.ka-private{display:none;width:125px;height:14px;background:#fff;border-radius:2px}.ka-present .ka-private{display:inline-block}.ka-present .ka-private-name{display:none}
+.ka-budget{display:grid;grid-template-columns:minmax(64px,1fr) auto;align-items:center;gap:10px;color:#80b6ff;font-variant-numeric:tabular-nums}
+.ka-budget strong{text-align:right;min-width:7ch}.ka-budget-danger{color:#ff8b9d}
+.ka-budget meter{appearance:none;width:100%;height:9px;border:0;border-radius:9px;background:#304866}
+.ka-budget meter::-webkit-meter-bar{background:#304866;border:0;border-radius:9px}
+.ka-budget meter::-webkit-meter-optimum-value{background:currentColor;border-radius:9px}
+.ka-budget meter::-moz-meter-bar{background:currentColor;border-radius:9px}
+.ka-budget meter{color:inherit}
+.ka-chart-day line{opacity:0;stroke:#adc8eb;stroke-dasharray:4 4;pointer-events:none}
+.ka-chart-day.ka-chart-current line,.ka-chart-day:focus-visible line{opacity:1}
+.ka-chart-readout{min-height:2.6em;padding:4px 0;color:#edf5ff;font-size:12px;font-variant-numeric:tabular-nums}
+.ka-private{display:none;width:125px;height:14px;background:#fff;border-radius:2px}.ka-present .ka-private{display:inline-block}.ka-present .ka-private-name{display:none}
 .ka-story-button{background:linear-gradient(120deg,#2563eb,#1649b8);color:white;border-color:#4f8bff}
 .ka-story{max-width:520px;width:min(100%,520px);margin:auto;padding:24px 18px;background:radial-gradient(circle at 80% 0%,#204e86,transparent 40%),#09182c;border:1px solid #35567f;border-radius:22px;min-height:900px}
 .ka-story .ka-head{display:block;text-align:center}.ka-story .ka-head h2{color:#fff}.ka-story .ka-head .ka-action{margin:12px 4px 0}
@@ -54,7 +64,43 @@ STYLE = """<style>
 @media(max-width:1050px){.ka-overview{grid-template-columns:1fr}.ka-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.ka-central{padding:0 2px}.ka-head h2{font-size:25px}.ka-panel{padding:15px}.ka-kpi{min-height:110px;padding:15px}.ka-kpi strong{font-size:21px;margin-top:17px}.ka-alert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ka-alert-tile{min-height:82px;padding:12px}.ka-chart{min-width:480px}.ka-story .ka-chart{min-width:0}.ka-story{min-height:0;padding:14px 10px}}
 </style>"""
-FILTER_SCRIPT = "<script>\n(function(){\nconst table=document.getElementById('ka-campaign-table');if(!table)return;\nconst body=table.tBodies[0],rows=Array.from(body.rows),search=document.getElementById('ka-campaign-search'),store=document.getElementById('ka-store-filter'),status=document.getElementById('ka-status-filter'),order=document.getElementById('ka-order-filter'),count=document.getElementById('ka-campaign-count'),more=document.getElementById('ka-more-campaigns');\nlet limit=30;\nfunction num(t){return Number((t||'').replace(/[^0-9,.-]/g,'').replace(/\\./g,'').replace(',','.'))||0}\nfunction classify(t){t=(t||'').toLowerCase();if(['active','ativa','ativo'].includes(t))return'active';if(['paused','pausada','pausado'].includes(t))return'paused';return'other'}\nfunction update(){\nconst q=search.value.trim().toLocaleLowerCase('pt-BR'),v=store?store.value:'',st=status.value,sort=order.value;\nconst filtered=rows.filter(r=>(!q||r.cells[1].textContent.toLocaleLowerCase('pt-BR').includes(q))&&(!v||r.cells[0].textContent===v)&&(!st||classify(r.cells[6].textContent)===st));\nfiltered.sort((a,b)=>sort==='name'?a.cells[1].textContent.localeCompare(b.cells[1].textContent,'pt-BR'):num(b.cells[sort==='spend'?2:sort==='acos'?4:3].textContent)-num(a.cells[sort==='spend'?2:sort==='acos'?4:3].textContent));\nrows.forEach(r=>r.remove());filtered.slice(0,limit).forEach(r=>body.appendChild(r));\ncount.textContent=filtered.length+' campanhas';more.hidden=filtered.length<=limit;\n}\n[search,store,status,order].filter(Boolean).forEach(el=>el.addEventListener(el===search?'input':'change',()=>{limit=30;update()}));\nmore.addEventListener('click',()=>{limit+=30;update()});update();\n})();\n</script>"
+FILTER_SCRIPT = "<script>\n(function(){\nconst table=document.getElementById('ka-campaign-table');if(!table)return;\nconst body=table.tBodies[0],rows=Array.from(body.rows),search=document.getElementById('ka-campaign-search'),store=document.getElementById('ka-store-filter'),status=document.getElementById('ka-status-filter'),order=document.getElementById('ka-order-filter'),count=document.getElementById('ka-campaign-count'),more=document.getElementById('ka-more-campaigns');\nlet limit=30;\nfunction num(t){return Number((t||'').replace(/[^0-9,.-]/g,'').replace(/\\./g,'').replace(',','.'))||0}\nfunction classify(t){t=(t||'').toLowerCase();if(['active','ativa','ativo'].includes(t))return'active';if(['paused','pausada','pausado'].includes(t))return'paused';return'other'}\nfunction update(){\nconst q=search.value.trim().toLocaleLowerCase('pt-BR'),v=store?store.value:'',st=status.value,sort=order.value;\nconst filtered=rows.filter(r=>(!q||r.cells[1].textContent.toLocaleLowerCase('pt-BR').includes(q))&&(!v||r.cells[0].textContent===v)&&(!st||classify(r.cells[6].textContent)===st));\nfunction budgetOrder(a,b){\nconst first=a.querySelector('[data-budget-used]'),second=b.querySelector('[data-budget-used]');\nif(!first||!second)return Number(Boolean(second))-Number(Boolean(first));\nconst diff=Number(first.dataset.budgetUsed)-Number(second.dataset.budgetUsed);\nreturn sort==='budget-asc'?diff:-diff;\n}\nfiltered.sort((a,b)=>sort.startsWith('budget-')?budgetOrder(a,b):sort==='name'?a.cells[1].textContent.localeCompare(b.cells[1].textContent,'pt-BR'):num(b.cells[sort==='spend'?2:sort==='acos'?4:3].textContent)-num(a.cells[sort==='spend'?2:sort==='acos'?4:3].textContent));\nrows.forEach(r=>r.remove());filtered.slice(0,limit).forEach(r=>body.appendChild(r));\ncount.textContent=filtered.length+' campanhas';more.hidden=filtered.length<=limit;\n}\n[search,store,status,order].filter(Boolean).forEach(el=>el.addEventListener(el===search?'input':'change',()=>{limit=30;update()}));\nmore.addEventListener('click',()=>{limit+=30;update()});update();\n})();\n</script>"
+
+def budget_indicator(used):
+    if used is None:
+        return "<span aria-label='Orçamento diário indisponível'>—</span>"
+    value = metric(used, "%")
+    level = min(100, max(0, used))
+    danger = " ka-budget-danger" if used > 75 else ""
+    return (
+        f"<span class='ka-budget{danger}' data-budget-used='{used}'>"
+        f"<meter min='0' max='100' value='{level}' aria-label='Orçamento diário consumido' "
+        f"aria-valuetext='{value}'></meter><strong aria-hidden='true'>{value}</strong></span>"
+    )
+
+CHART_SCRIPT = """<script>
+(function () {
+    const chart = document.querySelector('.ka-chart');
+    if (!chart) return;
+    const readout = document.getElementById('ka-chart-readout');
+    const days = Array.from(chart.querySelectorAll('.ka-chart-day'));
+    function show(day) {
+        readout.textContent = day ? day.getAttribute('aria-label') : '';
+        days.forEach(point => point.classList.toggle('ka-chart-current', point === day));
+    }
+    days.forEach(day => {
+        day.addEventListener('pointerenter', () => show(day));
+        day.addEventListener('focus', () => show(day));
+        day.addEventListener('blur', () => show(null));
+        day.addEventListener('keydown', event => {
+            if (event.key === 'Escape') show(null);
+        });
+    });
+    chart.addEventListener('pointerleave', () => {
+        show(days.includes(document.activeElement) ? document.activeElement : null);
+    });
+})();
+</script>"""
 
 def chart(rows):
     if not rows:
@@ -66,12 +112,24 @@ def chart(rows):
     def y(v): return 212-180*v/top
     def coords(vals): return " ".join(f"{x(i):.1f},{y(v):.1f}" for i,v in enumerate(vals))
     grid="".join(f"<line x1='78' x2='818' y1='{y(top*i/4):.1f}' y2='{y(top*i/4):.1f}' stroke='#66809f' opacity='.25'/><text x='70' y='{y(top*i/4)+4:.1f}' text-anchor='end' fill='#a8bdd6' font-size='12'>{e(money(top*i/4))}</text>" for i in range(5))
-    labels="".join(f"<text x='{x(i):.1f}' y='240' text-anchor='middle' fill='#a8bdd6' font-size='12'>{e(str(r['data'])[5:])}</text>" for i,r in enumerate(rows) if len(rows)<=12 or i in (0,len(rows)-1) or i%max(1,len(rows)//6)==0)
-    dots="".join(f"<circle cx='{x(i):.1f}' cy='{y(v):.1f}' r='4' fill='#3b82f6'><title>{e(rows[i]['data'])}: Vendas {e(money(v))}; Investimento {e(money(spent[i]))}</title></circle>" for i,v in enumerate(sales))
-    return ("<div class='ka-legend'><span>● Vendas Ads</span><span>● Investimento</span></div><div class='ka-chart-scroll'><svg class='ka-chart' viewBox='0 0 850 255' role='img' aria-label='Vendas e investimento por dia'><defs><linearGradient id='ads-fill' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#3b82f6' stop-opacity='.34'/><stop offset='100%' stop-color='#3b82f6' stop-opacity='0'/></linearGradient></defs>"+grid+labels+
+    dates = [f"{str(r['data'])[8:10]}/{str(r['data'])[5:7]}" for r in rows]
+    labels="".join(f"<text x='{x(i):.1f}' y='240' text-anchor='middle' fill='#a8bdd6' font-size='12'>{e(dates[i])}</text>" for i,r in enumerate(rows) if len(rows)<=12 or i in (0,len(rows)-1) or i%max(1,len(rows)//6)==0)
+    dots = "".join(f"<circle cx='{x(i):.1f}' cy='{y(v):.1f}' r='4' fill='#3b82f6'/>" for i,v in enumerate(sales))
+    targets = []
+    for i, day in enumerate(dates):
+        left = (x(i - 1) + x(i)) / 2 if i else 55
+        right = (x(i) + x(i + 1)) / 2 if i + 1 < len(rows) else 842
+        details = e(f"{day} · Vendas Ads {money(sales[i])} · Investimento {money(spent[i])}")
+        targets.append(
+            f"<g class='ka-chart-day' tabindex='0' role='img' aria-label='{details}'>"
+            f"<rect x='{left:.2f}' y='20' width='{right-left:.2f}' height='226' fill='transparent'/>"
+            f"<line x1='{x(i):.1f}' x2='{x(i):.1f}' y1='28' y2='212'/></g>"
+        )
+    return ("<div class='ka-legend'><span>● Vendas Ads</span><span>● Investimento</span></div><div class='ka-chart-scroll'><svg class='ka-chart' viewBox='0 0 850 255' role='group' aria-label='Vendas e investimento por dia'><defs><linearGradient id='ads-fill' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#3b82f6' stop-opacity='.34'/><stop offset='100%' stop-color='#3b82f6' stop-opacity='0'/></linearGradient></defs>"+grid+labels+
             f"<polygon points='78,212 {coords(sales)} {x(len(rows)-1):.1f},212' fill='url(#ads-fill)'/>"+
             f"<polyline points='{coords(sales)}' fill='none' stroke='#3b82f6' stroke-width='3.5'/>"+
-            f"<polyline points='{coords(spent)}' fill='none' stroke='#22d3ee' stroke-width='2.8'/>"+dots+"</svg></div>")
+            f"<polyline points='{coords(spent)}' fill='none' stroke='#22d3ee' stroke-width='2.8'/>"+dots+"".join(targets)+
+            "</svg></div><div id='ka-chart-readout' class='ka-chart-readout'></div>"+CHART_SCRIPT)
 
 def register_ads_central(app, login_required, banco, consultar, pagina):
     @app.route("/central-ads")
@@ -145,7 +203,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             a=100*gasto/fat if observed and fat>0 else None
             budget=float(r["orcamento"] or 0)
             used=100*float(r.get("gasto_hoje") or 0)/budget if budget>0 else None
-            budget_cell=("<strong style="+chr(34)+("color:#fb7185" if used>75 else "color:inherit")+chr(34)+">"+metric(used,"%")+"</strong>" if used is not None else "—")
+            budget_cell=budget_indicator(used)
             return ("<tr><td>"+hidden_name(r["cliente"])+"</td><td>"+hidden_name(r["nome"] or r["campanha_id"])+
                     "</td><td>"+(money(gasto) if observed else "—")+"</td><td>"+(money(fat) if observed else "—")+"</td><td>"+metric(a,"%")+"</td><td>"+budget_cell+
                     "</td><td>"+e(issue or r["status"] or "—")+"</td></tr>")
@@ -154,7 +212,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         filters = ("<div class='ka-campaign-filters'><input id='ka-campaign-search' class='ka-search' type='search' placeholder='Buscar campanha...' aria-label='Buscar campanha'>"
                    +("<select id='ka-store-filter' aria-label='Filtrar loja'><option value=''>Todas as lojas</option>"+store_options+"</select>" if store_options else "")
                    +"<select id='ka-status-filter' aria-label='Filtrar status'><option value=''>Todos os status</option><option value='active'>Ativas</option><option value='paused'>Pausadas</option><option value='other'>Outros</option></select>"
-                   +"<select id='ka-order-filter' aria-label='Ordenar campanhas'><option value='sales'>Maiores vendas</option><option value='spend'>Maior investimento</option><option value='acos'>Maior ACOS</option><option value='name'>Nome A–Z</option></select>"
+                   +"<select id='ka-order-filter' aria-label='Ordenar campanhas'><option value='sales'>Maiores vendas</option><option value='spend'>Maior investimento</option><option value='acos'>Maior ACOS</option><option value='name'>Nome A–Z</option><option value='budget-desc'>Maior orçamento consumido (%)</option><option value='budget-asc'>Menor orçamento consumido (%)</option></select>"
                    +"<span id='ka-campaign-count' class='ka-muted'></span></div>")
         table = ("<section class='ka-panel'><h3>Desempenho por campanha</h3>"+filters+"<div class='ka-scroll'><table class='ka-table' id='ka-campaign-table'>"+
                  table_head+"<tbody>"+ "".join(row(r) for r in campaigns)+"</tbody></table></div><div class='ka-table-footer'><button type='button' id='ka-more-campaigns'>Mostrar mais</button></div></section>")
