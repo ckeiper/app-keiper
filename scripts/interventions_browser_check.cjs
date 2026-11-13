@@ -33,8 +33,10 @@ const {chromium}=require('playwright');
    await page.setViewportSize({width,height:844});
    await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth+1);
    assert.ok(await page.locator('.iv-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
-   assert.ok(await page.getByRole('columnheader',{name:'7 dias anteriores'}).isVisible());
-   assert.ok(await page.getByRole('columnheader',{name:'7 dias seguintes'}).isVisible());
+   const headings=await page.locator('.iv-scroll thead th').evaluateAll(cells=>
+    cells.map(cell=>({text:cell.textContent,width:cell.getBoundingClientRect().width})));
+   assert.deepEqual(headings.slice(1).map(cell=>cell.text),['7 dias anteriores','7 dias seguintes']);
+   assert.ok(headings.every(cell=>cell.width>0));
   }
   await page.screenshot({path:'visual-qa/interventions-mobile.png',fullPage:true});
   await page.goto('http://127.0.0.1:'+server.address().port+'/anuncios/1/MLB100/acoes?vazio=1');

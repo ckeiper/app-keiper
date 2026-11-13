@@ -142,7 +142,7 @@ def comparison_html(result, record):
                 + '<span>' + money(delta, True) + '</span> · ' + formatted_percent + '</b></p>')
     else:
         out+="<p class='iv-meta'>Variação de vendas indisponível até que ambos os períodos tenham dias encerrados e vendas verificadas.</p>"
-    out+="<div class='iv-scroll'><table class='iv-table'><thead><tr><th>Indicador</th><th>7 dias anteriores</th><th>7 dias seguintes</th></tr></thead><tbody>"
+    out+="<div class='iv-scroll'><table class='iv-table'><thead><tr><th scope='col'>Indicador</th><th scope='col'>7 dias anteriores</th><th scope='col'>7 dias seguintes</th></tr></thead><tbody>"
     before,after=result['periods']
     out+='<tr><th>Datas</th>'+''.join('<td>'+p['start'].strftime('%d/%m')+' a '+p['end'].strftime('%d/%m/%Y')+'</td>' for p in (before,after))+'</tr>'
     for label,key,kind in [('Pedidos pagos','orders','count'),('Unidades','units','count'),('Valor bruto dos itens','gross_items','money'),('Visitas','visits','count'),('Pedidos ÷ visitas','ratio','percent')]:
