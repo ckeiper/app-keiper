@@ -50,7 +50,7 @@ STYLE = """<style>
 .ka-alert-tile strong{display:block;font-size:23px}.ka-alert-tile span{font-size:12px}
 .ka-alert-details{margin-top:16px}.ka-alert-details summary{cursor:pointer;color:#93c5fd}
 @media(max-width:950px){.ka-overview{grid-template-columns:1fr}.ka-alert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-</style>"""
+.ka-central{max-width:1540px}.ka-kpi{background:linear-gradient(145deg,#1b3557,#101e34);border-radius:17px;padding:22px;box-shadow:0 8px 25px #0b142b25}.ka-kpi strong{font-size:clamp(22px,2.5vw,34px);font-weight:800}.ka-kpi .ka-muted{font-size:13px;font-weight:600}.ka-panel{background:linear-gradient(155deg,#192f4e,#101f36);border-radius:17px;padding:22px}.ka-panel h3{font-size:18px;font-weight:750}.ka-table th{text-transform:uppercase;letter-spacing:.05em}.ka-table tbody tr:hover{background:#ffffff10}.ka-table td{padding:13px 11px}.ka-alert-tile{min-height:80px;display:flex;flex-direction:column;justify-content:space-between;transition:transform .15s}.ka-alert-tile:hover{transform:translateY(-2px)}.ka-donut{width:190px;height:190px}.ka-donut-center{width:137px;height:137px}.ka-head h2{font-size:29px;font-weight:800}@media(max-width:760px){.ka-panel{padding:14px}.ka-kpi{padding:14px}.ka-kpi strong{font-size:21px}}</style>"""
 
 def chart(rows):
     if not rows:
