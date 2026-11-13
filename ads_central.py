@@ -91,7 +91,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                           f"' {'aria-current=page' if n==days else ''}>{'Hoje' if n==1 else str(n)+' dias'}</a>"
                           for n in (1,7,15,30))
         cards = "".join(f"<div class='ka-kpi'><span class='ka-muted'>{label}</span><strong>{value}</strong></div>"
-                        for label,value in (("Vendas Ads",money(sales)),("Investimento",money(spent)),
+                        for label,value in (("Vendas Ads",money(sales) if daily else "—"),("Investimento",money(spent) if daily else "—"),
                                             ("ROAS",metric(roas,"x")),("ACOS",metric(acos,"%"))))
         alerts = []
         for r in campaigns:
@@ -110,9 +110,10 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             return f"<span class='ka-private-name'>{e(name)}</span><span class='ka-private' aria-label='Nome oculto'></span>"
         def row(r,issue=""):
             gasto=float(r["gasto"] or 0); fat=float(r["faturamento"] or 0)
-            a=100*gasto/fat if fat>0 else None
+            observed=bool(r["dias_observados"])
+            a=100*gasto/fat if observed and fat>0 else None
             return ("<tr><td>"+hidden_name(r["cliente"])+"</td><td>"+hidden_name(r["nome"] or r["campanha_id"])+
-                    "</td><td>"+money(gasto)+"</td><td>"+money(fat)+"</td><td>"+metric(a,"%")+
+                    "</td><td>"+(money(gasto) if observed else "—")+"</td><td>"+(money(fat) if observed else "—")+"</td><td>"+metric(a,"%")+
                     "</td><td>"+e(issue or r["status"] or "—")+"</td></tr>")
         table_head="<thead><tr><th>Cliente</th><th>Campanha</th><th>Investimento</th><th>Vendas Ads</th><th>ACOS</th><th>Situação</th></tr></thead>"
         if admin:
