@@ -1,4 +1,4 @@
-"""Central de Ads: leitura apenas, com isolamento por conexão."""
+"""Central Ads Black Friday: leitura apenas, com isolamento por conexão."""
 import html
 from datetime import datetime, timedelta, timezone
 from flask import request, session
@@ -150,7 +150,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         presenting = admin and (request.args.get("apresentacao") == "1" or story)
         cid = session.get("conexao_id")
         if not admin and not isinstance(cid, int):
-            return pagina("Central de Ads", "<p>Conta não vinculada.</p>"), 403
+            return pagina("Central Ads Black Friday", "<p>Conta não vinculada.</p>"), 403
         start = (datetime.now(BR).date()-timedelta(days=days-1)).isoformat()
         end = datetime.now(BR).date().isoformat()
         scope = "" if admin else " AND c.id=%s"
@@ -243,11 +243,11 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         dates=set(str(r["data"]) for r in daily)
         coverage=f"{len(dates)} de {days} dias com dados consolidados"
         body=(STYLE+"<main class='ka-central"+(" ka-present" if presenting else "")+(" ka-story" if story else "")+"'>"+
-              "<div class='ka-head'><div><h2>Central de Ads</h2><span class='ka-muted'>"+
+              "<div class='ka-head'><div><h2>Central Ads Black Friday</h2><span class='ka-muted'>"+
               ("Visão da carteira" if admin else "Sua performance de publicidade")+
               "</span></div>"+present_link+"</div><nav class='ka-tabs'>"+periods+"</nav>"+
               "<div class='ka-kpis'>"+cards+"</div>"+
               "<div class='ka-overview'><section class='ka-panel'><h3>Evolução de vendas e investimento</h3>"+chart(daily)+
               "<p class='ka-muted'>"+coverage+" · Dados históricos armazenados; podem ter defasagem.</p></section>"+
               donut+"</div>"+alert_section+table+FILTER_SCRIPT+"</main>")
-        return pagina("Central de Ads",body)
+        return pagina("Central Ads Black Friday",body)
