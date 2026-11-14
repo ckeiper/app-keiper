@@ -80,7 +80,7 @@ html[data-theme=light] body:has(.ka-central){background:#09192d!important;color:
 .ka-bf-controls{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px}.ka-bf-controls .ka-tabs{background:#101f34;border:1px solid #35435c;border-radius:11px;padding:5px;gap:3px}.ka-bf-controls .ka-tabs a{border:0;background:transparent;padding:9px 12px}.ka-bf-controls .ka-tabs a[aria-current=page]{background:#ea652c;border-color:#fb8845;box-shadow:0 4px 14px #e56b3430}
 .ka-central:not(.ka-story) .ka-kpis{margin-top:0}.ka-central:not(.ka-story) .ka-kpi{border-color:#38465f;background:linear-gradient(135deg,#13263e,#0d1c31);min-height:130px}.ka-central:not(.ka-story) .ka-kpi:after{background:#ff8a35;box-shadow:0 0 0 6px #ff8a3518}.ka-central:not(.ka-story) .ka-kpi:nth-child(1){border-top:2px solid #fc7445}.ka-central:not(.ka-story) .ka-kpi:nth-child(2){border-top:2px solid #ef5959}.ka-central:not(.ka-story) .ka-kpi:nth-child(3){border-top:2px solid #23c78a}.ka-central:not(.ka-story) .ka-kpi:nth-child(4){border-top:2px solid #ff9b35}
 @media(max-width:800px){.ka-bf-hero{padding:18px;min-height:0}.ka-bf-brand{gap:12px}.ka-bf-symbol{width:54px;height:54px;font-size:32px}.ka-bf-controls{width:100%;justify-content:flex-start}.ka-bf-controls .ka-tabs{width:100%;justify-content:space-between}.ka-bf-controls .ka-tabs a{flex:1;text-align:center;padding:9px 8px}.ka-bf-controls .ka-action{width:100%}}
-</style>"""
+.ka-strategy-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.ka-strategy-head h3{margin:0}.ka-strategy-head .ka-muted{font-size:11px}.ka-strategy-comparison{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:15px}.ka-strategy-stat{padding:13px;border:1px solid #37516e;border-radius:12px;background:#10243d}.ka-strategy-stat span{display:block;font-size:11px;color:#a8bfd9}.ka-strategy-stat strong{display:block;font-size:19px;color:#f3f8ff;margin:6px 0}.ka-strategy-stat small{font-size:11px;color:#a7c3e1}.ka-strategy-stat small.up{color:#4adea3}.ka-strategy-stat small.down{color:#fb8b94}.ka-strategy-panel{border-top:2px solid #fa8735}.ka-strategy-panel .ka-legend span:first-child{color:#ff963f}.ka-strategy-panel .ka-legend span+span{color:#38c6ff}@media(max-width:800px){.ka-strategy-comparison{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>"""
 FILTER_SCRIPT = "<script>\n(function(){\nconst table=document.getElementById('ka-campaign-table');if(!table)return;\nconst body=table.tBodies[0],rows=Array.from(body.rows),search=document.getElementById('ka-campaign-search'),store=document.getElementById('ka-store-filter'),status=document.getElementById('ka-status-filter'),order=document.getElementById('ka-order-filter'),count=document.getElementById('ka-campaign-count'),more=document.getElementById('ka-more-campaigns');\nlet limit=30;\nfunction num(t){return Number((t||'').replace(/[^0-9,.-]/g,'').replace(/\\./g,'').replace(',','.'))||0}\nfunction classify(t){t=(t||'').toLowerCase();if(['active','ativa','ativo'].includes(t))return'active';if(['paused','pausada','pausado'].includes(t))return'paused';return'other'}\nfunction update(){\nconst q=search.value.trim().toLocaleLowerCase('pt-BR'),v=store?store.value:'',st=status.value,sort=order.value;\nconst filtered=rows.filter(r=>(!q||r.cells[1].textContent.toLocaleLowerCase('pt-BR').includes(q))&&(!v||r.cells[0].textContent===v)&&(!st||classify(r.cells[6].textContent)===st));\nfunction budgetOrder(a,b){\nconst first=a.querySelector('[data-budget-used]'),second=b.querySelector('[data-budget-used]');\nif(!first||!second)return Number(Boolean(second))-Number(Boolean(first));\nconst diff=Number(first.dataset.budgetUsed)-Number(second.dataset.budgetUsed);\nreturn sort==='budget-asc'?diff:-diff;\n}\nfiltered.sort((a,b)=>sort.startsWith('budget-')?budgetOrder(a,b):sort==='name'?a.cells[1].textContent.localeCompare(b.cells[1].textContent,'pt-BR'):num(b.cells[sort==='spend'?2:sort==='acos'?4:3].textContent)-num(a.cells[sort==='spend'?2:sort==='acos'?4:3].textContent));\nrows.forEach(r=>r.remove());filtered.slice(0,limit).forEach(r=>body.appendChild(r));\ncount.textContent=filtered.length+' campanhas';more.hidden=filtered.length<=limit;\n}\n[search,store,status,order].filter(Boolean).forEach(el=>el.addEventListener(el===search?'input':'change',()=>{limit=30;update()}));\nmore.addEventListener('click',()=>{limit+=30;update()});update();\n})();\n</script>"
 
 def budget_indicator(used):
@@ -186,6 +186,17 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                 WHERE d.data BETWEEN %s AND %s """+scope+"""
                 GROUP BY d.data ORDER BY d.data
             """, (start,end)+args)
+        with banco() as conn:
+            previous = consultar(conn, """
+                SELECT COALESCE(SUM(d.gasto),0) gasto, COALESCE(SUM(d.faturamento),0) faturamento,
+                       COUNT(d.data) dias_observados
+                FROM ads_dia d JOIN conexoes c ON c.id=d.conexao_id
+                WHERE d.data BETWEEN %s AND %s """+scope,
+                ((datetime.now(BR).date()-timedelta(days=days*2-1)).isoformat(),
+                 (datetime.now(BR).date()-timedelta(days=days)).isoformat())+args)
+        prev_spent = float(previous[0]["gasto"] or 0) if previous else 0
+        prev_sales = float(previous[0]["faturamento"] or 0) if previous else 0
+        prev_observed = bool(previous and previous[0].get("dias_observados", 0))
         spent = sum(float(r["gasto"] or 0) for r in daily)
         sales = sum(float(r["faturamento"] or 0) for r in daily)
         # Aggregates are from ads_dia, never sum campaign and account metrics together.
@@ -251,6 +262,22 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                       ("Desativar apresentação" if presenting else "Modo apresentação")+"</a>") if admin else ""
         dates=set(str(r["data"]) for r in daily)
         coverage=f"{len(dates)} de {days} dias com dados consolidados"
+        def compare(label, current, prior, unit, lower_better=False):
+            shown = money(current) if unit=="money" else metric(current,unit)
+            if current is None or prior is None or not prev_observed or not daily or prior==0:
+                delta,klass="Sem comparação",""
+            else:
+                change=100*(current-prior)/prior
+                delta=("+" if change>0 else "")+metric(change,"%")+" vs. anterior"
+                klass="up" if (change<0 if lower_better else change>0) else "down" if change else ""
+            return "<div class='ka-strategy-stat'><span>"+label+"</span><strong>"+shown+"</strong><small class='"+klass+"'>"+delta+"</small></div>"
+        prev_roas = prev_sales/prev_spent if prev_spent>0 else None
+        prev_acos = 100*prev_spent/prev_sales if prev_sales>0 else None
+        strategic = ("<section class='ka-panel ka-strategy-panel'><div class='ka-strategy-head'><h3>Comparativo de períodos</h3><span class='ka-muted'>Atual × "+str(days)+" dias anteriores</span></div><div class='ka-strategy-comparison'>"+
+                     compare("Vendas Ads",sales,prev_sales,"money")+
+                     compare("Investimento",spent,prev_spent,"money")+
+                     compare("ROAS",roas,prev_roas,"x")+
+                     compare("ACOS",acos,prev_acos,"%",True)+"</div></section>")
         body=(STYLE+"<main class='ka-central"+(" ka-present" if presenting else "")+(" ka-story" if story else "")+"'>"+
               "<header class='ka-bf-hero'><div class='ka-bf-brand'><div class='ka-bf-symbol' aria-hidden='true'>%</div><div><h2>Central Ads <em>Black Friday</em></h2><span class='ka-bf-subtitle'>"+
               ("Visão da carteira" if admin else "Sua performance de publicidade")+
@@ -258,5 +285,5 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
               "<div class='ka-kpis'>"+cards+"</div>"+
               "<div class='ka-overview'><section class='ka-panel'><h3>Evolução de vendas e investimento</h3>"+chart(daily)+
               "<p class='ka-muted'>"+coverage+" · Dados históricos armazenados; podem ter defasagem.</p></section>"+
-              donut+"</div>"+alert_section+table+FILTER_SCRIPT+"</main>")
+              donut+"</div>"+strategic+alert_section+table+FILTER_SCRIPT+"</main>")
         return pagina("Central Ads Black Friday",body)
