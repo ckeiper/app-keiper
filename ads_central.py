@@ -218,7 +218,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                 issue="Gasto sem vendas atribuídas"
             elif r["dias_observados"] and target>0 and gasto>0 and fat>0 and fat/gasto<target:
                 issue="ROAS abaixo do objetivo"
-            elif days==1 and r["dias_observados"] and budget>0 and gasto>=budget:
+            elif budget>0 and float(r.get("gasto_hoje") or 0)>=budget:
                 issue="Gasto atingiu o orçamento cadastrado"
             if issue: alerts.append((r,issue))
         def hidden_name(name):
