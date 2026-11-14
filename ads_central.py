@@ -245,7 +245,11 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         table = ("<section class='ka-panel'><h3>Desempenho por campanha</h3>"+filters+"<div class='ka-scroll'><table class='ka-table' id='ka-campaign-table'>"+
                  table_head+"<tbody>"+ "".join(row(r) for r in campaigns)+"</tbody></table></div><div class='ka-table-footer'><button type='button' id='ka-more-campaigns'>Mostrar mais</button></div></section>")
         alert_rows="".join(row(r,issue) for r,issue in alerts)
-        counts = [sum(1 for r,issue in alerts if issue == label) for label in ("Gasto atingiu o orçamento cadastrado","ROAS abaixo do objetivo","Gasto sem vendas atribuídas")]
+        counts = [
+            sum(1 for r in campaigns if float(r["orcamento"] or 0)>0 and float(r.get("gasto_hoje") or 0)>=float(r["orcamento"])),
+            sum(1 for r in campaigns if r["dias_observados"] and float(r["roas_objetivo"] or 0)>0 and float(r["gasto"] or 0)>0 and float(r["faturamento"] or 0)/float(r["gasto"])<float(r["roas_objetivo"] or 0)),
+            sum(1 for r in campaigns if r["dias_observados"] and float(r["gasto"] or 0)>0 and float(r["faturamento"] or 0)==0),
+        ]
         labels = ("Orçamento atingido","Consumo ≥95%","ROAS abaixo da meta","Gasto sem vendas")
         near_budget = sum(1 for r in campaigns
                           if float(r["orcamento"] or 0)>0 and
