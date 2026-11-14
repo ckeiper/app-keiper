@@ -196,7 +196,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                  (datetime.now(BR).date()-timedelta(days=days)).isoformat())+args)
         prev_spent = float(previous[0]["gasto"] or 0) if previous else 0
         prev_sales = float(previous[0]["faturamento"] or 0) if previous else 0
-        prev_observed = bool(previous and previous[0]["dias_observados"])
+        prev_observed = bool(previous and previous[0].get("dias_observados", 0))
         spent = sum(float(r["gasto"] or 0) for r in daily)
         sales = sum(float(r["faturamento"] or 0) for r in daily)
         # Aggregates are from ads_dia, never sum campaign and account metrics together.
