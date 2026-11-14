@@ -80,7 +80,7 @@ html[data-theme=light] body:has(.ka-central){background:#09192d!important;color:
 .ka-bf-controls{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px}.ka-bf-controls .ka-tabs{background:#101f34;border:1px solid #35435c;border-radius:11px;padding:5px;gap:3px}.ka-bf-controls .ka-tabs a{border:0;background:transparent;padding:9px 12px}.ka-bf-controls .ka-tabs a[aria-current=page]{background:#ea652c;border-color:#fb8845;box-shadow:0 4px 14px #e56b3430}
 .ka-central:not(.ka-story) .ka-kpis{margin-top:0}.ka-central:not(.ka-story) .ka-kpi{border-color:#38465f;background:linear-gradient(135deg,#13263e,#0d1c31);min-height:130px}.ka-central:not(.ka-story) .ka-kpi:after{background:#ff8a35;box-shadow:0 0 0 6px #ff8a3518}.ka-central:not(.ka-story) .ka-kpi:nth-child(1){border-top:2px solid #fc7445}.ka-central:not(.ka-story) .ka-kpi:nth-child(2){border-top:2px solid #ef5959}.ka-central:not(.ka-story) .ka-kpi:nth-child(3){border-top:2px solid #23c78a}.ka-central:not(.ka-story) .ka-kpi:nth-child(4){border-top:2px solid #ff9b35}
 @media(max-width:800px){.ka-bf-hero{padding:18px;min-height:0}.ka-bf-brand{gap:12px}.ka-bf-symbol{width:54px;height:54px;font-size:32px}.ka-bf-controls{width:100%;justify-content:flex-start}.ka-bf-controls .ka-tabs{width:100%;justify-content:space-between}.ka-bf-controls .ka-tabs a{flex:1;text-align:center;padding:9px 8px}.ka-bf-controls .ka-action{width:100%}}
-.ka-strategy-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.ka-strategy-head h3{margin:0}.ka-strategy-head .ka-muted{font-size:11px}.ka-strategy-comparison{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:15px}.ka-strategy-stat{padding:13px;border:1px solid #37516e;border-radius:12px;background:#10243d}.ka-strategy-stat span{display:block;font-size:11px;color:#a8bfd9}.ka-strategy-stat strong{display:block;font-size:19px;color:#f3f8ff;margin:6px 0}.ka-strategy-stat small{font-size:11px;color:#a7c3e1}.ka-strategy-stat small.up{color:#4adea3}.ka-strategy-stat small.down{color:#fb8b94}.ka-strategy-panel{border-top:2px solid #fa8735}.ka-strategy-panel .ka-legend span:first-child{color:#ff963f}.ka-strategy-panel .ka-legend span+span{color:#38c6ff}@media(max-width:800px){.ka-strategy-comparison{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>"""
+.ka-strategy-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.ka-strategy-head h3{margin:0}.ka-strategy-head .ka-muted{font-size:11px}.ka-strategy-comparison{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:15px}.ka-strategy-stat{padding:13px;border:1px solid #37516e;border-radius:12px;background:#10243d}.ka-strategy-stat span{display:block;font-size:11px;color:#a8bfd9}.ka-strategy-stat strong{display:block;font-size:19px;color:#f3f8ff;margin:6px 0}.ka-strategy-stat small{font-size:11px;color:#a7c3e1}.ka-strategy-stat small.up{color:#4adea3}.ka-strategy-stat small.down{color:#fb8b94}.ka-strategy-panel{border-top:2px solid #fa8735}.ka-strategy-panel .ka-legend span:first-child{color:#ff963f}.ka-strategy-panel .ka-legend span+span{color:#38c6ff}@media(max-width:800px){.ka-strategy-comparison{grid-template-columns:repeat(2,minmax(0,1fr))}}.ka-opportunity-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}.ka-opportunity{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:15px;border:1px solid #345476;border-left:3px solid #27d1a5;border-radius:12px;background:#10243d;min-width:0}.ka-opportunity strong{display:block;font-size:13px;overflow-wrap:anywhere}.ka-opportunity small{display:block;color:#9cb8d7;font-size:11px;margin-top:7px}.ka-opportunity-metrics{display:flex;flex-direction:column;gap:5px;white-space:nowrap;color:#51e2b0;font-size:12px;font-weight:700}@media(max-width:720px){.ka-opportunity-list{grid-template-columns:1fr}.ka-opportunity{align-items:flex-start}}\n</style>"""
 FILTER_SCRIPT = "<script>\n(function(){\nconst table=document.getElementById('ka-campaign-table');if(!table)return;\nconst body=table.tBodies[0],rows=Array.from(body.rows),search=document.getElementById('ka-campaign-search'),store=document.getElementById('ka-store-filter'),status=document.getElementById('ka-status-filter'),order=document.getElementById('ka-order-filter'),count=document.getElementById('ka-campaign-count'),more=document.getElementById('ka-more-campaigns');\nlet limit=30;\nfunction num(t){return Number((t||'').replace(/[^0-9,.-]/g,'').replace(/\\./g,'').replace(',','.'))||0}\nfunction classify(t){t=(t||'').toLowerCase();if(['active','ativa','ativo'].includes(t))return'active';if(['paused','pausada','pausado'].includes(t))return'paused';return'other'}\nfunction update(){\nconst q=search.value.trim().toLocaleLowerCase('pt-BR'),v=store?store.value:'',st=status.value,sort=order.value;\nconst filtered=rows.filter(r=>(!q||r.cells[1].textContent.toLocaleLowerCase('pt-BR').includes(q))&&(!v||r.cells[0].textContent===v)&&(!st||classify(r.cells[9].textContent)===st));\nfunction budgetOrder(a,b){\nconst first=a.querySelector('[data-budget-used]'),second=b.querySelector('[data-budget-used]');\nif(!first||!second)return Number(Boolean(second))-Number(Boolean(first));\nconst diff=Number(first.dataset.budgetUsed)-Number(second.dataset.budgetUsed);\nreturn sort==='budget-asc'?diff:-diff;\n}\nfiltered.sort((a,b)=>sort.startsWith('budget-')?budgetOrder(a,b):sort==='name'?a.cells[1].textContent.localeCompare(b.cells[1].textContent,'pt-BR'):num(b.cells[sort==='spend'?2:sort==='acos'?4:sort==='roas'?5:3].textContent)-num(a.cells[sort==='spend'?2:sort==='acos'?4:3].textContent));\nrows.forEach(r=>r.remove());filtered.slice(0,limit).forEach(r=>body.appendChild(r));\ncount.textContent=filtered.length+' campanhas';more.hidden=filtered.length<=limit;\n}\n[search,store,status,order].filter(Boolean).forEach(el=>el.addEventListener(el===search?'input':'change',()=>{limit=30;update()}));\nmore.addEventListener('click',()=>{limit+=30;update()});update();\n})();\n</script>"
 
 def budget_indicator(used):
@@ -276,6 +276,36 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         paused = sum(str(r["status"] or "").lower() in ("paused","pausada","pausado") for r in campaigns)
         total = len(campaigns)
         donut = ("<section class='ka-panel'><h3>Situação das campanhas</h3><div class='ka-donut' style='--active:"+str(round(100*active/total,2) if total else 0)+"%;--paused:"+str(round(100*(active+paused)/total,2) if total else 0)+"%'><div class='ka-donut-center'>"+str(total)+"</div></div><div class='ka-donut-key'><span>Ativas</span><strong>"+str(active)+"</strong></div><div class='ka-donut-key'><span>Pausadas</span><strong>"+str(paused)+"</strong></div><div class='ka-donut-key'><span>Outras</span><strong>"+str(total-active-paused)+"</strong></div></section>")
+        # Opportunities are observations, not forecasts or automatic budget recommendations.
+        opportunities = []
+        for r in campaigns:
+            spend = float(r["gasto"] or 0)
+            revenue = float(r["faturamento"] or 0)
+            target = float(r["roas_objetivo"] or 0)
+            budget = float(r["orcamento"] or 0)
+            today = float(r.get("gasto_hoje") or 0)
+            status = str(r["status"] or "").lower()
+            if not r["dias_observados"] or spend <= 0 or target <= 0 or revenue <= 0:
+                continue
+            actual_roas = revenue / spend
+            if actual_roas < target:
+                continue
+            if status in ("active", "ativa", "ativo") and budget > 0 and today / budget >= 0.95:
+                reason = "ROAS acima da meta · orçamento diário ≥95% utilizado"
+            elif status in ("paused", "pausada", "pausado"):
+                reason = "Campanha pausada com ROAS acima da meta no período"
+            else:
+                continue
+            opportunities.append((r, reason, actual_roas / target))
+        opportunities.sort(key=lambda item: item[2], reverse=True)
+        opportunity_cards = "".join(
+            "<div class='ka-opportunity'><div><strong>"+hidden_name(r["nome"] or r["campanha_id"])+"</strong>"+
+            ("<span class='ka-muted'>"+hidden_name(r["cliente"])+"</span>" if admin else "")+
+            "<small>"+e(reason)+"</small></div><div class='ka-opportunity-metrics'><span>ROAS "+metric(float(r["faturamento"] or 0)/float(r["gasto"] or 1),"x")+"</span><span>Meta "+metric(float(r["roas_objetivo"] or 0),"x")+"</span></div></div>"
+            for r, reason, _ in opportunities[:8]
+        )
+        opportunity_section = ("<section class='ka-panel ka-opportunities'><div class='ka-strategy-head'><h3>Oportunidades para revisar <span class='ka-muted' title='Campanhas com ROAS acima da meta e orçamento quase consumido, ou campanhas pausadas com desempenho acima da meta no período. Não representa previsão nem recomendação automática de aumentar investimento.'>ⓘ</span></h3><span class='ka-muted'>"+str(len(opportunities))+" campanhas identificadas</span></div>"+
+            ("<div class='ka-opportunity-list'>"+opportunity_cards+"</div>" if opportunities else "<p class='ka-muted'>Nenhuma campanha atende aos critérios com os dados disponíveis.</p>")+"</section>")
         # Bubble matrix: one bubble per campaign with spend and attributable sales.
         matrix_items = []
         for r in campaigns:
@@ -332,5 +362,5 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
               "<div class='ka-kpis'>"+cards+"</div>"+
               "<div class='ka-overview'><section class='ka-panel'><h3>Evolução de vendas e investimento</h3>"+chart(daily)+
               "<p class='ka-muted'>"+coverage+" · Dados históricos armazenados; podem ter defasagem.</p></section>"+
-              donut+"</div>"+strategic+matrix_section+alert_section+table+FILTER_SCRIPT+"</main>")
+              donut+"</div>"+strategic+matrix_section+alert_section+opportunity_section+table+FILTER_SCRIPT+"</main>")
         return pagina("Central Ads Black Friday",body)
