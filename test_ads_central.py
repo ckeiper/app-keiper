@@ -31,7 +31,7 @@ class CentralAdsTests(unittest.TestCase):
         self.session("cliente",17)
         res=self.client.get("/central-ads")
         self.assertEqual(res.status_code,200)
-        self.assertEqual(len(self.queries),2)
+        self.assertEqual(len(self.queries),3)
         for sql,args in self.queries:
             self.assertIn("AND c.id=%s",sql)
             self.assertEqual(args[-1],17)
