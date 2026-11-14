@@ -276,6 +276,31 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         paused = sum(str(r["status"] or "").lower() in ("paused","pausada","pausado") for r in campaigns)
         total = len(campaigns)
         donut = ("<section class='ka-panel'><h3>Situação das campanhas</h3><div class='ka-donut' style='--active:"+str(round(100*active/total,2) if total else 0)+"%;--paused:"+str(round(100*(active+paused)/total,2) if total else 0)+"%'><div class='ka-donut-center'>"+str(total)+"</div></div><div class='ka-donut-key'><span>Ativas</span><strong>"+str(active)+"</strong></div><div class='ka-donut-key'><span>Pausadas</span><strong>"+str(paused)+"</strong></div><div class='ka-donut-key'><span>Outras</span><strong>"+str(total-active-paused)+"</strong></div></section>")
+        # Bubble matrix: one bubble per campaign with spend and attributable sales.
+        matrix_items = []
+        for r in campaigns:
+            inv = float(r["gasto"] or 0)
+            rev = float(r["faturamento"] or 0)
+            if r["dias_observados"] and inv > 0:
+                matrix_items.append((r, inv, rev / inv))
+        matrix_items.sort(key=lambda item: item[1], reverse=True)
+        matrix_top = max((inv for _, inv, _ in matrix_items), default=1) or 1
+        matrix_roas_top = max((roas for _, _, roas in matrix_items), default=1) or 1
+        matrix_roas_top = max(matrix_roas_top, 1)
+        matrix_dots = []
+        for r, inv, rvalue in matrix_items:
+            x = 62 + 700 * inv / matrix_top
+            y = 226 - 186 * rvalue / matrix_roas_top
+            radius = 5 + 11 * (inv / matrix_top) ** 0.5
+            target = float(r["roas_objetivo"] or 0)
+            color = "#35d4a4" if target > 0 and rvalue >= target else "#ff9c59" if target > 0 else "#78a9fa"
+            label = e(str(r["cliente"] or "") + " · " + str(r["nome"] or r["campanha_id"]) + " · Investimento " + money(inv) + " · ROAS " + metric(rvalue, "x"))
+            if presenting:
+                label = e("Campanha · Investimento " + money(inv) + " · ROAS " + metric(rvalue, "x"))
+            matrix_dots.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='{radius:.1f}' fill='{color}' fill-opacity='.72' stroke='{color}' stroke-width='1.5' tabindex='0' role='img' aria-label='{label}'><title>{label}</title></circle>")
+        matrix_grid = "".join(f"<line x1='62' x2='762' y1='{226-186*i/4:.1f}' y2='{226-186*i/4:.1f}' stroke='#44607f' stroke-dasharray='3 5'/><text x='52' y='{230-186*i/4:.1f}' text-anchor='end' fill='#a9bfdc' font-size='11'>{e(metric(matrix_roas_top*i/4,'x'))}</text>" for i in range(5))
+        matrix_svg = ("<div class='ka-chart-scroll'><svg class='ka-chart' viewBox='0 0 810 282' role='group' aria-label='Matriz de investimento e ROAS por campanha'>"+matrix_grid+"<line x1='62' x2='762' y1='226' y2='226' stroke='#6c86a5'/>"+"".join(matrix_dots)+"<text x='62' y='253' fill='#a9bfdc' font-size='11'>R$ 0</text><text x='762' y='253' text-anchor='end' fill='#a9bfdc' font-size='11'>"+e(money(matrix_top))+"</text><text x='412' y='274' text-anchor='middle' fill='#c9dbef' font-size='12'>Investimento no período →</text></svg></div>") if matrix_items else "<p class='ka-muted'>Sem campanhas com investimento registrado neste período.</p>"
+        matrix_section = ("<section class='ka-panel'><h3>Matriz estratégica · Investimento × ROAS <span class='ka-muted' title='Cada bolha representa uma campanha. Verde: ROAS igual ou acima do objetivo. Laranja: abaixo do objetivo. Azul: sem meta cadastrada. O tamanho da bolha acompanha o investimento.'>ⓘ</span></h3><div class='ka-legend'><span>● Acima da meta</span><span style='color:#ff9c59'>● Abaixo da meta</span><span style='color:#78a9fa'>● Sem meta</span></div>"+matrix_svg+"</section>")
         story_link = ("<a class='ka-action ka-story-button' href='/central-ads?periodo="+str(days)+
                       ("" if story else "&amp;stories=1")+"'>"+
                       ("Voltar ao painel" if story else "✦ Visual para Stories")+"</a>") if admin else ""
@@ -307,5 +332,5 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
               "<div class='ka-kpis'>"+cards+"</div>"+
               "<div class='ka-overview'><section class='ka-panel'><h3>Evolução de vendas e investimento</h3>"+chart(daily)+
               "<p class='ka-muted'>"+coverage+" · Dados históricos armazenados; podem ter defasagem.</p></section>"+
-              donut+"</div>"+strategic+alert_section+table+FILTER_SCRIPT+"</main>")
+              donut+"</div>"+strategic+matrix_section+alert_section+table+FILTER_SCRIPT+"</main>")
         return pagina("Central Ads Black Friday",body)
