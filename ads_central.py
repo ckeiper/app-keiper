@@ -244,7 +244,22 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                    +"<span id='ka-campaign-count' class='ka-muted'></span></div>")
         table = ("<section class='ka-panel'><h3>Desempenho por campanha</h3>"+filters+"<div class='ka-scroll'><table class='ka-table' id='ka-campaign-table'>"+
                  table_head+"<tbody>"+ "".join(row(r) for r in campaigns)+"</tbody></table></div><div class='ka-table-footer'><button type='button' id='ka-more-campaigns'>Mostrar mais</button></div></section>")
-        alert_rows="".join(row(r,issue) for r,issue in alerts)
+        alert_details = []
+        for r in campaigns:
+            budget = float(r["orcamento"] or 0)
+            today = float(r.get("gasto_hoje") or 0)
+            gasto = float(r["gasto"] or 0)
+            fat = float(r["faturamento"] or 0)
+            target = float(r["roas_objetivo"] or 0)
+            if budget > 0 and today >= budget:
+                alert_details.append((r, "Gasto atingiu o orçamento cadastrado"))
+            elif budget > 0 and today / budget >= 0.95:
+                alert_details.append((r, "Consumo de orçamento ≥95%"))
+            if r["dias_observados"] and gasto > 0 and fat == 0:
+                alert_details.append((r, "Gasto sem vendas atribuídas"))
+            elif r["dias_observados"] and target > 0 and gasto > 0 and fat > 0 and fat / gasto < target:
+                alert_details.append((r, "ROAS abaixo do objetivo"))
+        alert_rows="".join(row(r,issue) for r,issue in alert_details)
         counts = [
             sum(1 for r in campaigns if float(r["orcamento"] or 0)>0 and float(r.get("gasto_hoje") or 0)>=float(r["orcamento"])),
             sum(1 for r in campaigns if r["dias_observados"] and float(r["roas_objetivo"] or 0)>0 and float(r["gasto"] or 0)>0 and float(r["faturamento"] or 0)/float(r["gasto"])<float(r["roas_objetivo"] or 0)),
@@ -256,7 +271,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                           100*float(r.get("gasto_hoje") or 0)/float(r["orcamento"])>=95)
         nums = (str(counts[0]),str(near_budget),str(counts[1]),str(counts[2]))
         tiles = "".join("<a class='ka-alert-tile' href='#alert-details' aria-label='"+e(label+": "+value+" campanhas")+"'><span>"+label+"</span><strong>"+value+"</strong></a>" for label,value in zip(labels,nums))
-        alert_section = ("<section class='ka-panel'><h3>Alertas prioritários <span class='ka-muted' title='Indicadores calculados com os dados de campanhas disponíveis; uma campanha pode aparecer em mais de um alerta.' aria-label='Ajuda: uma campanha pode aparecer em mais de um alerta.'>ⓘ</span></h3><div class='ka-alert-grid'>"+tiles+"</div><details class='ka-alert-details' id='alert-details'><summary>Ver campanhas que precisam de atenção ("+str(len(alerts))+")</summary>"+("<div class='ka-scroll'><table class='ka-table'>"+table_head+"<tbody>"+alert_rows+"</tbody></table></div>" if alerts else "<p>Sem alertas.</p>")+"</details></section>")
+        alert_section = ("<section class='ka-panel'><h3>Alertas prioritários <span class='ka-muted' title='Indicadores calculados com os dados de campanhas disponíveis; uma campanha pode aparecer em mais de um alerta.' aria-label='Ajuda: uma campanha pode aparecer em mais de um alerta.'>ⓘ</span></h3><div class='ka-alert-grid'>"+tiles+"</div><details class='ka-alert-details' id='alert-details'><summary>Ver campanhas que precisam de atenção ("+str(len(alert_details))+")</summary>"+("<div class='ka-scroll'><table class='ka-table'>"+table_head+"<tbody>"+alert_rows+"</tbody></table></div>" if alert_details else "<p>Sem alertas.</p>")+"</details></section>")
         active = sum(str(r["status"] or "").lower() in ("active","ativa","ativo") for r in campaigns)
         paused = sum(str(r["status"] or "").lower() in ("paused","pausada","pausado") for r in campaigns)
         total = len(campaigns)
