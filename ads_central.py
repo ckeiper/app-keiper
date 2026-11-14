@@ -43,7 +43,7 @@ html[data-theme=light] body:has(.ka-central){background:#09192d!important;color:
 .ka-alert-tile{min-height:95px;padding:15px 16px;border:1px solid #3a4d68;border-left:4px solid #fb7185;border-radius:12px;background:linear-gradient(125deg,#223653,#182b46);color:#fff;text-decoration:none;display:flex;flex-direction:column;justify-content:space-between;transition:transform .2s,border-color .2s}
 .ka-alert-tile:hover{transform:translateY(-3px);border-color:#8dbaff}.ka-alert-tile:nth-child(2){border-left-color:#fbbf24}.ka-alert-tile:nth-child(3){border-left-color:#60a5fa}.ka-alert-tile:nth-child(4){border-left-color:#c084fc}
 .ka-alert-tile span{font-size:12px;font-weight:650;color:#c7d7ed}.ka-alert-tile strong{display:block;font-size:26px;font-weight:850}
-.ka-alert-details{margin-top:17px}.ka-alert-details summary{cursor:pointer;color:#93c5fd;font-weight:650;font-size:12px}
+.ka-alert-tile:focus-visible{outline:2px solid #ffae67;outline-offset:3px}.ka-alert-tile strong{font-variant-numeric:tabular-nums}.ka-alert-grid{margin-bottom:4px}.ka-alert-details[open]{border-top:1px solid #344e70;padding-top:14px}.ka-alert-details summary:hover{color:#ffac73}.ka-alert-details{margin-top:17px}.ka-alert-details summary{cursor:pointer;color:#93c5fd;font-weight:650;font-size:12px}
 .ka-scroll{overflow-x:auto;border:1px solid #2b4262;border-radius:12px}.ka-table{width:100%;border-collapse:collapse;white-space:nowrap}
 .ka-table th,.ka-table td{text-align:left;padding:13px 14px;border-bottom:1px solid #ffffff0d;font-size:12px}.ka-table th{background:#203956;color:#b5c9e5;text-transform:uppercase;font-weight:750;font-size:10px;letter-spacing:.055em}
 .ka-table td{color:#e2ecfa}.ka-table tbody tr:nth-child(even){background:#ffffff04}.ka-table tbody tr:hover{background:#3563a222}
@@ -214,12 +214,12 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             budget=float(r["orcamento"] or 0)
             target=float(r["roas_objetivo"] or 0)
             issue = ""
-            if r["dias_observados"] and gasto>0 and fat==0:
+            if budget>0 and float(r.get("gasto_hoje") or 0)>=budget:
+                issue="Gasto atingiu o orçamento cadastrado"
+            elif r["dias_observados"] and gasto>0 and fat==0:
                 issue="Gasto sem vendas atribuídas"
             elif r["dias_observados"] and target>0 and gasto>0 and fat>0 and fat/gasto<target:
                 issue="ROAS abaixo do objetivo"
-            elif budget>0 and float(r.get("gasto_hoje") or 0)>=budget:
-                issue="Gasto atingiu o orçamento cadastrado"
             if issue: alerts.append((r,issue))
         def hidden_name(name):
             if presenting:
@@ -256,7 +256,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                           100*float(r.get("gasto_hoje") or 0)/float(r["orcamento"])>=95)
         nums = (str(counts[0]),str(near_budget),str(counts[1]),str(counts[2]))
         tiles = "".join("<a class='ka-alert-tile' href='#alert-details' aria-label='"+e(label+": "+value+" campanhas")+"'><span>"+label+"</span><strong>"+value+"</strong></a>" for label,value in zip(labels,nums))
-        alert_section = ("<section class='ka-panel'><h3>Alertas prioritários</h3><div class='ka-alert-grid'>"+tiles+"</div><details class='ka-alert-details' id='alert-details'><summary>Ver campanhas que precisam de atenção ("+str(len(alerts))+")</summary>"+("<div class='ka-scroll'><table class='ka-table'>"+table_head+"<tbody>"+alert_rows+"</tbody></table></div>" if alerts else "<p>Sem alertas.</p>")+"</details></section>")
+        alert_section = ("<section class='ka-panel'><h3>Alertas prioritários <span class='ka-muted' title='Indicadores calculados com os dados de campanhas disponíveis; uma campanha pode aparecer em mais de um alerta.' aria-label='Ajuda: uma campanha pode aparecer em mais de um alerta.'>ⓘ</span></h3><div class='ka-alert-grid'>"+tiles+"</div><details class='ka-alert-details' id='alert-details'><summary>Ver campanhas que precisam de atenção ("+str(len(alerts))+")</summary>"+("<div class='ka-scroll'><table class='ka-table'>"+table_head+"<tbody>"+alert_rows+"</tbody></table></div>" if alerts else "<p>Sem alertas.</p>")+"</details></section>")
         active = sum(str(r["status"] or "").lower() in ("active","ativa","ativo") for r in campaigns)
         paused = sum(str(r["status"] or "").lower() in ("paused","pausada","pausado") for r in campaigns)
         total = len(campaigns)
