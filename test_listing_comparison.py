@@ -38,6 +38,11 @@ class ListingComparisonTests(unittest.TestCase):
     self.assertIn('R$ 0,00 → R$ 0,00',text);self.assertIn('Sem base percentual anterior',text)
     self.assertIn('Sem pedidos → Sem pedidos',text)
     self.assertIn('não some os pedidos',text)
+ def test_units_per_order_uses_each_period_and_handles_no_paid_orders(self):
+    ranking,listings=sample()
+    ranking['rows']['MLB2'].update(previous_orders=0,previous_units=0,units=5)
+    text=render(42,ranking,listings,dict(comparar1='MLB1',comparar2='MLB2'),END)
+    self.assertIn('Unidades por pedido</th><td>2,00 → 3,00</td><td>Sem pedidos → 2,50</td>',text)
  def test_explanations_are_collapsed_into_accessible_help(self):
     r,l=sample()
     text=render(42,r,l,dict(comparar1='MLB1',comparar2='MLB2'),END)
