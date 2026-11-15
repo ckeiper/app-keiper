@@ -49,8 +49,12 @@ class CentralAdsTests(unittest.TestCase):
         self.assertIn("data-budget-used='76.0'", page)
         self.assertIn("aria-valuetext='76,00%'", page)
         self.assertIn("<dt>Campanhas ativas</dt><dd>1</dd>", page)
-        self.assertIn("value='budget-desc'", page)
-        self.assertIn("value='budget-asc'", page)
+        self.assertNotIn("id='ka-campaign-table'", page)
+        self.assertIn("pageSize=25", page)
+        detail = self.client.get("/central-ads?periodo=30&campaign_detail=1").get_data(as_text=True)
+        self.assertIn("id='ka-campaign-table'", detail)
+        self.assertIn("value='budget-desc'", detail)
+        self.assertIn("value='budget-asc'", detail)
 
     def test_daily_budget_threshold_and_overflow(self):
         self.assertNotIn("ka-budget-danger", budget_indicator(75))
