@@ -47,6 +47,15 @@ html[data-theme=light] body:has(.ka-central){background:#09192d!important;color:
 .ka-scroll{overflow-x:auto;border:1px solid #2b4262;border-radius:12px}.ka-table{width:100%;border-collapse:collapse;white-space:nowrap}
 .ka-table th,.ka-table td{text-align:left;padding:13px 14px;border-bottom:1px solid #ffffff0d;font-size:12px}.ka-table th{background:#203956;color:#b5c9e5;text-transform:uppercase;font-weight:750;font-size:10px;letter-spacing:.055em}
 .ka-table td{color:#e2ecfa}.ka-table tbody tr:nth-child(even){background:#ffffff04}.ka-table tbody tr:hover{background:#3563a222}
+/* Prevent global light-theme table hover rules from washing out dark rows. */
+html body:has(.ka-central) .ka-central .ka-table tbody tr:hover,
+html body:has(.ka-central) .ka-central .ka-table tbody tr:focus-within{background:#25456a!important}
+html body:has(.ka-central) .ka-central .ka-table tbody tr:hover td,
+html body:has(.ka-central) .ka-central .ka-table tbody tr:focus-within td{background:transparent!important;color:#f4f8ff!important}
+html body:has(.ka-central) .ka-central .ka-table tbody tr:hover a{color:#fff!important}
+.ka-central .ka-scroll{overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+@media(max-width:600px){.ka-central .ka-campaign-filters .ka-search{flex-basis:100%;min-width:0}.ka-central .ka-campaign-filters select{max-width:100%;min-width:0}.ka-central .ka-campaign-filters .ka-muted{margin-left:0}.ka-central .ka-table th,.ka-central .ka-table td{padding:10px 11px}}
+
 .ka-campaign-filters{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-bottom:17px}
 .ka-search,.ka-campaign-filters select{background:#0e2037;border:1px solid #385375;border-radius:10px;color:#e8f3ff;padding:11px 12px;min-height:40px;font-size:12px}
 .ka-search{min-width:210px;flex:1}.ka-campaign-filters select{min-width:125px}.ka-campaign-filters .ka-muted{margin-left:auto}
@@ -269,9 +278,9 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             used=100*float(r.get("gasto_hoje") or 0)/budget if budget>0 else None
             budget_cell=budget_indicator(used)
             return ("<tr><td>"+hidden_name(r["cliente"])+"</td><td>"+hidden_name(r["nome"] or r["campanha_id"])+
-                    "</td><td>"+(money(gasto) if observed else "—")+"</td><td>"+(money(fat) if observed else "—")+"</td><td>"+metric(a,"%")+"</td><td>"+metric(fat/gasto if observed and gasto>0 else None,"x")+"</td><td>"+metric(100/float(r["roas_objetivo"]) if float(r["roas_objetivo"] or 0)>0 else None,"%")+"</td><td>"+(money(budget) if budget>0 else "—")+"</td><td>"+budget_cell+
+                    "</td><td>"+(money(gasto) if observed else "—")+"</td><td>"+(money(fat) if observed else "—")+"</td><td>"+metric(a,"%")+"</td><td>"+metric(fat/gasto if observed and gasto>0 else None,"x")+"</td><td>"+metric(float(r["roas_objetivo"]) if float(r["roas_objetivo"] or 0)>0 else None,"x")+"</td><td>"+(money(budget) if budget>0 else "—")+"</td><td>"+budget_cell+
                     "</td><td>"+e(issue or r["status"] or "—")+"</td></tr>")
-        table_head="<thead><tr><th>Cliente</th><th>Campanha</th><th>Investimento</th><th>Vendas Ads</th><th>ACOS</th><th>ROAS</th><th>ACOS objetivo</th><th>Orçamento diário</th><th>Orçamento gasto (%)</th><th>Situação</th></tr></thead>"
+        table_head="<thead><tr><th>Cliente</th><th>Campanha</th><th>Investimento</th><th>Vendas Ads</th><th>ACOS</th><th>ROAS</th><th>ROAS objetivo</th><th>Orçamento diário</th><th>Orçamento gasto (%)</th><th>Situação</th></tr></thead>"
         store_options = "".join("<option value='"+e(name)+"'>"+e(name)+"</option>" for name in sorted({str(r["cliente"] or "") for r in campaigns})) if admin and not presenting else ""
         filters = ("<div class='ka-campaign-filters'><input id='ka-campaign-search' class='ka-search' type='search' placeholder='Buscar campanha...' aria-label='Buscar campanha'>"
                    +("<select id='ka-store-filter' aria-label='Filtrar loja'><option value=''>Todas as lojas</option>"+store_options+"</select>" if store_options else "")
