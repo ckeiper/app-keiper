@@ -945,7 +945,7 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
 .keiper-login .kl-right { display:flex; align-items:center; justify-content:center; padding:48px 36px; background:#fff; }
 .keiper-login .kl-form-area { width:100%; max-width:390px; }
 .keiper-login .kl-eyebrow { color:#2563eb; font-size:12px; font-weight:750; letter-spacing:.13em; text-transform:uppercase; margin-bottom:15px; }
-.keiper-login h2 { font-size:34px; letter-spacing:-.035em; line-height:1.2; margin:0 0 9px; color:#14233c; }
+.keiper-login h2 { font-size:34px; letter-spacing:-.035em; line-height:1.2; margin:0 0 28px; color:#14233c; }
 .keiper-login .kl-subtitle { color:#718096; font-size:14px; margin-bottom:34px; line-height:1.6; }
 .keiper-login .kl-field { margin-bottom:19px; }
 .keiper-login label { display:block; color:#243550; font-weight:650; font-size:13px; margin-bottom:9px; }
@@ -965,12 +965,12 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
  .keiper-login { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(152px,30dvh) minmax(0,1fr); min-height:100dvh; }
  .keiper-login .kl-brand { min-height:0; height:100%; padding:clamp(22px,5vw,32px); display:flex; align-items:center; justify-content:center; }
  .keiper-login .kl-brand-mark { justify-content:center; font-size:clamp(18px,4.4vw,22px); gap:13px; }
- .keiper-login .kl-brand-mark img { max-height:52px; max-width:72px; }
+ .keiper-login .kl-brand-mark img { max-height:108px; max-width:124px; width:auto; }\n .keiper-login .kl-brand-mark > div { display:none; }
  .keiper-login .kl-message,.keiper-login .kl-footer { display:none; }
  .keiper-login .kl-right { min-height:0; padding:clamp(28px,5vh,44px) 24px 36px; align-items:flex-start; }
  .keiper-login .kl-form-area { max-width:420px; margin:0 auto; }
  .keiper-login .kl-eyebrow { margin-bottom:10px; }
- .keiper-login h2 { font-size:clamp(25px,6vw,30px); margin-bottom:7px; }
+ .keiper-login h2 { font-size:clamp(25px,6vw,30px); margin-bottom:25px; }
  .keiper-login .kl-subtitle { margin-bottom:23px; }
  .keiper-login .kl-field { margin-bottom:15px; }
  .keiper-login .kl-submit { margin-top:21px; }
@@ -996,9 +996,8 @@ def login_layout(erro=False):
             "<p>Seus marketplaces em um só lugar. Acesse suas análises e oportunidades com clareza.</p></div>"
             "<div class='kl-footer'>Keiper Consultoria · Dashboard Keiper</div></section>"
             "<section class='kl-right'><div class='kl-form-area'>"
-            "<div class='kl-eyebrow'>Dashboard Keiper</div>"
-            "<h2>Bem-vindo de volta</h2>"
-            "<p class='kl-subtitle'>Entre com suas credenciais para acessar seu painel.</p>"
+            ""
+            "<h2>Acesse seu painel</h2>"
             + aviso + form_login() + "</div></section></main>")
 
 
@@ -1018,7 +1017,7 @@ def form_login():
             "this.textContent=show?'Ocultar':'Mostrar';"
             "this.setAttribute('aria-label',show?'Ocultar senha':'Mostrar senha');"
             "this.setAttribute('aria-pressed',String(show))\">Mostrar</button></div></div>"
-            "<button type='submit' class='kl-submit'>Entrar no painel</button></form>"
+            "<button type='submit' class='kl-submit'>Entrar</button></form>"
             "<nav class='kl-links' aria-label='Acesso à conta'>"
             "<a href='/recuperar'>Esqueci minha senha</a><span>·</span>"
             "<a href='/conectar'>Conectar loja</a></nav>")
