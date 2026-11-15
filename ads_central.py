@@ -47,6 +47,15 @@ html[data-theme=light] body:has(.ka-central){background:#09192d!important;color:
 .ka-scroll{overflow-x:auto;border:1px solid #2b4262;border-radius:12px}.ka-table{width:100%;border-collapse:collapse;white-space:nowrap}
 .ka-table th,.ka-table td{text-align:left;padding:13px 14px;border-bottom:1px solid #ffffff0d;font-size:12px}.ka-table th{background:#203956;color:#b5c9e5;text-transform:uppercase;font-weight:750;font-size:10px;letter-spacing:.055em}
 .ka-table td{color:#e2ecfa}.ka-table tbody tr:nth-child(even){background:#ffffff04}.ka-table tbody tr:hover{background:#3563a222}
+/* Prevent global light-theme table hover rules from washing out dark rows. */
+html body:has(.ka-central) .ka-central .ka-table tbody tr:hover,
+html body:has(.ka-central) .ka-central .ka-table tbody tr:focus-within{background:#25456a!important}
+html body:has(.ka-central) .ka-central .ka-table tbody tr:hover td,
+html body:has(.ka-central) .ka-central .ka-table tbody tr:focus-within td{background:transparent!important;color:#f4f8ff!important}
+html body:has(.ka-central) .ka-central .ka-table tbody tr:hover a{color:#fff!important}
+.ka-central .ka-scroll{overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+@media(max-width:600px){.ka-central .ka-campaign-filters .ka-search{flex-basis:100%;min-width:0}.ka-central .ka-campaign-filters select{max-width:100%;min-width:0}.ka-central .ka-campaign-filters .ka-muted{margin-left:0}.ka-central .ka-table th,.ka-central .ka-table td{padding:10px 11px}}
+
 .ka-campaign-filters{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-bottom:17px}
 .ka-search,.ka-campaign-filters select{background:#0e2037;border:1px solid #385375;border-radius:10px;color:#e8f3ff;padding:11px 12px;min-height:40px;font-size:12px}
 .ka-search{min-width:210px;flex:1}.ka-campaign-filters select{min-width:125px}.ka-campaign-filters .ka-muted{margin-left:auto}
