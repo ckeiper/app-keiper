@@ -965,7 +965,8 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
  .keiper-login { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(152px,30dvh) minmax(0,1fr); min-height:100dvh; }
  .keiper-login .kl-brand { min-height:0; height:100%; padding:clamp(22px,5vw,32px); display:flex; align-items:center; justify-content:center; }
  .keiper-login .kl-brand-mark { justify-content:center; font-size:clamp(18px,4.4vw,22px); gap:13px; }
- .keiper-login .kl-brand-mark img { max-height:108px; max-width:124px; width:auto; }\n .keiper-login .kl-brand-mark > div { display:none; }
+ .keiper-login .kl-brand-mark img { max-height:108px; max-width:124px; width:auto; }
+ .keiper-login .kl-brand-mark > div { display:none; }
  .keiper-login .kl-message,.keiper-login .kl-footer { display:none; }
  .keiper-login .kl-right { min-height:0; padding:clamp(28px,5vh,44px) 24px 36px; align-items:flex-start; }
  .keiper-login .kl-form-area { max-width:420px; margin:0 auto; }
