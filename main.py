@@ -962,13 +962,23 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
 .keiper-login .kl-links span { color:#c3cbd8; }
 .keiper-login .kl-error { background:#fff0f0; border:1px solid #f7c8c8; border-radius:9px; padding:12px; color:#a12c2c; font-size:13px; margin:0 0 20px; }
 @media(max-width:850px) {
- .keiper-login { grid-template-columns:1fr; min-height:100dvh; }
- .keiper-login .kl-brand { min-height:auto; padding:25px 25px 18px; }
+ .keiper-login { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(152px,30dvh) minmax(0,1fr); min-height:100dvh; }
+ .keiper-login .kl-brand { min-height:0; height:100%; padding:clamp(22px,5vw,32px); display:flex; align-items:center; justify-content:center; }
+ .keiper-login .kl-brand-mark { justify-content:center; font-size:clamp(18px,4.4vw,22px); gap:13px; }
+ .keiper-login .kl-brand-mark img { max-height:52px; max-width:72px; }
  .keiper-login .kl-message,.keiper-login .kl-footer { display:none; }
- .keiper-login .kl-brand-mark { font-size:19px; }
- .keiper-login .kl-brand-mark img { max-height:42px; }
- .keiper-login .kl-right { padding:42px 25px 64px; align-items:flex-start; }
- .keiper-login h2 { font-size:29px; }
+ .keiper-login .kl-right { min-height:0; padding:clamp(28px,5vh,44px) 24px 36px; align-items:flex-start; }
+ .keiper-login .kl-form-area { max-width:420px; margin:0 auto; }
+ .keiper-login .kl-eyebrow { margin-bottom:10px; }
+ .keiper-login h2 { font-size:clamp(25px,6vw,30px); margin-bottom:7px; }
+ .keiper-login .kl-subtitle { margin-bottom:23px; }
+ .keiper-login .kl-field { margin-bottom:15px; }
+ .keiper-login .kl-submit { margin-top:21px; }
+ .keiper-login .kl-links { margin-top:18px; }
+}
+@media(max-width:850px) and (max-height:650px) {
+ .keiper-login { grid-template-rows:minmax(110px,24dvh) minmax(0,1fr); }
+ .keiper-login .kl-right { padding-top:22px; }
 }
 @media(prefers-reduced-motion:reduce) { .keiper-login * { transition:none!important; } }
 </style>
