@@ -921,25 +921,97 @@ def login():
             if u["tipo"] == "cliente" and u["conexao_id"]:
                 return redirect("/painel/" + str(u["conexao_id"]))
             return redirect("/painel")
-        corpo = ("<div class='card' style='max-width:420px;margin:60px auto;text-align:center'>"
-                 + img_logo(64) + "<h2>Login</h2>"
-                 + "<div class='aviso'>Usuário ou senha incorretos.</div>"
-                 + form_login() + "</div>")
-        return pagina("Login", corpo)
-    corpo = ("<div class='card' style='max-width:420px;margin:60px auto;text-align:center'>"
-             + img_logo(64) + "<h2>Login</h2>"
-             + "<div class='sub'>Acesse o painel Keiper Consultoria</div>"
-             + form_login() + "</div>")
-    return pagina("Login", corpo)
+        return pagina("Login", login_layout(True))
+    return pagina("Login", login_layout(False))
+
+
+LOGIN_CSS = """
+<style>
+body:has(.keiper-login) { background:#f8fafc; }
+body:has(.keiper-login) > .top { display:none; }
+body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
+.keiper-login { min-height:100vh; display:grid; grid-template-columns:minmax(0,55fr) minmax(380px,45fr); font-family:'Segoe UI',Arial,sans-serif; }
+.keiper-login * { box-sizing:border-box; }
+.keiper-login .kl-brand { position:relative; overflow:hidden; background:linear-gradient(145deg,#0b1730,#142c52 65%,#10203c); color:#fff; padding:clamp(36px,5vw,88px); display:flex; flex-direction:column; justify-content:space-between; min-height:100vh; }
+.keiper-login .kl-brand:before { content:''; position:absolute; width:420px; height:420px; border-radius:50%; background:#2563eb; filter:blur(130px); opacity:.17; right:-180px; top:18%; pointer-events:none; }
+.keiper-login .kl-brand-mark { display:flex; align-items:center; gap:14px; font-weight:750; font-size:23px; letter-spacing:.07em; position:relative; }
+.keiper-login .kl-brand-mark img { max-width:180px; height:auto!important; max-height:56px; object-fit:contain; }
+.keiper-login .kl-brand-mark small { display:block; font-size:11px; letter-spacing:.24em; color:#9db3d4; margin-top:4px; }
+.keiper-login .kl-message { position:relative; max-width:590px; }
+.keiper-login .kl-message h1 { font-size:clamp(36px,4.1vw,66px); line-height:1.08; letter-spacing:-.045em; font-weight:750; margin:0 0 24px; }
+.keiper-login .kl-message h1 span { color:#75aaff; }
+.keiper-login .kl-message p { font-size:17px; line-height:1.65; color:#b7c7df; max-width:430px; }
+.keiper-login .kl-footer { position:relative; font-size:12px; color:#8da3c4; }
+.keiper-login .kl-right { display:flex; align-items:center; justify-content:center; padding:48px 36px; background:#fff; }
+.keiper-login .kl-form-area { width:100%; max-width:390px; }
+.keiper-login .kl-eyebrow { color:#2563eb; font-size:12px; font-weight:750; letter-spacing:.13em; text-transform:uppercase; margin-bottom:15px; }
+.keiper-login h2 { font-size:34px; letter-spacing:-.035em; line-height:1.2; margin:0 0 9px; color:#14233c; }
+.keiper-login .kl-subtitle { color:#718096; font-size:14px; margin-bottom:34px; line-height:1.6; }
+.keiper-login .kl-field { margin-bottom:19px; }
+.keiper-login label { display:block; color:#243550; font-weight:650; font-size:13px; margin-bottom:9px; }
+.keiper-login .kl-input { display:block; width:100%; border:1px solid #dce3ee; border-radius:10px; background:#f9fbfe; padding:14px 15px; font-size:15px; color:#14233c; outline:none; transition:border-color .2s,box-shadow .2s; }
+.keiper-login .kl-input:focus { border-color:#377df2; box-shadow:0 0 0 3px #377df222; }
+.keiper-login .kl-password-wrap { position:relative; }
+.keiper-login .kl-password-wrap .kl-input { padding-right:78px; }
+.keiper-login .kl-toggle { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:transparent; border:0; padding:9px; cursor:pointer; font-size:12px; font-weight:650; color:#3774d5; }
+.keiper-login .kl-submit { display:block; width:100%; padding:15px; background:#2469e8; color:#fff; border:0; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; margin-top:26px; transition:background .2s; }
+.keiper-login .kl-submit:hover { background:#1756c5; }
+.keiper-login .kl-links { margin-top:22px; display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; font-size:13px; }
+.keiper-login .kl-links a { color:#2469e8; font-weight:650; text-decoration:none; }
+.keiper-login .kl-links a:hover { text-decoration:underline; }
+.keiper-login .kl-links span { color:#c3cbd8; }
+.keiper-login .kl-error { background:#fff0f0; border:1px solid #f7c8c8; border-radius:9px; padding:12px; color:#a12c2c; font-size:13px; margin:0 0 20px; }
+@media(max-width:850px) {
+ .keiper-login { grid-template-columns:1fr; min-height:100dvh; }
+ .keiper-login .kl-brand { min-height:auto; padding:25px 25px 18px; }
+ .keiper-login .kl-message,.keiper-login .kl-footer { display:none; }
+ .keiper-login .kl-brand-mark { font-size:19px; }
+ .keiper-login .kl-brand-mark img { max-height:42px; }
+ .keiper-login .kl-right { padding:42px 25px 64px; align-items:flex-start; }
+ .keiper-login h2 { font-size:29px; }
+}
+@media(prefers-reduced-motion:reduce) { .keiper-login * { transition:none!important; } }
+</style>
+"""
+
+
+def login_layout(erro=False):
+    aviso = ("<div class='kl-error' role='alert'>Usuário ou senha incorretos.</div>" if erro else "")
+    return (LOGIN_CSS +
+            "<main class='keiper-login'>"
+            "<section class='kl-brand' aria-label='Keiper Consultoria'>"
+            "<div class='kl-brand-mark'>" + img_logo(56) +
+            "<div>KEIPER<small>CONSULTORIA</small></div></div>"
+            "<div class='kl-message'><h1>Inteligência para <span>vender mais.</span></h1>"
+            "<p>Seus marketplaces em um só lugar. Acesse suas análises e oportunidades com clareza.</p></div>"
+            "<div class='kl-footer'>Keiper Consultoria · Dashboard Keiper</div></section>"
+            "<section class='kl-right'><div class='kl-form-area'>"
+            "<div class='kl-eyebrow'>Dashboard Keiper</div>"
+            "<h2>Bem-vindo de volta</h2>"
+            "<p class='kl-subtitle'>Entre com suas credenciais para acessar seu painel.</p>"
+            + aviso + form_login() + "</div></section></main>")
 
 
 def form_login():
-    return ("<form method='post' action='/login' style='margin-top:12px'>"
-            "<input name='username' required placeholder='Usuário' class='input'>"
-            "<input type='password' name='senha' required placeholder='Senha' class='input'>"
-            "<button class='btn-salvar' style='width:100%'>Entrar</button></form>"
-            "<p style='margin-top:12px'><a class='link' href='/recuperar'>Esqueci minha senha</a></p>"
-            "<p><a class='btn' href='/conectar'>+ Conectar loja</a></p>")
+    return ("<form method='post' action='/login' autocomplete='on'>"
+            "<div class='kl-field'><label for='kl-username'>Usuário</label>"
+            "<input id='kl-username' name='username' required maxlength='200' "
+            "autocomplete='username' placeholder='Digite seu usuário' class='kl-input'></div>"
+            "<div class='kl-field'><label for='kl-password'>Senha</label>"
+            "<div class='kl-password-wrap'><input id='kl-password' type='password' "
+            "name='senha' required maxlength='256' autocomplete='current-password' "
+            "placeholder='Digite sua senha' class='kl-input'>"
+            "<button class='kl-toggle' type='button' aria-controls='kl-password' "
+            "aria-label='Mostrar senha' aria-pressed='false' "
+            "onclick=\"var p=document.getElementById('kl-password');"
+            "var show=p.type==='password';p.type=show?'text':'password';"
+            "this.textContent=show?'Ocultar':'Mostrar';"
+            "this.setAttribute('aria-label',show?'Ocultar senha':'Mostrar senha');"
+            "this.setAttribute('aria-pressed',String(show))\">Mostrar</button></div></div>"
+            "<button type='submit' class='kl-submit'>Entrar no painel</button></form>"
+            "<nav class='kl-links' aria-label='Acesso à conta'>"
+            "<a href='/recuperar'>Esqueci minha senha</a><span>·</span>"
+            "<a href='/conectar'>Conectar loja</a></nav>")
 
 
 @app.route("/recuperar", methods=["GET", "POST"])
