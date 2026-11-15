@@ -58,6 +58,11 @@ html[data-theme=light] body:has(.ka-central){background:#09192d!important;color:
 .ka-budget meter::-webkit-meter-optimum-value{background:currentColor;border-radius:9px}
 .ka-budget meter::-moz-meter-bar{background:currentColor;border-radius:9px}
 .ka-budget meter{color:inherit}
+.ka-client-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:12px}
+.ka-client-grid h4{margin:0;overflow-wrap:anywhere}
+.ka-client-metrics{display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap}
+.ka-client-metrics dt{font-size:12px}.ka-client-metrics dd{margin:0;font-weight:700}
+.ka-story .ka-client-grid{grid-template-columns:1fr}
 .ka-chart-day line{opacity:0;stroke:#adc8eb;stroke-dasharray:4 4;pointer-events:none}
 .ka-chart-day.ka-chart-current line,.ka-chart-day:focus-visible line{opacity:1}
 .ka-chart-readout{min-height:2.6em;padding:4px 0;color:#edf5ff;font-size:12px;font-variant-numeric:tabular-nums}
@@ -201,7 +206,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         scope = "" if admin else " AND c.id=%s"
         args = () if admin else (cid,)
         with banco() as conn:
-            campaigns = consultar(conn, """
+            campaign_query = """
                 SELECT c.cliente, a.conexao_id, a.campanha_id, a.nome, a.status,
                        a.orcamento, a.roas_objetivo, a.atualizado_em,
                        COALESCE(SUM(CASE WHEN d.data = %s THEN d.gasto ELSE 0 END),0) gasto_hoje,
@@ -214,8 +219,17 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                 WHERE 1=1 """+scope+"""
                 GROUP BY c.cliente,a.conexao_id,a.campanha_id,a.nome,a.status,
                          a.orcamento,a.roas_objetivo,a.atualizado_em
-                ORDER BY c.cliente,a.nome LIMIT 3000
-            """, (end,start,end)+args)
+            """
+            campaign_args = (end,start,end)+args
+            campaigns = consultar(conn, campaign_query + " ORDER BY cliente,nome LIMIT 3000", campaign_args)
+            clients = consultar(conn, """
+                SELECT cliente, SUM(gasto) gasto, SUM(faturamento) faturamento,
+                       SUM(dias_observados) dias_observados,
+                       SUM(CASE WHEN orcamento > 0 THEN gasto_hoje END) gasto_hoje,
+                       SUM(CASE WHEN orcamento > 0 THEN orcamento END) orcamento
+                FROM (""" + campaign_query + """) AS campaign_totals
+                GROUP BY cliente ORDER BY cliente
+            """, campaign_args)
             daily = consultar(conn, """
                 SELECT d.data, SUM(d.gasto) gasto, SUM(d.faturamento) faturamento
                 FROM ads_dia d JOIN conexoes c ON c.id=d.conexao_id
@@ -261,6 +275,27 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             if presenting:
                 return "<span class='ka-private' aria-label='Nome oculto'></span>"
             return f"<span class='ka-private-name'>{e(name)}</span>"
+        client_cards = []
+        for client in clients:
+            spend = float(client["gasto"] or 0)
+            revenue = float(client["faturamento"] or 0)
+            observed = bool(client["dias_observados"])
+            budget = float(client["orcamento"] or 0)
+            used = 100 * float(client["gasto_hoje"] or 0) / budget if budget > 0 else None
+            client_cards.append(
+                "<article class='ka-panel'><h4>" + hidden_name(client["cliente"]) + "</h4>"
+                "<dl class='ka-client-metrics'><div><dt>Vendas de Ads</dt><dd>" +
+                (money(revenue) if observed else "—") + "</dd></div><div><dt>Investimento</dt><dd>" +
+                (money(spend) if observed else "—") + "</dd></div><div><dt>ROAS</dt><dd>" +
+                metric(revenue / spend if spend > 0 else None, "x") +
+                "</dd></div></dl><p class='ka-muted'>Orçamento consumido hoje</p>" +
+                budget_indicator(used) + "</article>"
+            )
+        client_section = (
+            "<section class='ka-panel'><h3>Campanhas por cliente</h3>"
+            "<div class='ka-client-grid'>" + "".join(client_cards) + "</div></section>"
+        ) if client_cards else ""
+
         def row(r,issue=""):
             gasto=float(r["gasto"] or 0); fat=float(r["faturamento"] or 0)
             observed=bool(r["dias_observados"])
@@ -398,5 +433,5 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
               "<div class='ka-kpis'>"+cards+"</div>"+
               "<div class='ka-overview'><section class='ka-panel'><h3>Evolução de vendas e investimento</h3>"+chart(daily)+
               "<p class='ka-muted'>"+coverage+" · Dados históricos armazenados; podem ter defasagem.</p></section>"+
-              donut+"</div>"+strategic+matrix_section+alert_section+opportunity_section+table+FILTER_SCRIPT+"</main>")
+              donut+"</div>"+strategic+matrix_section+alert_section+opportunity_section+client_section+table+FILTER_SCRIPT+"</main>")
         return pagina("Central Ads Black Friday",body)
