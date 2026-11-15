@@ -224,6 +224,8 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             campaigns = consultar(conn, campaign_query + " ORDER BY cliente,nome LIMIT 3000", campaign_args)
             clients = consultar(conn, """
                 SELECT cliente, SUM(gasto) gasto, SUM(faturamento) faturamento,
+                       SUM(CASE WHEN LOWER(TRIM(status)) IN ('active', 'ativa', 'ativo')
+                                THEN 1 ELSE 0 END) campanhas_ativas,
                        SUM(dias_observados) dias_observados,
                        SUM(CASE WHEN orcamento > 0 THEN gasto_hoje END) gasto_hoje,
                        SUM(CASE WHEN orcamento > 0 THEN orcamento END) orcamento
@@ -284,7 +286,8 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             used = 100 * float(client["gasto_hoje"] or 0) / budget if budget > 0 else None
             client_cards.append(
                 "<article class='ka-panel'><h4>" + hidden_name(client["cliente"]) + "</h4>"
-                "<dl class='ka-client-metrics'><div><dt>Vendas de Ads</dt><dd>" +
+                "<dl class='ka-client-metrics'><div><dt>Campanhas ativas</dt><dd>" +
+                str(client["campanhas_ativas"]) + "</dd></div><div><dt>Vendas de Ads</dt><dd>" +
                 (money(revenue) if observed else "—") + "</dd></div><div><dt>Investimento</dt><dd>" +
                 (money(spend) if observed else "—") + "</dd></div><div><dt>ROAS</dt><dd>" +
                 metric(revenue / spend if spend > 0 else None, "x") +
