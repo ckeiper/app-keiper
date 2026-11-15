@@ -92,7 +92,9 @@ class AuthRouteSecurityTests(unittest.TestCase):
                       auth_attempt_allowed=self.allowed,banco=lambda:contextlib.nullcontext(None),
                       consultar=self.query,executar=self.write,
                       pagina=lambda title,body:body,img_logo=lambda size:'')
-        # The isolated auth tests stub the visual shell; the production login_layout\n        # is presentation-only and keeps the same form and CSRF behavior.\n        self.env['login_layout'] = lambda erro=False: self.env['form_login']()\n        for name in ['login_required','admin_required','form_login','login','usuarios_excluir','usuarios_criar','redefinir']:
+        # Stub the visual shell in isolated auth tests.
+        self.env['login_layout'] = lambda erro=False: self.env['form_login']()
+        for name in ['login_required','admin_required','form_login','login','usuarios_excluir','usuarios_criar','redefinir']:
             fn=main_function(name,self.env)
             if name=='login': self.app.add_url_rule('/login',view_func=fn,methods=['GET','POST'])
             if name=='usuarios_excluir': self.app.add_url_rule('/usuarios/excluir/<int:uid>',view_func=self.env['admin_required'](fn),methods=['GET','POST'])
