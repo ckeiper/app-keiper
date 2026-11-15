@@ -66,12 +66,13 @@ const {chromium}=require('playwright');
         assert.equal(await page.locator('.lc table').count(),mode==='pending'?0:3);
         if(mode!=='pending') {
           assert.equal(await page.locator('.lc-main-scroll thead th').count(),mode==='two'?3:5);
-          assert.equal(await page.locator('.lc-main-scroll tbody tr').count(),8);
+          assert.equal(await page.locator('.lc-main-scroll tbody tr').count(),9);
           assert.ok((await page.locator('.lc-main-scroll tbody').textContent()).includes('R$ 200,00 → R$ 100,00'));
+          assert.equal(await page.locator('.lc-main-scroll tbody tr').filter({hasText:'Unidades por pedido'}).locator('td').first().textContent(),'2,00 → 3,00');
           const efficiency=await page.locator('.lc-main-scroll tbody tr').last().locator('td').first().textContent();
           if(['partial','zero'].includes(mode))assert.ok(efficiency.includes('Indisponível'));
           else assert.equal(efficiency,'1,43% → 1,43%');
-          if(mode==='partial')assert.ok((await page.locator('.lc-main-scroll tbody tr').nth(6).textContent()).includes('7/7 → 6/7 dias válidos'));
+          if(mode==='partial')assert.ok((await page.locator('.lc-main-scroll tbody tr').filter({hasText:'Cobertura das visitas'}).textContent()).includes('7/7 → 6/7 dias válidos'));
           if(width<700)assert.ok(await page.locator('.lc-main-scroll').evaluate(el=>el.scrollWidth>el.clientWidth));
           await page.locator('.lc-main-scroll').focus();assert.equal(await page.locator(':focus').getAttribute('role'),'region');
           await page.locator('.lc-daily:not(.lc-stock) summary').focus();await page.keyboard.press('Enter');
