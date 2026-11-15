@@ -269,9 +269,9 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             used=100*float(r.get("gasto_hoje") or 0)/budget if budget>0 else None
             budget_cell=budget_indicator(used)
             return ("<tr><td>"+hidden_name(r["cliente"])+"</td><td>"+hidden_name(r["nome"] or r["campanha_id"])+
-                    "</td><td>"+(money(gasto) if observed else "—")+"</td><td>"+(money(fat) if observed else "—")+"</td><td>"+metric(a,"%")+"</td><td>"+metric(fat/gasto if observed and gasto>0 else None,"x")+"</td><td>"+metric(100/float(r["roas_objetivo"]) if float(r["roas_objetivo"] or 0)>0 else None,"%")+"</td><td>"+(money(budget) if budget>0 else "—")+"</td><td>"+budget_cell+
+                    "</td><td>"+(money(gasto) if observed else "—")+"</td><td>"+(money(fat) if observed else "—")+"</td><td>"+metric(a,"%")+"</td><td>"+metric(fat/gasto if observed and gasto>0 else None,"x")+"</td><td>"+metric(float(r["roas_objetivo"]) if float(r["roas_objetivo"] or 0)>0 else None,"x")+"</td><td>"+(money(budget) if budget>0 else "—")+"</td><td>"+budget_cell+
                     "</td><td>"+e(issue or r["status"] or "—")+"</td></tr>")
-        table_head="<thead><tr><th>Cliente</th><th>Campanha</th><th>Investimento</th><th>Vendas Ads</th><th>ACOS</th><th>ROAS</th><th>ACOS objetivo</th><th>Orçamento diário</th><th>Orçamento gasto (%)</th><th>Situação</th></tr></thead>"
+        table_head="<thead><tr><th>Cliente</th><th>Campanha</th><th>Investimento</th><th>Vendas Ads</th><th>ACOS</th><th>ROAS</th><th>ROAS objetivo</th><th>Orçamento diário</th><th>Orçamento gasto (%)</th><th>Situação</th></tr></thead>"
         store_options = "".join("<option value='"+e(name)+"'>"+e(name)+"</option>" for name in sorted({str(r["cliente"] or "") for r in campaigns})) if admin and not presenting else ""
         filters = ("<div class='ka-campaign-filters'><input id='ka-campaign-search' class='ka-search' type='search' placeholder='Buscar campanha...' aria-label='Buscar campanha'>"
                    +("<select id='ka-store-filter' aria-label='Filtrar loja'><option value=''>Todas as lojas</option>"+store_options+"</select>" if store_options else "")
