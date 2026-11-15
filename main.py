@@ -945,7 +945,7 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
 .keiper-login .kl-right { display:flex; align-items:center; justify-content:center; padding:48px 36px; background:#fff; }
 .keiper-login .kl-form-area { width:100%; max-width:390px; }
 .keiper-login .kl-eyebrow { color:#2563eb; font-size:12px; font-weight:750; letter-spacing:.13em; text-transform:uppercase; margin-bottom:15px; }
-.keiper-login h2 { font-size:34px; letter-spacing:-.035em; line-height:1.2; margin:0 0 28px; color:#14233c; }
+.keiper-login h2 { font-size:34px; letter-spacing:-.035em; line-height:1.2; margin:0 0 9px; color:#14233c; }
 .keiper-login .kl-subtitle { color:#718096; font-size:14px; margin-bottom:34px; line-height:1.6; }
 .keiper-login .kl-field { margin-bottom:19px; }
 .keiper-login label { display:block; color:#243550; font-weight:650; font-size:13px; margin-bottom:9px; }
@@ -971,7 +971,7 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
  .keiper-login .kl-right { min-height:0; padding:clamp(28px,5vh,44px) 24px 36px; align-items:flex-start; }
  .keiper-login .kl-form-area { max-width:420px; margin:0 auto; }
  .keiper-login .kl-eyebrow { margin-bottom:10px; }
- .keiper-login h2 { font-size:clamp(25px,6vw,30px); margin-bottom:25px; }
+ .keiper-login h2 { font-size:clamp(25px,6vw,30px); margin-bottom:7px; }
  .keiper-login .kl-subtitle { margin-bottom:23px; }
  .keiper-login .kl-field { margin-bottom:15px; }
  .keiper-login .kl-submit { margin-top:21px; }
@@ -997,8 +997,9 @@ def login_layout(erro=False):
             "<p>Seus marketplaces em um só lugar. Acesse suas análises e oportunidades com clareza.</p></div>"
             "<div class='kl-footer'>Keiper Consultoria · Dashboard Keiper</div></section>"
             "<section class='kl-right'><div class='kl-form-area'>"
-            ""
-            "<h2>Acesse seu painel</h2>"
+            "<div class='kl-eyebrow'>Dashboard Keiper</div>"
+            "<h2>Bem-vindo ao seu painel</h2>"
+            "<p class='kl-subtitle'>Gerencie e acompanhe os resultados dos seus marketplaces em um só lugar.</p>"
             + aviso + form_login() + "</div></section></main>")
 
 
