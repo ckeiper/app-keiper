@@ -965,7 +965,8 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
  .keiper-login { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(152px,30dvh) minmax(0,1fr); min-height:100dvh; }
  .keiper-login .kl-brand { min-height:0; height:100%; padding:clamp(22px,5vw,32px); display:flex; align-items:center; justify-content:center; }
  .keiper-login .kl-brand-mark { justify-content:center; font-size:clamp(18px,4.4vw,22px); gap:13px; }
- .keiper-login .kl-brand-mark img { max-height:52px; max-width:72px; }
+ .keiper-login .kl-brand-mark img { max-height:108px; max-width:124px; width:auto; }
+ .keiper-login .kl-brand-mark > div { display:none; }
  .keiper-login .kl-message,.keiper-login .kl-footer { display:none; }
  .keiper-login .kl-right { min-height:0; padding:clamp(28px,5vh,44px) 24px 36px; align-items:flex-start; }
  .keiper-login .kl-form-area { max-width:420px; margin:0 auto; }
@@ -997,8 +998,8 @@ def login_layout(erro=False):
             "<div class='kl-footer'>Keiper Consultoria · Dashboard Keiper</div></section>"
             "<section class='kl-right'><div class='kl-form-area'>"
             "<div class='kl-eyebrow'>Dashboard Keiper</div>"
-            "<h2>Bem-vindo de volta</h2>"
-            "<p class='kl-subtitle'>Entre com suas credenciais para acessar seu painel.</p>"
+            "<h2>Bem-vindo ao seu painel</h2>"
+            "<p class='kl-subtitle'>Gerencie e acompanhe os resultados dos seus marketplaces em um só lugar.</p>"
             + aviso + form_login() + "</div></section></main>")
 
 
@@ -1018,7 +1019,7 @@ def form_login():
             "this.textContent=show?'Ocultar':'Mostrar';"
             "this.setAttribute('aria-label',show?'Ocultar senha':'Mostrar senha');"
             "this.setAttribute('aria-pressed',String(show))\">Mostrar</button></div></div>"
-            "<button type='submit' class='kl-submit'>Entrar no painel</button></form>"
+            "<button type='submit' class='kl-submit'>Entrar</button></form>"
             "<nav class='kl-links' aria-label='Acesso à conta'>"
             "<a href='/recuperar'>Esqueci minha senha</a><span>·</span>"
             "<a href='/conectar'>Conectar loja</a></nav>")
