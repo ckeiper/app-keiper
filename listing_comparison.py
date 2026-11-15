@@ -107,16 +107,24 @@ def render(cid,ranking,listings,args,end,days=7,visits=None,now=None):
     for item in result['ids']:
         out+='<th scope="col"><a href="/diagnostico/'+str(int(cid))+'/'+item+'">'+esc(names.get(item,item))+'</a><small>'+esc(item)+'</small></th>'
     out+='</tr></thead><tbody>'
-    for label,key in [('Valor bruto dos itens','value'),('Pedidos com este anúncio','orders'),('Unidades vendidas','units'),('Valor dos itens por pedido','ticket'),('Variação do valor bruto','delta'),('Visitas registradas','visits'),('Cobertura das visitas','visit_coverage'),('Pedidos pagos ÷ visitas','orders_per_visit')]:
+    for label,key in [('Valor bruto dos itens','value'),('Pedidos com este anúncio','orders'),('Unidades vendidas','units'),('Unidades por pedido','units_per_order'),('Valor dos itens por pedido','ticket'),('Variação do valor bruto','delta'),('Visitas registradas','visits'),('Cobertura das visitas','visit_coverage'),('Pedidos pagos ÷ visitas','orders_per_visit')]:
         out+='<tr><th scope="row">'+label+'</th>'
         for item in result['ids']:
             row=ranking['rows'][item]
             if key in ('visits','visit_coverage','orders_per_visit'):
                 text=visit_cell(row,(visits or {}).get(item),key,days)
-            elif key=='ticket':
-                before=row['previous_value']/row['previous_orders'] if row['previous_orders'] else None
-                after=row['value']/row['orders'] if row['orders'] else None
-                text=('Sem pedidos' if before is None else format_brl(before))+' → '+('Sem pedidos' if after is None else format_brl(after))
+            elif key in ('ticket','units_per_order'):
+                numerator = 'value' if key == 'ticket' else 'units'
+                periods = []
+                for prefix in ('previous_', ''):
+                    orders = row[prefix+'orders']
+                    if not orders:
+                        periods.append('Sem pedidos')
+                        continue
+                    average = row[prefix+numerator] / orders
+                    periods.append(format_brl(average) if key == 'ticket'
+                                   else format(average, '.2f').replace('.', ','))
+                text = ' → '.join(periods)
             elif key=='delta':
                 delta=row['value']-row['previous_value']
                 percent=delta*100/row['previous_value'] if row['previous_value'] else None
@@ -130,7 +138,7 @@ def render(cid,ranking,listings,args,end,days=7,visits=None,now=None):
     out+=render_daily(cid,result['ids'],names,visits,args,end,days)
     from listing_comparison_stock import render as render_stock
     out+=render_stock(listings,ranking,result['ids'],names,days,now=now)
-    return out+'<details class="lc-help lc-help-bottom"><summary aria-label="Entenda os indicadores" title="Entenda os indicadores">?</summary><p>Valor bruto dos itens, sem lucro, margem ou Ads. Pedidos pagos ÷ visitas é indicador observacional, não conversão oficial do Mercado Livre. A taxa exige cobertura completa e visitas positivas nos dois períodos; dados ausentes não são zero. Um pedido com vários anúncios pode aparecer em mais de uma coluna, portanto não some os pedidos. Valor por pedido varia com quantidades, variações e descontos. A comparação não estabelece causas.</p></details></section>'
+    return out+'<details class="lc-help lc-help-bottom"><summary aria-label="Entenda os indicadores" title="Entenda os indicadores">?</summary><p>Valor bruto dos itens, sem lucro, margem ou Ads. Pedidos pagos ÷ visitas é indicador observacional, não conversão oficial do Mercado Livre. A taxa exige cobertura completa e visitas positivas nos dois períodos; dados ausentes não são zero. Um pedido com vários anúncios pode aparecer em mais de uma coluna, portanto não some os pedidos. Unidades por pedido divide as unidades vendidas do anúncio pelos pedidos pagos que o incluíram. Valor por pedido varia com quantidades, variações e descontos. A comparação não estabelece causas.</p></details></section>'
 
 
 STYLE='''<style>
