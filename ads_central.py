@@ -58,6 +58,11 @@ html[data-theme=light] body:has(.ka-central){background:#09192d!important;color:
 .ka-budget meter::-webkit-meter-optimum-value{background:currentColor;border-radius:9px}
 .ka-budget meter::-moz-meter-bar{background:currentColor;border-radius:9px}
 .ka-budget meter{color:inherit}
+.ka-client-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:12px}
+.ka-client-grid h4{margin:0;overflow-wrap:anywhere}
+.ka-client-metrics{display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap}
+.ka-client-metrics dt{font-size:12px}.ka-client-metrics dd{margin:0;font-weight:700}
+.ka-story .ka-client-grid{grid-template-columns:1fr}
 .ka-chart-day line{opacity:0;stroke:#adc8eb;stroke-dasharray:4 4;pointer-events:none}
 .ka-chart-day.ka-chart-current line,.ka-chart-day:focus-visible line{opacity:1}
 .ka-chart-readout{min-height:2.6em;padding:4px 0;color:#edf5ff;font-size:12px;font-variant-numeric:tabular-nums}
@@ -117,7 +122,7 @@ html[data-theme=light] body:has(.ka-central){background:#09192d!important;color:
 .ka-story .ka-bf-hero{padding:14px;min-height:0}.ka-story .ka-bf-brand{gap:10px}.ka-story .ka-bf-symbol{width:46px;height:46px;font-size:28px}.ka-story .ka-bf-brand h2{font-size:23px}.ka-story .ka-bf-controls{width:100%;justify-content:stretch}.ka-story .ka-bf-controls .ka-tabs{width:100%;justify-content:space-between}.ka-story .ka-bf-controls .ka-tabs a{padding:7px 8px}.ka-story .ka-bf-controls .ka-action{flex:1}.ka-story .ka-strategy-comparison{grid-template-columns:repeat(2,minmax(0,1fr))}.ka-story .ka-opportunity-list{grid-template-columns:1fr}.ka-story .ka-opportunities,.ka-story .ka-panel:has(svg[aria-label='Matriz de investimento e ROAS por campanha']){display:none}
 @media(max-width:600px){.ka-central:not(.ka-story) .ka-strategy-comparison{grid-template-columns:repeat(2,minmax(0,1fr))}.ka-central:not(.ka-story) .ka-strategy-stat{padding:10px}.ka-central:not(.ka-story) .ka-strategy-stat strong{font-size:16px}.ka-central:not(.ka-story) .ka-kpis{gap:9px}.ka-central:not(.ka-story) .ka-kpi{min-height:100px}.ka-central:not(.ka-story) .ka-panel h3{font-size:15px}}
 </style>"""
-FILTER_SCRIPT = "<script>\n(function(){\nconst table=document.getElementById('ka-campaign-table');if(!table)return;\nconst body=table.tBodies[0],rows=Array.from(body.rows),search=document.getElementById('ka-campaign-search'),store=document.getElementById('ka-store-filter'),status=document.getElementById('ka-status-filter'),order=document.getElementById('ka-order-filter'),count=document.getElementById('ka-campaign-count'),more=document.getElementById('ka-more-campaigns');\nlet limit=30;\nfunction num(t){return Number((t||'').replace(/[^0-9,.-]/g,'').replace(/\\./g,'').replace(',','.'))||0}\nfunction classify(t){t=(t||'').toLowerCase();if(['active','ativa','ativo'].includes(t))return'active';if(['paused','pausada','pausado'].includes(t))return'paused';return'other'}\nfunction update(){\nconst q=search.value.trim().toLocaleLowerCase('pt-BR'),v=store?store.value:'',st=status.value,sort=order.value;\nconst filtered=rows.filter(r=>(!q||r.cells[1].textContent.toLocaleLowerCase('pt-BR').includes(q))&&(!v||r.cells[0].textContent===v)&&(!st||classify(r.cells[9].textContent)===st));\nfunction budgetOrder(a,b){\nconst first=a.querySelector('[data-budget-used]'),second=b.querySelector('[data-budget-used]');\nif(!first||!second)return Number(Boolean(second))-Number(Boolean(first));\nconst diff=Number(first.dataset.budgetUsed)-Number(second.dataset.budgetUsed);\nreturn sort==='budget-asc'?diff:-diff;\n}\nfiltered.sort((a,b)=>sort.startsWith('budget-')?budgetOrder(a,b):sort==='name'?a.cells[1].textContent.localeCompare(b.cells[1].textContent,'pt-BR'):num(b.cells[sort==='spend'?2:sort==='acos'?4:sort==='roas'?5:3].textContent)-num(a.cells[sort==='spend'?2:sort==='acos'?4:3].textContent));\nrows.forEach(r=>r.remove());filtered.slice(0,limit).forEach(r=>body.appendChild(r));\ncount.textContent=filtered.length+' campanhas';more.hidden=filtered.length<=limit;\n}\n[search,store,status,order].filter(Boolean).forEach(el=>el.addEventListener(el===search?'input':'change',()=>{limit=30;update()}));\nmore.addEventListener('click',()=>{limit+=30;update()});update();\n})();\n</script>"
+FILTER_SCRIPT = "<script>\nfunction initCampaignTable(){\nconst table=document.getElementById('ka-campaign-table');if(!table)return;\nconst body=table.tBodies[0],rows=Array.from(body.rows),search=document.getElementById('ka-campaign-search'),store=document.getElementById('ka-store-filter'),status=document.getElementById('ka-status-filter'),order=document.getElementById('ka-order-filter'),count=document.getElementById('ka-campaign-count'),more=document.getElementById('ka-more-campaigns');\nlet page=0;const pageSize=25;const back=document.getElementById('ka-prev-campaigns');\nfunction num(t){return Number((t||'').replace(/[^0-9,.-]/g,'').replace(/\\./g,'').replace(',','.'))||0}\nfunction classify(t){t=(t||'').toLowerCase();if(['active','ativa','ativo'].includes(t))return'active';if(['paused','pausada','pausado'].includes(t))return'paused';return'other'}\nfunction update(){\nconst q=search.value.trim().toLocaleLowerCase('pt-BR'),v=store?store.value:'',st=status.value,sort=order.value;\nconst filtered=rows.filter(r=>(!q||r.cells[1].textContent.toLocaleLowerCase('pt-BR').includes(q))&&(!v||r.cells[0].textContent===v)&&(!st||classify(r.cells[9].textContent)===st));\nfunction budgetOrder(a,b){\nconst first=a.querySelector('[data-budget-used]'),second=b.querySelector('[data-budget-used]');\nif(!first||!second)return Number(Boolean(second))-Number(Boolean(first));\nconst diff=Number(first.dataset.budgetUsed)-Number(second.dataset.budgetUsed);\nreturn sort==='budget-asc'?diff:-diff;\n}\nfiltered.sort((a,b)=>sort.startsWith('budget-')?budgetOrder(a,b):sort==='name'?a.cells[1].textContent.localeCompare(b.cells[1].textContent,'pt-BR'):num(b.cells[sort==='spend'?2:sort==='acos'?4:sort==='roas'?5:3].textContent)-num(a.cells[sort==='spend'?2:sort==='acos'?4:3].textContent));\nrows.forEach(r=>r.remove());filtered.slice(page*pageSize,(page+1)*pageSize).forEach(r=>body.appendChild(r));\ncount.textContent=filtered.length+' campanhas';back.disabled=page===0;more.disabled=(page+1)*pageSize>=filtered.length;\n}\n[search,store,status,order].filter(Boolean).forEach(el=>el.addEventListener(el===search?'input':'change',()=>{page=0;update()}));\nback.addEventListener('click',()=>{page--;update()});more.addEventListener('click',()=>{page++;update()});update();\n}\n</script>"
 
 def budget_indicator(used):
     if used is None:
@@ -193,6 +198,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         days = int(days) if days in ("1", "7", "15", "30") else 7
         story = admin and request.args.get("stories") == "1"
         presenting = admin and (request.args.get("apresentacao") == "1" or story)
+        campaign_detail = request.args.get("campaign_detail") == "1"
         cid = session.get("conexao_id")
         if not admin and not isinstance(cid, int):
             return pagina("Central Ads Black Friday", "<p>Conta não vinculada.</p>"), 403
@@ -201,7 +207,7 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
         scope = "" if admin else " AND c.id=%s"
         args = () if admin else (cid,)
         with banco() as conn:
-            campaigns = consultar(conn, """
+            campaign_query = """
                 SELECT c.cliente, a.conexao_id, a.campanha_id, a.nome, a.status,
                        a.orcamento, a.roas_objetivo, a.atualizado_em,
                        COALESCE(SUM(CASE WHEN d.data = %s THEN d.gasto ELSE 0 END),0) gasto_hoje,
@@ -214,8 +220,19 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                 WHERE 1=1 """+scope+"""
                 GROUP BY c.cliente,a.conexao_id,a.campanha_id,a.nome,a.status,
                          a.orcamento,a.roas_objetivo,a.atualizado_em
-                ORDER BY c.cliente,a.nome LIMIT 3000
-            """, (end,start,end)+args)
+            """
+            campaign_args = (end,start,end)+args
+            campaigns = consultar(conn, campaign_query + " ORDER BY cliente,nome LIMIT 3000", campaign_args)
+            clients = consultar(conn, """
+                SELECT cliente, SUM(gasto) gasto, SUM(faturamento) faturamento,
+                       SUM(CASE WHEN LOWER(TRIM(status)) IN ('active', 'ativa', 'ativo')
+                                THEN 1 ELSE 0 END) campanhas_ativas,
+                       SUM(dias_observados) dias_observados,
+                       SUM(CASE WHEN orcamento > 0 THEN gasto_hoje END) gasto_hoje,
+                       SUM(CASE WHEN orcamento > 0 THEN orcamento END) orcamento
+                FROM (""" + campaign_query + """) AS campaign_totals
+                GROUP BY cliente ORDER BY cliente
+            """, campaign_args)
             daily = consultar(conn, """
                 SELECT d.data, SUM(d.gasto) gasto, SUM(d.faturamento) faturamento
                 FROM ads_dia d JOIN conexoes c ON c.id=d.conexao_id
@@ -261,6 +278,28 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             if presenting:
                 return "<span class='ka-private' aria-label='Nome oculto'></span>"
             return f"<span class='ka-private-name'>{e(name)}</span>"
+        client_cards = []
+        for client in clients:
+            spend = float(client["gasto"] or 0)
+            revenue = float(client["faturamento"] or 0)
+            observed = bool(client["dias_observados"])
+            budget = float(client["orcamento"] or 0)
+            used = 100 * float(client["gasto_hoje"] or 0) / budget if budget > 0 else None
+            client_cards.append(
+                "<article class='ka-panel'><h4>" + hidden_name(client["cliente"]) + "</h4>"
+                "<dl class='ka-client-metrics'><div><dt>Campanhas ativas</dt><dd>" +
+                str(client["campanhas_ativas"]) + "</dd></div><div><dt>Vendas de Ads</dt><dd>" +
+                (money(revenue) if observed else "—") + "</dd></div><div><dt>Investimento</dt><dd>" +
+                (money(spend) if observed else "—") + "</dd></div><div><dt>ROAS</dt><dd>" +
+                metric(revenue / spend if spend > 0 else None, "x") +
+                "</dd></div></dl><p class='ka-muted'>Orçamento consumido hoje</p>" +
+                budget_indicator(used) + "</article>"
+            )
+        client_section = (
+            "<section class='ka-panel'><h3>Campanhas por cliente</h3>"
+            "<div class='ka-client-grid'>" + "".join(client_cards) + "</div></section>"
+        ) if client_cards else ""
+
         def row(r,issue=""):
             gasto=float(r["gasto"] or 0); fat=float(r["faturamento"] or 0)
             observed=bool(r["dias_observados"])
@@ -271,15 +310,17 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
             return ("<tr><td>"+hidden_name(r["cliente"])+"</td><td>"+hidden_name(r["nome"] or r["campanha_id"])+
                     "</td><td>"+(money(gasto) if observed else "—")+"</td><td>"+(money(fat) if observed else "—")+"</td><td>"+metric(a,"%")+"</td><td>"+metric(fat/gasto if observed and gasto>0 else None,"x")+"</td><td>"+metric(100/float(r["roas_objetivo"]) if float(r["roas_objetivo"] or 0)>0 else None,"%")+"</td><td>"+(money(budget) if budget>0 else "—")+"</td><td>"+budget_cell+
                     "</td><td>"+e(issue or r["status"] or "—")+"</td></tr>")
-        table_head="<thead><tr><th>Cliente</th><th>Campanha</th><th>Investimento</th><th>Vendas Ads</th><th>ACOS</th><th>ROAS</th><th>ACOS objetivo</th><th>Orçamento diário</th><th>Orçamento gasto (%)</th><th>Situação</th></tr></thead>"
-        store_options = "".join("<option value='"+e(name)+"'>"+e(name)+"</option>" for name in sorted({str(r["cliente"] or "") for r in campaigns})) if admin and not presenting else ""
-        filters = ("<div class='ka-campaign-filters'><input id='ka-campaign-search' class='ka-search' type='search' placeholder='Buscar campanha...' aria-label='Buscar campanha'>"
-                   +("<select id='ka-store-filter' aria-label='Filtrar loja'><option value=''>Todas as lojas</option>"+store_options+"</select>" if store_options else "")
-                   +"<select id='ka-status-filter' aria-label='Filtrar status'><option value=''>Todos os status</option><option value='active'>Ativas</option><option value='paused'>Pausadas</option><option value='other'>Outros</option></select>"
-                   +"<select id='ka-order-filter' aria-label='Ordenar campanhas'><option value='sales'>Maiores vendas</option><option value='spend'>Maior investimento</option><option value='acos'>Maior ACOS</option><option value='name'>Nome A–Z</option><option value='budget-desc'>Maior orçamento consumido (%)</option><option value='budget-asc'>Menor orçamento consumido (%)</option></select>"
-                   +"<span id='ka-campaign-count' class='ka-muted'></span></div>")
-        table = ("<section class='ka-panel'><h3>Desempenho por campanha</h3>"+filters+"<div class='ka-scroll'><table class='ka-table' id='ka-campaign-table'>"+
-                 table_head+"<tbody>"+ "".join(row(r) for r in campaigns)+"</tbody></table></div><div class='ka-table-footer'><button type='button' id='ka-more-campaigns'>Mostrar mais</button></div></section>")
+        if campaign_detail:
+            table_head="<thead><tr><th>Cliente</th><th>Campanha</th><th>Investimento</th><th>Vendas Ads</th><th>ACOS</th><th>ROAS</th><th>ACOS objetivo</th><th>Orçamento diário</th><th>Orçamento gasto (%)</th><th>Situação</th></tr></thead>"
+            store_options = "".join("<option value='"+e(name)+"'>"+e(name)+"</option>" for name in sorted({str(r["cliente"] or "") for r in campaigns})) if admin and not presenting else ""
+            filters = ("<div class='ka-campaign-filters'><input id='ka-campaign-search' class='ka-search' type='search' placeholder='Buscar campanha...' aria-label='Buscar campanha'>"
+                       +("<select id='ka-store-filter' aria-label='Filtrar loja'><option value=''>Todas as lojas</option>"+store_options+"</select>" if store_options else "")
+                       +"<select id='ka-status-filter' aria-label='Filtrar status'><option value=''>Todos os status</option><option value='active'>Ativas</option><option value='paused'>Pausadas</option><option value='other'>Outros</option></select>"
+                       +"<select id='ka-order-filter' aria-label='Ordenar campanhas'><option value='sales'>Maiores vendas</option><option value='spend'>Maior investimento</option><option value='acos'>Maior ACOS</option><option value='name'>Nome A–Z</option><option value='budget-desc'>Maior orçamento consumido (%)</option><option value='budget-asc'>Menor orçamento consumido (%)</option></select>"
+                       +"<span id='ka-campaign-count' class='ka-muted'></span></div>")
+            table = ("<div>"+filters+"<div class='ka-scroll'><table class='ka-table' id='ka-campaign-table'>"+
+                     table_head+"<tbody>"+ "".join(row(r) for r in campaigns)+"</tbody></table></div><div class='ka-table-footer'><button type='button' id='ka-prev-campaigns'>Anterior</button><button type='button' id='ka-more-campaigns'>Próxima</button></div></div>")
+            return table, 200, {'Cache-Control': 'private, no-store'}
         alert_details = []
         for r in campaigns:
             budget = float(r["orcamento"] or 0)
@@ -391,6 +432,22 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
                      compare("Investimento",spent,prev_spent,"money")+
                      compare("ROAS",roas,prev_roas,"x")+
                      compare("ACOS",acos,prev_acos,"%",True)+"</div></section>")
+        campaign_panel = "" if story else (
+            "<details class='ka-panel' id='ka-campaign-detail'><summary>Desempenho por campanha</summary>"
+            "<div id='ka-campaign-content' aria-live='polite'></div></details>"
+            "<script>const detail=document.getElementById('ka-campaign-detail');"
+            "const content=document.getElementById('ka-campaign-content');"
+            "let loading=false,loaded=false;"
+            "detail.addEventListener('toggle',async()=>{"
+            "if(!detail.open||loading||loaded)return;"
+            "loading=true;content.textContent='Carregando campanhas…';"
+            "try{const url=new URL(location.href);url.searchParams.set('campaign_detail','1');"
+            "const response=await fetch(url,{redirect:'error',cache:'no-store'});"
+            "if(!response.ok)throw new Error();"
+            "content.innerHTML=await response.text();initCampaignTable();loaded=true;"
+            "}catch{content.textContent='Falha ao carregar. Feche e abra para tentar novamente.';}"
+            "finally{loading=false;}});</script>"
+        )
         body=(STYLE+"<main class='ka-central"+(" ka-present" if presenting else "")+(" ka-story" if story else "")+"'>"+
               "<header class='ka-bf-hero'><div class='ka-bf-brand'><div class='ka-bf-symbol' aria-hidden='true'>%</div><div><h2>Central Ads <em>Black Friday</em></h2><span class='ka-bf-subtitle'>"+
               ("Visão da carteira" if admin else "Sua performance de publicidade")+
@@ -398,5 +455,5 @@ def register_ads_central(app, login_required, banco, consultar, pagina):
               "<div class='ka-kpis'>"+cards+"</div>"+
               "<div class='ka-overview'><section class='ka-panel'><h3>Evolução de vendas e investimento</h3>"+chart(daily)+
               "<p class='ka-muted'>"+coverage+" · Dados históricos armazenados; podem ter defasagem.</p></section>"+
-              donut+"</div>"+strategic+matrix_section+alert_section+opportunity_section+table+FILTER_SCRIPT+"</main>")
+              donut+"</div>"+strategic+matrix_section+alert_section+opportunity_section+client_section+campaign_panel+FILTER_SCRIPT+"</main>")
         return pagina("Central Ads Black Friday",body)

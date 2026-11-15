@@ -13,6 +13,9 @@ class CentralAdsTests(unittest.TestCase):
         self.queries = []
         def consultar(conn, sql, args=()):
             self.queries.append((sql,args))
+            if "AS campaign_totals" in sql:
+                return [dict(cliente="CLIENTE-SECRETO", campanhas_ativas=1, orcamento=100,
+                             gasto=20, faturamento=80, dias_observados=1, gasto_hoje=76)]
             if "FROM ads_campanhas" in sql:
                 return [dict(cliente="CLIENTE-SECRETO", conexao_id=17, campanha_id="a1",
                              nome="CAMPANHA-SECRETA", status="active", orcamento=100,
@@ -31,7 +34,7 @@ class CentralAdsTests(unittest.TestCase):
         self.session("cliente",17)
         res=self.client.get("/central-ads")
         self.assertEqual(res.status_code,200)
-        self.assertEqual(len(self.queries),3)
+        self.assertEqual(len(self.queries),4)
         for sql,args in self.queries:
             self.assertIn("AND c.id=%s",sql)
             self.assertEqual(args[-1],17)
@@ -45,8 +48,13 @@ class CentralAdsTests(unittest.TestCase):
         page = self.client.get("/central-ads?periodo=30").get_data(as_text=True)
         self.assertIn("data-budget-used='76.0'", page)
         self.assertIn("aria-valuetext='76,00%'", page)
-        self.assertIn("value='budget-desc'", page)
-        self.assertIn("value='budget-asc'", page)
+        self.assertIn("<dt>Campanhas ativas</dt><dd>1</dd>", page)
+        self.assertNotIn("id='ka-campaign-table'", page)
+        self.assertIn("pageSize=25", page)
+        detail = self.client.get("/central-ads?periodo=30&campaign_detail=1").get_data(as_text=True)
+        self.assertIn("id='ka-campaign-table'", detail)
+        self.assertIn("value='budget-desc'", detail)
+        self.assertIn("value='budget-asc'", detail)
 
     def test_daily_budget_threshold_and_overflow(self):
         self.assertNotIn("ka-budget-danger", budget_indicator(75))
