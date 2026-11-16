@@ -30,7 +30,7 @@ class GeographyDatabaseTests(unittest.TestCase):
         self.assertEqual((a['known'],b['known'],b['missing']['orders']),(1,0,1))
         get=Mock(return_value=Mock(status_code=200,json=lambda:dict(id=9)))
         sync(ids[0],'test',9,m.banco,m.consultar,m.executar,get,now=int(time.time())+1)
-        self.assertEqual(get.call_count,1)
+        get.assert_not_called()
     finally:
         with m.banco() as conn:
             for table in ('vendas_destinos','vendas_cobertura','pedidos','conexoes'):
