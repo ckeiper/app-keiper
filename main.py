@@ -6190,7 +6190,7 @@ scheduler.add_job(job_concorrencia, "interval", minutes=1,
                   max_instances=1, coalesce=True)
 scheduler.add_job(job_sincronizacao_lojas_novas, "interval", minutes=5,
                   max_instances=1, coalesce=True)
-scheduler.add_job(job_visitas_todas_contas, "interval", minutes=1,
+scheduler.add_job(job_visitas_todas_contas, "interval", minutes=30,
                   max_instances=1, coalesce=True)
 scheduler.add_job(job_refresh, "interval", minutes=30)
 scheduler.add_job(job_fila_persistente, "interval", minutes=1,
