@@ -5370,8 +5370,9 @@ def puxar_envios(conexao_id, token, user_id):
 
 
 def puxar_promocoes(conexao_id, token, user_id):
-    return sync_promotions(conexao_id, token, banco, consultar, executar,
-                           requests.get, registrar_erro, user_id=user_id)
+    with requests.Session() as http:
+        return sync_promotions(conexao_id, token, banco, consultar, executar,
+                               http.get, registrar_erro, user_id=user_id)
 
 
 def atualizar_anuncios_bg(cid, token, user_id, tipo):
