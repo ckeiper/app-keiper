@@ -40,10 +40,15 @@ class SalesGeographyTests(unittest.TestCase):
     self.assertEqual(get.call_args.kwargs['headers']['X-New-Domain'],'true');self.assertFalse(get.call_args.kwargs['allow_redirects'])
     self.assertEqual(e.call_args.args[2],(7,'123','SP','confirmado',100000,100000))
     self.assertNotIn('receiver',str(e.call_args));self.assertNotIn('secret',str(e.call_args))
+ def test_no_eligible_orders_skips_all_network_requests(self):
+    q=Mock(return_value=[]);e=Mock();get=Mock()
+    self.assertTrue(sync(7,'x',9,lambda:contextlib.nullcontext(None),q,e,get,now=100000))
+    get.assert_not_called()
+    e.assert_not_called()
  def test_account_mismatch_and_rate_limit(self):
     q=Mock(return_value=[dict(pedido_id='1'),dict(pedido_id='2')]);e=Mock()
     get=Mock(return_value=Mock(status_code=200,json=lambda:dict(id=10)))
-    self.assertFalse(sync(7,'x',9,lambda:contextlib.nullcontext(None),q,e,get));q.assert_not_called()
+    self.assertFalse(sync(7,'x',9,lambda:contextlib.nullcontext(None),q,e,get));e.assert_not_called()
     get=Mock(side_effect=[Mock(status_code=200,json=lambda:dict(id=9)),Mock(status_code=429)])
     sync(7,'x',9,lambda:contextlib.nullcontext(None),q,e,get,now=100000)
     self.assertEqual(get.call_count,2);self.assertIsNone(e.call_args.args[2][2])

@@ -51,16 +51,18 @@ def sync(cid, token, seller, bank, query, execute, get, now=None):
     def read(path,params=None):
         response=get(API+path,headers=headers,params=params,timeout=(3,6),allow_redirects=False)
         return response.status_code, response.json() if response.status_code==200 else None
-    try:status,account=read('/users/me')
-    except (ValueError,TypeError,OSError):return False
-    except Exception:return False
-    if status!=200 or not isinstance(account,dict) or str(account.get('id'))!=str(seller):return False
     with bank() as conn:
         rows=query(conn,'''SELECT p.pedido_id FROM pedidos p
             LEFT JOIN vendas_destinos d ON d.conexao_id=p.conexao_id AND d.pedido_id=p.pedido_id
             WHERE p.conexao_id=%s AND p.status='paid' AND p.vendas_verificado_em IS NOT NULL
               AND (d.pedido_id IS NULL OR d.tentado_em < %s - CASE WHEN d.uf IS NULL THEN 86400 ELSE 2592000 END)
             ORDER BY COALESCE(d.tentado_em,0),p.criado_em DESC,p.pedido_id LIMIT 8''',(cid,now))
+    if not rows:
+        return True
+    try:status,account=read('/users/me')
+    except (ValueError,TypeError,OSError):return False
+    except Exception:return False
+    if status!=200 or not isinstance(account,dict) or str(account.get('id'))!=str(seller):return False
     for row in rows[:8]:
         if time.monotonic()+9>deadline:break
         oid=str(row['pedido_id'])
