@@ -1,8 +1,38 @@
 import datetime
 import unittest
-from sales_sync import select_sync_days
+from contextlib import nullcontext
+from unittest.mock import Mock, patch
+from sales_sync import select_sync_days, sync_orders
 
 class SyncPriorityTests(unittest.TestCase):
+    def test_full_sync_reuses_only_recent_complete_coverage_for_today(self):
+        today = datetime.date(2026, 11, 16)
+        now = 1800000000
+        for age, today_only, reads_today in (
+            (None, False, True),
+            (899, False, False),
+            (900, False, True),
+            (-1, False, True),
+            (60, True, True),
+        ):
+            with self.subTest(age=age, today_only=today_only):
+                rows = [] if age is None else [
+                    {"dia": today.isoformat(), "atualizado_em": now - age}
+                ]
+                with patch("sales_sync.reporting_today", return_value=today), \
+                     patch("sales_sync.time.time", return_value=now), \
+                     patch("sales_sync.collect_day", return_value=({}, True, "")) as collect:
+                    self.assertTrue(sync_orders(
+                        1, "token", 10, nullcontext, Mock(return_value=rows),
+                        Mock(), Mock(), Mock(), today_only=today_only,
+                    ))
+                days = [call.args[-1] for call in collect.call_args_list]
+                self.assertEqual(today in days, reads_today)
+                if not today_only:
+                    self.assertTrue(all(
+                        today - datetime.timedelta(days=i) in days for i in range(1, 7)
+                    ))
+
     def test_recent_days_are_first(self):
         today = datetime.date(2026, 10, 18)
         selected = select_sync_days(today, 1800000000, {}, older_limit=2)

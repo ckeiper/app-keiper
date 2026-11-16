@@ -128,6 +128,10 @@ def sync_orders(cid, token, user_id, banco, query, execute, api_get, log, *, tod
             saved = query(conn, "SELECT dia, atualizado_em FROM vendas_cobertura WHERE conexao_id=%s", (cid,))
         coverage = {r["dia"]: r["atualizado_em"] for r in saved}
         selected = select_sync_days(today, now, coverage)
+        checked_at = coverage.get(today.isoformat())
+        if checked_at is not None and 0 <= now - checked_at < 15 * 60:
+            # The frequent collector already recorded a complete read for today.
+            selected.remove(today)
     success = True
     for day in selected:
         iso = day.isoformat()
