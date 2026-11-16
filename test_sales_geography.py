@@ -45,6 +45,22 @@ class SalesGeographyTests(unittest.TestCase):
     self.assertTrue(sync(7,'x',9,lambda:contextlib.nullcontext(None),q,e,get,now=100000))
     get.assert_not_called()
     e.assert_not_called()
+ def test_hosted_order_looks_up_forward_detail_and_only_saves_uf(self):
+    q = Mock(return_value=[dict(pedido_id='123')])
+    e = Mock()
+    detail = dict(id=501,status='delivered',origin=dict(sender_id=9),
+                  logistic=dict(direction='forward'),destination=dict(shipping_address={
+                      'country':{'id':'BR'},'state':{'id':'BR-SP'},'address_line':'not stored',
+                  }))
+    get = Mock(side_effect=[
+        Mock(status_code=200,json=lambda:dict(id=9)),
+        Mock(status_code=200,json=lambda:[dict(id=502,type='return'),dict(id=501,type='forward')]),
+        Mock(status_code=200,json=lambda:detail),
+    ])
+    self.assertTrue(sync(7,'secret',9,lambda:contextlib.nullcontext(None),q,e,get,now=100000))
+    self.assertTrue(get.call_args.args[0].endswith('/shipments/501'))
+    self.assertEqual(e.call_args.args[2],(7,'123','SP','confirmado',100000,100000))
+    self.assertNotIn('not stored',str(e.call_args))
  def test_account_mismatch_and_rate_limit(self):
     q=Mock(return_value=[dict(pedido_id='1'),dict(pedido_id='2')]);e=Mock()
     get=Mock(return_value=Mock(status_code=200,json=lambda:dict(id=10)))
