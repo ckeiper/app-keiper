@@ -914,7 +914,7 @@
       "area": "Mercado",
       "capacidade": "Mapa de vendas por estado",
       "estado": "concluida",
-      "implementado": "Mapa geográfico das 27 UFs por pedidos ou faturamento, tabela com ticket/participação, filtros de período, cobertura diária e destinos desconhecidos. Coleta incremental de UF em envios confirmados do vendedor, sem endereços ou dados pessoais. Cobertura de destinos preenchida progressivamente nas sincronizações existentes, com ausência explícita e sem certificação de histórico integral. Checks de PostgreSQL e navegador aprovados na revisão 624aa48b4b78a7b289d9a683f97e1360c851d15f. Publicação confirmada no Render: dep-dbh93r95efls738if6v0, commit b09dfca469ab091664162a194590aa9bf84f586d.",
+      "implementado": "Mapa geográfico das 27 UFs por pedidos ou faturamento, tabela com ticket/participação, filtros de período, cobertura diária e destinos desconhecidos. Coleta incremental de UF em envios confirmados do vendedor, sem endereços ou dados pessoais. Cobertura de destinos preenchida progressivamente nas sincronizações existentes, com ausência explícita e sem certificação de histórico integral. Checks de PostgreSQL e navegador aprovados na revisão 624aa48b4b78a7b289d9a683f97e1360c851d15f. Publicação confirmada no Render: dep-dbh93r95efls738if6v0, commit b09dfca469ab091664162a194590aa9bf84f586d. A coleta consulta o detalhe do envio de ida quando o pedido retorna somente a referência do envio, validando o vendedor e persistindo apenas a UF. O limite de requisições por rodada foi mantido.",
       "falta": "",
       "fontes": [
         "sales_geography.py",
@@ -931,7 +931,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-28"
+      "atualizado_em": "2026-11-16"
     },
     {
       "id": "sazonalidade",
@@ -2371,6 +2371,18 @@
       "base": "frentes_auditadas",
       "data": "2026-11-15",
       "resumo": "Média de unidades por pedido no comparador de anúncios para os dois períodos.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1,
+        "em_andamento": 1
+      },
+      "total": 45
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-16",
+      "resumo": "Coleta de UF a partir do detalhe do envio quando a API de pedidos retorna somente sua referência.",
       "contagens": {
         "concluida": 26,
         "parcial": 17,

@@ -4,6 +4,7 @@ from sales_metrics import amount, created_day
 
 STATES = dict(AC='Acre',AL='Alagoas',AP='Amapá',AM='Amazonas',BA='Bahia',CE='Ceará',DF='Distrito Federal',ES='Espírito Santo',GO='Goiás',MA='Maranhão',MT='Mato Grosso',MS='Mato Grosso do Sul',MG='Minas Gerais',PA='Pará',PB='Paraíba',PR='Paraná',PE='Pernambuco',PI='Piauí',RJ='Rio de Janeiro',RN='Rio Grande do Norte',RS='Rio Grande do Sul',RO='Rondônia',RR='Roraima',SC='Santa Catarina',SP='São Paulo',SE='Sergipe',TO='Tocantins')
 API='https://api.mercadolibre.com'
+MAX_REQUESTS = 9
 
 
 def init_schema(conn, execute):
@@ -13,9 +14,14 @@ def init_schema(conn, execute):
         verificado_em BIGINT, PRIMARY KEY(conexao_id,pedido_id))''')
 
 
+def shipment_rows(payload):
+    if isinstance(payload, dict):
+        return payload.get('shipments', [payload])
+    return payload
+
+
 def destination(payload, seller):
-    if isinstance(payload,dict):
-        payload=payload.get('shipments')
+    payload = shipment_rows(payload)
     if not isinstance(payload,list) or not payload:
         return None, 'sem_envio'
     states=[]
@@ -48,7 +54,11 @@ def sync(cid, token, seller, bank, query, execute, get, now=None):
     now=int(time.time()) if now is None else now
     deadline=time.monotonic()+40
     headers={'Authorization':'Bearer '+token,'X-New-Domain':'true','x-format-new':'true'}
+    requests_used = 0
+
     def read(path,params=None):
+        nonlocal requests_used
+        requests_used += 1
         response=get(API+path,headers=headers,params=params,timeout=(3,6),allow_redirects=False)
         return response.status_code, response.json() if response.status_code==200 else None
     with bank() as conn:
@@ -64,18 +74,55 @@ def sync(cid, token, seller, bank, query, execute, get, now=None):
     except Exception:return False
     if status!=200 or not isinstance(account,dict) or str(account.get('id'))!=str(seller):return False
     for row in rows[:8]:
-        if time.monotonic()+9>deadline:break
+        if requests_used >= MAX_REQUESTS or time.monotonic()+9>deadline:break
         oid=str(row['pedido_id'])
         if not oid.isascii() or not oid.isdigit() or len(oid)>25:continue
         status=0
         try:
             status,payload=read('/orders/'+oid+'/shipments',{'views':'destination'})
+            shipments = shipment_rows(payload)
+            if status == 200 and isinstance(shipments, list):
+                details = []
+                for shipment in shipments:
+                    if not isinstance(shipment, dict) or shipment.get('type') != 'forward':
+                        details.append(shipment)
+                        continue
+                    if shipment.get('status') == 'cancelled' or any(
+                            key in shipment for key in ('destination', 'receiver_address')):
+                        details.append(shipment)
+                        continue
+                    sid = str(shipment.get('id', ''))
+                    if not sid.isascii() or not sid.isdigit() or len(sid) > 25:
+                        details.append(shipment)
+                        continue
+                    if requests_used >= MAX_REQUESTS or time.monotonic()+9 > deadline:
+                        return True  # Retry this order when the next batch has room.
+                    status, detail = read('/shipments/' + sid)
+                    if status != 200:
+                        break
+                    if not isinstance(detail, dict) or str(detail.get('id')) != sid:
+                        status = 0
+                        break
+                    origin = detail.get('origin')
+                    sender = origin.get('sender_id') if isinstance(origin, dict) else None
+                    logistic = detail.get('logistic')
+                    direction = logistic.get('direction') if isinstance(logistic, dict) else None
+                    if direction is not None and direction != 'forward':
+                        status = 0
+                        break
+                    details.append(dict(detail, type='forward',
+                                        sender_id=detail.get('sender_id', sender)))
+                payload = details
             uf,reason=destination(payload,seller) if status==200 else (None,'consulta_indisponivel')
         except Exception:uf,reason=None,'consulta_indisponivel'
         with bank() as conn:
             execute(conn,'''INSERT INTO vendas_destinos(conexao_id,pedido_id,uf,motivo,tentado_em,verificado_em)
                 VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT(conexao_id,pedido_id) DO UPDATE SET
-                uf=EXCLUDED.uf,motivo=EXCLUDED.motivo,tentado_em=EXCLUDED.tentado_em,verificado_em=EXCLUDED.verificado_em''',
+                uf=COALESCE(EXCLUDED.uf,vendas_destinos.uf),
+                motivo=CASE WHEN EXCLUDED.uf IS NULL AND vendas_destinos.uf IS NOT NULL
+                            THEN vendas_destinos.motivo ELSE EXCLUDED.motivo END,
+                tentado_em=EXCLUDED.tentado_em,
+                verificado_em=COALESCE(EXCLUDED.verificado_em,vendas_destinos.verificado_em)''',
                 (cid,oid,uf,reason,now,now if uf else None))
         if status in (401,403,429):break
     return True
