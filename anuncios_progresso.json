@@ -385,20 +385,23 @@
       "area": "Estoque",
       "capacidade": "Sinais de vendas paralisadas",
       "estado": "concluida",
-      "implementado": "Interrupção de pedidos entre períodos verificados, com checklist e sem inferir demanda a partir de zero isolado.",
+      "implementado": "Interrupção de pedidos entre períodos verificados, com checklist e sem inferir demanda a partir de zero isolado. Menu Relatórios com listagem por loja de anúncios ativos sem pedidos pagos em 7, 15 ou 30 dias, cobertura desde a publicação, filtros e Excel. A disponibilidade de visitas e Ads depende da evidência persistida. Publicação do novo relatório ainda não confirmada.",
       "falta": "",
       "fontes": [
         "listing_opportunities.py",
+        "unsold_report.py",
+        "report_routes.py",
         "listing_ranking.py"
       ],
       "testes": [
         "test_listing_opportunities.py",
+        "test_unsold_report.py",
         "test_listing_ranking.py"
       ],
       "prs": [],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-10-25"
+      "atualizado_em": "2026-11-16"
     },
     {
       "id": "rentabilidade",

@@ -515,7 +515,7 @@ def pagina(titulo, corpo):
     sidebar = ""
     if use_sidebar:
         from home_sidebar import render_home_sidebar
-        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin", active="financeiro" if titulo == "Financeiro" else "progress" if is_progress else ("home" if is_home else ("diagnostic" if titulo == "Diagnóstico" else "")))
+        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin", active="reports" if titulo == "Anúncios sem vendas nos últimos 30 dias" else "financeiro" if titulo == "Financeiro" else "progress" if is_progress else ("home" if is_home else ("diagnostic" if titulo == "Diagnóstico" else "")))
     return cab + sidebar + topo + marca + links + fim
 
 
@@ -658,6 +658,8 @@ def iniciar_banco():
         execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS sku TEXT")
         execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS original_price REAL")
         execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS thumbnail TEXT")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS categoria_id TEXT")
+        execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS publicado_em TEXT")
         execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pesos_json TEXT")
         execute(conn, "ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS promocoes_json TEXT")
         execute(conn, """CREATE TABLE IF NOT EXISTS pedidos (
@@ -5258,14 +5260,15 @@ def puxar_anuncios(conexao_id, token, user_id):
                            json.dumps(tags, ensure_ascii=False),
                            peso, det.get("seller_custom_field"), original_price,
                            json.dumps(pesos, ensure_ascii=False),
-                           det.get("secure_thumbnail") or (pics[0].get("secure_url") if isinstance(pics, list) and pics and isinstance(pics[0], dict) else None) or det.get("thumbnail")))
+                           det.get("secure_thumbnail") or (pics[0].get("secure_url") if isinstance(pics, list) and pics and isinstance(pics[0], dict) else None) or det.get("thumbnail"),
+                           det.get("category_id"), det.get("date_created")))
     with banco() as conn:
         for t in linhas:
             executar(conn, """INSERT INTO anuncios
                             (conexao_id, item_id, titulo, preco, quantidade,
                              status, vendidos, atualizado_em, fotos, clips,
-                             tags, peso, sku, original_price, pesos_json, thumbnail)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                             tags, peso, sku, original_price, pesos_json, thumbnail, categoria_id, publicado_em)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             ON CONFLICT (conexao_id, item_id) DO UPDATE SET
                               titulo=EXCLUDED.titulo, preco=EXCLUDED.preco,
                               quantidade=EXCLUDED.quantidade,
@@ -5275,7 +5278,9 @@ def puxar_anuncios(conexao_id, token, user_id):
                               fotos=EXCLUDED.fotos, clips=EXCLUDED.clips,
                               tags=EXCLUDED.tags, peso=EXCLUDED.peso,
                               sku=EXCLUDED.sku, original_price=EXCLUDED.original_price,
-                              pesos_json=EXCLUDED.pesos_json, thumbnail=EXCLUDED.thumbnail""", t)
+                              pesos_json=EXCLUDED.pesos_json, thumbnail=EXCLUDED.thumbnail,
+                              categoria_id=COALESCE(EXCLUDED.categoria_id,anuncios.categoria_id),
+                              publicado_em=COALESCE(EXCLUDED.publicado_em,anuncios.publicado_em)""", t)
 
         from automatic_history import record as record_changes
         for changed_item,stamp,values in change_rows:
@@ -5843,6 +5848,9 @@ from listing_image_diagnostic import register as register_image_diagnostic
 register_image_diagnostic(app, login_required, pode_ver_loja, banco, consultar, pagina_loja, token_atual, requests.get, requests.post)
 register_management(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja,
                     is_updating=lambda cid: cid in ATUALIZANDO)
+
+from report_routes import register as register_reports
+register_reports(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja)
 
 from ads_central import register_ads_central
 register_ads_central(app, login_required, banco, consultar, pagina)
