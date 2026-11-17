@@ -29,6 +29,30 @@ METHOD = ('<p>O relatório cruza os anúncios ativos da última sincronização 
           'Ads mostra vínculos registrados com o anúncio. Ausência de vínculo no histórico é informação indisponível.</p>')
 
 
+REPORT_STYLE = '''<style>
+.report-hero .section-help{margin-bottom:0}
+.report-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0 16px}
+.report-toolbar p{margin:0;font-size:.88rem;opacity:.82}
+.report-filters,.report-cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(145px,100%),1fr))}
+.report-filters{align-items:end}
+.report-filters label{display:grid;gap:6px;font-size:.82rem;font-weight:600;min-width:0}
+.report-filters select{width:100%;min-width:0;min-height:42px;border:1px solid #becbdf;border-radius:8px;background:#fff;color:#253b58;padding:0 10px;font:inherit;color-scheme:light}
+.report-button{box-sizing:border-box;display:inline-flex;justify-content:center;align-items:center;min-height:42px;padding:8px 14px;border:1px solid #b8cbe5;border-radius:8px;background:#edf4ff;color:#174b8a;font:inherit;font-size:.84rem;font-weight:700;text-decoration:none;cursor:pointer}
+.report-download,.report-download:hover{background:#145bb5;border-color:#145bb5;color:#fff}
+.report-button:hover{filter:brightness(.96)}
+.report-button:focus-visible,.report-filters select:focus-visible{outline:2px solid #5596ee;outline-offset:2px}
+.report-cards .card{padding:16px 18px;font-size:.87rem}
+.report-cards strong{display:block;font-size:1.5rem;margin-bottom:4px}
+.report-table{overflow:auto;margin-top:12px}
+.report-table th,.report-table td{white-space:nowrap}
+.report-table td:first-child{min-width:200px;white-space:normal}
+.report-table img{width:42px;height:42px;object-fit:contain;vertical-align:middle;margin-right:8px}
+html[data-theme=dark] .report-filters select{background:#142940;color:#edf5ff;border-color:#496686;color-scheme:dark}
+html[data-theme=dark] .report-button:not(.report-download){background:#213c5b;color:#edf5ff;border-color:#496686}
+@media(max-width:640px){.report-toolbar .report-download{flex:1 0 100%}}
+</style>'''
+
+
 def e(value):
     return escape(str(value), quote=True)
 
@@ -36,7 +60,7 @@ def e(value):
 def values(row):
     return (row['titulo'], row['item_id'], row['sku'], row['categoria_id'], row['logistics'],
             amount(row['preco']), row['quantidade'], row['last_sale'], row['visits'],
-            row['ads'], 'Sim' if row['recent'] else 'Não')
+            row['ads'], {True: 'Sim', False: 'Não', None: None}[row['recent']])
 
 
 def option_list(label, name, options, selected):
@@ -57,7 +81,7 @@ def filtered(rows, args):
             yield row
 
 
-def xlsx(rows, shop, start, end, insufficient):
+def xlsx(rows, shop, start, end, insufficient, active):
     from openpyxl import Workbook
     from openpyxl.cell import WriteOnlyCell
 
@@ -79,7 +103,12 @@ def xlsx(rows, shop, start, end, insufficient):
     notes.append(('Loja', shop_cell))
     notes.append(('Início', start.isoformat()))
     notes.append(('Fim', end.isoformat()))
+    notes.append(('Anúncios ativos na loja', active))
+    notes.append(('Sem vendas confirmadas com os filtros', len(rows)))
     notes.append(('Ativos com dados insuficientes', insufficient))
+    if not rows:
+        notes.append(('Resultado', 'Nenhum anúncio ativo no catálogo sincronizado.' if not active else
+                      'Nenhum anúncio sem vendas confirmado com os filtros. Consulte a contagem de dados insuficientes.'))
     file = BytesIO()
     workbook.save(file)
     file.seek(0)
@@ -94,7 +123,7 @@ def report_body(cid, shops, start, end, rows, insufficient, active, args, page_n
     options = {'': 'Todas', **{cat: cat for cat in sorted(categories)}, '?': 'Indisponível'}
     params = {key: args[key] for key in ('dias', 'categoria', *FILTERS) if args.get(key)}
     matches = list(filtered(rows, params))
-    recent = sum(r['recent'] for r in matches)
+    recent = sum(r['recent'] is True for r in matches)
     export_url = url_for('unsold_listings', cid=cid) + '?' + urlencode(dict(params, formato='xlsx'))
     heading = section_help(TITLE, 'Como o relatório é calculado', METHOD)
     form = option_list('Loja', 'loja', shops, cid)
@@ -102,20 +131,17 @@ def report_body(cid, shops, start, end, rows, insufficient, active, args, page_n
     form += option_list('Categoria', 'categoria', options, params.get('categoria', ''))
     for key, (label, choices) in FILTERS.items():
         form += option_list(label, key, {'': 'Todos', **choices}, params.get(key, ''))
-    html = (STYLE + "<style>.report-filters{display:flex;align-items:end;gap:12px;flex-wrap:wrap}"
-            ".report-filters label{display:grid;gap:5px}.report-cards{display:grid;gap:12px;"
-            "grid-template-columns:repeat(auto-fit,minmax(min(165px,100%),1fr))}"
-            ".report-cards strong{display:block;font-size:1.45rem}.report-table{overflow:auto}"
-            ".report-table img{width:48px;height:48px;object-fit:contain;vertical-align:middle;margin-right:8px}"
-            "</style>"
-            f"<section class='card'>{heading}<p>{start:%d/%m/%Y} a {end:%d/%m/%Y}</p>"
+    html = (STYLE + REPORT_STYLE +
+            f"<section class='card report-hero'>{heading}"
+            f"<div class='report-toolbar'><p>{start:%d/%m/%Y} a {end:%d/%m/%Y}</p>"
+            f"<a class='report-button report-download' href='{e(export_url)}'>Baixar Excel</a></div>"
             f"<form class='report-filters' action='{PATH}' method='get'>{form}"
-            "<button class='btn' type='submit'>Filtrar</button></form></section>")
+            "<button class='report-button' type='submit'>Aplicar filtros</button></form></section>")
     if not active:
         return html + "<section class='card'>Nenhum anúncio ativo disponível no catálogo sincronizado desta loja.</section>"
-    count = len(matches) if rows or not insufficient else '—'
-    recent_display = recent if rows or not insufficient else '—'
-    cards = (('Anúncios ativos na loja', active), ('Sem vendas com os filtros', count),
+    count = len(matches)
+    recent_display = recent
+    cards = (('Anúncios ativos na loja', active), ('Sem vendas confirmadas', count),
              ('Publicados durante o período', recent_display), ('Ativos com dados insuficientes', insufficient))
     html += "<div class='report-cards'>" + ''.join(
         f"<div class='card'><strong>{e(value)}</strong>{e(label)}</div>" for label, value in cards) + '</div>'
@@ -123,10 +149,10 @@ def report_body(cid, shops, start, end, rows, insufficient, active, args, page_n
         html += ("<section class='card' role='status'>Parte do catálogo está fora dos resultados por falta "
                  "de data de publicação ou de histórico verificável de pedidos no período aplicável.</section>")
     if not matches:
-        if insufficient and not rows:
-            return html
-        return html + "<section class='card'>Nenhum anúncio sem vendas encontrado com estes filtros.</section>"
-    html += (f"<section class='card'><a class='btn' href='{e(export_url)}'>Exportar Excel</a>"
+        return html + ("<section class='card'><h3>Anúncios sem vendas</h3>"
+                       "<p>Nenhum anúncio sem vendas confirmado com os filtros selecionados. "
+                       "O Excel inclui o resumo do período.</p></section>")
+    html += ("<section class='card'><h3>Anúncios sem vendas</h3>"
              "<div class='report-table' tabindex='0' role='region' aria-label='Anúncios sem vendas'>"
              "<table><thead><tr>" + ''.join(f"<th scope='col'>{e(h)}</th>" for h in HEADERS) +
              "</tr></thead><tbody>")
@@ -198,9 +224,7 @@ def register(app, login_required, can_view, bank, query, page, store_page):
                               f"<div class='card' role='status'>{e(exc)}</div>"), 400
         if request.args.get('formato') == 'xlsx':
             matches = list(filtered(rows, request.args))
-            if not matches:
-                return 'Nenhum resultado verificável para exportar.', 422
-            return xlsx(matches, shops[cid], start, end, insufficient)
+            return xlsx(matches, shops[cid], start, end, insufficient, active)
         page_number = max(1, request.args.get('pagina', default=1, type=int))
         body = report_body(cid, shops, start, end, rows, insufficient, active, request.args, page_number)
         response = app.make_response(store_page(TITLE, cid, shops[cid], 'relatorios', body))

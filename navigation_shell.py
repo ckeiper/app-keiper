@@ -38,7 +38,7 @@ def reports_navigation(href, active=False):
     return (f"<details class='ks-nav-group'{opened}><summary><span aria-hidden='true'>▤</span>"
             "<span class='ks-label'>Relatórios</span><span class='ks-chevron' aria-hidden='true'>⌄</span></summary>"
             f"<div class='ks-nav-children'><a href='{escape(href, quote=True)}'{current}>"
-            f"<span class='ks-label'>{label}</span></a></div></details>")
+            f"<span aria-hidden='true'>▤</span><span class='ks-label'>{label}</span></a></div></details>")
 
 
 def shell(navigation, footer='', store_name=None):

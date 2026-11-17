@@ -37,6 +37,12 @@ class UnsoldEvidenceTests(unittest.TestCase):
         self.assertEqual(rows[0]['logistics'], 'Flex')
         self.assertEqual(insufficient, 2)
 
+    def test_unknown_publication_can_use_full_covered_window(self):
+        rows, insufficient = classify([listing('legacy', None)], set(), None, START, END)
+        self.assertEqual(insufficient, 0)
+        self.assertEqual(rows[0]['effective_start'], START)
+        self.assertIsNone(rows[0]['recent'])
+
     def test_paid_order_excludes_sold_listing_and_missing_mapping_blocks_day(self):
         coverage = [str(START + timedelta(days=i)) for i in range(7)]
         orders = [paid('p', START), paid('unmapped', END), dict(paid('c', END), status='cancelled')]
@@ -77,7 +83,13 @@ class UnsoldRouteTests(unittest.TestCase):
             self.assertIn('&lt;item&gt;', text)
             self.assertNotIn('javascript:', text)
             self.assertIn('dados insuficientes', text)
-            self.assertEqual(self.client.get(PATH + '/1?estoque=sim&formato=xlsx').status_code, 422)
+            self.assertIn('Baixar Excel', text)
+            empty = self.client.get(PATH + '/1?estoque=sim&formato=xlsx')
+            self.assertEqual(empty.status_code, 200)
+            empty_book = load_workbook(BytesIO(empty.data), read_only=True)
+            self.addCleanup(empty_book.close)
+            self.assertEqual(len(list(empty_book['Anúncios'].values)), 1)
+            self.assertEqual(dict(empty_book['Período'].values)['Ativos com dados insuficientes'], 2)
             export = self.client.get(PATH + '/1?estoque=zero&formato=xlsx')
         self.assertEqual(export.status_code, 200)
         book = load_workbook(BytesIO(export.data), read_only=True)
