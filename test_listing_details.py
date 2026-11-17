@@ -366,7 +366,8 @@ class SyncTests(unittest.TestCase):
     def test_listing_single_upsert_and_weight_not_overwritten(self):
         self.setup_sync(0)
         api = Mock(side_effect=[({'results': ['MLB1'], 'paging': {'total': 1}}, None),
-                               ([{'code': 200, 'body': {'id': 'MLB1', 'attributes': [attr('2 kg')]}}], None)])
+                               ([{'code': 200, 'body': {'id': 'MLB1', 'attributes': [attr('2 kg')],
+                                                      'category_id': 'MLB42', 'date_created': '2026-11-16T10:00:00Z'}}], None)])
         namespace = dict(time=time, json=json, banco=self.banco, consultar=self.consultar,
                          executar=self.executar, registrar_erro=self.error, get_json=api,
                          requests=SimpleNamespace(get=Mock()), registered_weights=details.registered_weights,
@@ -375,7 +376,7 @@ class SyncTests(unittest.TestCase):
         inserts = [params for sql, params in self.sql if 'INSERT INTO anuncios' in sql]
         self.assertEqual(len(inserts), 1)
         self.assertEqual(inserts[0][11], 2)
-        self.assertEqual(len(inserts[0]), 16)
+        self.assertEqual(inserts[0][16:], ('MLB42', '2026-11-16T10:00:00Z'))
         self.assertEqual(api.call_args_list[1].args[2]['include_attributes'], 'all')
 
     def test_incomplete_search_never_deletes(self):
