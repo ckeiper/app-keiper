@@ -24,7 +24,7 @@ FILTERS = {
 METHOD = ('<p>O relatório cruza os anúncios ativos da última sincronização com pedidos pagos e aprovados '
           'no Mercado Livre. A janela é móvel, inclui o dia atual até a coleta mais recente e usa o horário de Brasília.</p>'
           '<p>Para publicações recentes, a análise começa no dia da publicação. A última venda é a mais recente '
-          'registrada no histórico disponível. As visitas só aparecem quando todos os dias aplicáveis têm registros. '
+          'registrada no histórico disponível. '
           'Ads mostra vínculos registrados com o anúncio. Ausência de vínculo no histórico é informação indisponível.</p>')
 
 

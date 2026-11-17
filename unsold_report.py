@@ -72,18 +72,29 @@ def read_report(bank, query, cid, start, end):
             raise ValueError('O catálogo ativo excede o limite de 10 mil anúncios do relatório.')
         bounds = (cid, start, end)
         orders = read(conn, """SELECT conexao_id,pedido_id,status,moeda,total,criado_em,
-            pagamentos_json,unidades,vendas_dia_coleta FROM pedidos
+            pagamentos_json,unidades,vendas_dia_coleta,vendas_verificado_em FROM pedidos
             WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL AND status='paid'
-            AND (keiper_overview_day_v1(criado_em) BETWEEN %s AND %s
-                 OR keiper_overview_day_v1(criado_em) IS NULL) LIMIT 20001""", bounds)
-        items = read(conn, """SELECT pi.pedido_id,pi.item_id,pi.quantidade FROM pedidos_itens pi
-            JOIN pedidos p USING(conexao_id,pedido_id)
-            WHERE p.conexao_id=%s AND p.vendas_verificado_em IS NOT NULL AND p.status='paid'
-            AND (keiper_overview_day_v1(p.criado_em) BETWEEN %s AND %s
-                 OR keiper_overview_day_v1(p.criado_em) IS NULL)
-            AND pi.atualizado_em=p.vendas_verificado_em LIMIT 60001""", bounds)
-        if len(orders) > 20_000 or len(items) > 60_000:
+            AND keiper_overview_day_v1(criado_em) IS NOT NULL
+            AND keiper_overview_day_v1(criado_em) BETWEEN %s AND %s
+            UNION ALL
+            SELECT conexao_id,pedido_id,status,moeda,total,criado_em,
+            pagamentos_json,unidades,vendas_dia_coleta,vendas_verificado_em FROM pedidos
+            WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL AND status='paid'
+            AND keiper_overview_day_v1(criado_em) IS NULL LIMIT 20001""", (*bounds, cid))
+        if len(orders) > 20_000:
             raise ValueError('O volume de pedidos excede o limite do relatório. Selecione um período menor.')
+        # Reuse the selected orders and their exact collection version. This keeps
+        # the item lookup on its primary key without recalculating order dates.
+        relevant = [order for order in orders
+                    if (day := created_day(order['criado_em'])) and start <= day <= end and approved(order)]
+        items = read(conn, """SELECT pi.pedido_id,pi.item_id,pi.quantidade FROM pedidos_itens pi
+            JOIN unnest(%s::text[],%s::bigint[]) AS selected(pedido_id,verified_at)
+                ON pi.pedido_id=selected.pedido_id AND pi.atualizado_em=selected.verified_at
+            WHERE pi.conexao_id=%s LIMIT 60001""",
+                     ([order['pedido_id'] for order in relevant],
+                      [order['vendas_verificado_em'] for order in relevant], cid)) if relevant else []
+        if len(items) > 60_000:
+            raise ValueError('O volume de itens excede o limite do relatório. Selecione um período menor.')
         coverage = read(conn, """SELECT dia FROM vendas_cobertura WHERE conexao_id=%s
             AND dia BETWEEN %s AND %s""", (cid, start.isoformat(), end.isoformat()))
         sold, last_gap = sales_evidence(orders, items, [r['dia'] for r in coverage], start, end)
@@ -91,26 +102,25 @@ def read_report(bank, query, cid, start, end):
         if not rows:
             return rows, insufficient, len(listings)
         ids = [r['item_id'] for r in rows]
-        latest = read(conn, """SELECT pi.item_id,MAX(keiper_overview_day_v1(p.criado_em)) AS dia
-            FROM pedidos_itens pi JOIN pedidos p USING(conexao_id,pedido_id)
-            WHERE p.conexao_id=%s AND pi.item_id=ANY(%s) AND p.status='paid' AND p.moeda='BRL'
-            AND pi.quantidade>0 AND pi.atualizado_em=p.vendas_verificado_em
-            AND p.pagamentos_json @> '[{"status":"approved"}]'::jsonb
-            AND keiper_overview_day_v1(p.criado_em)<%s GROUP BY pi.item_id""", (cid, ids, start))
-        visits = read(conn, """SELECT item_id,dia,visitas FROM item_visits_daily
-            WHERE conexao_id=%s AND dia BETWEEN %s AND %s AND item_id=ANY(%s)""", (*bounds, ids))
+        latest = read(conn, """WITH paid AS MATERIALIZED (
+            SELECT pedido_id,vendas_verificado_em,keiper_overview_day_v1(criado_em) AS dia
+            FROM pedidos WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL
+            AND status='paid' AND moeda='BRL' AND pagamentos_json @> '[{"status":"approved"}]'::jsonb
+            AND keiper_overview_day_v1(criado_em) IS NOT NULL
+            AND keiper_overview_day_v1(criado_em)<%s
+        ), candidates AS MATERIALIZED (
+            SELECT pedido_id,item_id,atualizado_em FROM pedidos_itens
+            WHERE conexao_id=%s AND item_id=ANY(%s) AND quantidade>0
+        )
+        SELECT candidates.item_id,MAX(paid.dia) AS dia FROM candidates
+        JOIN paid ON paid.pedido_id=candidates.pedido_id
+                 AND paid.vendas_verificado_em=candidates.atualizado_em
+        GROUP BY candidates.item_id""", (cid, start, cid, ids))
         ads = read(conn, """SELECT DISTINCT item_id FROM ads_metricas
             WHERE conexao_id=%s AND item_id=ANY(%s) AND atualizado_em IS NOT NULL""", (cid, ids))
     last_by_item = {r['item_id']: r['dia'] for r in latest}
-    visits_by_item = defaultdict(dict)
-    for row in visits:
-        visits_by_item[row['item_id']][row['dia']] = row['visitas']
     with_ads = {r['item_id'] for r in ads}
     for row in rows:
         iid = row['item_id']
-        history = visits_by_item[iid]
-        observed = [count for day, count in history.items() if row['effective_start'] <= day <= end]
-        days = (end - row['effective_start']).days + 1
-        row.update(last_sale=last_by_item.get(iid), visits=sum(observed) if len(observed) == days else None,
-                   ads='Vínculo registrado' if iid in with_ads else None)
+        row.update(last_sale=last_by_item.get(iid), ads='Vínculo registrado' if iid in with_ads else None)
     return rows, insufficient, len(listings)

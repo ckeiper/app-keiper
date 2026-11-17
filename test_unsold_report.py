@@ -108,7 +108,7 @@ class UnsoldRouteTests(unittest.TestCase):
 
 @unittest.skipUnless(os.getenv('KEIPER_TEST_DATABASE_URL'), 'isolated PostgreSQL URL not configured')
 class UnsoldDatabaseTests(unittest.TestCase):
-    def test_catalog_orders_visits_and_ads_are_store_scoped(self):
+    def test_catalog_orders_and_ads_are_store_scoped(self):
         from overview_store import DAY_FUNCTION
         from unsold_report import read_report
         from psycopg2 import connect
@@ -126,7 +126,6 @@ class UnsoldDatabaseTests(unittest.TestCase):
                 CREATE TEMP TABLE pedidos_itens (conexao_id int,pedido_id text,item_id text,
                     quantidade int,atualizado_em bigint);
                 CREATE TEMP TABLE vendas_cobertura (conexao_id int,dia text);
-                CREATE TEMP TABLE item_visits_daily (conexao_id int,item_id text,dia date,visitas int);
                 CREATE TEMP TABLE ads_metricas (conexao_id int,item_id text,atualizado_em bigint);
                 INSERT INTO anuncios VALUES
                     (1,'MLB1','A',NULL,19,0,NULL,'MLB123','2026-11-16T12:00:00-03:00',
@@ -138,9 +137,12 @@ class UnsoldDatabaseTests(unittest.TestCase):
                      '[{"status":"approved"}]',1,'2026-11-16',100),
                     (2,'a','paid','BRL',19,'2026-11-16T12:00:00-03:00',
                      '[{"status":"approved"}]',1,'2026-11-16',100);
-                INSERT INTO pedidos_itens VALUES (1,'a','MLB2',1,100),(2,'a','MLB1',1,100);
+                INSERT INTO pedidos VALUES
+                    (1,'old','paid','BRL',19,'2026-11-01T12:00:00-03:00',
+                     '[{"status":"approved"}]',1,'2026-11-01',90);
+                INSERT INTO pedidos_itens VALUES
+                    (1,'a','MLB2',1,100),(2,'a','MLB1',1,100),(1,'old','MLB1',1,90);
                 INSERT INTO vendas_cobertura VALUES (1,'2026-11-16');
-                INSERT INTO item_visits_daily VALUES (1,'MLB1','2026-11-16',0),(2,'MLB1','2026-11-16',40);
                 INSERT INTO ads_metricas VALUES (2,'MLB1',100);
             """)
         conn.commit()
@@ -153,6 +155,6 @@ class UnsoldDatabaseTests(unittest.TestCase):
         rows, insufficient, active = read_report(lambda: conn, query, 1, START, END)
         self.assertEqual((insufficient, active), (0, 2))
         self.assertEqual([r['item_id'] for r in rows], ['MLB1'])
-        self.assertEqual(rows[0]['visits'], 0)
+        self.assertEqual(rows[0]['last_sale'], date(2026, 11, 1))
         self.assertIsNone(rows[0]['ads'])
         self.assertEqual(rows[0]['logistics'], 'Full')
