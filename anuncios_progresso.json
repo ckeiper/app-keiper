@@ -385,7 +385,7 @@
       "area": "Estoque",
       "capacidade": "Sinais de vendas paralisadas",
       "estado": "concluida",
-      "implementado": "Interrupção de pedidos entre períodos verificados, com checklist e sem inferir demanda a partir de zero isolado. Menu Relatórios com listagem por loja de anúncios ativos sem pedidos pagos em 7, 15 ou 30 dias, cobertura desde a publicação, filtros e Excel. A disponibilidade de visitas e Ads depende da evidência persistida. Publicação do novo relatório ainda não confirmada.",
+      "implementado": "Interrupção de pedidos entre períodos verificados, com checklist e sem inferir demanda a partir de zero isolado. Menu Relatórios com listagem por loja de anúncios ativos sem pedidos pagos em 7, 15 ou 30 dias, cobertura desde a publicação, filtros e Excel. A disponibilidade de visitas e Ads depende da evidência persistida. Relatório publicado no Render em 17/11/2026 às 10:25 de Brasília após aprovação dos quatro fluxos de CI do PR #468.",
       "falta": "",
       "fontes": [
         "listing_opportunities.py",
@@ -398,10 +398,12 @@
         "test_unsold_report.py",
         "test_listing_ranking.py"
       ],
-      "prs": [],
+      "prs": [
+        468
+      ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-11-16"
+      "atualizado_em": "2026-11-17"
     },
     {
       "id": "rentabilidade",
@@ -2393,6 +2395,18 @@
         "em_andamento": 1
       },
       "total": 45
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-17",
+      "resumo": "Menu lateral Relatórios e relatório de anúncios sem vendas, com histórico verificável por loja, filtros e Excel. Publicação do PR #468 confirmada no Render.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1,
+        "em_andamento": 1
+      },
+      "total": 45
     }
   ],
   "publicacoes": [
@@ -2700,6 +2714,13 @@
       "commit": "348be6343e6be5066fdb729f89147778eea412c5",
       "status": "live",
       "horario_brasilia": "2026-11-11T08:46:04.890-03:00"
+    },
+    {
+      "pr": 468,
+      "deploy_id": "dep-dbu58rrrjlhs73bd4gs0",
+      "commit": "cde33ac57f9cad50c412045f47ab35afd5aef3f7",
+      "status": "live",
+      "horario_brasilia": "2026-11-17T10:25:14.565-03:00"
     }
   ]
 }
