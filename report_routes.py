@@ -17,6 +17,7 @@ PAGE_SIZE = 100
 PATH = '/relatorios/anuncios-sem-vendas'
 HEADERS = ('Anúncio', 'MLB', 'SKU', 'Categoria', 'Logística', 'Preço (R$)', 'Estoque',
            'Última venda registrada', 'Visitas', 'Ads', 'Publicado durante o período')
+TABLE_COLUMNS = (0, 1, 2, 6, 7)
 FILTERS = {
     'logistica': ('Logística', {'Full': 'Full', 'Flex': 'Flex', 'Outra': 'Outra', '?': 'Indisponível'}),
     'ads': ('Ads', {'sim': 'Com vínculo registrado', '?': 'Sem informação'}),
@@ -154,7 +155,7 @@ def report_body(cid, shops, start, end, rows, insufficient, active, args, page_n
                        "O Excel inclui o resumo do período.</p></section>")
     html += ("<section class='card'><h3>Anúncios sem vendas</h3>"
              "<div class='report-table' tabindex='0' role='region' aria-label='Anúncios sem vendas'>"
-             "<table><thead><tr>" + ''.join(f"<th scope='col'>{e(h)}</th>" for h in HEADERS) +
+             "<table><thead><tr>" + ''.join(f"<th scope='col'>{e(h)}</th>" for h in map(HEADERS.__getitem__, TABLE_COLUMNS)) +
              "</tr></thead><tbody>")
     page_count = (len(matches) + PAGE_SIZE - 1) // PAGE_SIZE
     page_number = min(page_number, page_count)
@@ -163,13 +164,11 @@ def report_body(cid, shops, start, end, rows, insufficient, active, args, page_n
         photo = preview_url(row['thumbnail'])
         img = f"<img src='{e(photo)}' alt='' loading='lazy'>" if photo else ''
         data = list(values(row))
-        if data[5] is not None:
-            data[5] = f'{data[5]:,.2f}'.translate(str.maketrans(',.', '.,'))
         if data[7] is not None:
             data[7] = data[7].strftime('%d/%m/%Y')
         html += '<tr>' + ''.join(
-            f"<td>{img if i == 0 else ''}{e(value) if value is not None else '—'}</td>"
-            for i, value in enumerate(data)) + '</tr>'
+            f"<td>{img if i == 0 else ''}{e(data[i]) if data[i] is not None else '—'}</td>"
+            for i in TABLE_COLUMNS) + '</tr>'
     html += '</tbody></table></div>'
     if page_count > 1:
         html += f"<p>Página {page_number} de {page_count}</p><nav aria-label='Paginação dos resultados'>"
