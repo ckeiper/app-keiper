@@ -94,10 +94,12 @@ class UnsoldRouteTests(unittest.TestCase):
         self.assertEqual(export.status_code, 200)
         book = load_workbook(BytesIO(export.data), read_only=True)
         self.addCleanup(book.close)
-        row = list(book['Anúncios'].iter_rows())[1]
+        header, row = list(book['Anúncios'].iter_rows(max_col=5))
+        self.assertEqual(tuple(cell.value for cell in header),
+                         ('Anúncio', 'MLB', 'SKU', 'Estoque', 'Última venda registrada'))
         self.assertEqual((row[0].value, row[0].data_type), ('=HYPERLINK(1)', 's'))
-        self.assertEqual(row[8].value, 0)
-        self.assertIsNone(row[9].value)
+        self.assertEqual(row[3].value, 0)
+        self.assertIsNone(row[4].value)
 
     def test_empty_catalog(self):
         with patch('report_routes.read_report', return_value=([], 0, 0)):
