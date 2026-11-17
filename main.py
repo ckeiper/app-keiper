@@ -2953,46 +2953,114 @@ def usuarios_excluir(uid):
     return redirect("/usuarios?msg=Usuário excluído")
 
 
+def remover_dados_loja(conn, cid):
+    # Serialize confirmations and block new foreign-key references during deletion.
+    if not consultar(conn, "SELECT id FROM conexoes WHERE id=%s FOR UPDATE", (cid,)):
+        return False
+    for tabela in (
+        "item_visits_daily", "atualizacoes_secao", "sincronizacao_tarefas",
+        "vendas_destinos", "full_observations", "dados_conta", "anuncios", "pedidos",
+        "pedidos_itens", "metricas", "desempenho_historico", "perguntas", "envios",
+        "promocoes", "promocoes_itens", "ads_campanhas", "ads_metricas", "ads_dia",
+        "ads_campanha_dia", "erros",
+    ):
+        executar(conn, "DELETE FROM " + tabela + " WHERE conexao_id=%s", (cid,))
+    executar(conn, "DELETE FROM conexoes WHERE id=%s", (cid,))
+    return True
+
+
 @app.route("/excluir/<int:cid>", methods=["GET", "POST"])
 @admin_required
 def excluir(cid):
-    with banco() as conn:
-        c = consultar(conn, "SELECT * FROM conexoes WHERE id=%s", (cid,))
-        c = c[0] if c else None
-    if not c:
-        return pagina("Não encontrada",
-                      "<div class='card'><h2>Loja não encontrada</h2></div>")
-    if request.method == "POST":
-        with banco() as conn:
-            for tabela in ("vendas_destinos", "full_observations", "dados_conta", "anuncios", "pedidos", "pedidos_itens",
-                           "metricas", "desempenho_historico", "perguntas",
-                           "envios", "promocoes", "promocoes_itens",
-                           "ads_campanhas", "ads_metricas", "ads_dia",
-                           "ads_campanha_dia", "erros"):
-                executar(conn, "DELETE FROM " + tabela + " WHERE conexao_id=%s", (cid,))
-            executar(conn, "DELETE FROM conexoes WHERE id=%s", (cid,))
-        corpo = ("<div class='card' style='max-width:520px;margin:40px auto;"
-                 "text-align:center'>"
-                 "<h2>Loja excluída com sucesso!</h2>"
-                 "<div class='sub'>Todos os dados dessa loja foram removidos</div>"
-                 "<p style='margin-top:16px'><a class='link' href='/painel'>"
-                 "Voltar ao painel</a></p></div>")
-        return pagina("Excluída", corpo)
-    corpo = ("<div class='card' style='max-width:520px;margin:40px auto;"
-             "text-align:center'>"
-             "<h2>Excluir loja de " + esc(str(c["cliente"])) + "?</h2>"
-             "<div class='sub'>Essa ação remove a conexão e todos os dados "
-             "da loja. Não pode ser desfeita.</div>"
-             "<form method='post' action='/excluir/" + str(cid)
-             + "' style='margin-top:16px'>"
-             "<button class='btn-danger' style='padding:13px 24px;font-size:15px'>"
-             "Sim, excluir</button>"
-             "</form>"
-             "<p style='margin-top:14px'><a class='link' href='/painel'>"
-             "← Cancelar</a></p>"
-             "</div>")
-    return pagina("Excluir loja", corpo)
+    from contextlib import closing
 
+    if request.method == "POST":
+        try:
+            with closing(banco()) as conn, conn:
+                removida = remover_dados_loja(conn, cid)
+        except psycopg2.Error:
+            app.logger.exception("Falha ao excluir loja %s", cid)
+            mensagem, status = "Não foi possível excluir a loja. Tente novamente.", 500
+        else:
+            mensagem, status = ("Loja excluída com sucesso!", 200) if removida else (
+                "Loja não encontrada. Confira a lista de lojas no painel.", 404)
+        if request.accept_mimetypes.best == "application/json":
+            return jsonify(mensagem=mensagem), status
+        link = "/excluir/" + str(cid) if status == 500 else "/painel"
+        rotulo = "Voltar à confirmação" if status == 500 else "Voltar ao painel"
+        return pagina("Excluir loja", "<div class='card'><h2>" + mensagem
+                      + "</h2><p><a class='link' href='" + link + "'>" + rotulo
+                      + "</a></p></div>"), status
+
+    with closing(banco()) as conn, conn:
+        lojas = consultar(conn, "SELECT cliente FROM conexoes WHERE id=%s", (cid,))
+    if not lojas:
+        return pagina("Não encontrada",
+                      "<div class='card'><h2>Loja não encontrada</h2></div>"), 404
+    corpo = ("""<div class='card' style='max-width:520px;margin:40px auto;text-align:center'>
+        <h2>Excluir loja de """ + esc(str(lojas[0]["cliente"])) + """?</h2>
+        <div class='sub'>Essa ação remove a conexão e os registros vinculados à loja.
+        Não pode ser desfeita.</div>
+        <form id='excluir-loja' method='post' action='/excluir/""" + str(cid) + """'
+              style='margin-top:16px'>
+            <button type='submit' class='btn-danger' style='padding:13px 24px;font-size:15px'>
+                Sim, excluir
+            </button>
+        </form>
+        <p id='excluir-estado' role='status'></p>
+        <p id='excluir-erro' role='alert' style='color:#b91c1c'></p>
+        <p><a id='excluir-voltar' class='link' href='/painel'>← Cancelar</a></p>
+        </div>
+        <script>
+        (() => {
+            const form = document.getElementById('excluir-loja');
+            const button = form.querySelector('button');
+            const status = document.getElementById('excluir-estado');
+            const error = document.getElementById('excluir-erro');
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (button.disabled) return;
+                button.disabled = true;
+                status.textContent = 'Excluindo loja…';
+                error.textContent = '';
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {Accept: 'application/json'}
+                    });
+                    if (response.redirected) {
+                        error.textContent = 'Sua sessão mudou. Recarregue a página para entrar novamente.';
+                        return;
+                    }
+                    if (response.status === 400 || response.status === 403) {
+                        error.textContent = 'Formulário expirado ou acesso negado. Recarregue a página.';
+                        return;
+                    }
+                    if (!response.headers.get('Content-Type')?.includes('application/json')) {
+                        error.textContent = 'Não foi possível confirmar a exclusão. Confira a lista no painel.';
+                        return;
+                    }
+                    const {mensagem} = await response.json();
+                    if (!response.ok) {
+                        error.textContent = mensagem;
+                        return;
+                    }
+                    form.hidden = true;
+                    document.getElementById('excluir-voltar').textContent = 'Voltar ao painel';
+                    status.textContent = mensagem;
+                } catch {
+                    error.textContent = 'Falha de conexão. Confira no painel se a loja ainda aparece antes de tentar novamente.';
+                } finally {
+                    if (!form.hidden) {
+                        button.disabled = false;
+                        status.textContent = '';
+                    }
+                }
+            });
+        })();
+        </script>""")
+    return pagina("Excluir loja", corpo)
 
 @app.route("/ads/<int:cid>/campanha/<path:campanha_id>")
 @login_required
