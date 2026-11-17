@@ -4,7 +4,7 @@ from html import escape
 from io import BytesIO
 from urllib.parse import urlencode
 
-from flask import redirect, request, send_file, session, url_for
+from flask import Response, redirect, request, session, url_for
 
 from listing_image_selection import preview_url
 from sales_metrics import reporting_today
@@ -14,6 +14,8 @@ from unsold_report import PERIODS, read_report
 
 TITLE = 'Anúncios sem vendas nos últimos 30 dias'
 PAGE_SIZE = 100
+XLSX_MIMETYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+XLSX_FILENAME = 'anuncios-sem-vendas.xlsx'
 PATH = '/relatorios/anuncios-sem-vendas'
 HEADERS = ('Anúncio', 'MLB', 'SKU', 'Estoque', 'Última venda registrada')
 FILTERS = {
@@ -50,6 +52,46 @@ html[data-theme=dark] .report-filters select{background:#142940;color:#edf5ff;bo
 html[data-theme=dark] .report-button:not(.report-download){background:#213c5b;color:#edf5ff;border-color:#496686}
 @media(max-width:640px){.report-toolbar .report-download{flex:1 0 100%}}
 </style>'''
+
+
+DOWNLOAD_SCRIPT = """<script>
+(() => {
+    const button = document.querySelector('.report-download');
+    const status = document.getElementById('report-download-status');
+    if (!button || !status || !window.fetch || !window.URL?.createObjectURL) return;
+    button.addEventListener('click', async (event) => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        if (button.getAttribute('aria-busy') === 'true') return;
+        button.setAttribute('aria-busy', 'true');
+        status.textContent = 'Gerando o Excel…';
+        try {
+            const response = await fetch(button.href, {credentials:'same-origin', cache:'no-store'});
+            if (response.redirected) {
+                status.textContent = 'Sua sessão expirou. Entre novamente para baixar o Excel.';
+                return;
+            }
+            if (!response.ok || response.headers.get('Content-Type')?.split(';')[0] !== 'XLSX_TYPE') {
+                throw new Error('Resposta sem planilha');
+            }
+            const file = await response.blob();
+            if (!file.size) throw new Error('Planilha vazia');
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(file);
+            link.download = 'XLSX_NAME';
+            document.body.append(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(link.href), 30000);
+            status.textContent = 'Excel enviado para os downloads do navegador.';
+        } catch {
+            status.textContent = 'O Excel não pôde ser baixado. Clique em Baixar Excel para tentar novamente.';
+        } finally {
+            button.removeAttribute('aria-busy');
+        }
+    });
+})();
+</script>""".replace('XLSX_TYPE', XLSX_MIMETYPE).replace('XLSX_NAME', XLSX_FILENAME)
 
 
 def e(value):
@@ -108,11 +150,10 @@ def xlsx(rows, shop, start, end, insufficient, active):
                       'Nenhum anúncio sem vendas confirmado com os filtros. Consulte a contagem de dados insuficientes.'))
     file = BytesIO()
     workbook.save(file)
-    file.seek(0)
-    response = send_file(file, as_attachment=True, download_name='anuncios-sem-vendas.xlsx',
-                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response.headers['Cache-Control'] = 'no-store'
-    return response
+    return Response(file.getvalue(), mimetype=XLSX_MIMETYPE, headers={
+        'Content-Disposition': f'attachment; filename="{XLSX_FILENAME}"',
+        'Cache-Control': 'private, no-store',
+    })
 
 
 def report_body(cid, shops, start, end, rows, insufficient, active, args, page_number):
@@ -132,6 +173,7 @@ def report_body(cid, shops, start, end, rows, insufficient, active, args, page_n
             f"<section class='card report-hero'>{heading}"
             f"<div class='report-toolbar'><p>{start:%d/%m/%Y} a {end:%d/%m/%Y}</p>"
             f"<a class='report-button report-download' href='{e(export_url)}'>Baixar Excel</a></div>"
+            "<p id='report-download-status' role='status' aria-live='polite'></p>" + DOWNLOAD_SCRIPT +
             f"<form class='report-filters' action='{PATH}' method='get'>{form}"
             "<button class='report-button' type='submit'>Aplicar filtros</button></form></section>")
     if not active:
