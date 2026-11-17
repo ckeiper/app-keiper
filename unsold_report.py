@@ -47,14 +47,15 @@ def classify(listings, sold, last_gap, start, end):
         created = created_day(listing['publicado_em'])
         if created and created > end:
             continue
-        if created is None or (last_gap and last_gap >= max(start, created)):
+        effective_start = max(start, created) if created else start
+        if last_gap and last_gap >= effective_start:
             insufficient += 1
             continue
         metadata = listing['full_metadata_json'] or {}
         kind = metadata.get('logistic_type')
         logistics = {'fulfillment': 'Full', 'self_service': 'Flex'}.get(kind)
-        rows.append(dict(listing, recent=created > start, logistics=logistics or ('Outra' if kind else None),
-                         effective_start=max(start, created)))
+        rows.append(dict(listing, recent=created > start if created else None,
+                         logistics=logistics or ('Outra' if kind else None), effective_start=effective_start))
     return rows, insufficient
 
 
