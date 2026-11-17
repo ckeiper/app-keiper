@@ -70,17 +70,21 @@ def read_report(bank, query, cid, start, end):
             return [], 0, 0
         if len(listings) > LIMIT:
             raise ValueError('O catálogo ativo excede o limite de 10 mil anúncios do relatório.')
-        bounds = (cid, start, end)
+        # Use the indexed raw date prefix to find candidates, leaving exact
+        # Brasília date conversion to Python, including unusual timestamps.
+        prefix_start = (start - timedelta(days=1)).isoformat()
+        prefix_end = (end + timedelta(days=2)).isoformat()
         orders = read(conn, """SELECT conexao_id,pedido_id,status,moeda,total,criado_em,
             pagamentos_json,unidades,vendas_dia_coleta,vendas_verificado_em FROM pedidos
             WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL AND status='paid'
-            AND keiper_overview_day_v1(criado_em) IS NOT NULL
-            AND keiper_overview_day_v1(criado_em) BETWEEN %s AND %s
+            AND LEFT(criado_em,10) BETWEEN %s AND %s
             UNION ALL
             SELECT conexao_id,pedido_id,status,moeda,total,criado_em,
             pagamentos_json,unidades,vendas_dia_coleta,vendas_verificado_em FROM pedidos
             WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL AND status='paid'
-            AND keiper_overview_day_v1(criado_em) IS NULL LIMIT 20001""", (*bounds, cid))
+            AND keiper_overview_day_v1(criado_em) IS NULL
+            AND (LEFT(criado_em,10) BETWEEN %s AND %s) IS NOT TRUE LIMIT 20001""",
+                      (cid, prefix_start, prefix_end, cid, prefix_start, prefix_end))
         if len(orders) > 20_000:
             raise ValueError('O volume de pedidos excede o limite do relatório. Selecione um período menor.')
         # Reuse the selected orders and their exact collection version. This keeps
@@ -103,22 +107,25 @@ def read_report(bank, query, cid, start, end):
             return rows, insufficient, len(listings)
         ids = [r['item_id'] for r in rows]
         latest = read(conn, """WITH paid AS MATERIALIZED (
-            SELECT pedido_id,vendas_verificado_em,keiper_overview_day_v1(criado_em) AS dia
+            SELECT pedido_id,vendas_verificado_em,criado_em
             FROM pedidos WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL
             AND status='paid' AND moeda='BRL' AND pagamentos_json @> '[{"status":"approved"}]'::jsonb
-            AND keiper_overview_day_v1(criado_em) IS NOT NULL
-            AND keiper_overview_day_v1(criado_em)<%s
         ), candidates AS MATERIALIZED (
             SELECT pedido_id,item_id,atualizado_em FROM pedidos_itens
             WHERE conexao_id=%s AND item_id=ANY(%s) AND quantidade>0
         )
-        SELECT candidates.item_id,MAX(paid.dia) AS dia FROM candidates
+        SELECT candidates.item_id,paid.criado_em FROM candidates
         JOIN paid ON paid.pedido_id=candidates.pedido_id
                  AND paid.vendas_verificado_em=candidates.atualizado_em
-        GROUP BY candidates.item_id""", (cid, start, cid, ids))
+        """, (cid, cid, ids))
         ads = read(conn, """SELECT DISTINCT item_id FROM ads_metricas
             WHERE conexao_id=%s AND item_id=ANY(%s) AND atualizado_em IS NOT NULL""", (cid, ids))
-    last_by_item = {r['item_id']: r['dia'] for r in latest}
+    last_by_item = {}
+    for record in latest:
+        day = created_day(record['criado_em'])
+        iid = record['item_id']
+        if day and day < start and (iid not in last_by_item or day > last_by_item[iid]):
+            last_by_item[iid] = day
     with_ads = {r['item_id'] for r in ads}
     for row in rows:
         iid = row['item_id']
