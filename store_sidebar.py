@@ -41,8 +41,7 @@ def render_store_sidebar(cid, cliente, secao, admin=False):
         nav+="<details class='ks-nav-group'"+(' open' if active else '')+"><summary><span aria-hidden='true'><svg viewBox='0 0 24 24'><path d='"+items[icon][3]+"'/></svg></span><span class='ks-label'>"+label+"</span><span class='ks-chevron' aria-hidden='true'>⌄</span></summary><div class='ks-nav-children'>"
         nav+=''.join(link(items[key][1],items[key][2]+cid,items[key][3],secao==key) for key in keys)
         nav+='</div></details>'
-    from report_routes import PATH
-    nav += reports_navigation(PATH + '/' + cid, secao == 'relatorios')
+    nav += reports_navigation('/relatorios' + '/' + cid, secao == 'relatorios')
     footer=link('Atualizar dados','/atualizar?cid='+cid,'M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 3M4 16l2 3a7 7 0 0 0 12-2')
     if admin:
         footer+=link('Evolução de Anúncios','/evolucao-anuncios','M4 4h16v16H4zM8 9h8M8 13h5M8 17h3')

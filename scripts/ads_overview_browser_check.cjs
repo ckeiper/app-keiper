@@ -32,8 +32,8 @@ const {chromium}=require('playwright');
    assert.equal(await page.locator('.ka-alert summary').filter({hasText:'Gasto sem retorno atribuído'}).count(),1);
    assert.equal(await page.locator('.ka-alert summary').filter({hasText:'Queda relevante de ROAS'}).count(),1);
    assert.equal(await page.locator('.ks-sidebar a[aria-current=page]').getAttribute('href'),'/ads/1');
-   const reports = page.locator('.ks-sidebar nav details').filter({has:page.locator('summary').filter({hasText:'Relatórios'})});
-   assert.equal(await reports.locator('a').getAttribute('href'),'/relatorios/anuncios-sem-vendas/1');
+   const reports = page.locator('.ks-sidebar a[href="/relatorios/1"]');
+   assert.equal(await reports.locator('.ks-label').textContent(),'Relatórios');
    assert.equal(await page.locator('.ks-sidebar nav a[href="/ia-keiper/1"]').textContent(),'KEVIA');
    assert.equal(await page.locator('a[href="/campanhas/1"]').count(),0);
    assert.equal(await page.locator('.ka-actions a').getAttribute('href'),'#ka-campaign-list');
@@ -43,10 +43,8 @@ const {chromium}=require('playwright');
    if(width<=640){await page.locator('.ks-nav-group summary').filter({hasText:'Vendas'}).click();assert.ok(await page.getByRole('link',{name:'Auditoria de Frete',exact:true}).isVisible());await page.keyboard.press('Escape');assert.equal(await toggle.getAttribute('aria-expanded'),'false');}
    else{assert.equal(await toggle.getAttribute('aria-expanded'),'false');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await toggle.click();}
    if(width<=640)await toggle.click();
-   await reports.locator('summary').click();
-   assert.ok(await reports.getByRole('link',{name:'Anúncios sem vendas nos últimos 30 dias'}).isVisible());
+   assert.ok(await reports.isVisible());
    if(width<=640)await page.keyboard.press('Escape');
-   else await reports.locator('summary').click();
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Horizontal overflow: '+width+' '+JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).slice(0,10).map(e=>({tag:e.tagName,cls:e.className,right:e.getBoundingClientRect().right})))));
    await page.screenshot({path:'visual-qa/ads-overview-'+name+'.png',fullPage:true});
    await page.screenshot({path:'visual-qa/ads-overview-'+name+'-top.png'});
