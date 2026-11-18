@@ -105,9 +105,56 @@ class UnsoldRouteTests(unittest.TestCase):
         self.assertEqual(row[3].value, 0)
         self.assertIsNone(row[4].value)
 
+    def test_catalogue_lists_all_reports_and_preserves_store(self):
+        from operational_reports import REPORTS
+        self.assertEqual(self.client.get('/relatorios/2').status_code, 403)
+        response = self.client.get('/relatorios/1')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(PATH + '/1', response.get_data(as_text=True))
+        for key, (title, headers, _) in REPORTS.items():
+            self.assertIn(f'/relatorios/{key}/1', response.get_data(as_text=True))
+            self.assertIn(title, response.get_data(as_text=True))
+            self.assertEqual(self.client.get(f'/relatorios/{key}/2?formato=xlsx').status_code, 403)
+            row = ('Exemplo',) * len(headers)
+            with patch('report_routes.read_operation', return_value=([row], 0, 1)):
+                view = self.client.get(f'/relatorios/{key}/1?dias=7')
+                self.assertIn('Baixar Excel', view.get_data(as_text=True))
+                file = self.client.get(f'/relatorios/{key}/1?dias=7&formato=xlsx')
+            with BytesIO(file.data) as stream:
+                workbook = load_workbook(stream, read_only=True)
+                try:
+                    self.assertEqual(list(workbook['Anúncios'].values), [headers, row])
+                finally:
+                    workbook.close()
+
     def test_empty_catalog(self):
         with patch('report_routes.read_report', return_value=([], 0, 0)):
             self.assertIn('Nenhum anúncio ativo disponível', self.client.get(PATH + '/1').get_data(as_text=True))
+
+
+class OperationalEvidenceTests(unittest.TestCase):
+    def test_listing_rules_and_missing_visits(self):
+        from collections import Counter
+        from operational_reports import listing_rows
+        listings = [dict(item_id='1', titulo='A', sku=None, quantidade=3),
+                    dict(item_id='2', titulo='B', sku=None, quantidade=6)]
+        current = Counter({'1': 1})
+        prior = Counter({'1': 3, '2': 1})
+        self.assertEqual(listing_rows('pararam-de-vender', listings, current, prior, {})[0],
+                         [('B', '2', None, 1, 0)])
+        self.assertEqual(listing_rows('queda-nas-vendas', listings, current, prior, {})[0][0][-1], 2)
+        self.assertEqual(listing_rows('estoque-baixo', listings, current, None, {})[0],
+                         [('A', '1', None, 3, 1)])
+        self.assertEqual(listing_rows('visitas-poucas-vendas', listings, current, None, {'1': 100}),
+                         ([('A', '1', None, 100, 1)], 1))
+
+    def test_ads_excludes_missing_attribution_and_coverage(self):
+        from operational_reports import campaign_rows
+        observed = dict(campanha_id='a', nome='A', gasto=3, vendas_atribuidas=0)
+        missing = dict(observed, campanha_id='b', vendas_atribuidas=None)
+        partial = dict(observed, campanha_id='c')
+        self.assertEqual(campaign_rows([observed, observed, missing, missing, partial], 2),
+                         ([('A', 'a', 6, 0)], 2, 3))
 
 
 @unittest.skipUnless(os.getenv('KEIPER_TEST_DATABASE_URL'), 'isolated PostgreSQL URL not configured')

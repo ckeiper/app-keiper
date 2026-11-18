@@ -385,9 +385,10 @@
       "area": "Estoque",
       "capacidade": "Sinais de vendas paralisadas",
       "estado": "concluida",
-      "implementado": "Interrupção de pedidos entre períodos verificados, com checklist e sem inferir demanda a partir de zero isolado. Menu Relatórios com listagem por loja de anúncios ativos sem pedidos pagos em 7, 15 ou 30 dias, cobertura desde a publicação, filtros e Excel. A disponibilidade de visitas e Ads depende da evidência persistida. Download Excel disponível com ou sem linhas confirmadas. Catálogo legado com data de publicação ausente usa o período integral quando a cobertura é verificável. Relatório publicado no Render em 17/11/2026 às 10:25 de Brasília após aprovação dos quatro fluxos de CI do PR #468.",
+      "implementado": "Interrupção de pedidos entre períodos verificados, com checklist e sem inferir demanda a partir de zero isolado. Menu Relatórios com listagem por loja de anúncios ativos sem pedidos pagos em 7, 15 ou 30 dias, cobertura desde a publicação, filtros e Excel. A disponibilidade de visitas e Ads depende da evidência persistida. Página Relatórios com cinco consultas adicionais de vendas, estoque, visitas e Ads, com períodos completos e Excel por loja. Download Excel disponível com ou sem linhas confirmadas. Catálogo legado com data de publicação ausente usa o período integral quando a cobertura é verificável. Relatório publicado no Render em 17/11/2026 às 10:25 de Brasília após aprovação dos quatro fluxos de CI do PR #468.",
       "falta": "",
       "fontes": [
+        "operational_reports.py",
         "listing_opportunities.py",
         "unsold_report.py",
         "report_routes.py",

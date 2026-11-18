@@ -59,6 +59,41 @@ def classify(listings, sold, last_gap, start, end):
     return rows, insufficient
 
 
+def read_sales(read, conn, cid, start, end):
+    # Use the indexed raw date prefix to find candidates, leaving exact
+    # Brasília date conversion to Python, including unusual timestamps.
+    prefix_start = (start - timedelta(days=1)).isoformat()
+    prefix_end = (end + timedelta(days=2)).isoformat()
+    orders = read(conn, """SELECT conexao_id,pedido_id,status,moeda,total,criado_em,
+        pagamentos_json,unidades,vendas_dia_coleta,vendas_verificado_em FROM pedidos
+        WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL AND status='paid'
+        AND LEFT(criado_em,10) BETWEEN %s AND %s
+        UNION ALL
+        SELECT conexao_id,pedido_id,status,moeda,total,criado_em,
+        pagamentos_json,unidades,vendas_dia_coleta,vendas_verificado_em FROM pedidos
+        WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL AND status='paid'
+        AND keiper_overview_day_v1(criado_em) IS NULL
+        AND (LEFT(criado_em,10) BETWEEN %s AND %s) IS NOT TRUE LIMIT 20001""",
+                  (cid, prefix_start, prefix_end, cid, prefix_start, prefix_end))
+    if len(orders) > 20_000:
+        raise ValueError('O volume de pedidos excede o limite do relatório. Selecione um período menor.')
+    # Reuse the selected orders and their exact collection version. This keeps
+    # the item lookup on its primary key without recalculating order dates.
+    relevant = [order for order in orders
+                if (day := created_day(order['criado_em'])) and start <= day <= end and approved(order)]
+    items = read(conn, """SELECT pi.pedido_id,pi.item_id,pi.quantidade FROM pedidos_itens pi
+        JOIN unnest(%s::text[],%s::bigint[]) AS selected(pedido_id,verified_at)
+            ON pi.pedido_id=selected.pedido_id AND pi.atualizado_em=selected.verified_at
+        WHERE pi.conexao_id=%s LIMIT 60001""",
+                 ([order['pedido_id'] for order in relevant],
+                  [order['vendas_verificado_em'] for order in relevant], cid)) if relevant else []
+    if len(items) > 60_000:
+        raise ValueError('O volume de itens excede o limite do relatório. Selecione um período menor.')
+    coverage = read(conn, """SELECT dia FROM vendas_cobertura WHERE conexao_id=%s
+        AND dia BETWEEN %s AND %s""", (cid, start.isoformat(), end.isoformat()))
+    return orders, items, coverage
+
+
 def read_report(bank, query, cid, start, end):
     with bank() as conn:
         conn.set_session(isolation_level='REPEATABLE READ', readonly=True)
@@ -70,37 +105,7 @@ def read_report(bank, query, cid, start, end):
             return [], 0, 0
         if len(listings) > LIMIT:
             raise ValueError('O catálogo ativo excede o limite de 10 mil anúncios do relatório.')
-        # Use the indexed raw date prefix to find candidates, leaving exact
-        # Brasília date conversion to Python, including unusual timestamps.
-        prefix_start = (start - timedelta(days=1)).isoformat()
-        prefix_end = (end + timedelta(days=2)).isoformat()
-        orders = read(conn, """SELECT conexao_id,pedido_id,status,moeda,total,criado_em,
-            pagamentos_json,unidades,vendas_dia_coleta,vendas_verificado_em FROM pedidos
-            WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL AND status='paid'
-            AND LEFT(criado_em,10) BETWEEN %s AND %s
-            UNION ALL
-            SELECT conexao_id,pedido_id,status,moeda,total,criado_em,
-            pagamentos_json,unidades,vendas_dia_coleta,vendas_verificado_em FROM pedidos
-            WHERE conexao_id=%s AND vendas_verificado_em IS NOT NULL AND status='paid'
-            AND keiper_overview_day_v1(criado_em) IS NULL
-            AND (LEFT(criado_em,10) BETWEEN %s AND %s) IS NOT TRUE LIMIT 20001""",
-                      (cid, prefix_start, prefix_end, cid, prefix_start, prefix_end))
-        if len(orders) > 20_000:
-            raise ValueError('O volume de pedidos excede o limite do relatório. Selecione um período menor.')
-        # Reuse the selected orders and their exact collection version. This keeps
-        # the item lookup on its primary key without recalculating order dates.
-        relevant = [order for order in orders
-                    if (day := created_day(order['criado_em'])) and start <= day <= end and approved(order)]
-        items = read(conn, """SELECT pi.pedido_id,pi.item_id,pi.quantidade FROM pedidos_itens pi
-            JOIN unnest(%s::text[],%s::bigint[]) AS selected(pedido_id,verified_at)
-                ON pi.pedido_id=selected.pedido_id AND pi.atualizado_em=selected.verified_at
-            WHERE pi.conexao_id=%s LIMIT 60001""",
-                     ([order['pedido_id'] for order in relevant],
-                      [order['vendas_verificado_em'] for order in relevant], cid)) if relevant else []
-        if len(items) > 60_000:
-            raise ValueError('O volume de itens excede o limite do relatório. Selecione um período menor.')
-        coverage = read(conn, """SELECT dia FROM vendas_cobertura WHERE conexao_id=%s
-            AND dia BETWEEN %s AND %s""", (cid, start.isoformat(), end.isoformat()))
+        orders, items, coverage = read_sales(read, conn, cid, start, end)
         sold, last_gap = sales_evidence(orders, items, [r['dia'] for r in coverage], start, end)
         rows, insufficient = classify(listings, sold, last_gap, start, end)
         if not rows:

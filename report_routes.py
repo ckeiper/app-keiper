@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 from flask import Response, redirect, request, session, url_for
 
 from listing_image_selection import preview_url
+from operational_reports import COMPARISONS, REPORTS, read_operation
 from sales_metrics import reporting_today
 from section_help import STYLE, section_help
 from unsold_report import PERIODS, read_report
@@ -31,6 +32,9 @@ METHOD = ('<p>O relatório cruza os anúncios ativos da última sincronização 
 
 
 REPORT_STYLE = '''<style>
+.report-hub{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr))}
+.report-hub .card{display:flex;flex-direction:column;align-items:flex-start;margin:0}
+.report-hub .card a{margin-top:auto}
 .report-hero .section-help{margin-bottom:0}
 .report-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0 16px}
 .report-toolbar p{margin:0;font-size:.88rem;opacity:.82}
@@ -78,7 +82,7 @@ DOWNLOAD_SCRIPT = """<script>
             if (!file.size) throw new Error('Planilha vazia');
             const link = document.createElement('a');
             link.href = URL.createObjectURL(file);
-            link.download = 'XLSX_NAME';
+            link.download = button.dataset.filename || 'XLSX_NAME';
             document.body.append(link);
             link.click();
             link.remove();
@@ -120,17 +124,17 @@ def filtered(rows, args):
             yield row
 
 
-def xlsx(rows, shop, start, end, insufficient, active):
+def xlsx(rows, shop, start, end, insufficient, active, *, headers=HEADERS, row_values=values, filename=XLSX_FILENAME):
     from openpyxl import Workbook
     from openpyxl.cell import WriteOnlyCell
 
     workbook = Workbook(write_only=True)
     sheet = workbook.create_sheet('Anúncios')
     sheet.freeze_panes = 'A2'
-    sheet.append(HEADERS)
+    sheet.append(headers)
     for row in rows:
         cells = []
-        for value in values(row):
+        for value in row_values(row):
             cell = WriteOnlyCell(sheet, value=value)
             if isinstance(value, str):
                 cell.data_type = 's'
@@ -142,16 +146,16 @@ def xlsx(rows, shop, start, end, insufficient, active):
     notes.append(('Loja', shop_cell))
     notes.append(('Início', start.isoformat()))
     notes.append(('Fim', end.isoformat()))
-    notes.append(('Anúncios ativos na loja', active))
-    notes.append(('Sem vendas confirmadas com os filtros', len(rows)))
-    notes.append(('Ativos com dados insuficientes', insufficient))
+    notes.append(('Anúncios ativos na loja' if headers == HEADERS else 'Registros avaliados', active))
+    notes.append(('Resultados com os filtros', len(rows)))
+    notes.append(('Ativos com dados insuficientes' if headers == HEADERS else 'Registros com dados insuficientes', insufficient))
     if not rows:
-        notes.append(('Resultado', 'Nenhum anúncio ativo no catálogo sincronizado.' if not active else
+        notes.append(('Resultado', 'Nenhum resultado verificado.' if headers != HEADERS else 'Nenhum anúncio ativo no catálogo sincronizado.' if not active else
                       'Nenhum anúncio sem vendas confirmado com os filtros. Consulte a contagem de dados insuficientes.'))
     file = BytesIO()
     workbook.save(file)
     return Response(file.getvalue(), mimetype=XLSX_MIMETYPE, headers={
-        'Content-Disposition': f'attachment; filename="{XLSX_FILENAME}"',
+        'Content-Disposition': f'attachment; filename="{filename}"',
         'Cache-Control': 'private, no-store',
     })
 
@@ -171,6 +175,7 @@ def report_body(cid, shops, start, end, rows, insufficient, active, args, page_n
         form += option_list(label, key, {'': 'Todos', **choices}, params.get(key, ''))
     html = (STYLE + REPORT_STYLE +
             f"<section class='card report-hero'>{heading}"
+            f"<a href='{e(url_for('reports_home', cid=cid))}'>Todos os relatórios</a>"
             f"<div class='report-toolbar'><p>{start:%d/%m/%Y} a {end:%d/%m/%Y}</p>"
             f"<a class='report-button report-download' href='{e(export_url)}'>Baixar Excel</a></div>"
             "<p id='report-download-status' role='status' aria-live='polite'></p>" + DOWNLOAD_SCRIPT +
@@ -226,6 +231,106 @@ def register(app, login_required, can_view, bank, query, page, store_page):
             else:
                 rows = query(conn, 'SELECT id,cliente FROM conexoes WHERE id=%s', (session.get('conexao_id'),))
         return {r['id']: r['cliente'] for r in rows if can_view(r['id'])}
+
+    @app.get('/relatorios')
+    @app.get('/relatorios/<int:cid>')
+    @login_required
+    def reports_home(cid=None):
+        if cid is not None and not can_view(cid):
+            return page('Relatórios', "<div class='card'>Acesso restrito.</div>"), 403
+        shops = shops_for_user()
+        if cid is not None and cid not in shops:
+            return page('Relatórios', "<div class='card'>Loja não encontrada.</div>"), 404
+        suffix = f'/{cid}' if cid is not None else ''
+        cards = [(TITLE, 'Lista os anúncios ativos que ficaram sem pedidos pagos no período.',
+                  PATH + suffix)]
+        cards.extend((title, description, f'/relatorios/{key}{suffix}')
+                     for key, (title, _, description) in REPORTS.items())
+        body = REPORT_STYLE + "<main><section class='card'><h2>Relatórios</h2></section><div class='report-hub'>"
+        body += ''.join(f"<section class='card'><h3>{e(title)}</h3><p>{e(description)}</p>"
+                        f"<a class='report-button' aria-label='Abrir {e(title)}' href='{e(href)}'>Abrir relatório</a></section>"
+                        for title, description, href in cards)
+        body += '</div></main>'
+        return page('Relatórios', body) if cid is None else store_page('Relatórios', cid, shops[cid], 'relatorios', body)
+
+    @app.get('/relatorios/<key>')
+    @app.get('/relatorios/<key>/<int:cid>')
+    @login_required
+    def operational_report(key, cid=None):
+        if key not in REPORTS:
+            return page('Relatórios', "<div class='card'>Relatório não encontrado.</div>"), 404
+        title, headers, description = REPORTS[key]
+        if cid is not None and not can_view(cid):
+            return page(title, "<div class='card'>Acesso restrito.</div>"), 403
+        shops = shops_for_user()
+        if not shops:
+            return page(title, "<div class='card'>Nenhuma loja disponível.</div>")
+        if cid is None:
+            cid = next(iter(shops))
+        if cid not in shops:
+            return page(title, "<div class='card'>Loja não encontrada.</div>"), 404
+        period = request.args.get('dias', '30')
+        if period not in tuple(map(str, PERIODS)):
+            return store_page(title, cid, shops[cid], 'relatorios', 'Selecione 7, 15 ou 30 dias.'), 400
+        end = reporting_today() - timedelta(days=1)
+        start = end - timedelta(days=int(period) - 1)
+        current = url_for('operational_report', key=key, cid=cid)
+        controls = option_list('Loja', 'loja', shops, cid)
+        controls += option_list('Período', 'dias', {n: f'{n} dias' for n in PERIODS}, period)
+        form = (f"<form class='report-filters' action='{e(url_for('operational_select', key=key))}'>"
+                f"{controls}<button class='report-button' type='submit'>Aplicar filtros</button></form>")
+        heading = section_help(title, 'Como o relatório é calculado', f'<p>{e(description)}</p>')
+        dates = f'{start:%d/%m/%Y} a {end:%d/%m/%Y}'
+        if key in COMPARISONS:
+            dates += f' · Anterior: {start - timedelta(days=int(period)):%d/%m/%Y} a {start - timedelta(days=1):%d/%m/%Y}'
+        body = (STYLE + REPORT_STYLE + f"<section class='card report-hero'>{heading}"
+                f"<a href='{e(url_for('reports_home', cid=cid))}'>Todos os relatórios</a><p>{e(dates)}</p>")
+        try:
+            rows, insufficient, total = read_operation(bank, query, cid, key, start, end)
+        except ValueError as exc:
+            return store_page(title, cid, shops[cid], 'relatorios',
+                              body + form + f"<p role='status'>{e(exc)}</p></section>"), 400
+        filename = f'{key}.xlsx'
+        if request.args.get('formato') == 'xlsx':
+            return xlsx(rows, shops[cid], start, end, insufficient, total,
+                        headers=headers, row_values=tuple, filename=filename)
+        export_url = current + '?' + urlencode({'dias': period, 'formato': 'xlsx'})
+        body += (f"<div class='report-toolbar'><span>{len(rows)} resultado(s)</span>"
+                 f"<a class='report-button report-download' data-filename='{e(filename)}' href='{e(export_url)}'>Baixar Excel</a></div>"
+                 "<p id='report-download-status' role='status' aria-live='polite'></p>" + DOWNLOAD_SCRIPT + form + '</section>')
+        if insufficient:
+            body += f"<section class='card' role='status'>{insufficient} registro(s) com dados insuficientes para este período.</section>"
+        if not rows:
+            message = 'Nenhum resultado confirmado neste período.' if total else 'Nenhum dado sincronizado para esta loja e este período.'
+            body += f"<section class='card'>{message}</section>"
+        else:
+            pages = (len(rows) + PAGE_SIZE - 1) // PAGE_SIZE
+            number = min(pages, max(1, request.args.get('pagina', 1, type=int)))
+            offset = (number - 1) * PAGE_SIZE
+            body += "<section class='card'><div class='report-table' tabindex='0' role='region' aria-label='Resultados'><table><thead><tr>"
+            body += ''.join(f"<th scope='col'>{e(value)}</th>" for value in headers) + '</tr></thead><tbody>'
+            for row in rows[offset:offset + PAGE_SIZE]:
+                body += '<tr>' + ''.join(f"<td>{'—' if value is None else e(value)}</td>" for value in row) + '</tr>'
+            body += '</tbody></table></div>'
+            if pages > 1:
+                body += f"<nav aria-label='Paginação dos resultados'>Página {number} de {pages} "
+                for target, label in ((number - 1, 'Anterior'), (number + 1, 'Próxima')):
+                    if 1 <= target <= pages:
+                        href = current + '?' + urlencode({'dias': period, 'pagina': target})
+                        body += f"<a class='report-button' href='{e(href)}'>{label}</a> "
+                body += '</nav>'
+            body += '</section>'
+        response = app.make_response(store_page(title, cid, shops[cid], 'relatorios', body))
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+
+    @app.get('/relatorios/<key>/selecionar')
+    @login_required
+    def operational_select(key):
+        cid = request.args.get('loja', type=int)
+        if cid is None:
+            return page('Relatórios', "<div class='card'>Loja inválida.</div>"), 400
+        return redirect(url_for('operational_report', key=key, cid=cid, dias=request.args.get('dias', '30')))
 
     @app.get(PATH)
     @login_required

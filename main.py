@@ -515,7 +515,7 @@ def pagina(titulo, corpo):
     sidebar = ""
     if use_sidebar:
         from home_sidebar import render_home_sidebar
-        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin", active="reports" if titulo == "Anúncios sem vendas nos últimos 30 dias" else "financeiro" if titulo == "Financeiro" else "progress" if is_progress else ("home" if is_home else ("diagnostic" if titulo == "Diagnóstico" else "")))
+        sidebar = render_home_sidebar(admin=session.get("tipo") == "admin", active="reports" if titulo in ("Relatórios", "Anúncios sem vendas nos últimos 30 dias") else "financeiro" if titulo == "Financeiro" else "progress" if is_progress else ("home" if is_home else ("diagnostic" if titulo == "Diagnóstico" else "")))
     return cab + sidebar + topo + marca + links + fim
 
 

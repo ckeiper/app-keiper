@@ -31,14 +31,10 @@ document.addEventListener('click',function(e){if(document.querySelector('.ks-mob
 
 
 def reports_navigation(href, active=False):
-    from report_routes import TITLE
-    label = escape(TITLE, quote=True)
-    opened = ' open' if active else ''
     current = " aria-current='page'" if active else ''
-    return (f"<details class='ks-nav-group'{opened}><summary><span aria-hidden='true'>▤</span>"
-            "<span class='ks-label'>Relatórios</span><span class='ks-chevron' aria-hidden='true'>⌄</span></summary>"
-            f"<div class='ks-nav-children'><a href='{escape(href, quote=True)}'{current}>"
-            f"<span aria-hidden='true'>▤</span><span class='ks-label'>{label}</span></a></div></details>")
+    return (f"<a href='{escape(href, quote=True)}'{current}>"
+            "<span aria-hidden='true'>▤</span><span class='ks-label'>Relatórios</span></a>")
+
 
 
 def shell(navigation, footer='', store_name=None):
