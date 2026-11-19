@@ -520,7 +520,7 @@ def pagina(titulo, corpo):
 
 
 def pagina_loja(titulo, cid, cliente, secao, corpo, refresh=True):
-    from flask import has_request_context
+    from flask import has_request_context, request
     if has_request_context():
         from listing_workspace import navigation as listing_navigation
         listing_args = request.view_args or {}
