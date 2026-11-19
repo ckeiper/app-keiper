@@ -520,6 +520,15 @@ def pagina(titulo, corpo):
 
 
 def pagina_loja(titulo, cid, cliente, secao, corpo, refresh=True):
+    from flask import has_request_context, request
+    if has_request_context():
+        from listing_workspace import navigation as listing_navigation
+        listing_args = request.view_args or {}
+        listing_item = listing_args.get('item_id')
+        if request.path == f'/full/{cid}':
+            listing_item = request.args.get('item_id')
+        if listing_item and listing_args.get('cid') == cid and 'class="listing-workspace"' not in corpo:
+            corpo = listing_navigation(cid, listing_item, request.path, session.get('tipo') == 'admin') + corpo
     from theme_switcher import HEAD as theme_head, SCRIPT as theme_script
     from section_refresh import SCOPES, render as render_refresh
     if refresh and secao in SCOPES and "class='k-refresh'" not in corpo:
@@ -5882,6 +5891,8 @@ from listing_sku_overlap import register_overlap
 register_overlap(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja)
 from listing_reactivation_routes import register_reactivation
 register_reactivation(app, login_required, pode_ver_loja, banco, consultar, executar, pagina_loja, resolve_token=token_atual, request_get=requests.get, request_put=requests.put)
+from listing_workspace import register as register_listing_workspace
+register_listing_workspace(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
 from sales_geography_view import register as register_sales_geography
 register_sales_geography(app, login_required, pode_ver_loja, banco, consultar, pagina_loja)
 from listing_review_report import register_report

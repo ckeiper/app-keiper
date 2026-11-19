@@ -158,11 +158,11 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
     else:
         body+="<div class='catalog-scroll'><table class='catalog-table'><thead><tr><th>Produto</th><th>Preço e promoção"+tip("Preço e promoção","Consulta válida de campanhas não garante promoção ativa ou preço vencedor. O preço vencedor pode estar confirmado mesmo com campanhas pendentes.")+"</th><th>Status e estoque"+tip("Status e estoque","Promoções e Full têm fontes e datas próprias. Full indica a modalidade logística. Confira a disponibilidade no relatório Full e vendas.")+"</th><th>Conteúdo"+tip("Conteúdo","Menos de cinco fotos é um ponto de atenção editorial.")+"</th><th>Histórico</th></tr></thead><tbody>"
         for row in visible:
-            item=str(row['item_id']);diag='/diagnostico/'+str(cid)+'/'+item
+            item=str(row['item_id']);diag='/anuncios/'+str(cid)+'/'+item
             body+='<tr><td>'+product({'listing':row},cid,True)+"<small>"+escape(item)+(' · SKU '+escape(str(row['sku'])) if row.get('sku') else '')+'</small>'
             actions=diagnose_listing(row);signal=actions[0]
             tone={'alta':'red','media':'amber','ok':'green'}.get(signal['priority'],'purple')
-            body+=badge(signal['title'],tone)+"<div class='catalog-actions'><a href='"+escape(diag,quote=True)+"'>Ver diagnóstico →</a><a href='/anuncios/"+str(cid)+"/"+escape(item,quote=True)+"/completar-ficha'>Ficha técnica</a><a href='/full/"+str(cid)+"?"+escape(urlencode({'item_id':item}),quote=True)+"'>Full e vendas</a></div>"
+            body+=badge(signal['title'],tone)+"<div class='catalog-actions'><a href='"+escape(diag,quote=True)+"'>Abrir anúncio →</a></div>"
             body+="<details class='catalog-details'><summary>Pesos, tags e frete</summary><dl><dt>Peso cadastrado · PACKAGE_WEIGHT</dt><dd>"+render_weight_column(row.get('pesos_json'),'PACKAGE_WEIGHT')+'</dd><dt>Peso logístico · SELLER_PACKAGE_WEIGHT</dt><dd>'+render_weight_column(row.get('pesos_json'),'SELLER_PACKAGE_WEIGHT')+'</dd><dt>Declarado pelo vendedor</dt><dd>Consulte o peso logístico acima</dd>'
             expected=freight(row.get('preco'),row.get('peso')) if freight else None
             body+='<dt>Frete esperado'+tip('Frete esperado','Estimativa pela tabela cadastrada.')+'</dt><dd>'+escape(fmt(expected,True))+'</dd><dt>Custo cadastrado</dt><dd>'+escape(fmt(number(row.get('custo')),True))+'</dd><dt>Tags coletadas</dt><dd>'
