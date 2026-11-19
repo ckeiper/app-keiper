@@ -169,7 +169,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
             body+='<tr><td><a class="catalog-product-open" href="'+escape(diag,quote=True)+'">'+product({'listing':row},cid,True)+'</a>'+"<small>"+escape(item)+(' · SKU '+escape(str(row['sku'])) if row.get('sku') else '')+'</small>'
             actions=diagnose_listing(row);signal=actions[0]
             tone={'alta':'red','media':'amber','ok':'green'}.get(signal['priority'],'purple')
-            body+=badge(signal['title'],tone)+"<div class='catalog-actions'><a class='catalog-open' href='"+escape(diag,quote=True)+"'>Abrir anúncio →</a></div>"
+            body+=badge(signal['title'],tone)+"<div class='catalog-actions'><a class='catalog-open btn-acoes' href='"+escape(diag,quote=True)+"'>Abrir anúncio →</a></div>"
             body+="<details class='catalog-details'><summary>Pesos, tags e frete</summary><dl><dt>Peso cadastrado · PACKAGE_WEIGHT</dt><dd>"+render_weight_column(row.get('pesos_json'),'PACKAGE_WEIGHT')+'</dd><dt>Peso logístico · SELLER_PACKAGE_WEIGHT</dt><dd>'+render_weight_column(row.get('pesos_json'),'SELLER_PACKAGE_WEIGHT')+'</dd><dt>Declarado pelo vendedor</dt><dd>Consulte o peso logístico acima</dd>'
             expected=freight(row.get('preco'),row.get('peso')) if freight else None
             body+='<dt>Frete esperado'+tip('Frete esperado','Estimativa pela tabela cadastrada.')+'</dt><dd>'+escape(fmt(expected,True))+'</dd><dt>Custo cadastrado</dt><dd>'+escape(fmt(number(row.get('custo')),True))+'</dd><dt>Tags coletadas</dt><dd>'
