@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 900" fill="none">
+  <defs>
+    <linearGradient id="wave" x1="30" y1="770" x2="955" y2="550" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1467c8" stop-opacity="0"/>
+      <stop offset=".34" stop-color="#287eff" stop-opacity=".55"/>
+      <stop offset=".72" stop-color="#25d2ff"/>
+      <stop offset=".9" stop-color="#77ebff"/>
+      <stop offset="1" stop-color="#278bff" stop-opacity=".4"/>
+    </linearGradient>
+    <linearGradient id="chart" x1="475" y1="650" x2="907" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1489f4" stop-opacity="0"/>
+      <stop offset=".55" stop-color="#288cfb" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#66e5ff" stop-opacity=".86"/>
+    </linearGradient>
+    <linearGradient id="bar" x2="0" y2="1">
+      <stop stop-color="#53d8ff" stop-opacity=".62"/>
+      <stop offset="1" stop-color="#237fff" stop-opacity=".03"/>
+    </linearGradient>
+    <radialGradient id="halo">
+      <stop stop-color="#147ff9" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#147ff9" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M0 40V0H40" stroke="#479bff" stroke-opacity=".17"/>
+    </pattern>
+    <filter id="glow" x="-25%" y="-50%" width="150%" height="200%">
+      <feGaussianBlur stdDeviation="11"/>
+    </filter>
+    <path id="ribbon" d="M-85 730 C105 585 211 852 404 764 S642 455 830 494 S954 622 1056 509"/>
+    <path id="trend" d="M500 536 562 500 605 514 656 451 704 467 755 382 796 397 846 309 894 330 943 235"/>
+  </defs>
+  <ellipse cx="764" cy="579" rx="372" ry="322" fill="url(#halo)"/>
+  <rect x="490" y="220" width="470" height="440" fill="url(#grid)" opacity=".7"/>
+  <g fill="url(#bar)" opacity=".76">
+    <rect x="584" y="539" width="26" height="108" rx="3"/>
+    <rect x="632" y="503" width="26" height="144" rx="3"/>
+    <rect x="680" y="521" width="26" height="126" rx="3"/>
+    <rect x="728" y="457" width="26" height="190" rx="3"/>
+    <rect x="776" y="475" width="26" height="172" rx="3"/>
+    <rect x="824" y="398" width="26" height="249" rx="3"/>
+    <rect x="872" y="360" width="26" height="287" rx="3"/>
+    <rect x="920" y="308" width="26" height="339" rx="3"/>
+  </g>
+  <use href="#trend" stroke="#2bafff" stroke-width="12" opacity=".7" filter="url(#glow)"/>
+  <use href="#trend" stroke="url(#chart)" stroke-width="2.5" stroke-linejoin="round"/>
+  <g fill="#8de9ff" opacity=".85">
+    <circle cx="656" cy="451" r="3"/><circle cx="755" cy="382" r="4"/>
+    <circle cx="846" cy="309" r="4"/><circle cx="943" cy="235" r="4"/>
+  </g>
+  <g stroke="url(#wave)">
+    <g filter="url(#glow)" opacity=".78" stroke-width="19">
+      <use href="#ribbon" y="-13"/><use href="#ribbon" y="34"/><use href="#ribbon" y="78"/>
+    </g>
+    <g opacity=".43" stroke-width="1.15">
+      <use href="#ribbon" y="-50"/><use href="#ribbon" y="-40"/><use href="#ribbon" y="-31"/>
+      <use href="#ribbon" y="-22"/><use href="#ribbon" y="-5"/><use href="#ribbon" y="3"/>
+      <use href="#ribbon" y="11"/><use href="#ribbon" y="19"/><use href="#ribbon" y="26"/>
+      <use href="#ribbon" y="42"/><use href="#ribbon" y="50"/><use href="#ribbon" y="59"/>
+      <use href="#ribbon" y="68"/><use href="#ribbon" y="89"/><use href="#ribbon" y="102"/>
+    </g>
+    <use href="#ribbon" y="-13" stroke-width="2.8" opacity=".74"/>
+    <use href="#ribbon" y="34" stroke-width="3.2"/>
+    <use href="#ribbon" y="78" stroke-width="2" opacity=".76"/>
+    <use href="#ribbon" y="34" stroke-width="5" stroke-dasharray="1 44" stroke-linecap="round"/>
+    <use href="#ribbon" y="78" stroke-width="4" stroke-dasharray="1 63" stroke-linecap="round"/>
+  </g>
+</svg>
