@@ -951,7 +951,7 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
 }
 .keiper-login .kl-brand::before {
   content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
-  background:linear-gradient(90deg,#07152888,transparent 76%),
+  background:radial-gradient(ellipse 90% 30% at 25% 55%,#071528 28%,#071528b8 60%,transparent),
              url('/static/login-data-flow.svg') right center / cover no-repeat;
 }
 .keiper-login .kl-brand-mark { align-self:flex-start; display:block; width:clamp(84px,7vw,112px); height:auto; border-radius:12px; }
@@ -991,7 +991,7 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
 @media(max-width:850px) {
  .keiper-login { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(152px,30dvh) minmax(0,1fr); min-height:100dvh; }
  .keiper-login .kl-brand { min-height:0; height:100%; padding:clamp(22px,5vw,32px); display:flex; align-items:center; justify-content:center; }
- .keiper-login .kl-brand::before { background-position:right 66%; opacity:.78; }
+ .keiper-login .kl-brand::before { background: url('/static/login-data-flow.svg') right 66% / cover no-repeat; opacity:.78; }
  .keiper-login .kl-brand-mark { align-self:center; width:clamp(76px,17dvh,108px); }
  .keiper-login .kl-message,.keiper-login .kl-footer { display:none; }
  .keiper-login .kl-right { min-height:0; padding:clamp(28px,5vh,44px) 24px 36px; align-items:flex-start; }
