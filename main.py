@@ -943,23 +943,23 @@ body:has(.keiper-login) > .top { display:none; }
 body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
 .keiper-login { min-height:100vh; display:grid; grid-template-columns:minmax(0,55fr) minmax(380px,45fr); font-family:'Segoe UI',Arial,sans-serif; }
 .keiper-login * { box-sizing:border-box; }
-.keiper-login .kl-brand { position:relative; overflow:hidden; background:linear-gradient(145deg,#0b1730,#142c52 65%,#10203c); color:#fff; padding:clamp(36px,5vw,88px); display:flex; flex-direction:column; justify-content:space-between; min-height:100vh; }
-.keiper-login .kl-brand:before { content:''; position:absolute; width:420px; height:420px; border-radius:50%; background:#2563eb; filter:blur(130px); opacity:.17; right:-180px; top:18%; pointer-events:none; }
-.keiper-login .kl-brand { isolation:isolate; background:radial-gradient(ellipse at 85% 83%,rgba(0,128,255,.24),transparent 48%),linear-gradient(145deg,#07172f 0%,#10294d 66%,#061b36 100%); }
-.keiper-login .kl-brand:before { z-index:-1; opacity:.22; }
-.keiper-login .kl-dataflow { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:0; opacity:.85; }
-.keiper-login .kl-brand-mark,.keiper-login .kl-message,.keiper-login .kl-footer { z-index:1; }
-.keiper-login .kl-message { text-shadow:0 2px 24px rgba(2,13,31,.55); }
-.keiper-login .kl-message h1 span { color:#60baff; }
-@media(max-width:850px) { .keiper-login .kl-dataflow { opacity:.55; } }
-.keiper-login .kl-brand-mark { display:flex; align-items:center; gap:14px; font-weight:750; font-size:23px; letter-spacing:.07em; position:relative; }
-.keiper-login .kl-brand-mark img { max-width:180px; height:auto!important; max-height:56px; object-fit:contain; }
-.keiper-login .kl-brand-mark small { display:block; font-size:11px; letter-spacing:.24em; color:#9db3d4; margin-top:4px; }
+.keiper-login .kl-brand {
+  position:relative; overflow:hidden; isolation:isolate; color:#fff;
+  background:linear-gradient(145deg,#071528,#10284c 65%,#061b36);
+  padding:clamp(36px,5vw,88px); display:flex; flex-direction:column;
+  justify-content:space-between; min-height:100vh;
+}
+.keiper-login .kl-brand::before {
+  content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
+  background:radial-gradient(ellipse 90% 30% at 25% 55%,#071528 28%,#071528b8 60%,transparent),
+             url('/static/login-data-flow.svg') right center / cover no-repeat;
+}
+.keiper-login .kl-brand-mark { align-self:flex-start; display:block; width:clamp(84px,7vw,112px); height:auto; border-radius:12px; }
 .keiper-login .kl-message { position:relative; max-width:590px; }
 .keiper-login .kl-message h1 { font-size:clamp(36px,4.1vw,66px); line-height:1.08; letter-spacing:-.045em; font-weight:750; margin:0 0 24px; }
 .keiper-login .kl-message h1 span { color:#75aaff; }
 .keiper-login .kl-message p { font-size:17px; line-height:1.65; color:#b7c7df; max-width:430px; }
-.keiper-login .kl-footer { position:relative; font-size:12px; color:#8da3c4; }
+.keiper-login .kl-footer { position:relative; font-size:11px; font-weight:650; letter-spacing:.15em; color:#b7cef0; }
 .keiper-login .kl-right { display:flex; align-items:center; justify-content:center; padding:48px 36px; background:#fff; }
 .keiper-login .kl-form-area { width:100%; max-width:390px; }
 .keiper-login .kl-eyebrow { color:#2563eb; font-size:12px; font-weight:750; letter-spacing:.13em; text-transform:uppercase; margin-bottom:15px; }
@@ -967,8 +967,17 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
 .keiper-login .kl-subtitle { color:#718096; font-size:14px; margin-bottom:34px; line-height:1.6; }
 .keiper-login .kl-field { margin-bottom:19px; }
 .keiper-login label { display:block; color:#243550; font-weight:650; font-size:13px; margin-bottom:9px; }
-.keiper-login .kl-input { display:block; width:100%; border:1px solid #dce3ee; border-radius:10px; background:#f9fbfe; padding:14px 15px; font-size:15px; color:#14233c; outline:none; transition:border-color .2s,box-shadow .2s; }
-.keiper-login .kl-input:focus { border-color:#377df2; box-shadow:0 0 0 3px #377df222; }
+.keiper-login .kl-input { display:block; width:100%; border:1px solid #dce3ee; border-radius:10px; background:#fff; color-scheme:light; padding:14px 15px; font-size:15px; color:#14233c; outline:none; transition:border-color .2s; }
+.keiper-login .kl-input:focus { border-color:#377df2; outline:2px solid #377df2; outline-offset:2px; }
+.keiper-login .kl-input:is(:autofill, :-webkit-autofill) {
+  box-shadow:inset 0 0 0 100px #fff;
+  color:#14233c; -webkit-text-fill-color:#14233c; caret-color:#14233c;
+}
+@media(forced-colors:active) {
+  .keiper-login .kl-input:is(:autofill, :-webkit-autofill) {
+    box-shadow:none; color:FieldText; -webkit-text-fill-color:FieldText; caret-color:FieldText;
+  }
+}
 .keiper-login .kl-password-wrap { position:relative; }
 .keiper-login .kl-password-wrap .kl-input { padding-right:78px; }
 .keiper-login .kl-toggle { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:transparent; border:0; padding:9px; cursor:pointer; font-size:12px; font-weight:650; color:#3774d5; }
@@ -982,9 +991,8 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
 @media(max-width:850px) {
  .keiper-login { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(152px,30dvh) minmax(0,1fr); min-height:100dvh; }
  .keiper-login .kl-brand { min-height:0; height:100%; padding:clamp(22px,5vw,32px); display:flex; align-items:center; justify-content:center; }
- .keiper-login .kl-brand-mark { justify-content:center; font-size:clamp(18px,4.4vw,22px); gap:13px; }
- .keiper-login .kl-brand-mark img { max-height:108px; max-width:124px; width:auto; }
- .keiper-login .kl-brand-mark > div { display:none; }
+ .keiper-login .kl-brand::before { background: url('/static/login-data-flow.svg') right 66% / cover no-repeat; opacity:.78; }
+ .keiper-login .kl-brand-mark { align-self:center; width:clamp(76px,17dvh,108px); }
  .keiper-login .kl-message,.keiper-login .kl-footer { display:none; }
  .keiper-login .kl-right { min-height:0; padding:clamp(28px,5vh,44px) 24px 36px; align-items:flex-start; }
  .keiper-login .kl-form-area { max-width:420px; margin:0 auto; }
@@ -1009,12 +1017,10 @@ def login_layout(erro=False):
     return (LOGIN_CSS +
             "<main class='keiper-login'>"
             "<section class='kl-brand' aria-label='Keiper Consultoria'>"
-            "<svg class='kl-dataflow' viewBox='0 0 900 900' preserveAspectRatio='xMidYMid slice' aria-hidden='true' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='kl-flow-stroke' x1='0' y1='0' x2='1' y2='0'><stop stop-color='#0875d1' stop-opacity='0'/><stop offset='.55' stop-color='#0e9df4' stop-opacity='.5'/><stop offset='1' stop-color='#54d6ff' stop-opacity='.95'/></linearGradient><radialGradient id='kl-flow-glow'><stop stop-color='#21baff' stop-opacity='.8'/><stop offset='1' stop-color='#21baff' stop-opacity='0'/></radialGradient></defs><g fill='none' stroke='url(#kl-flow-stroke)' stroke-width='1.2'><path d='M -90 630 C 120 460 255 790 470 620 S 800 410 1000 520' opacity='0.14'/><path d='M -90 640 C 120 468 255 797 470 627 S 800 423 1000 532' opacity='0.16'/><path d='M -90 650 C 120 476 255 804 470 634 S 800 436 1000 544' opacity='0.18'/><path d='M -90 660 C 120 484 255 811 470 641 S 800 449 1000 556' opacity='0.21'/><path d='M -90 670 C 120 492 255 818 470 648 S 800 462 1000 568' opacity='0.23'/><path d='M -90 680 C 120 500 255 825 470 655 S 800 475 1000 580' opacity='0.25'/><path d='M -90 690 C 120 508 255 832 470 662 S 800 488 1000 592' opacity='0.27'/><path d='M -90 700 C 120 516 255 839 470 669 S 800 501 1000 604' opacity='0.29'/><path d='M -90 710 C 120 524 255 846 470 676 S 800 514 1000 616' opacity='0.32'/><path d='M -90 720 C 120 532 255 853 470 683 S 800 527 1000 628' opacity='0.34'/><path d='M -90 730 C 120 540 255 860 470 690 S 800 540 1000 640' opacity='0.36'/><path d='M -90 740 C 120 548 255 867 470 697 S 800 553 1000 652' opacity='0.38'/><path d='M -90 750 C 120 556 255 874 470 704 S 800 566 1000 664' opacity='0.40'/><path d='M -90 760 C 120 564 255 881 470 711 S 800 579 1000 676' opacity='0.43'/><path d='M -90 770 C 120 572 255 888 470 718 S 800 592 1000 688' opacity='0.45'/><path d='M -90 780 C 120 580 255 895 470 725 S 800 605 1000 700' opacity='0.47'/><path d='M -90 790 C 120 588 255 902 470 732 S 800 618 1000 712' opacity='0.49'/><path d='M -90 800 C 120 596 255 909 470 739 S 800 631 1000 724' opacity='0.51'/><path d='M -90 810 C 120 604 255 916 470 746 S 800 644 1000 736' opacity='0.54'/><path d='M -90 820 C 120 612 255 923 470 753 S 800 657 1000 748' opacity='0.56'/><path d='M -90 830 C 120 620 255 930 470 760 S 800 670 1000 760' opacity='0.58'/><path d='M -90 840 C 120 628 255 937 470 767 S 800 683 1000 772' opacity='0.60'/><path d='M -90 850 C 120 636 255 944 470 774 S 800 696 1000 784' opacity='0.62'/></g><g><circle cx='80' cy='680' r='3' fill='#65d7ff' opacity='.75'/><circle cx='80' cy='680' r='18' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='134' cy='716' r='1.5' fill='#65d7ff' opacity='.75'/><circle cx='134' cy='716' r='9' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='188' cy='726' r='1.5' fill='#65d7ff' opacity='.75'/><circle cx='188' cy='726' r='9' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='242' cy='698' r='1.5' fill='#65d7ff' opacity='.75'/><circle cx='242' cy='698' r='9' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='296' cy='644' r='3' fill='#65d7ff' opacity='.75'/><circle cx='296' cy='644' r='18' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='350' cy='593' r='1.5' fill='#65d7ff' opacity='.75'/><circle cx='350' cy='593' r='9' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='404' cy='570' r='1.5' fill='#65d7ff' opacity='.75'/><circle cx='404' cy='570' r='9' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='458' cy='585' r='1.5' fill='#65d7ff' opacity='.75'/><circle cx='458' cy='585' r='9' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='512' cy='623' r='3' fill='#65d7ff' opacity='.75'/><circle cx='512' cy='623' r='18' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='566' cy='657' r='1.5' fill='#65d7ff' opacity='.75'/><circle cx='566' cy='657' r='9' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='620' cy='661' r='1.5' fill='#65d7ff' opacity='.75'/><circle cx='620' cy='661' r='9' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='674' cy='628' r='1.5' fill='#65d7ff' opacity='.75'/><circle cx='674' cy='628' r='9' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='728' cy='573' r='3' fill='#65d7ff' opacity='.75'/><circle cx='728' cy='573' r='18' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='782' cy='525' r='1.5' fill='#65d7ff' opacity='.75'/><circle cx='782' cy='525' r='9' fill='url(#kl-flow-glow)' opacity='.28'/><circle cx='836' cy='507' r='1.5' fill='#65d7ff' opacity='.75'/><circle cx='836' cy='507' r='9' fill='url(#kl-flow-glow)' opacity='.28'/></g><g fill='none' stroke='#2d83cc' stroke-opacity='.15'><path d='M 560 90 L 710 155 L 850 55 M 680 210 L 810 270 L 940 190'/></g></svg>" 
-            "<div class='kl-brand-mark'>" + img_logo(56) +
-            "<div>KEIPER<small>CONSULTORIA</small></div></div>"
+            "<img class='kl-brand-mark' src='/logo.png' alt='Keiper Consultoria'>"
             "<div class='kl-message'><h1>Além dos números. <span>Inteligência para agir.</span></h1>"
             "<p>Dados, análises e indicadores conectados para transformar a complexidade dos marketplaces em decisões estratégicas.</p></div>"
-            "<div class='kl-footer'>Keiper Consultoria · Dashboard Keiper</div></section>"
+            "<div class='kl-footer'>INTELIGÊNCIA • ESTRATÉGIA • PERFORMANCE</div></section>"
             "<section class='kl-right'><div class='kl-form-area'>"
             "<div class='kl-eyebrow'>Dashboard Keiper</div>"
             "<h2>Bem-vindo ao seu painel</h2>"
