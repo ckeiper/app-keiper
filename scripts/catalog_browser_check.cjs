@@ -12,6 +12,10 @@ const {chromium}=require('playwright');
   try{
     await page.goto('http://127.0.0.1:'+server.address().port+'/anuncios/1');
     assert.equal(await page.locator('.catalog-summary .stat').count(),4);
+    assert.equal(await page.locator('.catalog-advanced').getAttribute('open'),null);
+    assert.equal(await page.getByRole('link',{name:'Abrir anúncio →',exact:true}).count(),20);
+    assert.equal(await page.locator('.catalog-product-open').first().getAttribute('href'),
+      await page.getByRole('link',{name:'Abrir anúncio →',exact:true}).first().getAttribute('href'));
     assert.equal(await page.locator('select[name=leitura]').count(),1);
     assert.equal(await page.locator('select[name=campanhas]').count(),1);
     assert.ok((await page.locator('.catalog-table').textContent()).includes('Campanhas:'));
@@ -25,6 +29,7 @@ const {chromium}=require('playwright');
     assert.equal(await page.locator('.catalog-table .catalog-details[open]').count(),1);
     assert.ok(await page.getByText('Peso cadastrado · PACKAGE_WEIGHT').first().isVisible());
     await page.locator('select[name=status]').selectOption('active');
+    await page.getByText('Mais filtros',{exact:true}).click();
     await page.locator('select[name=estoque]').selectOption('baixo');
     await page.locator('select[name=por_pagina]').selectOption('10');
     await Promise.all([page.waitForURL(url=>url.searchParams.get('status')==='active'),page.getByRole('button',{name:'Aplicar filtros'}).click()]);

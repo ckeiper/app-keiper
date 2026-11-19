@@ -4367,8 +4367,6 @@ def anuncios(cid):
                            refresh=barra_atualizar(cid, ultima, "anuncios"),
                            errors=erros, admin=session.get("tipo") == "admin",
                            freight=frete_esperado)
-    if session.get("tipo") == "admin":
-        corpo = "<p><a class='btn-acoes' href='/anuncios/"+str(int(cid))+"/skus-repetidos'>Revisar SKUs repetidos</a></p>" + corpo
     return pagina_loja("Anúncios", cid, c["cliente"], "anuncios", corpo)
 
 

@@ -5,7 +5,6 @@ from decimal import Decimal, InvalidOperation
 from html import escape
 from urllib.parse import urlencode
 
-from competitor_routes import tabs
 from listing_details import active_promotions, effective_promotion, read_json, render_promotions, render_weight_column, valid_promotion_record
 from listing_health import diagnose_listing
 from management_design import STYLE, metric_card, product
@@ -143,26 +142,34 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
     except (TypeError,ValueError): page=1
     visible=filtered[(page-1)*size:page*size]
     path='/anuncios/'+str(cid)
-    body=STYLE.replace('.mgmt-dashboard','.catalog-dashboard')+CSS+HELP_STYLE+"<div class='catalog-dashboard'>"+tabs(cid,'anuncios')
-    body+="<header class='catalog-header'><div><h2>Anúncios</h2></div><a class='btn-acoes' href='/ranking-anuncios/"+str(cid)+"'>Analisar vendas por anúncio →</a></header><div class='catalog-refresh'>"+refresh+'</div>'
+    body=STYLE.replace('.mgmt-dashboard','.catalog-dashboard')+CSS+HELP_STYLE+"<div class='catalog-dashboard'>"
+    body+="<header class='catalog-header'><h2>Anúncios</h2><details class='catalog-tools'><summary>Análises da loja</summary><nav aria-label='Análises de anúncios'><a href='/ranking-anuncios/"+str(cid)+"'>Vendas e comparação</a><a href='/anuncios/"+str(cid)+"/concorrencia'>Concorrência</a>"
+    if admin:
+        body+="<a href='/anuncios/"+str(cid)+"/skus-repetidos'>SKUs repetidos</a>"
+    body+="</nav></details></header><div class='catalog-refresh'>"+refresh+'</div>'
     counts=[('Anúncios cadastrados',len(rows),'Visão de todo o catálogo'),('Anúncios ativos',sum(str(a.get('status') or '').lower()=='active' for a in rows),'Status na última sincronização'),('Estoque zerado',sum(quantity(a.get('quantidade'))==0 for a in rows),'Estoque desconhecido não entra na contagem'),('Em promoção',sum(promotion(a) for a in rows),'Promoções identificadas na última coleta')]
     body+="<div class='catalog-summary'>"+''.join(metric_card(k,str(v),note) for k,v,note in counts)+'</div>'
     stale=sum(freshness(a,now)!='recente' for a in rows)
     if stale: body+="<div class='catalog-warning'>"+str(stale)+' anúncios com leitura antiga ou sem data confirmada. Atualize os dados antes de decidir sobre estoque e preço.</div>'
     body+="<section class='card'><form class='catalog-filter' method='get'><label>Buscar produto<input name='busca' maxlength='200' placeholder='Título, código MLB ou SKU' value='"+escape(str(args.get('busca',''))[:200],quote=True)+"'></label>"
-    for name,label,options in [('status','Status',STATUS),('leitura','Atualização do catálogo',READING),('estoque','Estoque',STOCK),('promocao','Promoção',PROMO),('campanhas','Consulta de campanhas',CAMPAIGNS),('logistica','Logística',LOGISTICS),('foco','Ponto de atenção',FOCUS),('ordem','Ordenar por',SORT),('por_pagina','Por página',{str(n):str(n) for n in (10,20,50,100)})]:
+    for name,label,options in [('status','Status',STATUS),('ordem','Ordenar por',SORT),('por_pagina','Por página',{str(n):str(n) for n in (10,20,50,100)})]:
         body+=select(name,label,options,dict(args,por_pagina=str(size),ordem=args.get('ordem','vendidos')))
-    body+="<button class='btn-acoes'>Aplicar filtros</button><a href='"+path+"'>Limpar filtros</a></form><div class='catalog-toolbar'><h2>Seu catálogo</h2><span class='muted'>"+str(len(filtered))+' de '+str(len(rows))+" anúncios · venda acumulada no histórico</span></div>"
+    advanced = ('leitura','estoque','promocao','campanhas','logistica','foco')
+    expanded = ' open' if any(args.get(key) for key in advanced) else ''
+    body+="<details class='catalog-advanced'"+expanded+"><summary>Mais filtros</summary><div class='catalog-advanced-fields'>"
+    for name,label,options in [('leitura','Atualização do catálogo',READING),('estoque','Estoque',STOCK),('promocao','Promoção',PROMO),('campanhas','Consulta de campanhas',CAMPAIGNS),('logistica','Logística',LOGISTICS),('foco','Ponto de atenção',FOCUS)]:
+        body+=select(name,label,options,args)
+    body+="</div></details><div class='catalog-filter-actions'><button class='btn-acoes'>Aplicar filtros</button><a href='"+path+"'>Limpar filtros</a></div></form><div class='catalog-toolbar'><h2>Seus anúncios</h2><span>"+str(len(filtered))+' de '+str(len(rows))+" anúncios</span></div>"
     if not visible:
         body+="<div class='catalog-empty'><h2>"+('Nenhum anúncio para estes filtros' if rows else 'Seu catálogo ainda não foi sincronizado')+"</h2><p>"+('Ajuste os filtros ou limpe a busca para ver outros produtos.' if rows else 'Use Atualizar agora para carregar os anúncios da loja.')+'</p></div>'
     else:
         body+="<div class='catalog-scroll'><table class='catalog-table'><thead><tr><th>Produto</th><th>Preço e promoção"+tip("Preço e promoção","Consulta válida de campanhas não garante promoção ativa ou preço vencedor. O preço vencedor pode estar confirmado mesmo com campanhas pendentes.")+"</th><th>Status e estoque"+tip("Status e estoque","Promoções e Full têm fontes e datas próprias. Full indica a modalidade logística. Confira a disponibilidade no relatório Full e vendas.")+"</th><th>Conteúdo"+tip("Conteúdo","Menos de cinco fotos é um ponto de atenção editorial.")+"</th><th>Histórico</th></tr></thead><tbody>"
         for row in visible:
             item=str(row['item_id']);diag='/anuncios/'+str(cid)+'/'+item
-            body+='<tr><td>'+product({'listing':row},cid,True)+"<small>"+escape(item)+(' · SKU '+escape(str(row['sku'])) if row.get('sku') else '')+'</small>'
+            body+='<tr><td><a class="catalog-product-open" href="'+escape(diag,quote=True)+'">'+product({'listing':row},cid,True)+'</a>'+"<small>"+escape(item)+(' · SKU '+escape(str(row['sku'])) if row.get('sku') else '')+'</small>'
             actions=diagnose_listing(row);signal=actions[0]
             tone={'alta':'red','media':'amber','ok':'green'}.get(signal['priority'],'purple')
-            body+=badge(signal['title'],tone)+"<div class='catalog-actions'><a href='"+escape(diag,quote=True)+"'>Abrir anúncio →</a></div>"
+            body+=badge(signal['title'],tone)+"<div class='catalog-actions'><a class='catalog-open' href='"+escape(diag,quote=True)+"'>Abrir anúncio →</a></div>"
             body+="<details class='catalog-details'><summary>Pesos, tags e frete</summary><dl><dt>Peso cadastrado · PACKAGE_WEIGHT</dt><dd>"+render_weight_column(row.get('pesos_json'),'PACKAGE_WEIGHT')+'</dd><dt>Peso logístico · SELLER_PACKAGE_WEIGHT</dt><dd>'+render_weight_column(row.get('pesos_json'),'SELLER_PACKAGE_WEIGHT')+'</dd><dt>Declarado pelo vendedor</dt><dd>Consulte o peso logístico acima</dd>'
             expected=freight(row.get('preco'),row.get('peso')) if freight else None
             body+='<dt>Frete esperado'+tip('Frete esperado','Estimativa pela tabela cadastrada.')+'</dt><dd>'+escape(fmt(expected,True))+'</dd><dt>Custo cadastrado</dt><dd>'+escape(fmt(number(row.get('custo')),True))+'</dd><dt>Tags coletadas</dt><dd>'
@@ -171,7 +178,6 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
             offer=effective_promotion(read_json(row.get('promocoes_json'),{}))
             campaign_state=campaign_reading(row,now)
             body+="<td><div class='catalog-price'>"+escape(fmt(displayed_price(row),True))+"</div>"+("<small><s>"+escape(fmt(offer['original'],True))+"</s> · Promoção confirmada</small>" if offer else "<small>Preço do anúncio na última coleta</small>")+"<details class='catalog-details'><summary>"+('Promoção registrada' if promotion(row) else 'Consultar promoções')+'</summary>'+render_promotions(row.get('promocoes_json'))+'</details>'+badge(CAMPAIGNS[campaign_state], 'green' if campaign_state=='valida' else 'amber')
-            if admin: body+="<a class='muted' href='/diagnostico/anuncios/"+str(cid)+'/'+escape(item,quote=True)+"'>Diagnosticar preço na API</a>"
             body+='</td><td>'
             status=str(row.get('status') or '')
             body+=badge({'active':'Ativo','paused':'Pausado','closed':'Encerrado'}.get(status.lower(),status or 'Não verificado'),'green' if status.lower()=='active' else 'amber')
@@ -196,6 +202,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
     body+='</nav></section>'
     warnings=[e for e in errors if e.get('categoria')!='financeiro']
     if warnings: body+="<details class='catalog-warning'><summary>Avisos da sincronização · "+str(len(warnings))+'</summary>'+''.join('<p>'+escape(str(e.get('categoria') or ''))+': '+escape(str(e.get('mensagem') or ''))+'</p>' for e in warnings)+'</details>'
+    body+='<style>.catalog-tools{position:relative}.catalog-tools summary,.catalog-advanced summary{cursor:pointer;padding:10px 12px;border:1px solid #426184;border-radius:8px;font-size:12px;color:#b9e5ff}.catalog-tools nav{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid #426184;border-radius:10px;background:#142940;position:absolute;right:0;z-index:5;min-width:200px}.catalog-dashboard .catalog-filter{display:grid;grid-template-columns:minmax(200px,2fr) repeat(3,minmax(120px,1fr));gap:12px;align-items:end}.catalog-dashboard .catalog-filter label{min-width:0}.catalog-advanced{grid-column:1/-1}.catalog-advanced-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding-top:12px}.catalog-filter-actions{display:flex;gap:14px;align-items:center;grid-column:1/-1}.catalog-dashboard .catalog-actions .catalog-open{display:inline-flex;padding:8px 12px;background:#2469a3;color:#fff!important;border:1px solid #5399ce;border-radius:8px;font-size:12px;font-weight:650}.catalog-dashboard .catalog-product-open{display:block;text-decoration:none}html[data-theme=light] .catalog-tools nav{background:#fff}@media(max-width:700px){.catalog-dashboard .catalog-filter{grid-template-columns:repeat(2,minmax(0,1fr))}.catalog-dashboard .catalog-filter label:first-child{grid-column:1/-1}.catalog-advanced-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>'
     return body+'''<div id='catalog-loading' hidden role='status'>Carregando anúncios…</div><script>
     (function(){var form=document.querySelector('.catalog-filter');if(!form)return;
     form.addEventListener('submit',function(event){if(form.getAttribute('aria-busy')==='true'){event.preventDefault();return;}form.setAttribute('aria-busy','true');document.getElementById('catalog-loading').hidden=false;});
