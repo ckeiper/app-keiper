@@ -894,16 +894,18 @@
       "area": "Conteúdo",
       "capacidade": "Catálogo gerencial de anúncios",
       "estado": "concluida",
-      "implementado": "Busca, filtros, paginação, preço confirmado e leitura de campanhas, com estados de erro e dados técnicos. Cabeçalho enxuto e ajuda contextual nos indicadores de preço, promoções, estoque, conteúdo e frete.",
+      "implementado": "Busca, filtros, paginação, preço confirmado e leitura de campanhas, com estados de erro e dados técnicos. Cabeçalho enxuto e ajuda contextual nos indicadores de preço, promoções, estoque, conteúdo e frete. Entrada única por anúncio com cinco abas de funções e navegação compartilhada nas ferramentas individuais.",
       "falta": "",
       "fontes": [
         "listing_catalog.py",
-        "listing_details.py"
+        "listing_details.py",
+        "listing_workspace.py"
       ],
       "testes": [
         "test_listing_catalog.py",
         "test_catalog_campaign_reading.py",
-        "test_promotion_render_resilience.py"
+        "test_promotion_render_resilience.py",
+        "test_listing_workspace.py"
       ],
       "prs": [
         253,
@@ -913,7 +915,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-11-10"
+      "atualizado_em": "2026-11-19"
     },
     {
       "id": "mapa-estados",
@@ -2401,6 +2403,18 @@
       "base": "frentes_auditadas",
       "data": "2026-11-17",
       "resumo": "Menu lateral Relatórios e relatório de anúncios sem vendas, com histórico verificável por loja, filtros e Excel. Publicação do PR #468 confirmada no Render.",
+      "contagens": {
+        "concluida": 26,
+        "parcial": 17,
+        "pendente": 1,
+        "em_andamento": 1
+      },
+      "total": 45
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-19",
+      "resumo": "Área unificada por anúncio com abas de desempenho, edição, preço e estoque, diagnóstico e histórico.",
       "contagens": {
         "concluida": 26,
         "parcial": 17,

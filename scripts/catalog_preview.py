@@ -64,3 +64,10 @@ for mode in ['all','filtered','pending','zero','second']:
     if mode=='second':args=dict(abc_pagina='2',dias='30')
     body='<p>Dados fictícios para teste.</p>'+render_abc(1,ranking,listings,args,comparison_end,days=30 if mode=='second' else 7)
     (dest/('listing-abc-'+mode+'.html')).write_text(page('Curva ABC',1,'Loja de demonstração','desempenho',body),encoding='utf-8')
+
+from listing_workspace import GROUPS, navigation
+for key, label, actions in GROUPS:
+    body = navigation(1, 'MLB100', '/anuncios/1/MLB100', True,
+                      group=key, title='Produto de demonstração')
+    (dest/('listing-workspace-'+key+'.html')).write_text(
+        page('Anúncio',1,'Loja de demonstração','anuncios',body),encoding='utf-8')
