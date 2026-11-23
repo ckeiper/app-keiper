@@ -932,42 +932,42 @@ def login():
             if u["tipo"] == "cliente" and u["conexao_id"]:
                 return redirect("/painel/" + str(u["conexao_id"]))
             return redirect("/painel")
-        return pagina("Login", login_layout(True))
-    return pagina("Login", login_layout(False))
+        return login_layout(True)
+    return login_layout()
 
 
 LOGIN_CSS = """
 <style>
-body:has(.keiper-login) { background:#f8fafc; }
-body:has(.keiper-login) > .top { display:none; }
-body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
-.keiper-login { min-height:100vh; display:grid; grid-template-columns:minmax(0,55fr) minmax(380px,45fr); font-family:'Segoe UI',Arial,sans-serif; }
+html { color-scheme:light; }
+body { margin:0; background:#fff; color:#14233c; font:15px/1.5 'Segoe UI',Arial,sans-serif; }
+.keiper-login { min-height:100vh; min-height:100dvh; display:grid; grid-template-columns:minmax(0,55fr) minmax(380px,45fr); }
 .keiper-login * { box-sizing:border-box; }
 .keiper-login .kl-brand {
   position:relative; overflow:hidden; isolation:isolate; color:#fff;
   background:linear-gradient(145deg,#071528,#10284c 65%,#061b36);
   padding:clamp(36px,5vw,88px); display:flex; flex-direction:column;
-  justify-content:space-between; min-height:100vh;
+  justify-content:space-between; gap:32px;
 }
 .keiper-login .kl-brand::before {
   content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
-  background:radial-gradient(ellipse 90% 30% at 25% 55%,#071528 28%,#071528b8 60%,transparent),
-             url('/static/login-data-flow.svg') right center / cover no-repeat;
+  background:url('/static/login-data-flow.svg') right bottom / cover no-repeat;
+  opacity:.58;
+  mask-image:linear-gradient(to bottom right, transparent 15%, #000 85%);
 }
 .keiper-login .kl-brand-mark { align-self:flex-start; display:block; width:clamp(84px,7vw,112px); height:auto; border-radius:12px; }
 .keiper-login .kl-message { position:relative; max-width:590px; }
 .keiper-login .kl-message h1 { font-size:clamp(36px,4.1vw,66px); line-height:1.08; letter-spacing:-.045em; font-weight:750; margin:0 0 24px; }
 .keiper-login .kl-message h1 span { color:#75aaff; }
-.keiper-login .kl-message p { font-size:17px; line-height:1.65; color:#b7c7df; max-width:430px; }
+.keiper-login .kl-message p { margin:0; font-size:17px; line-height:1.65; color:#c9d7e9; max-width:430px; }
 .keiper-login .kl-footer { position:relative; font-size:11px; font-weight:650; letter-spacing:.15em; color:#b7cef0; }
 .keiper-login .kl-right { display:flex; align-items:center; justify-content:center; padding:48px 36px; background:#fff; }
 .keiper-login .kl-form-area { width:100%; max-width:390px; }
 .keiper-login .kl-eyebrow { color:#2563eb; font-size:12px; font-weight:750; letter-spacing:.13em; text-transform:uppercase; margin-bottom:15px; }
 .keiper-login h2 { font-size:34px; letter-spacing:-.035em; line-height:1.2; margin:0 0 9px; color:#14233c; }
-.keiper-login .kl-subtitle { color:#718096; font-size:14px; margin-bottom:34px; line-height:1.6; }
+.keiper-login .kl-subtitle { color:#52657c; font-size:14px; margin:0 0 34px; line-height:1.6; }
 .keiper-login .kl-field { margin-bottom:19px; }
 .keiper-login label { display:block; color:#243550; font-weight:650; font-size:13px; margin-bottom:9px; }
-.keiper-login .kl-input { display:block; width:100%; border:1px solid #dce3ee; border-radius:10px; background:#fff; color-scheme:light; padding:14px 15px; font-size:15px; color:#14233c; outline:none; transition:border-color .2s; }
+.keiper-login .kl-input { display:block; width:100%; border:1px solid #92a4bc; border-radius:10px; background:#fff; padding:14px 15px; font:inherit; color:#14233c; transition:border-color .2s; }
 .keiper-login .kl-input:focus { border-color:#377df2; outline:2px solid #377df2; outline-offset:2px; }
 .keiper-login .kl-input:is(:autofill, :-webkit-autofill) {
   box-shadow:inset 0 0 0 100px #fff;
@@ -989,10 +989,10 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
 .keiper-login .kl-links span { color:#c3cbd8; }
 .keiper-login .kl-error { background:#fff0f0; border:1px solid #f7c8c8; border-radius:9px; padding:12px; color:#a12c2c; font-size:13px; margin:0 0 20px; }
 @media(max-width:850px) {
- .keiper-login { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(152px,30dvh) minmax(0,1fr); min-height:100dvh; }
- .keiper-login .kl-brand { min-height:0; height:100%; padding:clamp(22px,5vw,32px); display:flex; align-items:center; justify-content:center; }
- .keiper-login .kl-brand::before { background: url('/static/login-data-flow.svg') right 66% / cover no-repeat; opacity:.78; }
- .keiper-login .kl-brand-mark { align-self:center; width:clamp(76px,17dvh,108px); }
+ .keiper-login { grid-template-columns:minmax(0,1fr); grid-template-rows:auto 1fr; }
+ .keiper-login .kl-brand { padding:clamp(16px,4dvh,32px); align-items:center; justify-content:center; }
+ .keiper-login .kl-brand::before { background-position:right 70%; }
+ .keiper-login .kl-brand-mark { align-self:center; width:clamp(68px,15dvh,100px); }
  .keiper-login .kl-message,.keiper-login .kl-footer { display:none; }
  .keiper-login .kl-right { min-height:0; padding:clamp(28px,5vh,44px) 24px 36px; align-items:flex-start; }
  .keiper-login .kl-form-area { max-width:420px; margin:0 auto; }
@@ -1000,11 +1000,11 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
  .keiper-login h2 { font-size:clamp(25px,6vw,30px); margin-bottom:7px; }
  .keiper-login .kl-subtitle { margin-bottom:23px; }
  .keiper-login .kl-field { margin-bottom:15px; }
+ .keiper-login .kl-input { font-size:16px; }
  .keiper-login .kl-submit { margin-top:21px; }
  .keiper-login .kl-links { margin-top:18px; }
 }
 @media(max-width:850px) and (max-height:650px) {
- .keiper-login { grid-template-rows:minmax(110px,24dvh) minmax(0,1fr); }
  .keiper-login .kl-right { padding-top:22px; }
 }
 @media(prefers-reduced-motion:reduce) { .keiper-login * { transition:none!important; } }
@@ -1014,7 +1014,9 @@ body:has(.keiper-login) > .wrap { max-width:none; margin:0; padding:0; }
 
 def login_layout(erro=False):
     aviso = ("<div class='kl-error' role='alert'>Usuário ou senha incorretos.</div>" if erro else "")
-    return (LOGIN_CSS +
+    return ("<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<title>Login | Dashboard Keiper</title>" + LOGIN_CSS + "</head><body>"
             "<main class='keiper-login'>"
             "<section class='kl-brand' aria-label='Keiper Consultoria'>"
             "<img class='kl-brand-mark' src='/logo.png' alt='Keiper Consultoria'>"
@@ -1025,7 +1027,7 @@ def login_layout(erro=False):
             "<div class='kl-eyebrow'>Dashboard Keiper</div>"
             "<h2>Bem-vindo ao seu painel</h2>"
             "<p class='kl-subtitle'>Gerencie e acompanhe os resultados dos seus marketplaces em um só lugar.</p>"
-            + aviso + form_login() + "</div></section></main>")
+            + aviso + form_login() + "</div></section></main></body></html>")
 
 
 def form_login():
