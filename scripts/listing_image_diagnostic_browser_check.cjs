@@ -18,7 +18,13 @@ const assert=require('node:assert/strict'),fs=require('node:fs');const {chromium
  if(mode==='catalog')assert.ok((await p.locator('#image-diagnostic-result').textContent()).includes('Publicação de catálogo'));
  if(mode==='empty')assert.ok((await p.locator('.id-empty').textContent()).includes('Isso não aprova'));
  if(['unknown','rate-limit','wrong-role'].includes(mode)){assert.equal(await p.locator('.id-empty').count(),0);assert.ok((await p.locator('#image-diagnostic-result [role=status]').textContent()).includes('Sem diagnóstico verificável'));}
- if(theme==='light')assert.equal(await p.locator('.top .sair').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(34, 95, 190)');
+ if(theme==='light'){
+  const logout=await p.locator('.top .sair').evaluate(e=>{
+   const style=getComputedStyle(e);
+   return {background:style.backgroundColor,text:style.color};
+  });
+  assert.deepEqual(logout,{background:'rgb(255, 255, 255)',text:'rgb(11, 35, 67)'});
+ }
  if(theme==='light')assert.ok(await p.locator('.image-diagnostic .pf-hero').evaluate(e=>{
   const rgb=s=>(s.match(/[\d.]+/g)||[]).slice(0,3).map(Number),lum=c=>c.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0);
   const bg=lum(rgb(getComputedStyle(e).backgroundColor)),fg=lum(rgb(getComputedStyle(e.querySelector('h2')).color));return (Math.max(bg,fg)+.05)/(Math.min(bg,fg)+.05)>=4.5;
