@@ -30,6 +30,7 @@ on:
       - 'management*.py'
       - 'visual_theme.py'
       - 'theme_switcher.py'
+      - 'corporate_light.py'
       - 'test_theme_switcher.py'
       - 'scripts/theme*'
       - 'main.py'

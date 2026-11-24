@@ -1,5 +1,7 @@
 """Browser-local appearance preference shared by both dashboard page shells."""
 
+from corporate_light import STYLE as CORPORATE_LIGHT
+
 HEAD = """<script>(function(){var t='dark';try{if(localStorage.getItem('keiper-theme')==='light')t='light';}catch(e){}document.documentElement.dataset.theme=t;})();</script>
 <style>
 html[data-theme]{color-scheme:dark}
@@ -56,7 +58,7 @@ html[data-theme=light] body .ka-budget-head b[style*="#dc646d"]{color:#b22539!im
 html[data-theme=light] body .ka-budget-head b[style*="#e2a646"]{color:#79530b!important}
 html[data-theme=light] body .ka-budget-head b[style*="#2da99d"]{color:#087447!important}
 }
-</style>"""
+</style>""" + CORPORATE_LIGHT
 
 SCRIPT = """<script>(function(){
 var root=document.documentElement,key='keiper-theme';

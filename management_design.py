@@ -172,7 +172,38 @@ body:has(.ks-store-sidebar) .conteudo .mgmt-dashboard .card,body:has(.ks-store-s
 ICON = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 18V8m5 10V4m5 14v-7m5 7V6M3 21h18'/></svg>"
 
 
-def metric_card(label,value,note,variation=None,variation_tone='neutral'):
+def _sparkline(values):
+    observed = [float(value) for value in values if value is not None]
+    if len(observed) < 2:
+        return ''
+    floor, ceiling = min(observed), max(observed)
+    segments, dots = [], []
+    segment = []
+    for index, value in enumerate(values):
+        if value is None:
+            if segment:
+                segments.append(segment)
+                segment = []
+            continue
+        x = 4 + 232 * index / (len(values) - 1)
+        y = 14 if floor == ceiling else 24 - 20 * (float(value) - floor) / (ceiling - floor)
+        segment.append((x, y))
+        dots.append(f"<circle cx='{x:.2f}' cy='{y:.2f}' r='2'/>")
+    if segment:
+        segments.append(segment)
+    strokes, areas = [], []
+    for points in segments:
+        first, last = points[0][0], points[-1][0]
+        path = 'M' + ' L'.join(f'{x:.2f},{y:.2f}' for x, y in points)
+        strokes.append(f"<path class='mgmt-spark-stroke' d='{path}'/>")
+        if len(points) > 1:
+            areas.append(f"<path class='mgmt-spark-area' d='{path} L{last:.2f},28 L{first:.2f},28 Z'/>")
+    return ("<svg class='mgmt-sparkline' style='display:none' viewBox='0 0 240 28' "
+            "preserveAspectRatio='none' aria-hidden='true'>"
+            + ''.join(areas + strokes + dots) + "</svg>")
+
+
+def metric_card(label,value,note,variation=None,variation_tone='neutral',series=()):
     tone = ('revenue' if label=='Faturamento de pedidos pagos' else
             'teal' if label in ('Pedidos pagos','ROAS entregue','Anúncios com vendas') else
             'amber' if label in ('Ticket médio por pedido','ACOS','Sem vendas no período') else
@@ -181,7 +212,7 @@ def metric_card(label,value,note,variation=None,variation_tone='neutral'):
     variation_html = (" · <span class='mgmt-variation mgmt-variation-"+({'up':'up','down':'down'}.get(variation_tone,'neutral'))+"'>"+escape(variation)+"</span>") if variation is not None else ''
     return ("<div class='stat mgmt-tone-"+tone+empty+"'><span class='mgmt-metric-icon'>"+ICON
             +"</span><div class='lab'>"+escape(label)+"</div><div class='num'>"+escape(value)
-            +"</div><small>"+escape(note)+variation_html+"</small></div>")
+            +"</div><small>"+escape(note)+variation_html+"</small>"+_sparkline(series)+"</div>")
 
 
 def active_tab(args):
@@ -232,18 +263,21 @@ def _daily_chart(report, key="daily", label="Faturamento", money=True):
     ceiling=max(valid) or 1
     width,height=700,150
     out+="<div class='mgmt-chart-body'><div class='mgmt-chart-y'>"
-    for level in (1,.5,0):
-        out+="<span>"+escape(fmt(ceiling*level,money))+"</span>"
+    for level in (1,.75,.5,.25,0):
+        extra = " class='mgmt-light-tick' style='display:none'" if level in (.75,.25) else ''
+        out+=f"<span{extra}>"+escape(fmt(ceiling*level,money))+"</span>"
     out+="</div><div class='mgmt-chart-plot'><svg viewBox='0 0 700 150' preserveAspectRatio='none' role='img' aria-label='Valores diários dos períodos comparados; lacunas são dias sem dados'>"
-    for level in (0,.5,1):
+    for level in (0,.25,.5,.75,1):
         y=height*(1-level)
-        out+="<line x1='0' x2='700' y1='"+str(y)+"' y2='"+str(y)+"' stroke='#edf0f7' vector-effect='non-scaling-stroke'/>"
-    for values,color in zip(series,('#7b6be1','#62c3b0')):
+        extra = " class='mgmt-light-tick' style='display:none'" if level in (.75,.25) else ''
+        out+=f"<line{extra} x1='0' x2='700' y1='{y}' y2='{y}' stroke='#edf0f7' vector-effect='non-scaling-stroke'/>"
+    for values,color,series_class in zip(series,('#7b6be1','#62c3b0'),('mgmt-current','mgmt-previous')):
+        out+=f"<g class='{series_class}'>"
         segment=[]
         for index,value in enumerate(values):
             if value is None:
                 if segment:
-                    out+="<path d='"+" ".join(segment)+"' fill='none' stroke='"+color+"' stroke-width='2.6' stroke-linejoin='round' stroke-linecap='round' vector-effect='non-scaling-stroke'/>"
+                    out+=_chart_segment(segment,color,height)
                     segment=[]
                 continue
             x=(index/max(1,len(values)-1))*width
@@ -251,16 +285,33 @@ def _daily_chart(report, key="daily", label="Faturamento", money=True):
             segment.append(('M' if not segment else 'L')+f'{x:.2f},{y:.2f}')
             out+="<circle cx='"+f'{x:.2f}'+"' cy='"+f'{y:.2f}'+"' r='2' fill='"+color+"'><title>"+escape(fmt(value,money))+"</title></circle>"
         if segment:
-            out+="<path d='"+" ".join(segment)+"' fill='none' stroke='"+color+"' stroke-width='2.6' stroke-linejoin='round' stroke-linecap='round' vector-effect='non-scaling-stroke'/>"
+            out+=_chart_segment(segment,color,height)
+        out+="</g>"
     out+="</svg><div class='mgmt-chart-x'>"
-    for day in (days[0],days[-1]):
-        out+="<span>"+escape(day[8:10]+'/'+day[5:7])+"</span>"
+    for index,day in enumerate(days):
+        endpoint = index in (0,len(days)-1)
+        if not endpoint and len(days) > 8:
+            continue
+        extra = " class='mgmt-chart-date' style='display:none'" if not endpoint else ''
+        out+=f"<span{extra}>"+escape(day[8:10]+'/'+day[5:7])+"</span>"
     out+="</div></div></div><details><summary>Ver valores e datas comparados</summary><div class='mgmt-scroll'><table class='mgmt-table'><thead><tr><th>Data atual</th><th>Valor atual</th><th>Data anterior</th><th>Valor anterior</th></tr></thead><tbody>"
     for index,day in enumerate(current['days']):
         out+='<tr><td>'+escape(day)+'</td><td>'+escape(fmt(series[0][index],money))+'</td><td>'+escape(previous['days'][index])+'</td><td>'+escape(fmt(series[1][index],money))+'</td></tr>'
     if today_partial:
         out+='<tr><td>'+escape(today)+' (parcial)</td><td>'+escape(fmt(value,money))+'</td><td>—</td><td>—</td></tr>'
     return out+'</tbody></table></div></details></section>'
+
+
+def _chart_segment(segment,color,height):
+    path = ' '.join(segment)
+    area = ''
+    if len(segment) > 1:
+        start = segment[0][1:].split(',')[0]
+        end = segment[-1][1:].split(',')[0]
+        area = (f"<path class='mgmt-chart-area' style='display:none' "
+                f"d='{path} L{end},{height} L{start},{height} Z'/>")
+    return (area+f"<path d='{path}' fill='none' stroke='{color}' stroke-width='2.6' "
+            "stroke-linejoin='round' stroke-linecap='round' vector-effect='non-scaling-stroke'/>")
 
 
 def daily_chart(report):

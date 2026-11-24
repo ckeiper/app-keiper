@@ -29,8 +29,8 @@ def compare(current, previous, money=False):
     return ('Anterior: '+fmt(previous,money),text,tone)
 
 
-def card(label,value,note):
-    return metric_card(label,value,note[0],note[1],note[2]) if isinstance(note,tuple) else metric_card(label,value,note)
+def card(label,value,note,series=()):
+    return metric_card(label,value,note[0],note[1],note[2],series=series) if isinstance(note,tuple) else metric_card(label,value,note)
 
 
 def select(name,options,value):
@@ -73,7 +73,9 @@ def render_management(cid,report,args):
     if report.get('updating'):
         body+="<div class='aviso' role='status'>Sincronização em andamento. Os indicadores mostram a última leitura disponível; recarregue esta página após a conclusão.</div>"
     body+=("<form class='card mgmt-filter mgmt-period' method='get'><label>Período "+select('dias',{str(n):str(n)+' dias completos' for n in (7,15,30,60,90)},args.get('dias','7'))+'</label>'
-           +"<details class='mgmt-period-dates'"+(' open' if args.get('inicio') or args.get('fim') else '')+"><summary>Período personalizado</summary><label>Início<input type='date' name='inicio' value='"+escape(args.get('inicio',''),quote=True)+"'></label>"
+           +"<details class='mgmt-period-dates'"+(' open' if args.get('inicio') or args.get('fim') else '')+"><summary><span class='mgmt-date-label'>Período personalizado</span>"
+           +"<span class='mgmt-date-range' style='display:none'><span class='mgmt-date-label'>Período personalizado: </span>"
+           +start.strftime('%d/%m/%Y')+' a '+end.strftime('%d/%m/%Y')+"</span></summary><label>Início<input type='date' name='inicio' value='"+escape(args.get('inicio',''),quote=True)+"'></label>"
            +"<label>Fim<input type='date' name='fim' value='"+escape(args.get('fim',''),quote=True)+"'></label>"
            +"</details><button class='btn-acoes'>Aplicar período</button><a href='"+path+"'>Últimos 7 dias completos</a></form>"
            +'<p class="muted">'+start.strftime('%d/%m/%Y')+' a '+end.strftime('%d/%m/%Y')+' · comparado a '
@@ -83,9 +85,14 @@ def render_management(cid,report,args):
         body+="<details class='mgmt-notice'><summary>Alguns indicadores aguardam dados · "+str(len(report['warnings']))+" observações</summary><ul>"+''.join('<li>'+escape(x)+'</li>' for x in report['warnings'])+'</ul></details>'
     body+=tabs(cid,args,len(report['signals']),selected)+panel('overview',selected)
     current,previous=report['current'],report['previous']
-    body+="<section aria-label='Indicadores de vendas'><div class='mgmt-kpis'>"
-    for key,label,is_money in [('revenue','Faturamento de pedidos pagos',True),('orders','Pedidos pagos',False),('units','Unidades vendidas',False),('ticket','Ticket médio por pedido',True)]:
-        body+=card(label,fmt(current[key],is_money),compare(current[key],previous[key],is_money))
+    body+="<section class='mgmt-sales-metrics' aria-label='Indicadores de vendas'><div class='mgmt-kpis'>"
+    for key,series_key,label,is_money in [
+        ('revenue','daily','Faturamento de pedidos pagos',True),
+        ('orders','daily_orders','Pedidos pagos',False),
+        ('units','daily_units','Unidades vendidas',False),
+        ('ticket','daily_ticket','Ticket médio por pedido',True),
+    ]:
+        body+=card(label,fmt(current[key],is_money),compare(current[key],previous[key],is_money),current.get(series_key,()))
     body+='</div></section>'
     body+='<p class="muted">Cancelamentos registrados: '+fmt(current['cancellations'],False)+' · anterior: '+fmt(previous['cancellations'],False)+'. Não são subtraídos novamente das vendas pagas.</p>'
     body+=daily_chart(report)
