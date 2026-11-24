@@ -14,7 +14,6 @@ html[data-theme=light] {
 html[data-theme=light] body {
   background:var(--kp-bg)!important;
   color:var(--kp-ink)!important;
-  font-family:Inter,'Segoe UI',system-ui,sans-serif!important;
 }
 html[data-theme=light] body :where(.card,.stat,.kh-store,.kh-menu,.mgmt-chart) {
   background:var(--kp-paper)!important;
@@ -89,6 +88,7 @@ html[data-theme=light] body:has(.mgmt-dashboard) > .wrap {
   margin:14px auto!important;
   padding:0 clamp(12px,1.7vw,30px)!important;
 }
+html[data-theme=light] body .mgmt-dashboard {font-family:Inter,'Segoe UI',system-ui,sans-serif!important}
 html[data-theme=light] body .mgmt-header {
   background:linear-gradient(115deg,#f6f8fc,#eaf1fc)!important;
   border:0!important;
