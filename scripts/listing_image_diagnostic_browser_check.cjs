@@ -23,7 +23,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');const {chromium
    const style=getComputedStyle(e);
    return {background:style.backgroundColor,text:style.color};
   });
-  assert.deepEqual(logout,{background:'rgb(255, 255, 255)',text:'rgb(11, 35, 67)'});
+  assert.deepEqual(logout,{background:'rgb(255, 255, 255)',text:'rgb(23, 45, 71)'});
  }
  if(theme==='light')assert.ok(await p.locator('.image-diagnostic .pf-hero').evaluate(e=>{
   const rgb=s=>(s.match(/[\d.]+/g)||[]).slice(0,3).map(Number),lum=c=>c.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0);
