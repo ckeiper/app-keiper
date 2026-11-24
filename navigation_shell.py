@@ -44,5 +44,5 @@ def shell(navigation, footer='', store_name=None):
     store=("<div class='ks-store-name'>"+escape(str(store_name))+"</div>") if store_name is not None else ''
     mobile="<button class='ks-mobile-toggle' type='button' aria-expanded='true' aria-controls='ks-navigation' aria-label='Recolher menu'>☰ Menu da loja</button>" if store_name is not None else ''
     return STYLE+mobile+"<aside class='ks-sidebar"+kind+"' aria-label='Menu lateral'>"+"""
-<button class='ks-toggle' type='button' aria-expanded='true' aria-controls='ks-navigation' aria-label='Recolher menu' title='Recolher menu'><span aria-hidden='true'>☰</span><span class='ks-label'>Keiper Consultoria</span></button>
+<button class='ks-toggle' type='button' aria-expanded='true' aria-controls='ks-navigation' aria-label='Recolher menu' title='Recolher menu'><span aria-hidden='true'>☰</span><img class='ks-brand-logo' src='/logo.png' alt='' style='display:none'><span class='ks-label'>Keiper Consultoria</span></button>
 <div id='ks-navigation'>"""+store+"<nav class='ks-store-nav' aria-label='Navegação principal'>"+navigation+"</nav>"+footer+"</div></aside>"+SCRIPT

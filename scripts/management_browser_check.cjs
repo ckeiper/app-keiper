@@ -6,9 +6,21 @@ const {chromium}=require('playwright');
 
 (async()=>{
   const html=fs.readFileSync('visual-qa/management-preview.html');
-  const server=http.createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});if(req.url.startsWith('/ranking-anuncios/')){res.end('<section class="kp-queue"><h2>Anúncios que precisam de atenção</h2><p>Dados de teste</p></section>');return;}res.end(html);});
+  const server=http.createServer((req,res)=>{
+    if(req.url==='/logo.png'){
+      res.writeHead(200,{'Content-Type':'image/png'});
+      res.end(fs.readFileSync('logo_Keiper_Consultoria.png'));
+      return;
+    }
+    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});
+    if(req.url.startsWith('/ranking-anuncios/')){
+      res.end('<section class="kp-queue"><h2>Anúncios que precisam de atenção</h2><p>Dados de teste</p></section>');
+      return;
+    }
+    res.end(html);
+  });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  const browser=await chromium.launch({headless:true});
+  const browser=await chromium.launch({headless:true,executablePath:process.env.KEIPER_BROWSER_EXECUTABLE});
   const page=await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
@@ -45,6 +57,33 @@ const {chromium}=require('playwright');
     assert.equal(await page.locator('dialog[open]').count(),0);
     assert.equal(new URL(page.url()).searchParams.get('aba'),null);
     await page.screenshot({path:'visual-qa/desktop.png',fullPage:true});
+    await page.locator('.kt-settings > summary').click();
+    await page.getByRole('switch',{name:'Tema escuro'}).click();
+    assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
+    assert.equal(await page.locator('.mgmt-sparkline:visible').count(),4);
+    assert.ok(await page.locator('.ks-brand-logo').evaluate(el=>el.complete && el.naturalWidth>0));
+    assert.equal(await page.locator('.ks-sidebar').evaluate(el=>getComputedStyle(el).backgroundImage.includes('gradient')),true);
+    const responsivePage=await browser.newPage({viewport:{width:1752,height:897}});
+    await responsivePage.addInitScript(()=>localStorage.setItem('keiper-theme','light'));
+    await responsivePage.goto(page.url());
+    await responsivePage.locator('.mgmt-sparkline').first().waitFor();
+    await responsivePage.screenshot({path:'visual-qa/corporativo-desktop.png'});
+    for(const width of [390,320]){
+      await responsivePage.setViewportSize({width,height:844});
+      assert.ok(await responsivePage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Light theme overflows');
+    }
+    await responsivePage.setViewportSize({width:390,height:844});
+    await responsivePage.screenshot({path:'visual-qa/corporativo-mobile.png'});
+    await responsivePage.locator('.ks-mobile-toggle').click();
+    assert.equal(await responsivePage.locator('.ks-mobile-toggle').getAttribute('aria-expanded'),'true');
+    await responsivePage.keyboard.press('Escape');
+    assert.equal(await responsivePage.locator('.ks-mobile-toggle').getAttribute('aria-expanded'),'false');
+    await responsivePage.locator('.mgmt-period-dates summary').click();
+    assert.ok(await responsivePage.getByLabel('Início',{exact:true}).isVisible());
+    await responsivePage.close();
+    await page.getByRole('switch',{name:'Tema escuro'}).click();
+    await page.locator('.kt-settings > summary').click();
+    assert.equal(await page.locator('.mgmt-sparkline:visible').count(),0);
     await page.locator('#mgmt-tab-actions').click();
     assert.equal(await page.locator('#mgmt-panel-actions').isVisible(),true);
     assert.equal(new URL(page.url()).searchParams.get('aba'),'actions');
