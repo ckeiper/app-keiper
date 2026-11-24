@@ -32,7 +32,7 @@ html[data-theme=light] body .top .sair {
   border-color:var(--kp-line)!important;
 }
 html[data-theme=light] body .ks-sidebar {
-  background:linear-gradient(160deg,#061d36,var(--kp-navy))!important;
+  background:var(--kp-navy) linear-gradient(160deg,#061d36,var(--kp-navy))!important;
   color:#f3f7ff!important;
   border-color:#233e5e!important;
 }
