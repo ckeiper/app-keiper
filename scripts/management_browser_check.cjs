@@ -95,7 +95,12 @@ const {chromium}=require('playwright');
     assert.equal(await responsivePage.locator('.ks-mobile-toggle').getAttribute('aria-expanded'),'true');
     await responsivePage.keyboard.press('Escape');
     assert.equal(await responsivePage.locator('.ks-mobile-toggle').getAttribute('aria-expanded'),'false');
-    await responsivePage.locator('.mgmt-period-dates summary').click();
+    const customizePeriod=responsivePage.locator('.mgmt-period-dates summary');
+    assert.equal(await customizePeriod.textContent(),'Personalizar');
+    assert.equal(await responsivePage.locator('.mgmt-period a').count(),0);
+    assert.match(await responsivePage.locator('.mgmt-period + .muted').textContent(),
+      /^\d{2}\/\d{2}\/\d{4} a \d{2}\/\d{2}\/\d{4}\. Horário de Brasília\.$/);
+    await customizePeriod.click();
     assert.ok(await responsivePage.getByLabel('Início',{exact:true}).isVisible());
     await responsivePage.close();
     await page.getByRole('switch',{name:'Tema escuro'}).click();

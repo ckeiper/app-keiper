@@ -122,17 +122,6 @@ html[data-theme=light] body .mgmt-period {
 }
 html[data-theme=light] body .mgmt-period :where(label,a,summary,select,input) {font-size:13px!important}
 html[data-theme=light] body .mgmt-period-dates {align-self:end!important;padding-bottom:8px!important}
-html[data-theme=light] body .mgmt-period-dates summary > .mgmt-date-label,
-html[data-theme=light] body .mgmt-period-dates[open] .mgmt-date-range {display:none!important}
-html[data-theme=light] body .mgmt-period-dates:not([open]) .mgmt-date-range {display:inline!important}
-html[data-theme=light] body .mgmt-period-dates[open] summary > .mgmt-date-label {display:inline!important}
-html[data-theme=light] body .mgmt-date-range .mgmt-date-label {
-  position:absolute!important;
-  width:1px!important;
-  height:1px!important;
-  clip-path:inset(50%)!important;
-  overflow:hidden!important;
-}
 html[data-theme=light] body .mgmt-period + .muted {margin:4px 14px 8px!important}
 html[data-theme=light] body .mgmt-tabs {
   gap:6px!important;
