@@ -61,7 +61,7 @@ def pagination(rows,args,key,path):
 
 
 def render_management(cid,report,args):
-    start,end,previous_start,previous_end=report['bounds']
+    start,end=report['bounds'][:2]
     path=f'/painel/{cid}'
     selected=active_tab(args)
     period_params={'dias':args.get('dias','7')}
@@ -73,13 +73,11 @@ def render_management(cid,report,args):
     if report.get('updating'):
         body+="<div class='aviso' role='status'>Sincronização em andamento. Os indicadores mostram a última leitura disponível; recarregue esta página após a conclusão.</div>"
     body+=("<form class='card mgmt-filter mgmt-period' method='get'><label>Período "+select('dias',{str(n):str(n)+' dias completos' for n in (7,15,30,60,90)},args.get('dias','7'))+'</label>'
-           +"<details class='mgmt-period-dates'"+(' open' if args.get('inicio') or args.get('fim') else '')+"><summary><span class='mgmt-date-label'>Período personalizado</span>"
-           +"<span class='mgmt-date-range' style='display:none'><span class='mgmt-date-label'>Período personalizado: </span>"
-           +start.strftime('%d/%m/%Y')+' a '+end.strftime('%d/%m/%Y')+"</span></summary><label>Início<input type='date' name='inicio' value='"+escape(args.get('inicio',''),quote=True)+"'></label>"
+           +"<details class='mgmt-period-dates'"+(' open' if args.get('inicio') or args.get('fim') else '')+"><summary>Personalizar</summary>"
+           +"<label>Início<input type='date' name='inicio' value='"+escape(args.get('inicio',''),quote=True)+"'></label>"
            +"<label>Fim<input type='date' name='fim' value='"+escape(args.get('fim',''),quote=True)+"'></label>"
            +"</details><button class='btn-acoes'>Aplicar período</button><a href='"+path+"'>Últimos 7 dias completos</a></form>"
-           +'<p class="muted">'+start.strftime('%d/%m/%Y')+' a '+end.strftime('%d/%m/%Y')+' · comparado a '
-           +previous_start.strftime('%d/%m/%Y')+' a '+previous_end.strftime('%d/%m/%Y')
+           +'<p class="muted">'+start.strftime('%d/%m/%Y')+' a '+end.strftime('%d/%m/%Y')
            +'. Horário de Brasília.</p>')
     if report['warnings']:
         body+="<details class='mgmt-notice'><summary>Alguns indicadores aguardam dados · "+str(len(report['warnings']))+" observações</summary><ul>"+''.join('<li>'+escape(x)+'</li>' for x in report['warnings'])+'</ul></details>'
