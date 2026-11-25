@@ -1,4 +1,5 @@
 """Evidence-based suggestions. No model guesses and no marketplace writes."""
+from attribute_manual_options import choices
 import hashlib
 import json
 import re
@@ -172,7 +173,7 @@ def analyze(facts,manual_inputs=None,actor=None):
         if rule.get('value_type') in ('string','list','boolean','number','number_unit'):
             examples=rule.get('allowed_units',[]) if rule.get('value_type')=='number_unit' else rule.get('values',[])
             examples=[v.get('name',v.get('id','')) for v in examples[:10] if isinstance(v,dict)] if isinstance(examples,list) else []
-            manual_fields.append(dict(id=code,name=name,hidden=hidden,value_type=rule['value_type'],examples=[v[:100] for v in examples if isinstance(v,str)]))
+            manual_fields.append(dict(id=code,name=name,hidden=hidden,value_type=rule['value_type'],choices=choices(rule),examples=[v[:100] for v in examples if isinstance(v,str)]))
         if code in manual:
             entry=manual[code];parsed=value_for(rule,entry['value'])
             if not parsed:raise ValueError('Valor incompatível com as regras verificadas de '+name+'.')

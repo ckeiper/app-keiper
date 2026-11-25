@@ -1,5 +1,6 @@
 """Bounded batch input; values remain declarations until individually reviewed."""
 from html import escape
+import json
 from contextual_help import tip
 
 
@@ -24,12 +25,12 @@ def render(fields,csrf,plan,key,values=None):
         label=field['name']+(' · Oculto' if field['hidden'] else '')+' ('+field.get('attribute_id',field['id'])+')'
         guidance={'string':'Texto','list':'Opção oficial','boolean':'Opção oficial','number':'Número','number_unit':'Número e unidade'}.get(field['value_type'],'Valor')
         if field.get('examples'):guidance+=' · Exemplos oficiais: '+', '.join(field['examples'])
-        options+='<option data-scope="'+esc(field.get('variation_id','common'))+'" data-help="'+esc(guidance)+'" value="'+esc(field['id'])+'">'+esc(label)+'</option>'
+        options+='<option data-choices="'+esc(json.dumps(field.get('choices',[]),ensure_ascii=False))+'" data-scope="'+esc(field.get('variation_id','common'))+'" data-help="'+esc(guidance)+'" value="'+esc(field['id'])+'">'+esc(label)+'</option>'
     for i in range(count):
         selected=codes[i] if i<len(codes) else ''
         # Server-side recovery keeps every submitted row after validation errors.
         choice=options.replace('value="'+esc(selected)+'">','value="'+esc(selected)+'" selected>',1) if selected else options
-        out+='<fieldset class="ae-manual-row"><legend>Campo '+str(i+1)+'</legend>'+filters+'<label>Campo ou variação<select name="manual_field">'+choice+'</select></label><p class="ae-value-help" aria-live="polite"></p><label>Valor'+tip('Valor informado','Use o valor correto do produto. Números com unidade precisam de espaço, por exemplo 10 cm. Campos em branco ficam pendentes. Os valores preenchidos serão validados antes de criar a revisão; adicionar ainda não altera o anúncio.')+'<input name="manual_value" maxlength="1000" placeholder="Pendente · preencher manualmente" value="'+esc(raw[i] if i<len(raw) else '')+'"></label><label>Fonte ou observação (opcional)<input name="manual_note" maxlength="500" value="'+esc(notes[i] if i<len(notes) else '')+'"></label><button type="button" class="ae-remove-row"'+(' hidden' if count==1 else '')+'>Remover campo '+str(i+1)+'</button></fieldset>'
+        out+='<fieldset class="ae-manual-row"><legend>Campo '+str(i+1)+'</legend>'+filters+'<label>Campo ou variação<select name="manual_field">'+choice+'</select></label><p class="ae-value-help" aria-live="polite"></p><label>Valor'+tip('Valor informado','Use o valor correto do produto. Números com unidade precisam de espaço, por exemplo 10 cm. Campos em branco ficam pendentes. Os valores preenchidos serão validados antes de criar a revisão; adicionar ainda não altera o anúncio.')+'<input list="ae-manual-options-'+str(i)+'" name="manual_value" maxlength="1000" placeholder="Pendente · preencher manualmente" value="'+esc(raw[i] if i<len(raw) else '')+'"><datalist id="ae-manual-options-'+str(i)+'"></datalist></label><label>Fonte ou observação (opcional)<input name="manual_note" maxlength="500" value="'+esc(notes[i] if i<len(notes) else '')+'"></label><button type="button" class="ae-remove-row"'+(' hidden' if count==1 else '')+'>Remover campo '+str(i+1)+'</button></fieldset>'
     return out+'</div><p class="ae-batch-count" aria-live="polite">'+str(count)+' de 50 campos neste lote</p><button type="button" class="ae-add-row"'+(' disabled' if count==50 else '')+'>Adicionar outro campo</button><button type="submit">Adicionar à revisão</button></form></details>'
 
 
@@ -40,13 +41,15 @@ def compact(fields,csrf,plan,key):
     ordered=[f for f in fields if f.get('hidden')]+[f for f in fields if not f.get('hidden')]
     shown=ordered[:50]
     out='<form method="post" class="ae-compact"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan)+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'">'
-    out+='<h3 class="ae-sheet-title">Ficha técnica</h3>'
+    out+='<h3 class="ae-sheet-title">Ficha técnica'+tip('Opções de preenchimento','Quando disponíveis, o campo sugere até dez opções da categoria retornadas na análise. Nenhuma é selecionada automaticamente. As regras são reconferidas antes de enviar.')+'</h3>'
     for hidden in (False,True):
         group=[f for f in shown if bool(f.get('hidden'))==hidden]
         if not group:continue
         out+='<div class="ae-field-group">'+('<h4>Campos Ocultos</h4>' if hidden else '')+'<div class="ae-compact-grid">'
         for field in group:
-            out+='<div class="ae-compact-row"><label><span>'+esc(field['name'])+'</span><input type="hidden" name="manual_field" value="'+esc(field['id'])+'"><input name="manual_value" maxlength="1000" placeholder="Preencher" value="" title="'+esc('Ex.: '+', '.join(field['examples'][:3]) if field.get('examples') else field['name'])+'"><input type="hidden" name="manual_note" value=""></label><button type="submit" aria-label="Revisar preenchidos">Revisar</button></div>'
+            index=shown.index(field)
+            options=''.join('<option value="'+esc(v)+'"></option>' for v in field.get('choices',[]))
+            out+='<div class="ae-compact-row"><label><span>'+esc(field['name'])+'</span><input type="hidden" name="manual_field" value="'+esc(field['id'])+'"><input list="ae-compact-options-'+str(index)+'" name="manual_value" maxlength="1000" placeholder="Preencher" value="" title="'+esc('Ex.: '+', '.join(field['examples'][:3]) if field.get('examples') else field['name'])+'"><input type="hidden" name="manual_note" value=""><datalist id="ae-compact-options-'+str(index)+'">'+options+'</datalist></label><button type="submit" aria-label="Revisar preenchidos">Revisar</button></div>'
         out+='</div></div>'
     if len(fields)>50:out+='<p class="ae-compact-limit">Exibidos 50 campos. Use mais campos e opções para escolher outros.</p>'
     return out+'</form>'
@@ -56,7 +59,10 @@ SCRIPT=r'''<script>document.querySelectorAll('.ae-manual').forEach(function(pane
 const list=panel.querySelector('.ae-manual-rows'),add=panel.querySelector('.ae-add-row'),form=panel.querySelector('form');
 const fold=value=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').trim();
 const catalog=[...list.firstElementChild.querySelector('[name=manual_field]').options].filter(o=>o.value).map(function(o){const option=o.cloneNode(true);option.removeAttribute('selected');return {option,search:fold(o.textContent+' '+o.value)};});
-function hint(row){const select=row.querySelector('[name=manual_field]');row.querySelector('.ae-value-help').textContent=select.selectedOptions[0]?.dataset.help||'';}
+function hint(row){const select=row.querySelector('[name=manual_field]');row.querySelector('.ae-value-help').textContent=select.selectedOptions[0]?.dataset.help||'';
+ const datalist=row.querySelector('datalist'),input=row.querySelector('[name=manual_value]');datalist.id='ae-manual-options-'+[...list.children].indexOf(row);input.setAttribute('list',datalist.id);
+ const values=JSON.parse(select.selectedOptions[0]?.dataset.choices||'[]');datalist.replaceChildren(...values.map(value=>{const option=document.createElement('option');option.value=value;return option;}));}
+
 function filter(row){
  const select=row.querySelector('[name=manual_field]'),chosen=select.value,query=fold(row.querySelector('.ae-field-search').value).split(/\s+/).filter(Boolean),scope=row.querySelector('.ae-field-scope').value;
  const matches=catalog.filter(entry=>(scope==='all'||entry.option.dataset.scope===scope||(scope==='variations'&&entry.option.dataset.scope!=='common'))&&query.every(word=>entry.search.includes(word)));
