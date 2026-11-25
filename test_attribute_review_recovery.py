@@ -46,3 +46,22 @@ class RecoveryTests(TestCase):
   with patch('attribute_review_recovery.store.by_key',return_value=child),patch('attribute_review_recovery.gather') as read:
    result=recover(None,Mock(),1,'MLB123',42,p,'k'*24,{},Mock(),Mock())
   self.assertIs(result,child);read.assert_not_called()
+
+ def test_expired_ready_and_proven_prewrite_stale_retain_declared_data(self):
+  import time
+  from attribute_completion import EXTRACTOR_VERSION
+  for state in ('ready','stale'):
+   p=parent();p.update(state=state,created_at=int(time.time())-901)
+   p['data']['extractor_version']=EXTRACTOR_VERSION
+   p['result']={'pre_write':True} if state=='stale' else {}
+   self.assertTrue(eligible(p));self.run_recovery(p)
+   self.assertEqual(self.transition.call_args_list[0].kwargs['data']['manual_inputs'],p['data']['manual_inputs'])
+ def test_current_ready_unproven_stale_and_successor_do_not_recover(self):
+  import time
+  from attribute_completion import EXTRACTOR_VERSION
+  p=parent();p.update(state='ready',created_at=int(time.time()))
+  p['data']['extractor_version']=EXTRACTOR_VERSION
+  self.assertFalse(eligible(p))
+  p['data']['extractor_version']='old';self.assertTrue(eligible(p))
+  p.update(state='stale',result={});self.assertFalse(eligible(p))
+  p['result']={'pre_write':True,'successor_plan':'child'};self.assertFalse(eligible(p))

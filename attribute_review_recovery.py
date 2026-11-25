@@ -1,14 +1,27 @@
 """Fresh draft from declared data after a proven pre-write conditional stop."""
 import re
+import time
+from attribute_completion import EXTRACTOR_VERSION
 from attribute_completion import gather,analyze
 import attribute_edit_store as store
 
 
 def eligible(parent):
-    report=parent.get('result',{}).get('conditional',{})
-    return (parent.get('state')=='rejected' and isinstance(report,dict)
-            and report.get('allow_send') is False and report.get('state') in ('unknown','review')
-            and bool(parent.get('data',{}).get('manual_inputs')))
+    data = parent.get('data', {})
+    result = parent.get('result') or {}
+    if not isinstance(data, dict) or not data.get('manual_inputs'):
+        return False
+    state = parent.get('state')
+    if state == 'ready':
+        created = parent.get('created_at')
+        return (type(created) is int and 0 < created <= int(time.time())
+                and (int(time.time()) - created > 900
+                     or data.get('extractor_version') != EXTRACTOR_VERSION))
+    if state == 'stale':
+        return result.get('pre_write') is True and not result.get('successor_plan')
+    report = result.get('conditional', {})
+    return (state == 'rejected' and isinstance(report, dict)
+            and report.get('allow_send') is False and report.get('state') in ('unknown','review'))
 
 
 def recover(conn,query,cid,item,actor,parent,key,shop,token,get):
@@ -19,7 +32,7 @@ def recover(conn,query,cid,item,actor,parent,key,shop,token,get):
     if previous:
         if previous['data'].get('recovery_request')!=request:raise ValueError('Formulário já utilizado para outra revisão.')
         return previous
-    if not eligible(parent):raise ValueError('Somente uma consulta interrompida antes da gravação pode ser retomada.')
+    if not eligible(parent):raise ValueError('Somente revisões expiradas ou interrompidas antes da gravação podem ser retomadas.')
     data=parent['data']
     if data.get('manual_actor')!=actor or shop.get('status')!='ativa':raise ValueError('Responsável ou conexão não verificados.')
     if store.active(conn,query,cid,item):raise ValueError('Há um envio pendente de confirmação. Confira esse envio antes de continuar.')

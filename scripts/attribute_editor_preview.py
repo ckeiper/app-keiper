@@ -4,7 +4,7 @@ from attribute_edit_view import render
 from test_attribute_completion import facts,analyze,definition,listing
 from copy import deepcopy
 base=analyze(facts(definitions=[definition(tags=dict(hidden=True))]))
-for mode in ('hidden-list','initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline','conditional-read','conditional-review','conditional-unknown','conditional-xss','recovery','readback','readback-xss'):
+for mode in ('hidden-list','initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline','conditional-read','conditional-review','conditional-unknown','conditional-xss','recovery','expired-recovery','stale-recovery','readback','readback-xss'):
     plan=None;manual_form=None
     if mode!='initial':
         plan=dict(id='11111111-1111-4111-8111-111111111111',data=deepcopy(base),state=mode if mode in ('uncertain','confirmed') else 'ready',selected=[],result={})
@@ -20,7 +20,7 @@ for mode in ('hidden-list','initial','ready','empty','blocked','uncertain','conf
             plan['data']=analyze(facts(item=listing(variations=variants),definitions=[rule()],description=''),[manual()] if mode!='variation-unknown' else None,42)
             if mode=='variation-confirmed':
                 plan['state']='confirmed';plan['result']=dict(message='Atualização confirmada por nova leitura.',preserved=True,fields=[dict(id='v:101:GTIN',name='Código de barras · Variação 101 · Azul',confirmed=True)])
-        if mode in ('bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline','conditional-read','conditional-review','conditional-unknown','conditional-xss','recovery','readback','readback-xss'):
+        if mode in ('bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline','conditional-read','conditional-review','conditional-unknown','conditional-xss','recovery','expired-recovery','stale-recovery','readback','readback-xss'):
             from test_attribute_variations import variant,rule
             plan['data']=analyze(facts(item=listing(variations=[variant(),variant(102)]),definitions=[definition(),rule()],description=''))
             if mode=='bulk-error':
@@ -54,6 +54,13 @@ for mode in ('hidden-list','initial','ready','empty','blocked','uncertain','conf
     if mode=='recovery':
         from test_attribute_review_recovery import parent
         plan['data']=analyze(facts(),parent()['data']['manual_inputs'],42);plan['state']='rejected';plan['result']=parent()['result']
+    if mode in ('expired-recovery','stale-recovery'):
+        import time
+        from test_attribute_review_recovery import parent
+        plan['data']=analyze(facts(),parent()['data']['manual_inputs'],42)
+        plan['state']='ready' if mode=='expired-recovery' else 'stale'
+        plan['created_at']=int(time.time())-901
+        plan['result']={} if mode=='expired-recovery' else {'pre_write':True}
     if mode in ('readback','readback-xss'):
         from attribute_edit_workflow import verification
         plan['data']=analyze(facts(definitions=[definition(value_type='list',values=[dict(id='1',name='Aço')]),definition('WIDTH',name='Largura',value_type='number_unit',allowed_units=[dict(id='cm')])],description='Material: Aço\nLargura: 12,5 cm'))
