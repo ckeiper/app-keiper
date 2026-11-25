@@ -111,6 +111,29 @@ def select(name,label,options,args):
     return "<label>"+label+"<select name='"+name+"'>"+''.join("<option value='"+escape(k,quote=True)+"'"+(' selected' if args.get(name,'')==k else '')+'>'+escape(v)+'</option>' for k,v in options.items())+'</select></label>'
 
 
+def active_filters(cid, args):
+    definitions = [('busca','Busca',None),('status','Status',STATUS),
+        ('leitura','Leitura',READING),('estoque','Estoque',STOCK),
+        ('promocao','Promoção',PROMO),('campanhas','Campanhas',CAMPAIGNS),
+        ('logistica','Logística',LOGISTICS),('foco','Atenção',FOCUS)]
+    params = {key:str(args[key])[:200] for key in
+        ('busca','status','leitura','estoque','promocao','campanhas','logistica','foco','ordem','por_pagina')
+        if args.get(key)}
+    chips = []
+    for key, label, options in definitions:
+        value = params.get(key, '')
+        if not value or (options is not None and value not in options):
+            continue
+        display = value if options is None else options[value]
+        rest = {k:v for k,v in params.items() if k != key}
+        url = '/anuncios/'+str(cid) + ('?'+urlencode(rest) if rest else '')
+        chips.append('<a href="'+escape(url,quote=True)+'" aria-label="'
+                     +escape('Remover filtro '+label+': '+display,quote=True)+'">'
+                     +escape(label+': '+display)+' <span aria-hidden="true">×</span></a>')
+    return ('<nav class="catalog-active-filters" aria-label="Filtros aplicados">'
+            + ''.join(chips) + '</nav>') if chips else ''
+
+
 def badge(label,tone='neutral'):
     return "<span class='catalog-badge catalog-"+tone+"'>"+escape(label)+'</span>'
 
@@ -155,15 +178,16 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
     for name,label,options in [('status','Status',STATUS),('ordem','Ordenar por',SORT),('por_pagina','Por página',{str(n):str(n) for n in (10,20,50,100)})]:
         body+=select(name,label,options,dict(args,por_pagina=str(size),ordem=args.get('ordem','vendidos')))
     advanced = ('leitura','estoque','promocao','campanhas','logistica','foco')
-    expanded = ' open' if any(args.get(key) for key in advanced) else ''
-    body+="<details class='catalog-advanced'"+expanded+"><summary>Mais filtros</summary><div class='catalog-advanced-fields'>"
+    advanced_count = sum(bool(args.get(key)) and args.get(key) in options for key, options in zip(advanced, (READING, STOCK, PROMO, CAMPAIGNS, LOGISTICS, FOCUS)))
+    expanded = ' open' if advanced_count else ''
+    body+="<details class='catalog-advanced'"+expanded+"><summary>Mais filtros"+((' · '+str(advanced_count)) if expanded else '')+"</summary><div class='catalog-advanced-fields'>"
     for name,label,options in [('leitura','Atualização do catálogo',READING),('estoque','Estoque',STOCK),('promocao','Promoção',PROMO),('campanhas','Consulta de campanhas',CAMPAIGNS),('logistica','Logística',LOGISTICS),('foco','Ponto de atenção',FOCUS)]:
         body+=select(name,label,options,args)
-    body+="</div></details><div class='catalog-filter-actions'><button class='btn-acoes'>Aplicar filtros</button><a href='"+path+"'>Limpar filtros</a></div></form><div class='catalog-toolbar'><h2>Seus anúncios</h2><span>"+str(len(filtered))+' de '+str(len(rows))+" anúncios</span></div>"
+    body+="</div></details><div class='catalog-filter-actions'><button class='btn-acoes'>Aplicar filtros</button><a href='"+path+"'>Limpar filtros</a></div></form>"+active_filters(cid,args)+"<div class='catalog-toolbar'><h2>Seus anúncios</h2><span>"+str(len(filtered))+' de '+str(len(rows))+" anúncios</span></div>"
     if not visible:
         body+="<div class='catalog-empty'><h2>"+('Nenhum anúncio para estes filtros' if rows else 'Seu catálogo ainda não foi sincronizado')+"</h2><p>"+('Ajuste os filtros ou limpe a busca para ver outros produtos.' if rows else 'Use Atualizar agora para carregar os anúncios da loja.')+'</p></div>'
     else:
-        body+="<div class='catalog-scroll'><table class='catalog-table'><thead><tr><th>Produto</th><th>Preço e promoção"+tip("Preço e promoção","Consulta válida de campanhas não garante promoção ativa ou preço vencedor. O preço vencedor pode estar confirmado mesmo com campanhas pendentes.")+"</th><th>Status e estoque"+tip("Status e estoque","Promoções e Full têm fontes e datas próprias. Full indica a modalidade logística. Confira a disponibilidade no relatório Full e vendas.")+"</th><th>Conteúdo"+tip("Conteúdo","Menos de cinco fotos é um ponto de atenção editorial.")+"</th><th>Histórico</th></tr></thead><tbody>"
+        body+="<div class='catalog-scroll'><table class='catalog-table'><thead><tr><th>Produto</th><th>Preço e promoção"+tip("Preço e promoção","Preço do anúncio na última coleta. Consulta válida de campanhas não garante promoção ativa ou preço vencedor. O preço vencedor pode estar confirmado mesmo com campanhas pendentes.")+"</th><th>Status e estoque"+tip("Status e estoque","Promoções e Full têm fontes e datas próprias. Full indica a modalidade logística. Confira a disponibilidade no relatório Full e vendas.")+"</th><th>Conteúdo"+tip("Conteúdo","Menos de cinco fotos é um ponto de atenção editorial.")+"</th><th>Histórico"+tip('Vendas acumuladas','Vendidos acumulados na vida do anúncio. Não corresponde ao período atual. A leitura indica a data de atualização do catálogo.')+"</th></tr></thead><tbody>"
         for row in visible:
             item=str(row['item_id']);diag='/anuncios/'+str(cid)+'/'+item
             body+='<tr><td><a class="catalog-product-open" href="'+escape(diag,quote=True)+'">'+product({'listing':row},cid,True)+'</a>'+"<small>"+escape(item)+(' · SKU '+escape(str(row['sku'])) if row.get('sku') else '')+'</small>'
@@ -177,7 +201,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
             body+=escape(', '.join(str(t) for t in tags) if isinstance(tags,list) and tags else 'Sem tags registradas')+'</dd></dl></details></td>'
             offer=effective_promotion(read_json(row.get('promocoes_json'),{}))
             campaign_state=campaign_reading(row,now)
-            body+="<td><div class='catalog-price'>"+escape(fmt(displayed_price(row),True))+"</div>"+("<small><s>"+escape(fmt(offer['original'],True))+"</s> · Promoção confirmada</small>" if offer else "<small>Preço do anúncio na última coleta</small>")+"<details class='catalog-details'><summary>"+('Promoção registrada' if promotion(row) else 'Consultar promoções')+'</summary>'+render_promotions(row.get('promocoes_json'))+'</details>'+badge(CAMPAIGNS[campaign_state], 'green' if campaign_state=='valida' else 'amber')
+            body+="<td><div class='catalog-price'>"+escape(fmt(displayed_price(row),True))+"</div>"+("<small><s>"+escape(fmt(offer['original'],True))+"</s> · Promoção confirmada</small>" if offer else "")+"<details class='catalog-details'><summary>"+('Promoção registrada' if promotion(row) else 'Consultar promoções')+'</summary>'+render_promotions(row.get('promocoes_json'))+'</details>'+badge(CAMPAIGNS[campaign_state], 'green' if campaign_state=='valida' else 'amber')
             body+='</td><td>'
             status=str(row.get('status') or '')
             body+=badge({'active':'Ativo','paused':'Pausado','closed':'Encerrado'}.get(status.lower(),status or 'Não verificado'),'green' if status.lower()=='active' else 'amber')
@@ -186,7 +210,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
             kind=logistics(row,now)
             body+=badge({'full':'Full','outros':'Outras modalidades','desconhecido':'Logística não verificada'}[kind],'green' if kind=='full' else 'neutral')+'</td><td>'
             photos=quantity(row.get('fotos'));clips=quantity(row.get('clips'))
-            body+=badge(str(int(photos))+' fotos' if photos is not None else 'Fotos não verificadas','amber' if photos is not None and photos<5 else 'neutral')+'<br>'+badge(str(int(clips))+' clips' if clips is not None else 'Clips não verificados')+'</td><td><b>'+escape(fmt(quantity(row.get('vendidos')),False))+'</b><small>vendidos acumulados<br>Não corresponde ao período atual</small>'
+            body+=badge(str(int(photos))+' fotos' if photos is not None else 'Fotos não verificadas','amber' if photos is not None and photos<5 else 'neutral')+'<br>'+badge(str(int(clips))+' clips' if clips is not None else 'Clips não verificados')+'</td><td><b>'+escape(fmt(quantity(row.get('vendidos')),False))+'</b><small>vendidos acumulados</small>'
             stamp=number(row.get('atualizado_em'))
             try: date=datetime.fromtimestamp(float(stamp),SAO_PAULO).strftime('%d/%m/%Y %H:%M') if stamp else 'Não confirmada'
             except (ValueError,OverflowError,OSError): date='Não confirmada'
@@ -202,7 +226,7 @@ def render_catalog(cid,rows,args,refresh='',errors=(),admin=False,freight=None,n
     body+='</nav></section>'
     warnings=[e for e in errors if e.get('categoria')!='financeiro']
     if warnings: body+="<details class='catalog-warning'><summary>Avisos da sincronização · "+str(len(warnings))+'</summary>'+''.join('<p>'+escape(str(e.get('categoria') or ''))+': '+escape(str(e.get('mensagem') or ''))+'</p>' for e in warnings)+'</details>'
-    body+='<style>.catalog-tools{position:relative}.catalog-tools summary,.catalog-advanced summary{cursor:pointer;padding:10px 12px;border:1px solid #426184;border-radius:8px;font-size:12px;color:#b9e5ff}.catalog-tools nav{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid #426184;border-radius:10px;background:#142940;position:absolute;right:0;z-index:5;min-width:200px}.catalog-dashboard .catalog-filter{display:grid;grid-template-columns:minmax(200px,2fr) repeat(3,minmax(120px,1fr));gap:12px;align-items:end}.catalog-dashboard .catalog-filter label{min-width:0}.catalog-advanced{grid-column:1/-1}.catalog-advanced-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding-top:12px}.catalog-filter-actions{display:flex;gap:14px;align-items:center;grid-column:1/-1}.catalog-dashboard .catalog-actions .catalog-open{display:inline-flex;padding:8px 12px;background:#2469a3;color:#fff!important;border:1px solid #5399ce;border-radius:8px;font-size:12px;font-weight:650}.catalog-dashboard .catalog-product-open{display:block;text-decoration:none}html[data-theme=light] .catalog-tools nav{background:#fff}@media(max-width:700px){.catalog-dashboard .catalog-filter{grid-template-columns:repeat(2,minmax(0,1fr))}.catalog-dashboard .catalog-filter label:first-child{grid-column:1/-1}.catalog-advanced-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>'
+    body+='<style>.catalog-active-filters{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.catalog-active-filters a{display:inline-flex;gap:8px;align-items:center;border:1px solid #7892aa;border-radius:16px;padding:5px 10px;font-size:11px;text-decoration:none;overflow-wrap:anywhere;max-width:100%;box-sizing:border-box}.catalog-active-filters a:focus-visible{outline:3px solid #4a9ccc;outline-offset:2px}.catalog-tools{position:relative}.catalog-tools summary,.catalog-advanced summary{cursor:pointer;padding:10px 12px;border:1px solid #426184;border-radius:8px;font-size:12px;color:#b9e5ff}.catalog-tools nav{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid #426184;border-radius:10px;background:#142940;position:absolute;right:0;z-index:5;min-width:200px}.catalog-dashboard .catalog-filter{display:grid;grid-template-columns:minmax(200px,2fr) repeat(3,minmax(120px,1fr));gap:12px;align-items:end}.catalog-dashboard .catalog-filter label{min-width:0}.catalog-advanced{grid-column:1/-1}.catalog-advanced-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding-top:12px}.catalog-filter-actions{display:flex;gap:14px;align-items:center;grid-column:1/-1}.catalog-dashboard .catalog-actions .catalog-open{display:inline-flex;padding:8px 12px;background:#2469a3;color:#fff!important;border:1px solid #5399ce;border-radius:8px;font-size:12px;font-weight:650}.catalog-dashboard .catalog-product-open{display:block;text-decoration:none}html[data-theme=light] .catalog-tools nav{background:#fff}@media(max-width:700px){.catalog-dashboard .catalog-filter{grid-template-columns:repeat(2,minmax(0,1fr))}.catalog-dashboard .catalog-filter label:first-child{grid-column:1/-1}.catalog-advanced-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>'
     return body+'''<div id='catalog-loading' hidden role='status'>Carregando anúncios…</div><script>
     (function(){var form=document.querySelector('.catalog-filter');if(!form)return;
     form.addEventListener('submit',function(event){if(form.getAttribute('aria-busy')==='true'){event.preventDefault();return;}form.setAttribute('aria-busy','true');document.getElementById('catalog-loading').hidden=false;});

@@ -13,6 +13,7 @@ const {chromium}=require('playwright');
     await page.goto('http://127.0.0.1:'+server.address().port+'/anuncios/1');
     assert.equal(await page.locator('.catalog-summary .stat').count(),4);
     assert.equal(await page.locator('.catalog-advanced').getAttribute('open'),null);
+    assert.equal(await page.locator('.catalog-active-filters').count(),0);
     assert.equal(await page.getByRole('link',{name:'Abrir anúncio →',exact:true}).count(),20);
     assert.equal(await page.locator('.catalog-product-open').first().getAttribute('href'),
       await page.getByRole('link',{name:'Abrir anúncio →',exact:true}).first().getAttribute('href'));
@@ -61,6 +62,10 @@ const {chromium}=require('playwright');
     await page.setContent(fs.readFileSync('visual-qa/catalog-price-sort.html','utf8'));
     assert.deepEqual(await page.locator('.catalog-price').allTextContents(),['R$ 100,00','R$ 80,00']);
     assert.equal(await page.locator('select[name=ordem]').inputValue(),'preco');
+    await page.setContent(fs.readFileSync('visual-qa/catalog-filtered.html','utf8'));
+    assert.equal(await page.locator('.catalog-active-filters a').count(),2);
+    assert.equal(await page.getByRole('link',{name:'Remover filtro Estoque: 1 a 3 unidades',exact:true}).getAttribute('href'),'/anuncios/1?status=active&por_pagina=10');
+    assert.ok((await page.locator('.catalog-advanced summary').textContent()).includes('1'));
     for(const group of ['desempenho','editar','preco-estoque','estoque','atendimento','historico']) {
       for(const width of [1440,390,320]) {
         await page.setViewportSize({width,height:900});

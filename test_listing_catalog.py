@@ -58,3 +58,26 @@ class CatalogTests(unittest.TestCase):
         self.assertIn('Página 1 de 1',output)
         output=render_catalog(1,[item(1)],{'busca':'inexistente'},now=NOW)
         self.assertIn('Nenhum anúncio para estes filtros',output)
+
+    def test_removing_one_filter_preserves_others_and_resets_page(self):
+        from html import unescape
+        import re
+        from urllib.parse import urlsplit, parse_qs
+        from listing_catalog import active_filters
+        html = active_filters(7, {'busca':'<azul>','status':'active','estoque':'baixo',
+            'ordem':'titulo','por_pagina':'10','pagina':'3','unexpected':'secret'})
+        self.assertIn('&lt;azul&gt;', html)
+        self.assertNotIn('unexpected', html)
+        links = re.findall(r'href="([^"]+)" aria-label="([^"]+)"',html)
+        self.assertEqual(len(links),3)
+        for href,label in links:
+            parsed=urlsplit(unescape(href)); args=parse_qs(parsed.query)
+            self.assertEqual(parsed.path,'/anuncios/7')
+            self.assertNotIn('pagina',args)
+            self.assertEqual(args['ordem'],['titulo'])
+            self.assertEqual(args['por_pagina'],['10'])
+            if 'Status' in label:
+                self.assertNotIn('status',args)
+                self.assertEqual(args['estoque'],['baixo'])
+                self.assertEqual(args['busca'],['<azul>'])
+        self.assertEqual(active_filters(7, {'status':'invalid','ordem':'titulo'}),'')
