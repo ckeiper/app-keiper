@@ -7,7 +7,7 @@ from listing_content_snapshot import ContentUnavailable, read
 from listing_pause_reasons import inspect
 
 
-def reactivate(token, seller, item_id, request_get, request_put, *, allow_write=True, before_write=None):
+def reactivate(token, seller, item_id, request_get, request_put, *, allow_write=True, before_write=None, on_rejection=None):
     current = inspect(token, seller, item_id, request_get)
     if current['state'] != 'read':
         return current['message'], 409
@@ -37,6 +37,8 @@ def reactivate(token, seller, item_id, request_get, request_put, *, allow_write=
         pass  # The request may have reached the marketplace. Read back before reporting.
 
     if response is not None and 400 <= response.status_code < 500:
+        if on_rejection is not None:
+            on_rejection()
         try:
             payload = response.json()
         except ValueError:

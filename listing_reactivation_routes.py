@@ -5,7 +5,7 @@ import time
 import psycopg2
 from flask import request,session,redirect
 from sales_metrics import reporting_today
-from listing_reactivation_requests import validate_key, reserve, confirm, mark_sent, was_sent
+from listing_reactivation_requests import validate_key, reserve, confirm, mark_sent, mark_rejected, was_sent
 from listing_tasks import validate,create
 from listing_reactivation import TITLE,load,render
 
@@ -53,6 +53,7 @@ def register_reactivation(app,login_required,can_view,bank,query,execute,shop_pa
                             resolve_token(shops[0]), shops[0].get('user_id'), item_id,
                             request_get, request_put, allow_write=first_submission,
                             before_write=lambda: mark_sent(bank, query, cid, item_id, request_key),
+                            on_rejection=lambda: mark_rejected(bank, query, cid, item_id, request_key),
                         )
                     else:
                         message, status = 'Esta solicitação já foi conferida. Consulte os motivos atuais para fazer uma nova solicitação.', 409

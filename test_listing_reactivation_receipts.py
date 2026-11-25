@@ -82,3 +82,14 @@ class ReactivationReceiptTests(unittest.TestCase):
         with self.m.banco() as conn:
             events = self.m.consultar(conn, 'SELECT id FROM listing_interventions WHERE conexao_id=%s', (self.cid,))
         self.assertEqual(events, [])
+
+    def test_marketplace_rejection_cannot_be_reclassified_by_later_external_activation(self):
+        self.get.side_effect = [response({'id': 7}), item()]
+        self.put.return_value = response({'error': 'blocked'}, 403)
+        self.assertEqual(self.client.post(self.path, data=self.form).status_code, 409)
+        self.assertEqual(self.client.post(self.path, data=self.form).status_code, 409)
+        self.put.assert_called_once()
+        self.assertEqual(self.get.call_count, 2)
+        with self.m.banco() as conn:
+            events = self.m.consultar(conn, 'SELECT id FROM listing_interventions WHERE conexao_id=%s', (self.cid,))
+        self.assertEqual(events, [])

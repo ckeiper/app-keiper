@@ -10,7 +10,7 @@ def init_schema(conn, execute):
         conexao_id INTEGER NOT NULL REFERENCES conexoes(id) ON DELETE CASCADE,
         item_id TEXT NOT NULL, request_key VARCHAR(48) NOT NULL,
         created_by INTEGER NOT NULL, created_at BIGINT NOT NULL,
-        sent_to_marketplace BOOLEAN NOT NULL DEFAULT FALSE,
+        state TEXT NOT NULL DEFAULT 'reserved' CHECK(state IN ('reserved','sent','rejected')),
         history_id BIGINT REFERENCES listing_interventions(id) ON DELETE SET NULL,
         PRIMARY KEY(conexao_id,item_id,request_key))""")
 
@@ -35,15 +35,22 @@ def reserve(bank, query, cid, item_id, actor, key):
 
 def mark_sent(bank, query, cid, item_id, key):
     with bank() as conn:
-        query(conn, """UPDATE listing_reactivation_requests SET sent_to_marketplace=TRUE
+        query(conn, """UPDATE listing_reactivation_requests SET state='sent'
+            WHERE conexao_id=%s AND item_id=%s AND request_key=%s RETURNING request_key""",
+            (cid, item_id, key))
+
+
+def mark_rejected(bank, query, cid, item_id, key):
+    with bank() as conn:
+        query(conn, """UPDATE listing_reactivation_requests SET state='rejected'
             WHERE conexao_id=%s AND item_id=%s AND request_key=%s RETURNING request_key""",
             (cid, item_id, key))
 
 
 def was_sent(conn, query, cid, item_id, key):
-    rows = query(conn, """SELECT sent_to_marketplace FROM listing_reactivation_requests
+    rows = query(conn, """SELECT state FROM listing_reactivation_requests
         WHERE conexao_id=%s AND item_id=%s AND request_key=%s""", (cid, item_id, key))
-    return bool(rows and rows[0]['sent_to_marketplace'])
+    return bool(rows and rows[0]['state'] == 'sent')
 
 
 def confirm(conn, query, cid, item_id, key):
