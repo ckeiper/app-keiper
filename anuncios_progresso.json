@@ -899,7 +899,7 @@
       "area": "Conteúdo",
       "capacidade": "Catálogo gerencial de anúncios",
       "estado": "concluida",
-      "implementado": "Busca, filtros, paginação, preço confirmado e leitura de campanhas, com estados de erro e dados técnicos. Cabeçalho enxuto e ajuda contextual nos indicadores de preço, promoções, estoque, conteúdo e frete. Entrada única por anúncio com seis abas de funções e navegação compartilhada nas ferramentas individuais. Lista principal reorganizada com busca em destaque, filtros adicionais recolhidos, análises da loja agrupadas e acesso à área unificada tanto no produto quanto no botão Abrir anúncio. Funções separadas por desempenho, conteúdo/ficha técnica, preço/margem, estoque, perguntas/avaliações e histórico/tarefas. Links de função compactos, destaque da página atual, abas sem funções autorizadas omitidas e compatibilidade da antiga aba Diagnóstico preservada.",
+      "implementado": "Busca, filtros, paginação, preço confirmado e leitura de campanhas, com estados de erro e dados técnicos. Cabeçalho enxuto e ajuda contextual nos indicadores de preço, promoções, estoque, conteúdo e frete. Entrada única por anúncio com seis abas de funções e navegação compartilhada nas ferramentas individuais. Lista principal reorganizada com busca em destaque, filtros adicionais recolhidos, análises da loja agrupadas e acesso à área unificada tanto no produto quanto no botão Abrir anúncio. Funções separadas por desempenho, conteúdo/ficha técnica, preço/margem, estoque, perguntas/avaliações e histórico/tarefas. Links de função compactos, destaque da página atual, abas sem funções autorizadas omitidas e compatibilidade da antiga aba Diagnóstico preservada. Filtros aplicados visíveis com remoção individual que preserva os demais critérios, ordenação e tamanho da página, reiniciando a paginação. Contagem de filtros adicionais válidos e explicações de preço/vendas reunidas na ajuda dos cabeçalhos.",
       "falta": "",
       "fontes": [
         "listing_catalog.py",
@@ -2455,6 +2455,17 @@
       "base": "frentes_auditadas",
       "data": "2026-11-25",
       "resumo": "Navegação do anúncio reorganizada por assunto, com seis grupos e funções compactas. Contagens de conclusão preservadas.",
+      "contagens": {
+        "concluida": 28,
+        "parcial": 16,
+        "pendente": 1
+      },
+      "total": 45
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-25",
+      "resumo": "Filtros ativos com remoção individual e contagem de critérios adicionais, com menos explicações repetidas por anúncio. Contagens de conclusão preservadas.",
       "contagens": {
         "concluida": 28,
         "parcial": 16,
