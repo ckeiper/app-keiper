@@ -25,9 +25,9 @@ def apply(plan,codes,token,seller,item_id,get,put,persist,now=None,post=None):
     if plan['state']!='ready':raise ValueError('Esta análise já foi usada. Consulte o resultado; nenhum reenvio automático será feito.')
     if data.get('blocked'):raise ValueError(data['blocked'])
     if (now or int(time.time()))-plan['created_at']>900:
-        persist('stale',dict(message='Análise expirada. Faça uma nova leitura.'));return
+        persist('stale',dict(pre_write=True,message='Análise expirada. Faça uma nova leitura.'));return
     if data.get('extractor_version')!=EXTRACTOR_VERSION:
-        persist('stale',dict(message='O leitor de sugestões foi atualizado. Analise novamente antes de enviar.'));return
+        persist('stale',dict(pre_write=True,message='O leitor de sugestões foi atualizado. Analise novamente antes de enviar.'));return
     # Commit intent before any operation which might send to the marketplace.
     persist('sending',dict(message='Preparando envio; não repita a operação.'),selected=codes)
     try:
@@ -49,11 +49,11 @@ def apply(plan,codes,token,seller,item_id,get,put,persist,now=None,post=None):
                        if key in previous and key in current and previous[key] != current[key]]
             reason = facts['blocked'] or ('Mudança detectada em: ' + ', '.join(changed) + '.' if changed
                                           else 'A base da análise mudou.')
-            persist('stale',dict(message=reason+' Analise novamente antes de enviar.',changed_components=changed));return
+            persist('stale',dict(pre_write=True,message=reason+' Analise novamente antes de enviar.',changed_components=changed));return
         proposals=selected_proposals(fresh,codes)
         approved=selected_proposals(data,codes)
         if any(a['payload']!=b['payload'] or a['expected']!=b['expected'] or a.get('variation_id')!=b.get('variation_id') or a.get('attribute_id')!=b.get('attribute_id') for a,b in zip(approved,proposals)):
-            persist('stale',dict(message='A sugestão mudou desde a revisão. Analise novamente antes de enviar.'));return
+            persist('stale',dict(pre_write=True,message='A sugestão mudou desde a revisão. Analise novamente antes de enviar.'));return
         if any(p.get('variation_id') for p in proposals) and data.get('variation_snapshot')!=fresh.get('variation_snapshot'):raise ValueError('Base das variações divergente.')
         from attribute_variations import payload
         update=payload(proposals,facts['item'])
