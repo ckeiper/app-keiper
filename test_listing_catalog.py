@@ -81,3 +81,19 @@ class CatalogTests(unittest.TestCase):
                 self.assertEqual(args['estoque'],['baixo'])
                 self.assertEqual(args['busca'],['<azul>'])
         self.assertEqual(active_filters(7, {'status':'invalid','ordem':'titulo'}),'')
+
+    def test_summary_shortcuts_replace_filters_and_match_global_counts(self):
+        import re
+        from html import unescape
+        from urllib.parse import urlsplit,parse_qs
+        rows=[item(1),dict(item(2),quantidade=0,status='paused')]
+        output=render_catalog(7,rows,{'busca':'missing','pagina':'3'},now=NOW)
+        links=re.findall(r"<a href='([^']+)' aria-label='Ver ([^']+)' class='catalog-summary-link",output)
+        self.assertEqual(len(links),4)
+        counts=[]
+        for href,_ in links:
+            url=urlsplit(unescape(href)); self.assertEqual(url.path,'/anuncios/7')
+            args={k:v[0] for k,v in parse_qs(url.query).items()}
+            self.assertNotIn('busca',args); self.assertNotIn('pagina',args)
+            counts.append(len(filter_catalog(rows,args,NOW)))
+        self.assertEqual(counts,[2,1,1,0])

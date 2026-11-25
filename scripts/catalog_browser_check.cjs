@@ -12,6 +12,9 @@ const {chromium}=require('playwright');
   try{
     await page.goto('http://127.0.0.1:'+server.address().port+'/anuncios/1');
     assert.equal(await page.locator('.catalog-summary .stat').count(),4);
+    assert.deepEqual(await page.locator('.catalog-summary a').evaluateAll(els=>els.map(el=>el.getAttribute('href'))),['/anuncios/1','/anuncios/1?status=active','/anuncios/1?estoque=zero','/anuncios/1?promocao=sim']);
+    await page.getByRole('link',{name:'Ver anúncios ativos',exact:true}).focus();
+    assert.equal(await page.locator('.catalog-summary a:focus').count(),1);
     assert.equal(await page.locator('.catalog-advanced').getAttribute('open'),null);
     assert.equal(await page.locator('.catalog-active-filters').count(),0);
     assert.equal(await page.getByRole('link',{name:'Abrir anúncio →',exact:true}).count(),20);
