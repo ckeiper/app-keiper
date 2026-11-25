@@ -12,25 +12,27 @@ GROUPS = (
         ('/anuncios/{cid}/{item}/primeiros-30-dias', 'Primeiros 30 dias', True),
         ('/anuncios/{cid}/{item}/relatorio-consolidado', 'Relatório do anúncio', True),
     )),
-    ('editar', 'Editar anúncio', (
+    ('editar', 'Conteúdo e ficha técnica', (
         ('/anuncios/{cid}/{item}/completar-ficha', 'Ficha técnica e campos ocultos', True),
         ('/anuncios/{cid}/{item}/conteudo-atual', 'Título e descrição', True),
         ('/anuncios/{cid}/{item}/imagem-principal', 'Imagens', True),
-        ('/anuncios/{cid}/{item}/perguntas', 'Perguntas', True),
-        ('/anuncios/{cid}/{item}/avaliacoes', 'Avaliações', True),
+        ('/anuncios/{cid}/{item}/conteudo', 'Revisão de conteúdo', True),
+        ('/anuncios/{cid}/{item}/relatorio-revisao', 'Problemas e recomendações', True),
     )),
-    ('preco-estoque', 'Preço e estoque', (
+    ('preco-estoque', 'Preço e margem', (
         ('/anuncios/{cid}/{item}/rentabilidade', 'Rentabilidade e descontos', True),
         ('/anuncios/{cid}/{item}/cotacao-tarifa', 'Tarifas', True),
         ('/anuncios/{cid}/{item}/parcelamento', 'Parcelamento', True),
+        ('/diagnostico/anuncios/{cid}/{item}', 'Conferir preço no Mercado Livre', True),
+    )),
+    ('estoque', 'Estoque', (
         ('/anuncios/{cid}/{item}/metas', 'Metas de estoque', True),
         ('/anuncios/{cid}/{item}/kits', 'Kits', True),
         ('/full/{cid}?item_id={item}', 'Estoque Full', False),
     )),
-    ('diagnostico', 'Diagnóstico', (
-        ('/anuncios/{cid}/{item}/conteudo', 'Revisão de conteúdo', True),
-        ('/anuncios/{cid}/{item}/relatorio-revisao', 'Problemas e recomendações', True),
-        ('/diagnostico/anuncios/{cid}/{item}', 'Conferir preço no Mercado Livre', True),
+    ('atendimento', 'Perguntas e avaliações', (
+        ('/anuncios/{cid}/{item}/perguntas', 'Perguntas', True),
+        ('/anuncios/{cid}/{item}/avaliacoes', 'Avaliações', True),
     )),
     ('historico', 'Histórico e tarefas', (
         ('/anuncios/{cid}/{item}/acoes', 'Histórico de alterações', False),
@@ -47,14 +49,16 @@ STYLE = """<style>
 .listing-workspace a{color:#b9e5ff;text-decoration:none}.listing-workspace nav{display:flex;gap:6px;flex-wrap:wrap;margin-top:16px}
 .listing-workspace nav a{padding:9px 12px;border:1px solid #34516e;border-radius:8px;font-size:13px}
 .listing-workspace nav a[aria-current]{background:#2469a3;color:white;border-color:#76b9e3}
-.listing-workspace .lw-functions{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:16px}
-.listing-workspace .lw-functions a{padding:14px;border:1px solid #34516e;border-radius:9px;background:#182e49}
+.listing-workspace .lw-functions{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 16px;margin-top:12px}
+.listing-workspace .lw-functions a{padding:8px 10px;border:1px solid transparent;border-radius:6px;background:transparent;font-size:13px}
+.listing-workspace .lw-functions a:hover{background:#182e49}.listing-workspace .lw-functions a[aria-current]{background:#182e49;border-color:#527b9e;font-weight:600}
 .conteudo:has(>.listing-workspace) .diag-nav,.conteudo:has(>.listing-workspace) .diag-hint{display:none}
 .listing-workspace a:focus-visible{outline:3px solid #85c8ec;outline-offset:3px}
 @media(max-width:600px){.listing-workspace{padding:12px}.listing-workspace nav a{flex:1 1 40%;text-align:center}}
 html[data-theme=light] .listing-workspace{background:#fff;color:#253a56}
 html[data-theme=light] .listing-workspace a{color:#245a8a}
-html[data-theme=light] .listing-workspace .lw-functions a{background:#f3f7fc}
+html[data-theme=light] .listing-workspace .lw-functions a{background:transparent}
+html[data-theme=light] .listing-workspace .lw-functions a:hover,html[data-theme=light] .listing-workspace .lw-functions a[aria-current]{background:#edf4fb}
 html[data-theme=light] .listing-workspace nav a[aria-current]{color:#fff}
 </style>"""
 
@@ -78,9 +82,14 @@ def navigation(cid, item, path, admin, group=None, title=None):
     if group is None:
         return ''
     out = STYLE + '<section class="listing-workspace" aria-label="Área do anúncio"><header><div><h2>'
-    out += escape(title or item) + '</h2><small>' + escape(item) + '</small></div>'
+    out += escape(title or item) + '</h2>'
+    if title and title != item:
+        out += '<small>' + escape(item) + '</small>'
+    out += '</div>'
     out += f'<a href="/anuncios/{int(cid)}">Todos os anúncios</a></header><nav aria-label="Funções do anúncio">'
     for key, name, actions in GROUPS:
+        if not links(key, cid, item, admin):
+            continue
         current = ' aria-current="page"' if key == group else ''
         out += f'<a href="{base}?aba={key}"{current}>' + name + '</a>'
     out += '</nav><div class="lw-functions">'
@@ -99,6 +108,8 @@ def register(app, login_required, can_view, bank, query, shop_page):
         if not re.fullmatch(r'MLB[0-9]{1,20}', item_id):
             return 'Anúncio não encontrado', 404
         group = request.args.get('aba', 'desempenho')
+        if group == 'diagnostico':
+            group = 'editar'
         if group not in {key for key, name, actions in GROUPS}:
             return 'Aba não encontrada', 404
         with bank() as conn:
