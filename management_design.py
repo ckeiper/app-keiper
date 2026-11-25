@@ -252,6 +252,10 @@ def tabs(cid,args,count,selected):
     return out+'</nav>'
 
 
+def _chart_date(day):
+    return f'{day[8:10]}/{day[5:7]}'
+
+
 def _daily_chart(report, key="daily", label="Faturamento", money=True):
     current,previous=report['current'],report['previous']
     days=current['days']
@@ -304,12 +308,12 @@ def _daily_chart(report, key="daily", label="Faturamento", money=True):
         if not endpoint and len(days) > 8:
             continue
         extra = " class='mgmt-chart-date' style='display:none'" if not endpoint else ''
-        out+=f"<span{extra}>"+escape(day[8:10]+'/'+day[5:7])+"</span>"
+        out+=f"<span{extra}>"+escape(_chart_date(day))+"</span>"
     out+="</div></div></div><details><summary>Ver valores e datas comparados</summary><div class='mgmt-scroll'><table class='mgmt-table'><thead><tr><th>Data atual</th><th>Valor atual</th><th>Data anterior</th><th>Valor anterior</th></tr></thead><tbody>"
     for index,day in enumerate(current['days']):
-        out+='<tr><td>'+escape(day)+'</td><td>'+escape(fmt(series[0][index],money))+'</td><td>'+escape(previous['days'][index])+'</td><td>'+escape(fmt(series[1][index],money))+'</td></tr>'
+        out+='<tr><td>'+escape(_chart_date(day))+'</td><td>'+escape(fmt(series[0][index],money))+'</td><td>'+escape(_chart_date(previous['days'][index]))+'</td><td>'+escape(fmt(series[1][index],money))+'</td></tr>'
     if today_partial:
-        out+='<tr><td>'+escape(today)+' (parcial)</td><td>'+escape(fmt(value,money))+'</td><td>—</td><td>—</td></tr>'
+        out+='<tr><td>'+escape(_chart_date(today))+' (parcial)</td><td>'+escape(fmt(value,money))+'</td><td>—</td><td>—</td></tr>'
     return out+'</tbody></table></div></details></section>'
 
 
@@ -359,7 +363,7 @@ def priorities(cid,report,args):
     return out+'</div></section>'
 
 
-SCRIPT = r"""<script>
+SCRIPT = """<script>
 (function(){
   document.querySelectorAll('.mgmt-chart-interaction').forEach(function(plot){
     var rows=Array.from(plot.closest('.mgmt-chart').querySelectorAll('.mgmt-table tbody tr'));
@@ -370,14 +374,13 @@ SCRIPT = r"""<script>
     plot.tabIndex=0;
     plot.setAttribute('role','group');
     plot.setAttribute('aria-label','Valores por dia. Use as setas esquerda e direita para navegar.');
-    function date(text){return text.replace(/^(\d{4})-(\d{2})-(\d{2})/,'$3/$2/$1');}
     function show(index){
       selected=index;
       var cells=rows[index].cells;
-      lines[0].textContent='Atual · '+date(cells[0].textContent)+' · '+cells[1].textContent;
+      lines[0].textContent='Atual · '+cells[0].textContent+' · '+cells[1].textContent;
       var hasPreviousDate=cells[2].textContent!=='—';
       lines[1].hidden=!hasPreviousDate;
-      if(hasPreviousDate)lines[1].textContent='Anterior · '+date(cells[2].textContent)+' · '+cells[3].textContent;
+      if(hasPreviousDate)lines[1].textContent='Anterior · '+cells[2].textContent+' · '+cells[3].textContent;
       tooltip.hidden=false;
       guide.hidden=false;
       var x=plot.clientWidth*index/Math.max(1,rows.length-1);

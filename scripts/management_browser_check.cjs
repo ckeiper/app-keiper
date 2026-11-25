@@ -51,6 +51,8 @@ const {chromium}=require('playwright');
     const firstRevenue=await revenue.locator('tbody tr').first().locator('td').nth(1).textContent();
     const lastRevenue=await revenue.locator('tbody tr').last().locator('td').nth(1).textContent();
     await plot.hover({position:{x:1,y:30}});
+    assert.match(await tooltip.locator('span').first().textContent(),/^Atual · \d{2}\/\d{2} · R\$/);
+    assert.match(await revenue.locator('.mgmt-chart-x span').first().textContent(),/^\d{2}\/\d{2}$/);
     assert.ok((await tooltip.locator('span').first().textContent()).endsWith(firstRevenue));
     assert.ok((await tooltip.locator('span').last().textContent()).startsWith('Anterior'));
     await plot.press('End');
