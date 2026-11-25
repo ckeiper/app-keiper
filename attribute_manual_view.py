@@ -41,7 +41,7 @@ def compact(fields,csrf,plan,key):
     ordered=[f for f in fields if f.get('hidden')]+[f for f in fields if not f.get('hidden')]
     shown=ordered[:50]
     out='<form method="post" class="ae-compact"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="manual"><input type="hidden" name="plan" value="'+esc(plan)+'"><input type="hidden" name="manual_key" value="'+esc(key+'-manual')+'">'
-    out+='<h3 class="ae-sheet-title">Ficha técnica'+tip('Opções de preenchimento','Quando disponíveis, o campo sugere até dez opções da categoria retornadas na análise. Nenhuma é selecionada automaticamente. As regras são reconferidas antes de enviar.')+'</h3>'
+    out+='<h3 class="ae-sheet-title" aria-label="Ficha técnica">Ficha técnica'+tip('Opções de preenchimento','Quando disponíveis, o campo sugere até dez opções da categoria retornadas na análise. Nenhuma é selecionada automaticamente. As regras são reconferidas antes de enviar.')+'</h3>'
     for hidden in (False,True):
         group=[f for f in shown if bool(f.get('hidden'))==hidden]
         if not group:continue
