@@ -76,7 +76,7 @@ def render_management(cid,report,args):
            +"<details class='mgmt-period-dates'"+(' open' if args.get('inicio') or args.get('fim') else '')+"><summary>Personalizar</summary>"
            +"<label>Início<input type='date' name='inicio' value='"+escape(args.get('inicio',''),quote=True)+"'></label>"
            +"<label>Fim<input type='date' name='fim' value='"+escape(args.get('fim',''),quote=True)+"'></label>"
-           +"</details><button class='btn-acoes'>Aplicar período</button><a href='"+path+"'>Últimos 7 dias completos</a></form>"
+           +"</details><button class='btn-acoes'>Aplicar período</button></form>"
            +'<p class="muted">'+start.strftime('%d/%m/%Y')+' a '+end.strftime('%d/%m/%Y')
            +'. Horário de Brasília.</p>')
     if report['warnings']:
