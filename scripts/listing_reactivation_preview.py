@@ -6,7 +6,7 @@ from catalog_preview import page,dest
 from test_listing_reactivation import fixture,DAY,NOW
 from listing_reactivation import render
 from datetime import datetime, timezone
-for mode in ('paused','active','confirmed','stale','tasks','history','official','unknown','empty','error','moderation','moderation-empty','moderation-error','moderation-partial','account-allowed','account-blocked','account-unknown'):
+for mode in ('paused','active','confirmed','stale','tasks','history','official','unknown','empty','error','moderation','moderation-empty','moderation-error','moderation-partial','account-allowed','account-blocked','account-unknown','infractions','infractions-empty','infractions-error'):
     d=fixture()
     if mode=='active':d['shop']['status']='active'
     if mode=='stale':d['shop']['atualizado_em']=1
@@ -30,7 +30,12 @@ for mode in ('paused','active','confirmed','stale','tasks','history','official',
         from listing_account_permission import normalize
         allow={'account-allowed':True,'account-blocked':False,'account-unknown':'false'}[mode]
         official=dict(state='read',checked_at=datetime.now(timezone.utc),status='paused',codes=[],account_permission=normalize(dict(status=dict(list=dict(allow=allow,codes=['rejected_by_regulations','<script>'] if mode=='account-blocked' else [])))))
+    if mode.startswith('infractions'):
+        official=dict(state='read',checked_at=datetime.now(timezone.utc),status='paused',codes=[])
+        official['history']=dict(state='read',rows=[dict(id='10',filter_subgroup='DESC',date_created='2026-11-25',reason='Confira o preço.',remedy='Corrija e solicite a reativação.')],offset=0,limit=20,total=21,partial=False)
+        if mode=='infractions-empty':official['history'].update(rows=[],total=0)
+        if mode=='infractions-error':official['history']=dict(state='unknown',message='Histórico indisponível nesta consulta.')
     confirmed = mode == 'confirmed'
     message = 'Anúncio ativo. Status confirmado no Mercado Livre.' if confirmed else ''
     history_id = 91 if confirmed else None
-    (dest/('listing-reactivation-'+mode+'.html')).write_text(page('Revisão de reativação',1,'Loja fictícia','anuncios','<p>Dados fictícios de teste.</p>'+render(1,'MLB1',d,DAY,NOW,'token',message=message,official=official,confirmed=confirmed,history_id=history_id)))
+    (dest/('listing-reactivation-'+mode+'.html')).write_text(page('Revisão de reativação',1,'Loja fictícia','anuncios','<p>Dados fictícios de teste.</p>'+render(1,'MLB1',d,DAY,NOW,'token',message=message,official=official,confirmed=confirmed,history_id=history_id,can_reactivate=mode=='account-allowed')))

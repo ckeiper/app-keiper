@@ -64,6 +64,7 @@ def render(cid,item,data,today,now,token,values=None,message='',official=None, *
             and 'out_of_stock' not in (official['codes'] or [])):
         out += ('<article class="rr-reactivate"><h3>Reativar anúncio</h3><form method="post">'
                 '<input type="hidden" name="_csrf" value="' + esc(token) + '">'
+                '<input type="hidden" name="request_key" value="' + secrets.token_urlsafe(24) + '">'
                 '<label><input type="checkbox" name="confirmar_reativacao" value="sim" required> '
                 'Confirmo a reativação de ' + esc(item) + ' no Mercado Livre.</label>'
                 '<button name="action" value="reativar_anuncio">Reativar anúncio</button></form></article>')

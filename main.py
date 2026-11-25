@@ -699,6 +699,8 @@ def iniciar_banco():
         init_offer_history(conn, execute)
         from listing_interventions import init_schema as init_interventions
         init_interventions(conn, execute)
+        from listing_reactivation_requests import init_schema as init_reactivation_requests
+        init_reactivation_requests(conn, execute)
         from listing_tasks import init_schema as init_listing_tasks
         init_listing_tasks(conn, execute)
         from listing_goals import init_schema as init_listing_goals

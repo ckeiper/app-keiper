@@ -18,7 +18,7 @@ REASONS = {
 }
 
 
-def inspect(token, seller, item_id, request_get, include_moderation=False):
+def inspect(token, seller, item_id, request_get, include_moderation=False, history_offset=None):
     result = dict(state='unknown', checked_at=datetime.now(timezone.utc))
     if (not isinstance(token, str) or not token or isinstance(seller, bool)
             or not re.fullmatch(r'[1-9][0-9]{0,19}', str(seller))):
@@ -46,6 +46,9 @@ def inspect(token, seller, item_id, request_get, include_moderation=False):
     if include_moderation:
         from listing_moderation import inspect as inspect_moderation
         result['moderation']=inspect_moderation(token,item_id,request_get)
+    if history_offset is not None:
+        from listing_moderation_history import inspect as inspect_history
+        result['history'] = inspect_history(token, seller, item_id, request_get, history_offset)
     return result
 
 
@@ -70,5 +73,7 @@ def render(token, result=None):
     out+=render_account_permission(result.get('account_permission') if result else None)
     from listing_moderation import render as render_moderation
     out+=render_moderation(result.get('moderation') if result else None)
+    from listing_moderation_history import render as render_history
+    out += render_history(token, result.get('history') if result else None)
     out += '<p>Fonte: status e substatus do anúncio na API. Moderação consultada somente pelo botão correspondente. Esta leitura não confirma elegibilidade nem altera a oferta.</p>'
     return out+'<a href="'+SOURCE+'" target="_blank" rel="noopener noreferrer">Documentação dos status</a></article>'
