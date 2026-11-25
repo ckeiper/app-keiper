@@ -899,7 +899,7 @@
       "area": "Conteúdo",
       "capacidade": "Catálogo gerencial de anúncios",
       "estado": "concluida",
-      "implementado": "Busca, filtros, paginação, preço confirmado e leitura de campanhas, com estados de erro e dados técnicos. Cabeçalho enxuto e ajuda contextual nos indicadores de preço, promoções, estoque, conteúdo e frete. Entrada única por anúncio com cinco abas de funções e navegação compartilhada nas ferramentas individuais. Lista principal reorganizada com busca em destaque, filtros adicionais recolhidos, análises da loja agrupadas e acesso à área unificada tanto no produto quanto no botão Abrir anúncio.",
+      "implementado": "Busca, filtros, paginação, preço confirmado e leitura de campanhas, com estados de erro e dados técnicos. Cabeçalho enxuto e ajuda contextual nos indicadores de preço, promoções, estoque, conteúdo e frete. Entrada única por anúncio com seis abas de funções e navegação compartilhada nas ferramentas individuais. Lista principal reorganizada com busca em destaque, filtros adicionais recolhidos, análises da loja agrupadas e acesso à área unificada tanto no produto quanto no botão Abrir anúncio. Funções separadas por desempenho, conteúdo/ficha técnica, preço/margem, estoque, perguntas/avaliações e histórico/tarefas. Links de função compactos, destaque da página atual, abas sem funções autorizadas omitidas e compatibilidade da antiga aba Diagnóstico preservada.",
       "falta": "",
       "fontes": [
         "listing_catalog.py",
@@ -920,7 +920,7 @@
       ],
       "numero_original": null,
       "prioridade": 100,
-      "atualizado_em": "2026-11-19"
+      "atualizado_em": "2026-11-25"
     },
     {
       "id": "mapa-estados",
@@ -2444,6 +2444,17 @@
       "base": "frentes_auditadas",
       "data": "2026-11-25",
       "resumo": "Reativação individual com recibos persistentes, recuperação de reenvios e histórico oficial de infrações; fechamento da conferência de consumo diário na Central Ads.",
+      "contagens": {
+        "concluida": 28,
+        "parcial": 16,
+        "pendente": 1
+      },
+      "total": 45
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-25",
+      "resumo": "Navegação do anúncio reorganizada por assunto, com seis grupos e funções compactas. Contagens de conclusão preservadas.",
       "contagens": {
         "concluida": 28,
         "parcial": 16,

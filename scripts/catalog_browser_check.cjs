@@ -61,11 +61,11 @@ const {chromium}=require('playwright');
     await page.setContent(fs.readFileSync('visual-qa/catalog-price-sort.html','utf8'));
     assert.deepEqual(await page.locator('.catalog-price').allTextContents(),['R$ 100,00','R$ 80,00']);
     assert.equal(await page.locator('select[name=ordem]').inputValue(),'preco');
-    for(const group of ['desempenho','editar','preco-estoque','diagnostico','historico']) {
+    for(const group of ['desempenho','editar','preco-estoque','estoque','atendimento','historico']) {
       for(const width of [1440,390,320]) {
         await page.setViewportSize({width,height:900});
         await page.setContent(fs.readFileSync('visual-qa/listing-workspace-'+group+'.html','utf8'));
-        assert.equal(await page.locator('.listing-workspace nav a').count(),5);
+        assert.equal(await page.locator('.listing-workspace nav a').count(),6);
         assert.equal(await page.locator('.listing-workspace nav a[aria-current]').getAttribute('href'),
           '/anuncios/1/MLB100?aba='+group);
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));

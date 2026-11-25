@@ -22,6 +22,18 @@ class ListingWorkspaceTests(unittest.TestCase):
         self.assertNotIn('Metas de vendas</a>', html)
         self.assertEqual(navigation(7, '../invalid', '/', True), '')
 
+    def test_functions_have_one_group_and_clear_subjects(self):
+        from listing_workspace import links
+        paths = [path for _, _, actions in GROUPS for path, _, _ in actions]
+        self.assertEqual(len(paths), 24)
+        self.assertEqual(len(set(paths)), 24)
+        self.assertTrue(any('perguntas' in p for p, _ in links('atendimento', 7, 'MLB123', True)))
+        self.assertFalse(any('perguntas' in p for p, _ in links('editar', 7, 'MLB123', True)))
+        self.assertFalse(any('/metas' in p for p, _ in links('preco-estoque', 7, 'MLB123', True)))
+        html = navigation(7, 'MLB123', '/diagnostico/7/MLB123', False)
+        self.assertNotIn('?aba=atendimento', html)
+        self.assertEqual(html.count('>MLB123<'), 1)
+
     def test_entry_checks_store_ownership_and_tab(self):
         app = Flask(__name__)
         app.secret_key = 'test'
@@ -36,5 +48,10 @@ class ListingWorkspaceTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('Histórico de alterações', response.text)
         self.assertEqual(query.call_args.args[2], (7, 'MLB123'))
+        with client.session_transaction() as sess:
+            sess['tipo'] = 'admin'
+        legacy = client.get('/anuncios/7/MLB123?aba=diagnostico')
+        self.assertEqual(legacy.status_code, 200)
+        self.assertIn('Conteúdo e ficha técnica', legacy.text)
         query.return_value = []
         self.assertEqual(client.get('/anuncios/7/MLB999').status_code, 404)
