@@ -262,14 +262,14 @@ def _daily_chart(report, key="daily", label="Faturamento", money=True):
     series=[current.get(key,[None]*len(current['days'])),previous.get(key,[None]*len(previous['days']))]
     today_partial=report.get('today_partial') if key=='daily' else None
     if today_partial:
-        today,value=today_partial
+        today,partial_value=today_partial
         days=[*days,today]
-        series=[[*series[0],value],[*series[1],None]]
+        series=[[*series[0],partial_value],[*series[1],None]]
     valid=[float(value) for values in series for value in values if value is not None]
     out=("<section class='card mgmt-chart'><div class='mgmt-chart-header'><h2>Evolução de "+escape(label.lower())+"</h2>"
          "<div class='mgmt-chart-legend'><span>Período atual</span><span>Período anterior</span></div></div>")
     if today_partial:
-        note='Hoje (parcial) · '+fmt(value,money) if value is not None else 'Hoje (parcial) · aguardando dados verificados'
+        note='Hoje (parcial) · '+fmt(partial_value,money) if partial_value is not None else 'Hoje (parcial) · aguardando dados verificados'
         out+="<p class='muted'>"+escape(note)+"</p>"
     if not valid:
         return out+"<div class='mgmt-chart-empty'>O gráfico aparece quando há dias de vendas verificados.</div></section>"
@@ -313,7 +313,7 @@ def _daily_chart(report, key="daily", label="Faturamento", money=True):
     for index,day in enumerate(current['days']):
         out+='<tr><td>'+escape(_chart_date(day))+'</td><td>'+escape(fmt(series[0][index],money))+'</td><td>'+escape(_chart_date(previous['days'][index]))+'</td><td>'+escape(fmt(series[1][index],money))+'</td></tr>'
     if today_partial:
-        out+='<tr><td>'+escape(_chart_date(today))+' (parcial)</td><td>'+escape(fmt(value,money))+'</td><td>—</td><td>—</td></tr>'
+        out+='<tr><td>'+escape(_chart_date(today))+' (parcial)</td><td>'+escape(fmt(partial_value,money))+'</td><td>—</td><td>—</td></tr>'
     return out+'</tbody></table></div></details></section>'
 
 
