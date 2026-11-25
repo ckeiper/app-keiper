@@ -151,6 +151,15 @@ body:has(.mgmt-dashboard) .top{background:#0a172a;border-bottom:1px solid #233b5
 .mgmt-ads-strip{background:#11243a;border-color:#2a435f}.mgmt-dashboard .mgmt-ads-strip .stat{background:transparent}.mgmt-ads-strip .stat+.stat{border-left-color:#304963!important}
 .mgmt-ads-strip .mgmt-tone-teal .num{color:#82e4c8}.mgmt-ads-strip .mgmt-tone-amber .num{color:#ffd394}.mgmt-ads-strip .mgmt-tone-blue .num{color:#a6d5ff}
 .mgmt-chart-legend,.mgmt-chart-x,.mgmt-chart-y{color:#b0c4d8}.mgmt-chart svg line{stroke:#304860}.mgmt-chart-empty{border-color:#3d5872;color:#b4c8dc}
+.mgmt-sparkline{display:block;width:100%;height:32px;margin-top:9px;color:#70e0c2;fill:currentColor}
+.mgmt-tone-teal .mgmt-sparkline{color:#b7a7ff}.mgmt-tone-amber .mgmt-sparkline{color:#88c7ff}
+.mgmt-spark-stroke{fill:none;stroke:currentColor;stroke-width:1.7;vector-effect:non-scaling-stroke}
+.mgmt-spark-area{fill:currentColor;fill-opacity:.13}
+.mgmt-chart-interaction{position:relative;cursor:crosshair;outline-offset:4px}
+.mgmt-chart-guide{position:absolute;inset:0 auto 0 0;border-left:1px dashed #8eabc8;pointer-events:none}
+.mgmt-chart-tooltip{position:absolute;top:6px;left:0;box-sizing:border-box;width:max-content;max-width:100%;padding:8px 10px;border:1px solid #526f8e;border-radius:8px;background:#102339;color:#f0f7ff;font-size:12px;line-height:1.45;pointer-events:none;z-index:1}
+.mgmt-chart-tooltip span{display:block}
+.mgmt-chart-interaction [hidden]{display:none!important}
 .mgmt-chart-switch button{background:#122941;border-color:#35536e;color:#d4e5f6}.mgmt-chart-switch button[aria-pressed=true]{background:#246ea9;border-color:#67baff;color:#fff}
 .mgmt-preview-card,.mgmt-preview-card.mgmt-preview-high{background:#142b42;border-color:#35536d}.mgmt-preview-card.mgmt-preview-high{border-color:#ad745b}.mgmt-preview-card h3{color:#f2f7ff}.mgmt-preview-card p,.mgmt-preview-title{color:#bacbdd}.mgmt-preview-card a,.mgmt-section-title>a{color:#83caff}.mgmt-preview-label{color:#f2c18e}
 .mgmt-preview-card[href]{display:block;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s}.mgmt-preview-card[href]:hover,.mgmt-preview-card[href]:focus-visible{border-color:#82caff;transform:translateY(-2px);outline:0}.mgmt-preview-action{color:#8ed0ff;font-size:11px;font-weight:700}
@@ -198,7 +207,7 @@ def _sparkline(values):
         strokes.append(f"<path class='mgmt-spark-stroke' d='{path}'/>")
         if len(points) > 1:
             areas.append(f"<path class='mgmt-spark-area' d='{path} L{last:.2f},28 L{first:.2f},28 Z'/>")
-    return ("<svg class='mgmt-sparkline' style='display:none' viewBox='0 0 240 28' "
+    return ("<svg class='mgmt-sparkline' viewBox='0 0 240 28' "
             "preserveAspectRatio='none' aria-hidden='true'>"
             + ''.join(areas + strokes + dots) + "</svg>")
 
@@ -243,20 +252,24 @@ def tabs(cid,args,count,selected):
     return out+'</nav>'
 
 
+def _chart_date(day):
+    return f'{day[8:10]}/{day[5:7]}'
+
+
 def _daily_chart(report, key="daily", label="Faturamento", money=True):
     current,previous=report['current'],report['previous']
     days=current['days']
     series=[current.get(key,[None]*len(current['days'])),previous.get(key,[None]*len(previous['days']))]
     today_partial=report.get('today_partial') if key=='daily' else None
     if today_partial:
-        today,value=today_partial
+        today,partial_value=today_partial
         days=[*days,today]
-        series=[[*series[0],value],[*series[1],None]]
+        series=[[*series[0],partial_value],[*series[1],None]]
     valid=[float(value) for values in series for value in values if value is not None]
     out=("<section class='card mgmt-chart'><div class='mgmt-chart-header'><h2>Evolução de "+escape(label.lower())+"</h2>"
          "<div class='mgmt-chart-legend'><span>Período atual</span><span>Período anterior</span></div></div>")
     if today_partial:
-        note='Hoje (parcial) · '+fmt(value,money) if value is not None else 'Hoje (parcial) · aguardando dados verificados'
+        note='Hoje (parcial) · '+fmt(partial_value,money) if partial_value is not None else 'Hoje (parcial) · aguardando dados verificados'
         out+="<p class='muted'>"+escape(note)+"</p>"
     if not valid:
         return out+"<div class='mgmt-chart-empty'>O gráfico aparece quando há dias de vendas verificados.</div></section>"
@@ -266,7 +279,7 @@ def _daily_chart(report, key="daily", label="Faturamento", money=True):
     for level in (1,.75,.5,.25,0):
         extra = " class='mgmt-light-tick' style='display:none'" if level in (.75,.25) else ''
         out+=f"<span{extra}>"+escape(fmt(ceiling*level,money))+"</span>"
-    out+="</div><div class='mgmt-chart-plot'><svg viewBox='0 0 700 150' preserveAspectRatio='none' role='img' aria-label='Valores diários dos períodos comparados; lacunas são dias sem dados'>"
+    out+="</div><div class='mgmt-chart-plot'><div class='mgmt-chart-interaction'><svg viewBox='0 0 700 150' preserveAspectRatio='none' role='img' aria-label='Valores diários dos períodos comparados; lacunas são dias sem dados'>"
     for level in (0,.25,.5,.75,1):
         y=height*(1-level)
         extra = " class='mgmt-light-tick' style='display:none'" if level in (.75,.25) else ''
@@ -283,22 +296,24 @@ def _daily_chart(report, key="daily", label="Faturamento", money=True):
             x=(index/max(1,len(values)-1))*width
             y=height*(1-float(value)/ceiling)
             segment.append(('M' if not segment else 'L')+f'{x:.2f},{y:.2f}')
-            out+="<circle cx='"+f'{x:.2f}'+"' cy='"+f'{y:.2f}'+"' r='2' fill='"+color+"'><title>"+escape(fmt(value,money))+"</title></circle>"
+            out+="<circle cx='"+f'{x:.2f}'+"' cy='"+f'{y:.2f}'+"' r='2' fill='"+color+"'/>"
         if segment:
             out+=_chart_segment(segment,color,height)
         out+="</g>"
-    out+="</svg><div class='mgmt-chart-x'>"
+    out+=("</svg><div class='mgmt-chart-guide' aria-hidden='true' hidden></div>"
+          "<div class='mgmt-chart-tooltip' role='status' hidden><span></span><span></span></div>"
+          "</div><div class='mgmt-chart-x'>")
     for index,day in enumerate(days):
         endpoint = index in (0,len(days)-1)
         if not endpoint and len(days) > 8:
             continue
         extra = " class='mgmt-chart-date' style='display:none'" if not endpoint else ''
-        out+=f"<span{extra}>"+escape(day[8:10]+'/'+day[5:7])+"</span>"
+        out+=f"<span{extra}>"+escape(_chart_date(day))+"</span>"
     out+="</div></div></div><details><summary>Ver valores e datas comparados</summary><div class='mgmt-scroll'><table class='mgmt-table'><thead><tr><th>Data atual</th><th>Valor atual</th><th>Data anterior</th><th>Valor anterior</th></tr></thead><tbody>"
     for index,day in enumerate(current['days']):
-        out+='<tr><td>'+escape(day)+'</td><td>'+escape(fmt(series[0][index],money))+'</td><td>'+escape(previous['days'][index])+'</td><td>'+escape(fmt(series[1][index],money))+'</td></tr>'
+        out+='<tr><td>'+escape(_chart_date(day))+'</td><td>'+escape(fmt(series[0][index],money))+'</td><td>'+escape(_chart_date(previous['days'][index]))+'</td><td>'+escape(fmt(series[1][index],money))+'</td></tr>'
     if today_partial:
-        out+='<tr><td>'+escape(today)+' (parcial)</td><td>'+escape(fmt(value,money))+'</td><td>—</td><td>—</td></tr>'
+        out+='<tr><td>'+escape(_chart_date(today))+' (parcial)</td><td>'+escape(fmt(partial_value,money))+'</td><td>—</td><td>—</td></tr>'
     return out+'</tbody></table></div></details></section>'
 
 
@@ -350,6 +365,48 @@ def priorities(cid,report,args):
 
 SCRIPT = """<script>
 (function(){
+  document.querySelectorAll('.mgmt-chart-interaction').forEach(function(plot){
+    var rows=Array.from(plot.closest('.mgmt-chart').querySelectorAll('.mgmt-table tbody tr'));
+    var tooltip=plot.querySelector('.mgmt-chart-tooltip');
+    var guide=plot.querySelector('.mgmt-chart-guide');
+    var lines=tooltip.querySelectorAll('span');
+    var selected=0;
+    plot.tabIndex=0;
+    plot.setAttribute('role','group');
+    plot.setAttribute('aria-label','Valores por dia. Use as setas esquerda e direita para navegar.');
+    function show(index){
+      selected=index;
+      var cells=rows[index].cells;
+      lines[0].textContent='Atual · '+cells[0].textContent+' · '+cells[1].textContent;
+      var hasPreviousDate=cells[2].textContent!=='—';
+      lines[1].hidden=!hasPreviousDate;
+      if(hasPreviousDate)lines[1].textContent='Anterior · '+cells[2].textContent+' · '+cells[3].textContent;
+      tooltip.hidden=false;
+      guide.hidden=false;
+      var x=plot.clientWidth*index/Math.max(1,rows.length-1);
+      guide.style.left=x+'px';
+      tooltip.style.left=Math.max(0,Math.min(plot.clientWidth-tooltip.offsetWidth,x-tooltip.offsetWidth/2))+'px';
+    }
+    function hide(){tooltip.hidden=true;guide.hidden=true;}
+    function showAtPointer(event){
+      var box=plot.getBoundingClientRect();
+      var ratio=Math.max(0,Math.min(1,(event.clientX-box.left)/box.width));
+      var index=Math.round(ratio*(rows.length-1));
+      if(tooltip.hidden||index!==selected)show(index);
+    }
+    plot.addEventListener('pointermove',function(event){if(event.pointerType!=='touch')showAtPointer(event);});
+    plot.addEventListener('pointerleave',function(event){if(event.pointerType!=='touch')hide();});
+    plot.addEventListener('pointerup',function(event){if(event.pointerType==='touch')showAtPointer(event);});
+    plot.addEventListener('focus',function(){show(selected);});
+    plot.addEventListener('blur',hide);
+    plot.addEventListener('keydown',function(event){
+      if(event.key==='Escape'){hide();return;}
+      var next={ArrowLeft:selected-1,ArrowRight:selected+1,Home:0,End:rows.length-1}[event.key];
+      if(next===undefined)return;
+      event.preventDefault();
+      show(Math.max(0,Math.min(rows.length-1,next)));
+    });
+  });
   document.querySelectorAll('[data-chart-choice]').forEach(function(button){button.addEventListener('click',function(){
     document.querySelectorAll('[data-chart-choice]').forEach(function(b){b.setAttribute('aria-pressed',String(b===button));});
     document.querySelectorAll('[data-chart-panel]').forEach(function(p){p.hidden=p.dataset.chartPanel!==button.dataset.chartChoice;});

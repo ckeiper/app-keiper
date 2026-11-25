@@ -176,21 +176,13 @@ html[data-theme=light] body .mgmt-sales-metrics :where(.lab,.num,small) {margin-
 html[data-theme=light] body .mgmt-sales-metrics .lab {font-size:13px!important;line-height:1.35!important}
 html[data-theme=light] body .mgmt-sales-metrics .num {font-size:clamp(22px,2vw,33px)!important;margin-top:4px!important;margin-bottom:4px!important}
 html[data-theme=light] body .mgmt-sales-metrics small {font-size:12px!important;color:var(--kp-subtle)!important}
-html[data-theme=light] body .mgmt-sparkline {
-  display:block!important;
-  width:100%!important;
-  height:32px!important;
-  margin-top:9px!important;
-  color:var(--metric-color)!important;
-  fill:currentColor!important;
+html[data-theme=light] body .mgmt-sparkline {color:var(--metric-color)!important}
+html[data-theme=light] body .mgmt-spark-area {fill-opacity:.08!important}
+html[data-theme=light] body .mgmt-chart-tooltip {
+  color:#172d47!important;
+  background:#fff!important;
+  border-color:#b7cbe5!important;
 }
-html[data-theme=light] body .mgmt-sparkline .mgmt-spark-stroke {
-  stroke:currentColor!important;
-  stroke-width:1.7!important;
-  vector-effect:non-scaling-stroke!important;
-  fill:none!important;
-}
-html[data-theme=light] body .mgmt-sparkline .mgmt-spark-area {fill:currentColor;fill-opacity:.08}
 html[data-theme=light] body .mgmt-chart .mgmt-chart-date {display:inline!important}
 html[data-theme=light] body #mgmt-panel-overview > .muted {font-size:13px!important;margin:10px 6px!important}
 html[data-theme=light] body .mgmt-chart-switch {margin:12px 6px 0!important}

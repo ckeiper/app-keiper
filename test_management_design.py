@@ -39,6 +39,17 @@ class ManagementDesignTests(unittest.TestCase):
         self.assertNotIn('<script>',card)
         self.assertIn('R$ 0,00',metric_card('Faturamento de pedidos pagos','R$ 0,00','Valor confirmado'))
 
+    def test_partial_day_keeps_its_value_and_distinguishes_zero_from_missing(self):
+        report = {
+            'current': {'days': ['2026-12-31', '2027-01-01'], 'daily': [0, None]},
+            'previous': {'days': ['2026-12-29', '2026-12-30'], 'daily': [100, 200]},
+            'today_partial': ('2027-01-02', 72.99),
+        }
+        chart = daily_chart(report)
+        self.assertIn('<td>31/12</td><td>R$ 0,00</td>', chart)
+        self.assertIn('<td>01/01</td><td>Indisponível</td>', chart)
+        self.assertIn('<td>02/01 (parcial)</td><td>R$ 72,99</td>', chart)
+
 
 class ProductTests(unittest.TestCase):
     def test_only_trusted_https_images_are_rendered(self):
