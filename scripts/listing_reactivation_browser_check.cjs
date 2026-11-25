@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');const {chromium}=require('playwright');
 (async()=>{const b=await chromium.launch({headless:true});try{const p=await b.newPage();
-for(const mode of ['paused','active','confirmed','stale','tasks','history','official','unknown','empty','error','moderation','moderation-empty','moderation-error','moderation-partial','account-allowed','account-blocked','account-unknown'])for(const width of [1440,390,320])for(const theme of ['dark','light']){
+for(const mode of ['paused','active','confirmed','stale','tasks','history','official','unknown','empty','error','moderation','moderation-empty','moderation-error','moderation-partial','account-allowed','account-blocked','account-unknown','infractions','infractions-empty','infractions-error'])for(const width of [1440,390,320])for(const theme of ['dark','light']){
  await p.setViewportSize({width,height:900});await p.setContent(fs.readFileSync(`visual-qa/listing-reactivation-${mode}.html`,'utf8'));
  await p.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
  assert.equal(await p.locator('.rr-official button[value=consultar_motivos]').textContent(),'Consultar motivos atuais');
@@ -9,6 +9,17 @@ for(const mode of ['paused','active','confirmed','stale','tasks','history','offi
    assert.ok((await p.locator('.rr-result [role=status]').textContent()).includes('Status confirmado'));
    assert.equal(await p.getByRole('link',{name:'Comparar antes e depois'}).getAttribute('href'),'/anuncios/1/MLB1/acoes?acao=91&origem=reactivation');
  }
+ if(mode==='account-allowed') {
+   assert.equal(await p.locator('.rr-reactivate [name=request_key]').count(),1);
+   assert.ok((await p.locator('.rr-reactivate [name=request_key]').getAttribute('value')).length>=24);
+ }
+ if(mode==='infractions') {
+   assert.ok((await p.locator('.rr-history').textContent()).includes('Confira o preço.'));
+   assert.equal(await p.locator('.rr-history button').count(),2);
+   assert.equal(await p.locator('.rr-history form').last().locator('[name=history_offset]').getAttribute('value'),'20');
+ }
+ if(mode==='infractions-empty')assert.ok((await p.locator('.rr-history').textContent()).includes('Nenhuma infração'));
+ if(mode==='infractions-error')assert.ok((await p.locator('.rr-history').textContent()).includes('Histórico indisponível'));
  if(mode==='official'){assert.ok((await p.locator('.rr-official').textContent()).includes('Falta de estoque'));assert.equal(await p.locator('.rr-official script').count(),0);}
  assert.equal(await p.locator('.rr-official button[value=consultar_moderacao]').textContent(),'Consultar motivos e moderação');
  if(mode==='moderation'){assert.ok((await p.locator('.rr-moderation').textContent()).includes('Confira o preço.'));assert.equal(await p.locator('.rr-moderation script').count(),0);}

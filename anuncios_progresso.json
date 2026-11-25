@@ -854,9 +854,9 @@
       "id": "reativacao",
       "area": "Conteúdo",
       "capacidade": "Reativação de anúncios",
-      "estado": "parcial",
-      "implementado": "Tela dedicada à revisão de reativação por anúncio: status recente e estoque verificado, orientações de conferência de motivo/restrições/oferta, tarefa de elegibilidade com descrição/responsável/prazo explícitos, calendário e histórico das tarefas. Acompanha mudanças de status observadas nas coletas, com datas anterior/detecção e limite explícito de dez eventos. Consulta sob demanda de status e substatus oficiais com conta e propriedade verificadas, códigos desconhecidos preservados e falhas explícitas. Leitura transitória, sem gravar oferta ou tarefa. Consulta opcional da última moderação oficial, após validar conta e propriedade, exibindo motivo, ação sugerida e evidências em texto escapado. Falha da terceira chamada preserva status/substatus. Limites explícitos para registros, mensagens, evidências e textos; códigos e datas originais preservados sem inferir elegibilidade. Permissão oficial de publicação da conta obtida da resposta autenticada já existente, sem novas chamadas. Diferencia booleanos true/false de campos ausentes ou inválidos, preserva códigos oficiais limitados e escapados e mantém a distinção entre permissão da conta e elegibilidade da oferta. Reativação individual com confirmação explícita, verificação da conta e do anúncio antes do envio e confirmação posterior do status. Reativações confirmadas pelo Mercado Livre são registradas no histórico do anúncio com data, hora e vínculo com o administrador que executou a ação; o evento permite comparação de períodos. A confirmação aparece no topo com um atalho para comparar períodos no registro exato da reativação. Os detalhes da coleta ficam no ícone de ajuda. Cada confirmação possui recibo persistente antes do envio ao Mercado Livre. Reenvios da mesma solicitação consultam o status sem repetir o comando e reutilizam o evento de histórico. Uma rejeição na conferência anterior ao envio não gera reativação ao reenviar.",
-      "falta": "Histórico completo de moderações e outras restrições da conta ainda indisponível. A permissão de publicação da conta não confirma elegibilidade da oferta. O fluxo autenticado ainda precisa de validação com uma oferta real.",
+      "estado": "concluida",
+      "implementado": "Tela dedicada à revisão de reativação por anúncio: status recente e estoque verificado, orientações de conferência de motivo/restrições/oferta, tarefa de elegibilidade com descrição/responsável/prazo explícitos, calendário e histórico das tarefas. Acompanha mudanças de status observadas nas coletas, com datas anterior/detecção e limite explícito de dez eventos. Consulta sob demanda de status e substatus oficiais com conta e propriedade verificadas, códigos desconhecidos preservados e falhas explícitas. Leitura transitória, sem gravar oferta ou tarefa. Consulta opcional da última moderação oficial, após validar conta e propriedade, exibindo motivo, ação sugerida e evidências em texto escapado. Falha da terceira chamada preserva status/substatus. Limites explícitos para registros, mensagens, evidências e textos; códigos e datas originais preservados sem inferir elegibilidade. Permissão oficial de publicação da conta obtida da resposta autenticada já existente, sem novas chamadas. Diferencia booleanos true/false de campos ausentes ou inválidos, preserva códigos oficiais limitados e escapados e mantém a distinção entre permissão da conta e elegibilidade da oferta. Reativação individual com confirmação explícita, verificação da conta e do anúncio antes do envio e confirmação posterior do status. Reativações confirmadas pelo Mercado Livre são registradas no histórico do anúncio com data, hora e vínculo com o administrador que executou a ação; o evento permite comparação de períodos. A confirmação aparece no topo com um atalho para comparar períodos no registro exato da reativação. Os detalhes da coleta ficam no ícone de ajuda. Cada confirmação possui recibo persistente antes do envio ao Mercado Livre. Reenvios da mesma solicitação consultam o status sem repetir o comando e reutilizam o evento de histórico. Uma rejeição na conferência anterior ao envio não gera reativação ao reenviar. Histórico oficial de infrações por anúncio com motivo e correção indicada, filtro de vendedor/anúncio, páginas de vinte registros, identificação de respostas parciais e falha independente da leitura de status. Fluxo completo exercitado pela rota com PostgreSQL isolado para confirmação, reenvio, timeout e rejeições.",
+      "falta": "",
       "fontes": [
         "listing_reactivation.py",
         "listing_reactivation_routes.py",
@@ -867,7 +867,8 @@
         "listing_interventions.py",
         "intervention_routes.py",
         "automatic_history.py",
-        "listing_reactivation_requests.py"
+        "listing_reactivation_requests.py",
+        "listing_moderation_history.py"
       ],
       "testes": [
         "test_listing_reactivation.py",
@@ -878,7 +879,8 @@
         "test_listing_account_permission.py",
         "test_listing_reactivation_write.py",
         "test_listing_interventions.py",
-        "test_listing_reactivation_receipts.py"
+        "test_listing_reactivation_receipts.py",
+        "test_listing_moderation_history.py"
       ],
       "prs": [
         363,
@@ -889,7 +891,8 @@
       ],
       "numero_original": null,
       "prioridade": 7,
-      "atualizado_em": "2026-11-25"
+      "atualizado_em": "2026-11-25",
+      "limites": "A conclusão abrange a reativação individual solicitada pelo usuário, conferência de status, permissão de publicação, última moderação e páginas de infrações retornadas pela API. A API exclui publicações removidas por duplicidade. Elegibilidade e aceite são decididos pelo Mercado Livre. Os testes de envio usam respostas simuladas e PostgreSQL isolado, sem reativar ofertas reais como teste."
     },
     {
       "id": "catalogo",
@@ -2440,10 +2443,10 @@
     {
       "base": "frentes_auditadas",
       "data": "2026-11-25",
-      "resumo": "Conferência e fechamento da entrega de consumo diário na Central Ads, com recibo persistente e recuperação de reenvios na reativação.",
+      "resumo": "Reativação individual com recibos persistentes, recuperação de reenvios e histórico oficial de infrações; fechamento da conferência de consumo diário na Central Ads.",
       "contagens": {
-        "concluida": 27,
-        "parcial": 17,
+        "concluida": 28,
+        "parcial": 16,
         "pendente": 1
       },
       "total": 45

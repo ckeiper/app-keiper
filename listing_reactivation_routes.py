@@ -66,13 +66,21 @@ def register_reactivation(app,login_required,can_view,bank,query,execute,shop_pa
                 app.logger.exception('Falha ao registrar reativação confirmada: loja=%s anúncio=%s', cid, item_id)
                 history_id = None
                 message += ' Falha ao salvar o registro no histórico.'
-        elif request.method=='POST' and action in ('consultar_motivos','consultar_moderacao'):
+        elif request.method=='POST' and action in ('consultar_motivos','consultar_moderacao','consultar_historico'):
             from listing_pause_reasons import inspect
+            history_offset = None
+            if action == 'consultar_historico':
+                try:
+                    history_offset = int(request.form.get('history_offset', '0'))
+                    if not 0 <= history_offset <= 2**31-1:
+                        raise ValueError()
+                except ValueError:
+                    return 'Página de histórico inválida.', 400
             with bank() as conn:
                 shops=query(conn,'SELECT * FROM conexoes WHERE id=%s AND status=%s',(cid,'ativa'))
             if not shops or resolve_token is None or request_get is None:
                 return 'Conexão ativa indisponível para consulta.',409
-            official=inspect(resolve_token(shops[0]),shops[0].get('user_id'),item_id,request_get,include_moderation=request.form.get('action')=='consultar_moderacao')
+            official=inspect(resolve_token(shops[0]),shops[0].get('user_id'),item_id,request_get,include_moderation=action=='consultar_moderacao',history_offset=history_offset)
         elif request.method=='POST':
             values=dict(request.form)
             try:
