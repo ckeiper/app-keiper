@@ -855,7 +855,7 @@
       "area": "Conteúdo",
       "capacidade": "Reativação de anúncios",
       "estado": "parcial",
-      "implementado": "Tela dedicada à revisão de reativação por anúncio: status recente e estoque verificado, orientações de conferência de motivo/restrições/oferta, tarefa de elegibilidade com descrição/responsável/prazo explícitos, calendário e histórico das tarefas. Acompanha mudanças de status observadas nas coletas, com datas anterior/detecção e limite explícito de dez eventos. Consulta sob demanda de status e substatus oficiais com conta e propriedade verificadas, códigos desconhecidos preservados e falhas explícitas. Leitura transitória, sem gravar oferta ou tarefa. Consulta opcional da última moderação oficial, após validar conta e propriedade, exibindo motivo, ação sugerida e evidências em texto escapado. Falha da terceira chamada preserva status/substatus. Limites explícitos para registros, mensagens, evidências e textos; códigos e datas originais preservados sem inferir elegibilidade. Permissão oficial de publicação da conta obtida da resposta autenticada já existente, sem novas chamadas. Diferencia booleanos true/false de campos ausentes ou inválidos, preserva códigos oficiais limitados e escapados e mantém a distinção entre permissão da conta e elegibilidade da oferta. Reativação individual com confirmação explícita, verificação da conta e do anúncio antes do envio e confirmação posterior do status. Reativações confirmadas pelo Mercado Livre são registradas no histórico do anúncio com data, hora e vínculo com o administrador que executou a ação; o evento permite comparação de períodos. A confirmação aparece no topo com um atalho para comparar períodos no registro exato da reativação. Os detalhes da coleta ficam no ícone de ajuda.",
+      "implementado": "Tela dedicada à revisão de reativação por anúncio: status recente e estoque verificado, orientações de conferência de motivo/restrições/oferta, tarefa de elegibilidade com descrição/responsável/prazo explícitos, calendário e histórico das tarefas. Acompanha mudanças de status observadas nas coletas, com datas anterior/detecção e limite explícito de dez eventos. Consulta sob demanda de status e substatus oficiais com conta e propriedade verificadas, códigos desconhecidos preservados e falhas explícitas. Leitura transitória, sem gravar oferta ou tarefa. Consulta opcional da última moderação oficial, após validar conta e propriedade, exibindo motivo, ação sugerida e evidências em texto escapado. Falha da terceira chamada preserva status/substatus. Limites explícitos para registros, mensagens, evidências e textos; códigos e datas originais preservados sem inferir elegibilidade. Permissão oficial de publicação da conta obtida da resposta autenticada já existente, sem novas chamadas. Diferencia booleanos true/false de campos ausentes ou inválidos, preserva códigos oficiais limitados e escapados e mantém a distinção entre permissão da conta e elegibilidade da oferta. Reativação individual com confirmação explícita, verificação da conta e do anúncio antes do envio e confirmação posterior do status. Reativações confirmadas pelo Mercado Livre são registradas no histórico do anúncio com data, hora e vínculo com o administrador que executou a ação; o evento permite comparação de períodos. A confirmação aparece no topo com um atalho para comparar períodos no registro exato da reativação. Os detalhes da coleta ficam no ícone de ajuda. Cada confirmação possui recibo persistente antes do envio ao Mercado Livre. Reenvios da mesma solicitação consultam o status sem repetir o comando e reutilizam o evento de histórico. Uma rejeição na conferência anterior ao envio não gera reativação ao reenviar.",
       "falta": "Histórico completo de moderações e outras restrições da conta ainda indisponível. A permissão de publicação da conta não confirma elegibilidade da oferta. O fluxo autenticado ainda precisa de validação com uma oferta real.",
       "fontes": [
         "listing_reactivation.py",
@@ -866,7 +866,8 @@
         "listing_reactivation_write.py",
         "listing_interventions.py",
         "intervention_routes.py",
-        "automatic_history.py"
+        "automatic_history.py",
+        "listing_reactivation_requests.py"
       ],
       "testes": [
         "test_listing_reactivation.py",
@@ -876,7 +877,8 @@
         "test_listing_moderation.py",
         "test_listing_account_permission.py",
         "test_listing_reactivation_write.py",
-        "test_listing_interventions.py"
+        "test_listing_interventions.py",
+        "test_listing_reactivation_receipts.py"
       ],
       "prs": [
         363,
@@ -887,7 +889,7 @@
       ],
       "numero_original": null,
       "prioridade": 7,
-      "atualizado_em": "2026-11-12"
+      "atualizado_em": "2026-11-25"
     },
     {
       "id": "catalogo",
@@ -1258,9 +1260,9 @@
       "id": "central-ads-consumo-diario",
       "area": "Monitoramento",
       "capacidade": "Consumo diário e evolução das campanhas na Central de Ads",
-      "estado": "em_andamento",
-      "implementado": "Barra de consumo diário com destaque acima de 75%, ordenação pelo percentual e gráfico com datas dia/mês e leitura de vendas e investimento por dia via mouse e teclado.",
-      "falta": "Confirmar os checks da revisão final e a publicação no Render.",
+      "estado": "concluida",
+      "implementado": "Barra de consumo diário com destaque acima de 75%, ordenação pelo percentual e gráfico com datas dia/mês e leitura de vendas e investimento por dia via mouse e teclado. Código de consumo e evolução conferido em ads_central.py, com cobertura em test_ads_central.py. A publicação que contém essa implementação foi confirmada como live no Render no commit 35e28e79fe0510ef894cad077fb5e99b0232d3eb, deploy dep-dc3in90473hc73fu78i0 em 25/11/2026. Esta revisão repete os checks dessa capacidade.",
+      "falta": "",
       "fontes": [
         "ads_central.py"
       ],
@@ -1272,7 +1274,7 @@
       ],
       "numero_original": null,
       "prioridade": 9,
-      "atualizado_em": "2026-11-13"
+      "atualizado_em": "2026-11-25"
     }
   ],
   "meta_original": 90,
@@ -2432,6 +2434,17 @@
         "parcial": 17,
         "pendente": 1,
         "em_andamento": 1
+      },
+      "total": 45
+    },
+    {
+      "base": "frentes_auditadas",
+      "data": "2026-11-25",
+      "resumo": "Conferência e fechamento da entrega de consumo diário na Central Ads, com recibo persistente e recuperação de reenvios na reativação.",
+      "contagens": {
+        "concluida": 27,
+        "parcial": 17,
+        "pendente": 1
       },
       "total": 45
     }

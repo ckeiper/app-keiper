@@ -60,7 +60,7 @@ class ReactivationWriteTests(unittest.TestCase):
         get = Mock(side_effect=[response({'id': 7}), item(), item('active')])
         put = Mock(return_value=response({}))
         data = [[fixture()['shop']], [{'n': 0}], [], []]
-        query = Mock(side_effect=data + data + [[{'user_id': 7}], [{'id': 91}]])
+        query = Mock(side_effect=data + data + [[{'user_id': 7}], [{'request_key': 'x'*32}], [{'request_key': 'x'*32}], [dict(created_by=1,created_at=1,history_id=None)], [{'id': 91}], [{'history_id': 91}]])
         execute = Mock()
         register_reactivation(
             app, lambda f: f, lambda cid: cid == 7, lambda: contextlib.nullcontext(None),
@@ -71,7 +71,7 @@ class ReactivationWriteTests(unittest.TestCase):
         with client.session_transaction() as session:
             session.update(tipo='admin', usuario_id=1, _csrf='csrf')
         path = '/anuncios/7/MLB1/reativacao'
-        form = {'_csrf': 'csrf', 'action': 'reativar_anuncio'}
+        form = {'_csrf': 'csrf', 'action': 'reativar_anuncio', 'request_key': 'x'*32}
         self.assertEqual(client.post(path, data=form).status_code, 400)
         put.assert_not_called()
         result = client.post(path, data={**form, 'confirmar_reativacao': 'sim'})
@@ -80,7 +80,8 @@ class ReactivationWriteTests(unittest.TestCase):
         put.assert_called_once()
         self.assertIn('/acoes?acao=91&amp;origem=reactivation', result.text)
         self.assertNotIn('Status observado: Pausado', result.text)
-        sql, params = query.call_args.args[1:]
+        insert = next(call for call in query.call_args_list if "INSERT INTO listing_interventions" in call.args[1])
+        sql, params = insert.args[1:]
         self.assertIn('INSERT INTO listing_interventions', sql)
         self.assertEqual(params[:2], (7, 'MLB1'))
         self.assertEqual(params[-2], 1)
@@ -90,7 +91,7 @@ class ReactivationWriteTests(unittest.TestCase):
         app.secret_key = 'test'
         execute = Mock()
         get = Mock(side_effect=[response({'id': 7}), item(), item()])
-        query = Mock(side_effect=[[fixture()['shop']], [{'n': 0}], [], [], [{'user_id': 7}]])
+        query = Mock(side_effect=[[fixture()['shop']], [{'n': 0}], [], [], [{'user_id': 7}], [{'request_key': 'x'*32}], [{'request_key': 'x'*32}]])
         register_reactivation(
             app, lambda f: f, lambda cid: cid == 7, lambda: contextlib.nullcontext(None),
             query, execute, lambda *args: args[-1], resolve_token=lambda shop: 'test-token',
@@ -100,8 +101,17 @@ class ReactivationWriteTests(unittest.TestCase):
         with client.session_transaction() as session:
             session.update(tipo='admin', usuario_id=1, _csrf='csrf')
         result = client.post('/anuncios/7/MLB1/reativacao', data={
-            '_csrf': 'csrf', 'action': 'reativar_anuncio', 'confirmar_reativacao': 'sim',
+            '_csrf': 'csrf', 'action': 'reativar_anuncio', 'confirmar_reativacao': 'sim', 'request_key': 'x'*32,
         })
         self.assertEqual(result.status_code, 409)
-        self.assertFalse(any('INSERT' in call.args[1] for call in query.call_args_list))
+        self.assertFalse(any('INSERT INTO listing_interventions' in call.args[1] for call in query.call_args_list))
         self.assertNotIn('Comparar antes e depois', result.text)
+
+    def test_repeated_request_only_verifies_current_status(self):
+        for current_status, expected in [('active', 200), ('paused', 409)]:
+            with self.subTest(status=current_status):
+                get = Mock(side_effect=[response({'id': 7}), item(current_status)])
+                put = Mock()
+                result = reactivate('test-token', 7, 'MLB1', get, put, allow_write=False)
+                self.assertEqual(result[1], expected)
+                put.assert_not_called()

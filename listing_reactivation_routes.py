@@ -5,7 +5,7 @@ import time
 import psycopg2
 from flask import request,session,redirect
 from sales_metrics import reporting_today
-from listing_interventions import record_reactivation
+from listing_reactivation_requests import validate_key, reserve, confirm, mark_sent, was_sent
 from listing_tasks import validate,create
 from listing_reactivation import TITLE,load,render
 
@@ -31,6 +31,10 @@ def register_reactivation(app,login_required,can_view,bank,query,execute,shop_pa
                 return 'Confirme a reativação do anúncio antes de enviar.', 400
             if not (resolve_token and request_get and request_put):
                 return 'Reativação indisponível nesta conexão.', 409
+            try:
+                request_key = validate_key(request.form.get('request_key'))
+            except ValueError as exc:
+                return str(exc), 400
             from listing_reactivation_write import reactivate
             status = None
             try:
@@ -41,16 +45,20 @@ def register_reactivation(app,login_required,can_view,bank,query,execute,shop_pa
                                   (cid, 'ativa'))
                     if not shops:
                         return 'Conexão ativa indisponível para reativação.', 409
-                    message, status = reactivate(
-                        resolve_token(shops[0]), shops[0].get('user_id'), item_id,
-                        request_get, request_put,
+                    first_submission = reserve(
+                        bank, query, cid, item_id, session['usuario_id'], request_key,
                     )
+                    if first_submission or was_sent(conn, query, cid, item_id, request_key):
+                        message, status = reactivate(
+                            resolve_token(shops[0]), shops[0].get('user_id'), item_id,
+                            request_get, request_put, allow_write=first_submission,
+                            before_write=lambda: mark_sent(bank, query, cid, item_id, request_key),
+                        )
+                    else:
+                        message, status = 'Esta solicitação já foi conferida. Consulte os motivos atuais para fazer uma nova solicitação.', 409
                     if status == 200:
                         confirmed = True
-                        history_id = record_reactivation(
-                            conn, query, cid, item_id, session['usuario_id'],
-                            int(time.time()), secrets.token_urlsafe(24),
-                        )
+                        history_id = confirm(conn, query, cid, item_id, request_key)
             except psycopg2.Error:
                 if status != 200:
                     raise
