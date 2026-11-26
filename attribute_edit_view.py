@@ -64,8 +64,13 @@ def render(cid,item,title,csrf,key,plan=None,message='',history=None,manual_form
             if valid_plan(result['successor_plan']):out+='<a class="ae-history" href="'+path+'/completar-ficha?plan='+esc(result['successor_plan'])+'">Continuar revisão atualizada</a>'
         if state=='ready' and not data.get('blocked') and not outdated and not expired and data.get('manual_fields'):
             from attribute_manual_view import render as manual_view,compact
+            corrections=recovery.get('corrections',[]) if isinstance(recovery,dict) else []
+            invalid_ids={entry['id'] for entry in corrections}
+            if manual_form is None and corrections:
+                from werkzeug.datastructures import MultiDict
+                manual_form=MultiDict([(key,entry[field]) for entry in corrections for key,field in [('manual_field','id'),('manual_value','value'),('manual_note','note')]])
             if pending and manual_form is None:out+=compact(pending,csrf,plan['id'],key)
-            out+=manual_view(data['manual_fields'],csrf,plan['id'],key,manual_form)
+            out+=manual_view(data['manual_fields'],csrf,plan['id'],key,manual_form,invalid_ids=invalid_ids)
         if state in ('sending','uncertain'):
             out+='<form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="verify"><input type="hidden" name="plan" value="'+esc(plan['id'])+'"><button>Confirmar envio por nova leitura</button></form><details><summary>Conferência manual</summary><form method="post"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="close"><input type="hidden" name="plan" value="'+esc(plan['id'])+'"><label><input type="checkbox" name="manual_checked" value="1" required> Já conferi os campos no Mercado Livre e quero encerrar este envio sem reenviá-lo.</label><button>Encerrar após conferência manual</button></form></details>'
         from attribute_readback import render as readback_view
@@ -89,3 +94,5 @@ STYLE+='''<style>.attribute-editor .ae-compact{display:grid;grid-template-column
 STYLE+='''<style>.attribute-editor .ae-apply:not(:has(.ae-proposal)){display:none}</style>'''
 
 STYLE+='''<style>.attribute-editor .ae-compact{display:block}.attribute-editor .ae-field-group{margin:0 0 18px}.attribute-editor .ae-field-group:last-child{margin-bottom:0}.attribute-editor .ae-sheet-title,.attribute-editor .ae-field-group h4{font-size:15px;margin:0 0 12px}.attribute-editor .ae-compact-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:10px;min-width:0}.attribute-editor .ae-compact .ae-compact-row button{margin:0}@media(max-width:600px){.attribute-editor .ae-compact .ae-compact-row button{align-self:end;margin:0}}</style>'''
+
+STYLE+='''<style>.attribute-editor .ae-manual input[aria-invalid=true]{border:2px solid #f19c9c!important}@layer keiper-appearance{html[data-theme=light] body .attribute-editor .ae-manual input[aria-invalid=true]{border-color:#b4232b!important}}</style>'''
