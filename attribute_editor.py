@@ -44,7 +44,7 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,
             shops=query(conn,'''SELECT c.*,a.titulo FROM conexoes c JOIN anuncios a ON a.conexao_id=c.id
                 WHERE c.id=%s AND a.item_id=%s''',(cid,item_id))
         if not shops:return 'Anúncio não encontrado nesta loja.',404
-        shop=shops[0];plan=None;message='';plan_id=request.args.get('plan')
+        shop=shops[0];plan=None;message='';manual_errors=();plan_id=request.args.get('plan')
         if request.method=='POST':
             action=request.form.get('action');plan_id=request.form.get('plan')
             try:
@@ -94,7 +94,10 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,
                             if plan['state'] not in ('sending','uncertain') or request.form.get('manual_checked')!='1':raise ValueError('Confirme a conferência manual antes de encerrar.')
                             persist('closed',dict(message='Encerrado pelo administrador após conferência manual. Nenhuma atualização foi reenviada.'))
                     return redirect(request.path+'?plan='+str(plan['id']),303)
-            except (ValueError,ContentUnavailable) as exc:message=str(exc)
+            except (ValueError,ContentUnavailable) as exc:
+                from attribute_manual import FieldValidationError
+                message=str(exc)
+                if isinstance(exc,FieldValidationError):manual_errors=exc.field_ids
             except psycopg2.Error:message='Não foi possível registrar a operação com segurança. Confira o histórico antes de continuar.'
         if plan_id and not valid_plan(plan_id):return 'Análise inválida.',400
         if valid_plan(plan_id):
@@ -104,4 +107,4 @@ def register(app,login_required,can_view,bank,query,shop_page,resolve_token,get,
         with bank() as conn:history=query(conn,'''SELECT id,state,created_at FROM listing_attribute_plans
             WHERE conexao_id=%s AND item_id=%s AND created_by=%s ORDER BY created_at DESC,id DESC LIMIT 10''',(cid,item_id,actor))
         for row in history:row['stamp']=datetime.fromtimestamp(row['created_at'],ZoneInfo('America/Sao_Paulo')).strftime('%d/%m %H:%M')
-        return shop_page('Completar ficha técnica',cid,shop['cliente'],'anuncios',render(cid,item_id,shop['titulo'],csrf,secrets.token_urlsafe(24),plan,message,history,request.form if request.method=='POST' else None),refresh=False)
+        return shop_page('Completar ficha técnica',cid,shop['cliente'],'anuncios',render(cid,item_id,shop['titulo'],csrf,secrets.token_urlsafe(24),plan,message,history,request.form if request.method=='POST' else None,manual_errors=manual_errors),refresh=False)

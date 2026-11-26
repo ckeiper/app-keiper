@@ -10,7 +10,7 @@ from content_technical_view import render as inventory
 STATES={'reading':'Análise em andamento','ready':'Pronta para revisão','sending':'Envio em andamento ou sem resposta final','confirmed':'Gravação confirmada','uncertain':'Gravação não confirmada','rejected':'Envio não realizado','stale':'Nova leitura necessária','closed':'Encerrada após conferência manual'}
 
 
-def render(cid,item,title,csrf,key,plan=None,message='',history=None,manual_form=None):
+def render(cid,item,title,csrf,key,plan=None,message='',history=None,manual_form=None,manual_errors=()):
     esc=lambda v:escape(str(v),quote=True)
     path='/anuncios/'+str(cid)+'/'+esc(item)
     out=CSS+'<main class="pf attribute-editor"><header class="pf-hero"><h2>Completar ficha técnica</h2><p>'+esc(title or item)+'</p></header>'
@@ -65,7 +65,7 @@ def render(cid,item,title,csrf,key,plan=None,message='',history=None,manual_form
         if state=='ready' and not data.get('blocked') and not outdated and not expired and data.get('manual_fields'):
             from attribute_manual_view import render as manual_view,compact
             corrections=recovery.get('corrections',[]) if isinstance(recovery,dict) else []
-            invalid_ids={entry['id'] for entry in corrections}
+            invalid_ids={entry['id'] for entry in corrections} | set(manual_errors)
             if manual_form is None and corrections:
                 from werkzeug.datastructures import MultiDict
                 manual_form=MultiDict([(key,entry[field]) for entry in corrections for key,field in [('manual_field','id'),('manual_value','value'),('manual_note','note')]])
