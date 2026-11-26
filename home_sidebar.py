@@ -14,4 +14,6 @@ def render_home_sidebar(admin=False,active='home'):
         management += "<a href='/evolucao-anuncios'"+(" aria-current='page'" if active=='progress' else '')+" title='Evolução de Anúncios'><span aria-hidden='true'>▤</span><span class='ks-label'>Evolução de Anúncios</span></a>"
     from navigation_shell import reports_navigation, shell
     navigation = "<a href='/central-ads' title='Central de Ads'><span aria-hidden='true'>▥</span><span class='ks-label'>Central de Ads</span></a>" + overview + "<a href='/painel'"+(" aria-current='page'" if active=='home' else '')+" title='Minhas lojas'><span aria-hidden='true'>⌂</span><span class='ks-label'>Minhas lojas</span></a>" + crm + management
+    navigation += ("<details class='ks-nav-group'><summary><span class='ks-label'>Anúncios</span></summary>"
+                   "<div class='ks-nav-children'><a href='/otimizador-titulos'>Otimizador de Títulos</a></div></details>")
     return shell(navigation + reports_navigation('/relatorios', active == 'reports'), security)
