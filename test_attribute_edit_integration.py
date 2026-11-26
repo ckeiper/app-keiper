@@ -152,7 +152,7 @@ class AttributeStoreIntegration(unittest.TestCase):
   self.assertEqual(c.post(path,data=dict(manual,manual_key='p'*24)).status_code,200);self.assertEqual(reader.call_count,reads)
   # An invalid official value leaves the current revision available and retains input.
   invalid=dict(manual,plan=child_id,manual_key='q'*24,manual_value='x'*101)
-  failed=c.post(path,data=invalid);self.assertEqual(failed.status_code,200);self.assertIn('Valor incompatível',failed.text)
+  failed=c.post(path,data=invalid);self.assertEqual(failed.status_code,200);self.assertIn('Confira o campo destacado',failed.text);self.assertIn('aria-invalid="true"',failed.text)
   self.assertIn('value="'+'x'*101+'"',failed.text)
   writer.side_effect=put
   self.assertEqual(c.post(path,data=dict(_csrf='csrf',action='apply',plan=child_id,selected='MATERIAL')).status_code,303)
@@ -184,7 +184,7 @@ class AttributeStoreIntegration(unittest.TestCase):
   batch_parent=c.post(path,data=dict(_csrf='csrf',action='analyze',analysis_key='t'*24)).headers['Location'].split('plan=')[1]
   batch=MultiDict([('_csrf','csrf'),('action','manual'),('plan',batch_parent),('manual_key','u'*24),('manual_field','MATERIAL'),('manual_value','Aço'),('manual_note','Fonte comum'),('manual_field','v:101:GTIN'),('manual_value','789000001'),('manual_note','Fonte azul'),('manual_field','v:102:GTIN'),('manual_value','x'*101),('manual_note','Fonte preta')])
   before=writer.call_count;reads=reader.call_count
-  failed=c.post(path,data=batch);self.assertEqual(failed.status_code,200);self.assertIn('Valor incompatível',failed.text);self.assertEqual(failed.text.count('class="ae-manual-row"'),3)
+  failed=c.post(path,data=batch);self.assertEqual(failed.status_code,200);self.assertIn('Confira o campo destacado',failed.text);self.assertIn('aria-invalid="true"',failed.text);self.assertEqual(failed.text.count('class="ae-manual-row"'),3)
   self.assertIn('Fonte azul',failed.text);self.assertIn('Fonte preta',failed.text);self.assertEqual(writer.call_count,before)
   with self.bank() as conn:
    self.assertEqual(store.load(conn,self.query,991,self.item,42,batch_parent)['state'],'ready');self.assertIsNone(store.by_key(conn,self.query,991,self.item,42,'u'*24))

@@ -8,7 +8,8 @@ import attribute_edit_store as store
 class FieldValidationError(ValueError):
     def __init__(self, field_ids):
         self.field_ids = tuple(field_ids)
-        super().__init__('Confira os '+str(len(self.field_ids))+' campos destacados. Valores e fontes foram mantidos para correção.')
+        message='Confira o campo destacado.' if len(self.field_ids)==1 else 'Confira os '+str(len(self.field_ids))+' campos destacados.'
+        super().__init__(message+' Valores e fontes foram mantidos para correção.')
 
 
 def add(conn,query,cid,item,actor,parent,form,shop,token,get):
