@@ -15,8 +15,10 @@ const {chromium} = require('playwright');
   assert.match(await page.locator('#title-status').innerText(),/Instale ou atualize/);
   // Controlled extension messages in the local preview, never in production.
   await page.addInitScript(() => {
+   let connected = false;
+   window.addEventListener('load', () => { connected = true; window.postMessage({type:'keiper-title-connected'}, location.origin); });
    window.addEventListener('message',event=> {
-    if(event.data?.type==='keiper-title-ping') window.postMessage({type:'keiper-title-ready',id:event.data.id,ready:true,version:'0.2.0'},location.origin);
+    if(connected && event.data?.type==='keiper-title-ping') window.postMessage({type:'keiper-title-ready',id:event.data.id,ready:true,version:'0.2.0'},location.origin);
     if(event.data?.type==='keiper-title-search') window.postMessage({type:'keiper-title-results',id:event.data.id,records:Array.from({length:35},(_,i)=>({title:'Travesseiro Fibrasca Grafeno Macio Lavável <img src=x onerror=alert(1)>',url:`https://produto.mercadolivre.com.br/MLB-${1000000+i}-produto`})),pages:1,excludedSponsored:2,collectedAt:'2026-11-26T19:00:00Z',query:event.data.query},location.origin);
    });
   });

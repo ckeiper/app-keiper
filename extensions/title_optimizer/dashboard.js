@@ -11,3 +11,6 @@ window.addEventListener('message', async event => {
     }
     window.postMessage({ type: message.type === 'keiper-title-ping' ? 'keiper-title-ready' : 'keiper-title-results', id: message.id, ...result }, location.origin);
 });
+
+// Covers Chrome's document_idle injection happening after the page's first ping.
+window.postMessage({ type: 'keiper-title-connected' }, location.origin);

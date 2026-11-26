@@ -65,6 +65,7 @@ function show() {
     const extra = append(results, 'div', '', 'to-review'); append(extra, 'h4', 'Termos que não couberam no título');
     append(extra, 'p', analysis.overflow.length ? analysis.overflow.join(' · ') : 'Nenhum termo confirmado excedente.');
     append(extra, 'p', policy.message);
+    modelTerms = new Set([...modelTerms].filter(term => analysis.overflow.includes(term)));
     if (policy.state === 'review' && analysis.overflow.length) {
         append(extra, 'p', 'Selecione apenas termos que descrevam o Modelo. Material, tamanho e quantidade podem ter campos próprios.');
         const preview = append(extra, 'p', '');
@@ -103,6 +104,7 @@ form.addEventListener('submit', event => {
 window.addEventListener('message', event => {
     if (event.source !== window || event.origin !== location.origin) return;
     const response = event.data;
+    if (response?.type === 'keiper-title-connected') { window.postMessage({type:'keiper-title-ping', id:pingId}, location.origin); return; }
     if (response?.type === 'keiper-title-ready' && response.id === pingId && response.ready && response.version === '0.2.0') { available = true; extensionStatus.textContent = 'Extensão conectada · Como instalar ou atualizar'; return; }
     if (response?.type !== 'keiper-title-results' || !pending || response.id !== pending.id) return;
     const { timer, input } = pending; clearTimeout(timer); pending = null; submit.disabled = false;
