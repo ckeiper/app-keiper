@@ -39,8 +39,11 @@ class RecoveryTests(TestCase):
   self.assertEqual(call.kwargs['data']['manual_inputs'],[]);self.assertEqual(call.args[5]['recovery']['omitted'],['MATERIAL'])
  def test_new_rules_are_applied_to_retained_data(self):
   f=facts();f['rules']['MATERIAL']['value_max_length']=2
-  with self.assertRaises(ValueError):self.run_recovery(f=f)
-  self.create.assert_not_called()
+  self.run_recovery(f=f)
+  call=self.transition.call_args_list[0]
+  self.assertEqual(call.kwargs['data']['manual_inputs'],[])
+  self.assertEqual(call.args[5]['recovery']['corrections'],parent()['data']['manual_inputs'])
+  self.create.assert_called_once()
  def test_replayed_key_returns_same_child_without_network(self):
   p=parent();p['state']='stale';child=dict(data=dict(recovery_request=dict(parent_plan='parent')))
   with patch('attribute_review_recovery.store.by_key',return_value=child),patch('attribute_review_recovery.gather') as read:
@@ -65,3 +68,27 @@ class RecoveryTests(TestCase):
   p['data']['extractor_version']='old';self.assertTrue(eligible(p))
   p.update(state='stale',result={});self.assertFalse(eligible(p))
   p['result']={'pre_write':True,'successor_plan':'child'};self.assertFalse(eligible(p))
+
+ def test_incompatible_field_does_not_block_valid_declared_fields(self):
+  from test_attribute_completion import definition
+  p=parent();p['data']['manual_inputs'].append(dict(id='WIDTH',value='12 cm',note='Medido'))
+  f=facts(definitions=[definition(value_max_length=2),definition('WIDTH',value_type='number_unit',allowed_units=[dict(id='cm')])],description='')
+  self.run_recovery(p,f)
+  call=self.transition.call_args_list[0]
+  self.assertEqual([e['id'] for e in call.kwargs['data']['manual_inputs']],['WIDTH'])
+  self.assertEqual([e['id'] for e in call.args[5]['recovery']['corrections']],['MATERIAL'])
+  self.assertNotIn('selected',call.kwargs)
+
+ def test_invalid_declaration_is_not_replaced_by_automatic_suggestion(self):
+  from test_attribute_completion import definition
+  p=parent();p['data']['manual_inputs'][0]['value']='Ferro'
+  f=facts(definitions=[definition(value_type='list',values=[dict(id='1',name='Aço')])])
+  self.run_recovery(p,f)
+  data=self.transition.call_args_list[0].kwargs['data']
+  self.assertEqual(data['proposals'],[])
+  self.assertEqual(data['proposal_total'],0)
+ def test_corrupt_declarations_fail_before_creating_review(self):
+  for change in ({'note':'x'*501},{'value':'bad\nvalue'}):
+   p=parent();p['data']['manual_inputs'][0].update(change)
+   with self.assertRaises(ValueError):self.run_recovery(p)
+   self.create.assert_not_called()

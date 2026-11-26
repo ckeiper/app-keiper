@@ -4,7 +4,7 @@ import json
 from contextual_help import tip
 
 
-def render(fields,csrf,plan,key,values=None):
+def render(fields,csrf,plan,key,values=None,invalid_ids=()):
     esc=lambda v:escape(str(v),quote=True)
     def values_for(name):
         if values is None:return []
@@ -30,7 +30,7 @@ def render(fields,csrf,plan,key,values=None):
         selected=codes[i] if i<len(codes) else ''
         # Server-side recovery keeps every submitted row after validation errors.
         choice=options.replace('value="'+esc(selected)+'">','value="'+esc(selected)+'" selected>',1) if selected else options
-        out+='<fieldset class="ae-manual-row"><legend>Campo '+str(i+1)+'</legend>'+filters+'<label>Campo ou variação<select name="manual_field">'+choice+'</select></label><p class="ae-value-help" aria-live="polite"></p><label>Valor'+tip('Valor informado','Use o valor correto do produto. Números com unidade precisam de espaço, por exemplo 10 cm. Campos em branco ficam pendentes. Os valores preenchidos serão validados antes de criar a revisão; adicionar ainda não altera o anúncio.')+'<input list="ae-manual-options-'+str(i)+'" name="manual_value" maxlength="1000" placeholder="Pendente · preencher manualmente" value="'+esc(raw[i] if i<len(raw) else '')+'"><datalist id="ae-manual-options-'+str(i)+'"></datalist></label><label>Fonte ou observação (opcional)<input name="manual_note" maxlength="500" value="'+esc(notes[i] if i<len(notes) else '')+'"></label><button type="button" class="ae-remove-row"'+(' hidden' if count==1 else '')+'>Remover campo '+str(i+1)+'</button></fieldset>'
+        out+='<fieldset class="ae-manual-row"><legend>Campo '+str(i+1)+'</legend>'+filters+'<label>Campo ou variação<select name="manual_field">'+choice+'</select></label><p class="ae-value-help" aria-live="polite"></p><label>Valor'+tip('Valor informado','Use o valor correto do produto. Números com unidade precisam de espaço, por exemplo 10 cm. Campos em branco ficam pendentes. Os valores preenchidos serão validados antes de criar a revisão; adicionar ainda não altera o anúncio.')+'<input'+(' aria-invalid="true"' if selected in invalid_ids else '')+' list="ae-manual-options-'+str(i)+'" name="manual_value" maxlength="1000" placeholder="Pendente · preencher manualmente" value="'+esc(raw[i] if i<len(raw) else '')+'"><datalist id="ae-manual-options-'+str(i)+'"></datalist></label><label>Fonte ou observação (opcional)<input name="manual_note" maxlength="500" value="'+esc(notes[i] if i<len(notes) else '')+'"></label><button type="button" class="ae-remove-row"'+(' hidden' if count==1 else '')+'>Remover campo '+str(i+1)+'</button></fieldset>'
     return out+'</div><p class="ae-batch-count" aria-live="polite">'+str(count)+' de 50 campos neste lote</p><button type="button" class="ae-add-row"'+(' disabled' if count==50 else '')+'>Adicionar outro campo</button><button type="submit">Adicionar à revisão</button></form></details>'
 
 

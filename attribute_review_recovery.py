@@ -2,7 +2,7 @@
 import re
 import time
 from attribute_completion import EXTRACTOR_VERSION
-from attribute_completion import gather,analyze
+from attribute_completion import gather,analyze,value_for
 import attribute_edit_store as store
 
 
@@ -40,14 +40,27 @@ def recover(conn,query,cid,item,actor,parent,key,shop,token,get):
     if not isinstance(entries,list) or not 1<=len(entries)<=50:raise ValueError('Dados declarados não verificáveis.')
     facts=gather(token(),shop['user_id'],item,get)
     if facts['blocked']:raise ValueError(facts['blocked'])
-    current=analyze(facts);available={f['id'] for f in current.get('manual_fields',[])}
-    if any(not isinstance(e,dict) or not isinstance(e.get('id'),str) for e in entries):raise ValueError('Dados declarados inválidos.')
-    retained=[e for e in entries if e['id'] in available]
+    current=analyze(facts);available={f['id']:f for f in current.get('manual_fields',[])}
+    if any(not isinstance(e,dict) or set(e)!={'id','value','note'} or not all(isinstance(e[k],str) for k in ('id','value','note')) or not e['value'].strip() or len(e['value'])>1000 or len(e['note'])>500 or any(ord(c)<32 or ord(c)==127 for c in e['value']+e['note']) for e in entries) or len({e['id'] for e in entries})!=len(entries):raise ValueError('Dados declarados inválidos.')
+    retained=[];corrections=[]
+    for entry in entries:
+        if entry['id'] not in available:
+            continue
+        field=available[entry['id']]
+        rule=facts['rules'].get(field.get('attribute_id',entry['id']),{})
+        if value_for(rule,entry['value'].strip()):
+            retained.append(entry)
+        else:
+            corrections.append(entry)
     omitted=[e['id'] for e in entries if e['id'] not in available]
     updated=analyze(facts,retained,actor)
+    correction_ids={e['id'] for e in corrections}
+    count=len(updated['proposals'])
+    updated['proposals']=[p for p in updated['proposals'] if p['id'] not in correction_ids]
+    updated['proposal_total']-=count-len(updated['proposals'])
     updated.update(recovery_request=request,parent_plan=str(parent['id']))
     child,created=store.create(conn,query,cid,item,actor,key,dict(recovery_request=request))
     if created:
-        store.transition(conn,query,child,actor,'ready',dict(message=str(len(retained))+' dados reaproveitados; '+str(len(omitted))+' campos não reaproveitados por indisponibilidade na leitura atual. Confira e selecione novamente antes de enviar.',recovery=dict(retained=[e['id'] for e in retained],omitted=omitted)),data=updated)
+        store.transition(conn,query,child,actor,'ready',dict(message=str(len(retained))+' dados reaproveitados; '+str(len(omitted))+' campos indisponíveis; '+str(len(corrections))+' dados precisam de correção. Confira e selecione novamente antes de enviar.',recovery=dict(retained=[e['id'] for e in retained],omitted=omitted,corrections=corrections)),data=updated)
         store.transition(conn,query,parent,actor,'stale',dict(message='Nova revisão criada com leitura atualizada.',successor_plan=str(child['id'])))
     return child
