@@ -6,6 +6,7 @@ ITEMS = [
     ('resumo','Resumo','/painel/','M3 3v18h18M7 16v-5m5 5V7m5 9v-8'),
     ('prioridades','Minhas prioridades','/prioridades/','m12 3 3 6 6 1-4.5 4.5 1 6.5-5.5-3-5.5 3 1-6.5L3 10l6-1z'),
     ('anuncios','Anúncios','/anuncios/','M4 7h16v14H4zM3 3h18v4H3zM9 12h6'),
+    ('otimizador','Otimizador de Títulos','/otimizador-titulos/','M4 5h16M12 5v14M8 19h8'),
     ('full','Full e vendas','/full/','M3 5h11v13H3zM14 10h4l3 4v4h-7M6 18v2m12-2v2'),
     ('desempenho','Desempenho','/desempenho/','m3 17 6-6 4 3 8-10M15 4h6v6'),
     ('demandas','Demandas','/demandas/','M4 4h16v12H8l-4 4zM8 8h8M8 12h5'),
@@ -29,7 +30,7 @@ def render_store_sidebar(cid, cliente, secao, admin=False):
     items={item[0]:item for item in ITEMS}
     nav+=link('Visão geral','/painel/'+cid,items['resumo'][3],secao=='resumo')
     nav+=link('KEVIA','/ia-keiper/'+cid,items['prioridades'][3],secao=='ia')
-    groups=[('anuncios','Anúncios',['anuncios','desempenho','promocoes']),
+    groups=[('anuncios','Anúncios',['anuncios','otimizador','desempenho','promocoes']),
             ('vendas','Vendas',['vendas','full','auditoria_frete']),
             ('ads','Publicidade',['ads']),
             ('demandas','Gestão',['prioridades','demandas','custos'])]

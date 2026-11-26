@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Otimizador de Títulos Keiper",
+  "version": "0.2.0",
+  "description": "Lê resultados da busca pública do Mercado Livre a pedido do usuário.",
+  "permissions": [
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://lista.mercadolivre.com.br/*"
+  ],
+  "background": {
+    "service_worker": "search.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://app.keiperconsultoria.com.br/*"
+      ],
+      "include_globs": [
+        "https://app.keiperconsultoria.com.br/otimizador-titulos*"
+      ],
+      "js": [
+        "dashboard.js"
+      ]
+    }
+  ]
+}
