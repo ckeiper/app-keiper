@@ -1,0 +1,15 @@
+<link rel="stylesheet" href="/static/title_optimizer.css">
+<main class="title-tool" data-identity-path="{{identity_path}}" data-csrf="{{csrf}}">
+<header class="to-header"><div><p class="to-eyebrow">ANÚNCIOS · MERCADO LIVRE</p><h2>Otimizador de Títulos</h2><p>Encontre termos usados pelos concorrentes e construa seu título em até 60 caracteres.</p></div><span class="to-badge">Construção de títulos</span></header>
+<details class="to-setup"><summary id="title-extension-status">Verificando extensão de pesquisa…</summary><p>A extensão abre a busca do Mercado Livre no seu Chrome, percorre as páginas e devolve os títulos encontrados. Você inicia pelo botão abaixo.</p><ol><li><a href="/otimizador-titulos/extensao.zip">Baixar extensão Keiper</a> e extrair o ZIP.</li><li>Abrir <strong>chrome://extensions</strong>, ativar o modo do desenvolvedor e clicar em <strong>Carregar sem compactação</strong>.</li><li>Selecionar a pasta extraída e recarregar esta página.</li></ol></details>
+<section class="card to-editor"><div class="to-section-title"><span class="to-step">1</span><div><h3>Identifique o produto</h3><p>Confira o produto, a marca e o modelo que devem permanecer no título.</p></div></div>
+{{lookup}}
+<form id="title-search">
+<label for="title-original">Título original</label><textarea id="title-original" name="original" maxlength="300" rows="2" required placeholder="Cole o título atual do anúncio">{{title}}</textarea>
+<div class="title-fields"><div><label for="title-product">Produto e quantidade</label><input id="title-product" name="product" maxlength="100" required placeholder="Ex.: Kit 2 travesseiros"></div><div><label for="title-brand">Marca</label><input id="title-brand" name="brand" maxlength="60" placeholder="Ex.: Fibrasca"></div><div><label for="title-model">Modelo</label><input id="title-model" name="model" maxlength="60" placeholder="Ex.: Grafeno"></div></div>
+<p class="to-hint" id="title-identity-note">Na entrada manual, confirme a marca e o modelo; o título sozinho pode ser ambíguo.</p>
+<div class="to-actions"><button type="submit" id="title-submit">Buscar concorrentes</button><span>Meta: 30 a 50 anúncios comparáveis · ordem de relevância</span></div></form>
+<p id="title-status" role="status" aria-live="polite"></p>
+</section>
+<section class="card to-results" id="title-results" hidden></section>
+</main><script type="module" src="/static/title_optimizer_view.mjs"></script>

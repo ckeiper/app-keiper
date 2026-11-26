@@ -1,67 +1,67 @@
+importScripts('collector.js');
 const host = 'lista.mercadolivre.com.br';
 let searching = false;
 
-function readPage() {
-    const records = [];
-    for (const card of document.querySelectorAll('li.ui-search-layout__item')) {
-        if (!card.getClientRects().length || /\b(patrocinado|publicidade|promovido)\b/i.test(card.innerText)) continue;
-        const heading = card.querySelector('h2, h3');
-        const link = heading?.closest('a[href]') || heading?.querySelector('a[href]');
-        if (heading?.innerText && link) records.push({ title: heading.innerText, url: link.href });
-    }
-    const next = document.querySelector('a[rel="next"], .andes-pagination__button--next a');
-    return { records, next: next?.href };
-}
-
 async function navigate(tabId, url) {
     await new Promise((resolve, reject) => {
-        const finish = (error) => {
+        let done = false;
+        const finish = error => {
+            if (done) return;
+            done = true;
             clearTimeout(timer);
             chrome.tabs.onUpdated.removeListener(updated);
-            if (error) reject(error);
-            else resolve();
+            chrome.tabs.onRemoved.removeListener(removed);
+            if (error) reject(error); else resolve();
         };
-        const updated = (id, change) => {
-            if (id === tabId && change.status === 'complete') finish();
-        };
-        const timer = setTimeout(() => finish(new Error('tempo esgotado')), 12000);
+        const updated = (id, change) => { if (id === tabId && change.status === 'complete') finish(); };
+        const removed = id => { if (id === tabId) finish(new Error('A aba de pesquisa foi fechada.')); };
+        const timer = setTimeout(() => finish(new Error('O Mercado Livre não terminou de carregar a busca.')), 15000);
         chrome.tabs.onUpdated.addListener(updated);
+        chrome.tabs.onRemoved.addListener(removed);
         chrome.tabs.update(tabId, { url }).catch(finish);
     });
 }
 
 async function search(query) {
     const tab = await chrome.tabs.create({ active: false });
-    const records = [];
+    const records = []; const seen = new Set(); const visited = new Set();
     let next = 'https://' + host + '/' + encodeURIComponent(query.trim().replace(/\s+/g, '-'));
-    const visited = new Set();
+    let excludedSponsored = 0; let error = '';
     try {
-        while (next && !visited.has(next) && visited.size < 3 && records.length < 150) {
+        while (next && !visited.has(next) && visited.size < 5 && records.length < 240) {
             const url = new URL(next);
-            if (url.origin !== 'https://' + host) break;
+            if (url.origin !== 'https://' + host || url.username || url.password) { error = 'A paginação retornou um endereço não permitido.'; break; }
             visited.add(next);
             await navigate(tab.id, next);
-            const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: readPage });
-            if (!result.records.length) break;
-            records.push(...result.records);
+            const execution = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: readTitleSearchPage });
+            const result = execution?.[0]?.result;
+            if (!result || result.state === 'unavailable') { error = 'O Mercado Livre não disponibilizou a busca. Nenhuma tentativa automática adicional foi feita.'; break; }
+            if (!result.records.length) { error = 'A página não apresentou resultados legíveis. A coleta precisa ser conferida.'; break; }
+            excludedSponsored += result.excludedSponsored;
+            for (const record of result.records) {
+                const clean = new URL(record.url); clean.hash = '';
+                // Keep offer identifiers for the analyzer; strip tracking only for pagination dedup.
+                const key = clean.origin + clean.pathname + (clean.searchParams.get('pdp_filters') || clean.searchParams.get('item_id') || '');
+                if (!seen.has(key)) { seen.add(key); records.push(record); }
+                if (records.length >= 240) break;
+            }
             next = result.next;
         }
     } catch {
-        return { records, error: 'A busca foi interrompida pelo navegador ou pelo Mercado Livre.' };
+        error = 'A coleta foi interrompida pelo navegador ou pelo Mercado Livre.';
     } finally {
         await chrome.tabs.remove(tab.id).catch(() => {});
     }
-    return records.length ? { records } : { error: 'Não foi possível ler resultados da busca do Mercado Livre.' };
+    return { records, error, pages: visited.size, excludedSponsored, collectedAt: new Date().toISOString(), query };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, reply) => {
-    const url = new URL(sender.url || 'about:blank');
-    if (url.origin !== 'https://app.keiperconsultoria.com.br' || !/^\/otimizador-titulos(?:\/\d+)?$/.test(url.pathname)) return;
-    if (typeof message.query !== 'string' || !message.query.trim() || message.query.length > 240) return;
-    if (searching) {
-        reply({ error: 'Já há uma busca em andamento.' });
-        return;
-    }
+    let url;
+    try { url = new URL(sender.url || 'about:blank'); } catch { return; }
+    if (sender.id !== chrome.runtime.id || url.origin !== 'https://app.keiperconsultoria.com.br' || !/^\/otimizador-titulos(?:\/\d+)?$/.test(url.pathname)) return;
+    if (message?.type === 'ping') { reply({ ready: true, version: '0.2.0' }); return; }
+    if (message?.type !== 'search' || typeof message.query !== 'string' || !message.query.trim() || message.query.length > 240) return;
+    if (searching) { reply({ error: 'Já há uma busca em andamento.' }); return; }
     searching = true;
     search(message.query).then(reply).catch(() => reply({ error: 'Falha ao abrir a busca.' })).finally(() => { searching = false; });
     return true;

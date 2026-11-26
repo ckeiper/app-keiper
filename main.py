@@ -5945,7 +5945,7 @@ register_management(app, login_required, pode_ver_loja, banco, consultar, pagina
                     is_updating=lambda cid: cid in ATUALIZANDO)
 
 from title_optimizer_routes import register as register_title_optimizer
-register_title_optimizer(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja)
+register_title_optimizer(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja, resolve_token=token_atual, get=requests.get)
 
 from report_routes import register as register_reports
 register_reports(app, login_required, pode_ver_loja, banco, consultar, pagina, pagina_loja)
