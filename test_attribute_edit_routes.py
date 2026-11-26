@@ -50,6 +50,19 @@ class EditorRouteGuards(TestCase):
  def test_uuid_validation(self):
   self.assertTrue(valid_plan(PID));self.assertFalse(valid_plan('-'*36));self.assertFalse(valid_plan('not-a-plan'))
 
+ def test_manual_field_errors_reach_form_without_writing(self):
+  from attribute_manual import FieldValidationError
+  from test_attribute_batch import form
+  p=plan();p['data']=analyze(facts(description=''))
+  self.query.side_effect=[[dict(user_id=123,titulo='Produto',cliente='Loja',status='ativa')],[]]
+  data=form([('MATERIAL','Plástico','Fabricante')]);data.update(dict(_csrf='csrf',action='manual',plan=PID))
+  with patch('attribute_editor.store.locked',return_value=contextlib.nullcontext(None)),patch('attribute_editor.store.load',return_value=p),patch('attribute_manual.add',side_effect=FieldValidationError(['MATERIAL'])):
+   response=self.c.post(self.path,data=data)
+  self.assertEqual(response.status_code,200)
+  self.assertIn('aria-invalid="true"',response.text)
+  self.assertIn('value="Plástico"',response.text)
+  self.put.assert_not_called();self.get.assert_not_called()
+
 class EditorViewTests(TestCase):
  def test_explicit_review_no_default_selection_and_no_secret(self):
   p=plan();text=render(1,'MLB123','Produto','csrf','k'*24,p)
@@ -74,3 +87,13 @@ class EditorViewTests(TestCase):
   self.assertNotIn('Aplicar selecionadas',text);self.assertIn('O leitor foi atualizado',text);self.assertIn('Nova leitura necessária',text)
   p=plan();p['created_at']=1;text=render(1,'MLB123','P','csrf','k'*24,p)
   self.assertNotIn('Aplicar selecionadas',text);self.assertIn('A análise expirou',text);self.assertIn('Nova leitura necessária',text)
+
+class ManualErrorViewTests(TestCase):
+ def test_field_errors_keep_values_sources_and_highlight_only_invalid_input(self):
+  from test_attribute_batch import form
+  p=plan();p['data']=analyze(facts(description=''))
+  html=render(1,'MLB123','P','csrf','k'*24,p,manual_form=form([('MATERIAL','Plástico','<Fabricante>')]),manual_errors=['MATERIAL'])
+  self.assertIn('aria-invalid="true"',html)
+  self.assertIn('value="Plástico"',html)
+  self.assertIn('value="&lt;Fabricante&gt;"',html)
+  self.assertNotIn(' checked',html)

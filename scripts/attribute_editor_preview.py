@@ -4,8 +4,8 @@ from attribute_edit_view import render
 from test_attribute_completion import facts,analyze,definition,listing
 from copy import deepcopy
 base=analyze(facts(definitions=[definition(tags=dict(hidden=True))]))
-for mode in ('recovery-correction','official-options','hidden-list','initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline','conditional-read','conditional-review','conditional-unknown','conditional-xss','recovery','expired-recovery','stale-recovery','readback','readback-xss'):
-    plan=None;manual_form=None
+for mode in ('manual-correction','recovery-correction','official-options','hidden-list','initial','ready','empty','blocked','uncertain','confirmed','xss','prose','ambiguous','na','manual','manual-xss','manual-empty','variation','variation-confirmed','variation-unknown','variation-xss','bulk','bulk-error','common-prose','common-scoped','common-unclear','common-inline','conditional-read','conditional-review','conditional-unknown','conditional-xss','recovery','expired-recovery','stale-recovery','readback','readback-xss'):
+    plan=None;manual_form=None;manual_errors=()
     if mode!='initial':
         plan=dict(id='11111111-1111-4111-8111-111111111111',data=deepcopy(base),state=mode if mode in ('uncertain','confirmed') else 'ready',selected=[],result={})
         if mode in ('manual','manual-xss'):
@@ -73,5 +73,9 @@ for mode in ('recovery-correction','official-options','hidden-list','initial','r
     if mode=='recovery-correction':
         plan['data']=analyze(facts(description='',definitions=[definition(value_max_length=2),definition('WIDTH',name='Largura',value_type='number_unit',allowed_units=[dict(id='cm')])]),[dict(id='WIDTH',value='12 cm',note='Medido')],42)
         plan['result']={'recovery':{'corrections':[dict(id='MATERIAL',value='Plástico',note='<Fabricante>')], 'retained':['WIDTH'], 'omitted':[]}}
-    body=render(7,'MLB123','Produto de teste','csrf','k'*24,plan,manual_form=manual_form)
+    if mode=='manual-correction':
+        from test_attribute_batch import form
+        plan['data']=analyze(facts(description=''))
+        manual_form=form([('MATERIAL','Plástico','<Fabricante>')]);manual_errors=['MATERIAL']
+    body=render(7,'MLB123','Produto de teste','csrf','k'*24,plan,manual_form=manual_form,manual_errors=manual_errors)
     (dest/('attribute-editor-'+mode+'.html')).write_text(page('Completar ficha técnica',7,'Loja de teste','anuncios',body,refresh=False))

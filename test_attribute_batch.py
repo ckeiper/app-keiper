@@ -79,3 +79,13 @@ class BatchTests(unittest.TestCase):
  def test_view_caps_untrusted_recovery_rows(self):
   html=render(self.parent['data']['manual_fields'],'csrf',self.parent['id'],'k'*24,form([(str(i),'v','') for i in range(100)]))
   self.assertEqual(html.count('class="ae-manual-row"'),50);self.assertIn('class="ae-add-row" disabled',html)
+
+ def test_all_incompatible_values_are_identified_without_partial_draft(self):
+  from attribute_manual import FieldValidationError
+  self.facts['rules']['MATERIAL']['value_max_length']=2
+  self.parent['data']=analyze(self.facts)
+  with patch('attribute_manual.gather',return_value=self.facts),patch('attribute_manual.store.by_key',return_value=None),patch('attribute_manual.store.active',return_value=[]),patch('attribute_manual.store.create') as create,patch('attribute_manual.store.transition') as transition:
+   with self.assertRaises(FieldValidationError) as raised:
+    add(None,Mock(),7,'MLB123',42,self.parent,form([('MATERIAL','Plástico','Fabricante'),('WIDTH','12 kg','Medido')]),dict(status='ativa',user_id=123),lambda:'private',Mock())
+   self.assertEqual(set(raised.exception.field_ids),{'MATERIAL','WIDTH'})
+   create.assert_not_called();transition.assert_not_called()

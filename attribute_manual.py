@@ -1,8 +1,15 @@
 """Create a reviewed successor draft without writing to the marketplace."""
 import re
 import time
-from attribute_completion import analyze,gather,EXTRACTOR_VERSION
+from attribute_completion import analyze,gather,EXTRACTOR_VERSION,value_for
 import attribute_edit_store as store
+
+
+class FieldValidationError(ValueError):
+    def __init__(self, field_ids):
+        self.field_ids = tuple(field_ids)
+        message='Confira o campo destacado.' if len(self.field_ids)==1 else 'Confira os '+str(len(self.field_ids))+' campos destacados.'
+        super().__init__(message+' Valores e fontes foram mantidos para correção.')
 
 
 def add(conn,query,cid,item,actor,parent,form,shop,token,get):
@@ -26,6 +33,17 @@ def add(conn,query,cid,item,actor,parent,form,shop,token,get):
     if facts['fingerprint']!=data['fingerprint'] or facts['blocked']:
         store.transition(conn,query,parent,actor,'stale',dict(message='O anúncio ou suas regras mudaram. Faça uma nova leitura.'))
         return parent
+    fields={f['id']:f for f in data.get('manual_fields',[])}
+    invalid=[]
+    for entry in inputs:
+        field=fields.get(entry['id'])
+        if field is None:
+            raise ValueError('Campo indisponível para preenchimento nesta análise.')
+        rule=facts['rules'].get(field.get('attribute_id',entry['id']),{})
+        if not value_for(rule,entry['value'].strip()):
+            invalid.append(entry['id'])
+    if invalid:
+        raise FieldValidationError(invalid)
     updated=analyze(facts,inputs,actor)
     updated.update(manual_request=request,parent_plan=str(parent['id']))
     child,created=store.create(conn,query,cid,item,actor,key,dict(manual_request=request))
